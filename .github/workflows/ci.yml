@@ -1,0 +1,94 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
+        with:
+          version: 9.15.9
+          run_install: false
+      - name: Public frozen dependency install
+        run: |
+          mkdir -p .airig/ci
+          pnpm install --frozen-lockfile --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
+          echo 'install: passed'
+      - run: node scripts/security/gitleaks.mjs install
+      - name: Verify with private raw output
+        run: |
+          pnpm verify > .airig/ci/verify.log 2>&1 || { echo 'verify: blocked; private evidence retained'; exit 1; }
+          echo 'verify: passed'
+
+  security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      # On PRs only base-owned engines may certify candidate Git objects. An
+      # initial base without these controls fails: bootstrap needs local review.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: .airig/trusted
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.1
+      - run: node .airig/trusted/scripts/security/gitleaks.mjs install
+      - name: Trusted source and history scan
+        run: node .airig/trusted/scripts/security/git-privacy.mjs history HEAD
+      # Detection is not approval: protected changes require a separate human
+      # merge/publication gate, not a false secret finding or a blocked PR push.
+      - name: Report protected changes requiring independent human review
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BASE_OID: ${{ github.event.pull_request.base.sha }}
+          HEAD_OID: ${{ github.event.pull_request.head.sha }}
+        run: node .airig/trusted/scripts/security/git-privacy.mjs policy "$BASE_OID" "$HEAD_OID"
+
+  required:
+    if: ${{ always() }}
+    needs: [verify, security]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.1
+      # Inline fixed check, not an aggregate script supplied by the candidate.
+      - name: Require every expected job to succeed
+        env:
+          VELCRO_CI_NEEDS: ${{ toJSON(needs) }}
+        run: |
+          node --input-type=module -e '
+            let good = false;
+            try {
+              const n = JSON.parse(process.env.VELCRO_CI_NEEDS);
+              good = n && Object.keys(n).sort().join(",") === "security,verify"
+                && ["security", "verify"].every(k => n[k]?.result === "success");
+            } catch {}
+            console.log(good ? "required: passed" : "required: blocked");
+            process.exitCode = good ? 0 : 1;
+          '

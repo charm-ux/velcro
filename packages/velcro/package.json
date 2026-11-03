@@ -1,0 +1,7 @@
+{
+  "name": "@charm-ux/velcro",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Velcro component library (scaffold only; no components yet).",
+  "license": "UNLICENSED"
+}

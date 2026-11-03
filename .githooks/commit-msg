@@ -1,0 +1,1 @@
+output=$(node scripts/security/git-privacy.mjs message "$1" 2>&1) || { echo 'hook: required check failed' >&2; exit 1; }

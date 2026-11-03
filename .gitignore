@@ -1,0 +1,17 @@
+# Local agent runtime and scratch (never committed)
+.airig/
+.worktrees/
+
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tgz
+*.log
+
+# Local environment and caches
+.env
+.env.*
+.DS_Store
+.cache/
+.tmp/

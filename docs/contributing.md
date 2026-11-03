@@ -1,0 +1,159 @@
+# Contributing locally
+
+Use the pinned Node version in `.nvmrc` and pnpm version in `package.json`.
+Work only in a repository-local `.worktrees/` checkout; dependencies and scanner
+installation are per-worktree. `.npmrc` and the lockfile use only public npm.
+Run `pnpm install --frozen-lockfile` and acquire the pinned scanner with
+`node scripts/security/gitleaks.mjs install` when network acquisition is authorized.
+The installer verifies archive and executable checksums; never fabricate integrity
+values or weaken gates to accommodate a registry problem.
+
+## Explicit checks
+
+- `pnpm verify`: pinned tools, complete executable hook files, real scanner,
+  meaningful tests with zero skips, and the actual proposed index. Raw test output
+  stays under ignored `.airig/verify/`; summaries contain no raw tool errors.
+- `node scripts/security/privacy.mjs files <path...>`: working-copy content.
+- `node scripts/security/git-privacy.mjs staged`: all exact staged blobs/paths,
+  including an alternate `GIT_INDEX_FILE`, never substituted working-copy files.
+- `node scripts/security/git-privacy.mjs identity`: repository-local explicit
+  approved identity and effective author/committer, including environment overrides.
+- `node scripts/security/git-privacy.mjs message <file>`: exact message/footer text.
+- `node scripts/security/git-privacy.mjs history [revision-or-range]`: raw commit
+  metadata/messages and every source tree in the selected tip's full ancestry.
+  A range is deliberately stronger than a diff: its lower bound is not trusted to
+  conceal history. Replace refs, presentation settings and mailmaps cannot change
+  inspected objects; shallow repositories and legacy grafts are refused.
+- `node scripts/security/git-privacy.mjs pre-push [origin]`: consume Git's proposed
+  updates on stdin; accept one feature-branch creation or fast-forward update to
+  the same branch name on `origin`, never an ordinary direct push to `main`.
+  Inspect the supplied full OID, not the current named local branch, and scan its
+  full ancestry, metadata and ref name. Require a direct, already fetched
+  `refs/remotes/origin/main` commit included in that ancestry. For an update,
+  require the exact fetched `refs/remotes/origin/<feature>` OID to match Git's
+  proposed old OID; for creation, no existing fetched feature ref may conflict.
+  Missing, stale, symbolic or non-commit baselines fail. Deletion, bulk/mirror,
+  non-fast-forward, tag and other-remote updates are refused. This command never
+  fetches: refresh trusted refs separately when authorized, then check again.
+  The coordinator must use an explicit single feature refspec, never `--mirror`.
+  Git's hook protocol exposes ref updates, not the original command flags:
+  configured mirror mode and mirror/bulk ref sets are rejected, but an explicit
+  mirror invocation that happens to propose only the same allowed update cannot
+  be distinguished locally. Checking the authorized outbound command is still
+  required; the hook is not a generic command-authorization system.
+- `node scripts/security/git-privacy.mjs policy <base-oid> <head-oid>`: **report**
+  protected scanner, policy, workflow, hook, test and identity/tooling changes,
+  including edits later reverted. Exit 0 means the comparison completed, not
+  content clearance or human approval. A protected-change notice does not block
+  creating a privacy-clean PR branch; it requires separate human merge/publication
+  review. The pre-push command emits the same notice after mandatory data checks.
+
+Source publication supports UTF-8 regular text files only. Archives, binaries,
+symlinks, submodules, runtime material, tags and broad ref pushes are not certified.
+Content is bounded and secret-scanned with numbered text names so stock path
+exclusions cannot hide lockfiles or other source files. This is not a general
+release-archive processor. Build/pack output is local-only, not publication-approved.
+No package, site, test output, or workflow artifact is uploaded by this increment.
+
+## Hooks are explicit and shared
+
+Hook files are checked even when not installed; absence is never a successful
+check. Do **not** install while parallel worktrees lack the same engines and
+pinned scanner. After the manual initial trust anchor exists, coordinating all
+lanes and obtaining independent human review, use
+`pnpm hooks:install` to opt in with repository-local `core.hooksPath=.githooks`.
+The installer refuses a missing or symbolic fetched main baseline. That setting
+is shared across worktrees. It never changes global configuration.
+The three executable shell hooks omit interpreter paths and use Git's shell
+fallback; they run identity/staged, message, and proposed-OID guards respectively.
+Hooks are bypassable and never replace explicit checks before outbound operations.
+
+## Local development history versus publication
+
+Clean local commits require current-file privacy/secret checks, exact staged-object
+and effective-identity checks, message checks, and tests. They do not certify every
+ancestor of a private development branch. Pre-commit checks staged source;
+pre-push checks the proposed tip's ancestry. Never substitute one result for the
+other or add a skip-history switch.
+
+Keep private development history intact. Obsolete detector/test snapshots may
+continue to trigger privacy rules even after current source is corrected. Before
+first publication, the coordinator must construct a separately reviewed clean
+publication branch from the sanitized initial root and reviewed current tree.
+Scan that exact proposed public ancestry explicitly with `history <tip-oid>` before
+any outbound operation. A clean working tree, clean staged result, or local
+development commit is not publication approval. Classify findings privately as
+real sensitive values versus detector/test literals; do not broaden exceptions or
+rewrite every active branch merely to silence history checks.
+
+## Manual first-publication trust anchor
+
+The first public main cannot depend on a fetched baseline that does not yet exist.
+There is deliberately no bootstrap-approval flag or alternate unscanned push path.
+Before the repository exists, the owner/coordinator must independently review the
+clean export, select the single allowed initial `refs/heads/main` and its full OID,
+and explicitly authorize
+that exact initial publication. Freeze those refs and run trusted `history <oid>`
+for every proposed public tip, with the same source, secret, author/committer,
+message and complete ancestry checks used for routine publication. Verify the
+frozen ref-to-OID mapping again immediately before the authorized operation; any
+change invalidates the evidence and approval. Scan outbound text separately too.
+Nothing in this document authorizes an outbound command or claims GitHub controls
+already exist.
+
+Required hooks are installed only after the clean main exists and its separately
+authorized fetch establishes the trusted `origin/main` ref. A local ref's existence
+does not prove its origin or human approval; that initial trust is the owner's
+explicit external responsibility. Future authorized fetches update the anchor;
+routine feature pushes must include that known main. The routine pre-push guard
+still rejects direct main updates. Bootstrap publication and later GitHub web
+merges are distinct operations, not disabled privacy checks.
+
+## Historical platform metadata and future merge commands
+
+Local effective author and committer must always equal the owner identity in the
+trusted policy. Raw historical commits additionally permit only the canonical
+GitHub web-merge **committer** pair encoded in the guard: name `GitHub`, email
+assembled as `['noreply', 'github.com'].join('@')`. This is a narrow public-platform
+metadata exception, not an email-domain allowance. GitHub is not an allowed author;
+mismatched names, emails and roles fail. Messages, footers, source and filenames
+receive no platform-email exception. Metadata alone does not authenticate that
+GitHub created a commit.
+
+When a future merge is explicitly authorized, resolve `APPROVED_AUTHOR_EMAIL`
+from the independently trusted owner's policy, never a personal Git default, and
+bind the operation to the reviewed PR head. The intended command shape is:
+
+```sh
+gh pr merge "$PR_NUMBER" --squash --author-email "$APPROVED_AUTHOR_EMAIL" --match-head-commit "$REVIEWED_HEAD_OID"
+```
+
+This command is not run by the local tooling. Before routine remote merges are
+approved, verify the platform's actual resulting raw commit author/committer and
+message against these constraints. An unexpected author/footer or platform pair
+is a blocker; do not broaden the exception to make a generated commit pass.
+
+## CI and trust limitations
+
+CI pins actions, Node and pnpm; public-npm frozen install remains required. The
+`required` aggregate runs with `always()` and accepts exactly `verify` and
+`security` with successful results. Missing, skipped, failed or cancelled jobs
+block. Security scans PR objects with engines from the base checkout, not
+candidate-modified engines; a base lacking the guard fails closed.
+
+Protected changes are reported for a separate, mandatory human merge/publication
+gate; green data checks do not satisfy that gate. Candidate policy files are
+scanned as data with base-owned rules, never adopted as active policy. Exact owner
+identity and standard interpreter metadata in the supported policy schema are
+recognized without exempting arbitrary field values or new exception targets.
+Malformed/unsupported policies fail conservatively. There is no self-approval
+environment flag. Independent human review and a separately approved trusted-base
+transition remain necessary for bootstrap and future protected updates. A base
+without the scanner is an explicit manual initial CI-trust transition, not an
+always-green substitute job. The current public commit identity does not provide a
+separate PR author; native GitHub self-approval is not possible. Workflow changes
+can also change the workflow gate itself, so external rules/review controls must
+be installed and proven on GitHub before claiming enforcement. Local tests do not
+prove remote CI, rulesets or approval behavior. First push and all publication
+remain blocked pending full source/history checks, independent review and explicit
+authorization. Never bypass a failed scanner or missing approval.

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "approvedIdentity": {
+    "name": "beatzball",
+    "email": "38116726+beatzball@users.noreply.github.com"
+  },
+  "forbiddenDirectories": [
+    ".airig",
+    ".worktrees",
+    ".git",
+    ".opencode",
+    ".claude",
+    ".agents",
+    ".cache",
+    "node_modules",
+    "coverage",
+    "test-results",
+    "playwright-report",
+    "dist",
+    "build"
+  ],
+  "exceptions": [
+    {
+      "path": "scripts/security/privacy.mjs",
+      "rule": "machine-path",
+      "line": 1,
+      "text": "#!/usr/bin/env node",
+      "purpose": "Exact standard Node interpreter syntax, only on the first line of this script."
+    }
+  ]
+}
