@@ -230,6 +230,10 @@ supported import shapes; stock FUI/CUI generator output is not presumed compatib
 
 ### 5.3 Registration is an early gate
 
+See [Registration, shared project state, and barrel entry points](../architecture/registration-and-entrypoints.md)
+for the inspected core/FUI/CUI patterns, the distinction between class and registering
+barrels, and the verification checklist to retain as this architecture evolves.
+
 Observed in `core/packages/core/src/utilities/scope.ts` and `project.ts`:
 
 - scope construction uses singleton state;
