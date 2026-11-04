@@ -36,6 +36,7 @@ Work in a repository-local `.worktrees/<branch-dir>` checkout (see [AGENTS.md](A
 pnpm install --frozen-lockfile
 pnpm --filter @velcro/docs run build     # builds @charm-ux/velcro, then generates the static site in packages/docs/dist/static
 pnpm --filter @velcro/docs run preview   # serves that output on port 4321 (set PORT to change)
+pnpm --filter @velcro/docs run build:prefixed   # same site for a project URL prefix (default /velcro) in dist/static-prefixed
 ```
 
 The preview server binds to the loopback interface only. Keep it that way: it is a small local file server for the
@@ -46,7 +47,7 @@ static build, not a hosting feature, so do not expose it on other interfaces.
 ```sh
 pnpm test                 # Node tests under tests/
 pnpm verify:source        # pinned tools, hooks, scanner, tests, proposed index
-pnpm verify:product       # build, static build, typecheck and the Chromium Playwright suite
+pnpm verify:product       # build, root and prefixed static builds, typecheck and the Chromium Playwright suite
 pnpm verify               # both of the above
 ```
 

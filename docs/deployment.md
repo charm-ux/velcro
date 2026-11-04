@@ -1,0 +1,71 @@
+# Deploying the documentation site to GitHub Pages
+
+Status: prepared, **never deployed**. The first real deployment needs explicit owner approval, and Pages must be
+enabled with the `github-pages` environment restricted to `main` (repository settings, not part of this change).
+
+## Workflow
+
+`.github/workflows/pages.yml` runs only through a manual `workflow_dispatch` on `main`: there is no push, pull-request or
+schedule trigger and no input. The `build` job (read-only permissions) checks out the dispatched SHA, installs with the
+frozen lockfile from the public registry, runs the history scan, `verify:source`, `verify:product` (which builds and
+browser-tests the project-site output, `LITRO_BASE_PATH=/velcro`) and runs the site preparation on that same output. Only then does it upload the Pages
+artifact. The `deploy` job is the only one with `pages: write` and `id-token: write`; it runs just the pinned
+`actions/deploy-pages` and executes no repository scripts. Deployments are serialized and never cancelled.
+`ci.yml` runs the same preparation (no upload) on every PR.
+
+## Site preparation (`node scripts/site/prepare.mjs`)
+
+1. The docs build records its client module/package closure (`packages/docs/closure-plugin.ts`) into ignored
+   `packages/docs/dist/closure/`: logical ids, per-package name/version/declared license and the sha256 of every emitted
+   file. No source text, no source maps, no absolute paths. Injected helpers are classified explicitly; anything
+   unrecognised blocks.
+2. `THIRD_PARTY_RUNTIME_NOTICES.md` is generated from that closure (`scripts/site/notices.mjs`): exact names and versions,
+   the license text each package requires, provenance where it is not the package's own file. It fails on a missing,
+   unrecognised or mismatched license. It is separate from the source notices in `THIRD_PARTY_NOTICES.md`.
+3. A fresh private directory (`.airig/site/<n>/site`) is staged from `dist/static-prefixed` with a text-only allowlist
+   (`*.html`, `_litro/**.js|css`, the source notices), bounded in entries, depth, file and total size. Symlinks, special
+   files, maps, `sourceMappingURL`, archives, images, other formats and unsafe names are rejected. Only `nitro.json` and
+   the byte-identical duplicate `_litro/THIRD_PARTY_NOTICES.md` are omitted. `404.html`, the runtime notices and an empty
+   `.nojekyll` are added. Shipped bundle files must match the closure hashes exactly.
+4. The exact staged bytes and every outbound name are scanned with the repository's privacy rules (logical `site/<path>`
+   labels) and the pinned Gitleaks engine, with no exclusions. Any finding, missing scanner or incomplete scan blocks, and
+   the staged tree is re-hashed afterwards. `manifest.json` records per-file and aggregate hashes, the source SHA (clean
+   tracked tree required) and the closure hash. A failure removes all partial output.
+
+`@charm-ux/core` 0.5.2 ships no license file. Its notice is a **curated fallback**: standard MIT text credited to
+`charm-ux`, as its official tagged README does, with the owner's explicit approval; no year or other holder is asserted.
+
+The `__decorate` helper has narrow, evidence-bound coverage. The oxc runtime source copies it from Microsoft TypeScript's
+emit helpers (commit `d85767a`, Apache-2.0). Three things are checked, and anything else blocks preparation:
+
+- **Bundler-injected copy** (`@oxc-project+runtime@0.139.0/helpers/esm/decorate`): bound to the exact helper id and version, the hash
+  of the module source the build saw, the hash of the body embedded in the installed rolldown, and the hash of each text shipped:
+  the TypeScript Apache-2.0 text (words unchanged; only line endings and trailing spaces normalized; the retrieved file's hash is
+  recorded; it contains no copyright line and none is invented), the oxc project's MIT license at the pinned tag, and the installed
+  rolldown 1.1.5 LICENSE (the bundler whose dist injects the bytes). Any other helper of that package, an ordinary module of it mixed
+  in, another version, or a changed body or license blocks.
+- **Compiled-in copies**: the same body is emitted by tsc inside ordinary modules (Velcro's own output, `@charm-ux/core`,
+  `@beatzball/litro`). The build records, per module, whether its source holds exactly the pinned TypeScript body; the notices name these
+  carriers with module counts under the TypeScript attribution, give the emitting compiler version only where known (Velcro: the
+  workspace's pinned `typescript`), and state it is not recorded for the others. A module with any other decorate form blocks.
+- **Shipped bytes**: preparation counts the helper's API mentions in the staged JavaScript and requires exactly the recorded copies plus
+  the one reviewed non-copy use (Lit's `Reflect.decorate` feature check, pinned by package, version, module and hash). An extra copy
+  blocks.
+
+No Babel attribution is claimed and no legal conclusion is drawn. Remaining gap: the license files inside the published runtime
+package were not retrieved; that package is not what ships. This coverage is **not** covered by the owner's core 0.5.2 approval and
+needs human review before first deployment. Velcro itself stays UNLICENSED.
+
+## Tested-bytes binding
+
+`pnpm verify:product` records, before the browser checks, the hash of every file in `dist/static-prefixed` (HTML included)
+and of the closure record. It deletes any earlier evidence first, re-reads both after the checks pass, and only then writes
+`.airig/product/tested-prefixed.json` (source SHA, base, hashes). Preparation refuses to stage unless that evidence exists,
+matches HEAD and the base, and every staged byte and the closure hash equal it. The source must also have been clean (no tracked change, no non-ignored untracked file) and the same commit at the start, at the
+snapshot and after the checks; otherwise `verify:product` still passes for local development but records no evidence, so a build from dirty
+source that is reverted afterwards cannot be prepared. Nothing is rebuilt between verification and
+preparation in either workflow. The closure record is read once (bounded), that buffer is hashed and parsed, and it is
+compared again after the scans.
+
+The upload action runs with `include-hidden-files: true` so the empty `.nojekyll` marker is included; only the vetted
+staged directory is uploaded.

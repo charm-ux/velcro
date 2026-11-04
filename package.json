@@ -12,6 +12,7 @@
     "verify": "pnpm verify:source && pnpm verify:product",
     "verify:source": "node scripts/verify.mjs",
     "verify:product": "node scripts/verify-product.mjs",
+    "site:prepare": "node scripts/site/prepare.mjs",
     "hooks:install": "node scripts/install-hooks.mjs --local",
     "test": "node --test \"tests/**/*.test.mjs\"",
     "changeset": "changeset",

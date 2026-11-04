@@ -69,7 +69,9 @@ test('plain, encoded and symlink escapes to an existing outside file get exactly
 
 test('negative control: removing the containment guard makes the escape check fail', async () => {
   const source = readFileSync(previewScript, 'utf8');
-  const mutated = source.replace(/export function isInside\([^)]*\) \{[\s\S]*?\n\}/, 'export function isInside() {\n  return true;\n}');
+  // The mutant lives in a temp directory, so its relative import of the base-path validator must become absolute.
+  const siteBase = pathToFileURL(fileURLToPath(new URL('../../packages/docs/site-base.ts', import.meta.url))).href;
+  const mutated = source.replace("'../site-base.ts'", JSON.stringify(siteBase)).replace(/export function isInside\([^)]*\) \{[\s\S]*?\n\}/, 'export function isInside() {\n  return true;\n}');
   assert.notEqual(mutated, source, 'guard not found; update this control');
   const dir = mkdtempSync(join(tmpdir(), 'velcro-mutant-'));
   const file = join(dir, 'preview.mjs');
