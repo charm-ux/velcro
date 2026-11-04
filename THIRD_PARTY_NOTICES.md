@@ -16,10 +16,14 @@ shipped with it. No built artifact is published or deployed today.
 
 - Source: the `@shoelace-style/shoelace` 2.20.1 release (https://github.com/shoelace-style/shoelace).
 - Used in: `packages/velcro/src/components/button/button.ts` (API documentation wording: class, property, event,
-  slot and part descriptions adapted from `src/components/button/button.component.ts`) and
+  slot and part descriptions adapted from `src/components/button/button.component.ts`),
+  `packages/velcro/src/components/spinner/spinner.ts` (API documentation wording, and the rendered structure: an svg
+  `base` part with `role="progressbar"` and a track and an indicator circle, adapted from
+  `src/components/spinner/spinner.component.ts`), `packages/velcro/src/components/spinner/spinner.styles.ts`
+  (styles adapted from `src/components/spinner/spinner.styles.ts` with the changes listed in its header) and
   `packages/velcro/themes/light.css` (token names, and values written to match `src/themes/light.css`; not
-  mechanically diffed). The button implementation and styles are original and built on `@charm-ux/core`; no
-  Shoelace runtime or source files are included.
+  mechanically diffed). The button implementation and styles are original and built on `@charm-ux/core`, and the
+  spinner is built on the `@charm-ux/core` spinner; no Shoelace runtime or source files are included.
 - The 2.20.1 release carries no NOTICE file. Its license text, verbatim:
 
 ```text
