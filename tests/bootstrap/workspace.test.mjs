@@ -46,6 +46,7 @@ test('workspace file lists packages', () => {
 const prototypeExports = {
   '.': { types: './dist/index.d.ts', import: './dist/index.js' },
   './button': { types: './dist/components/button/index.d.ts', import: './dist/components/button/index.js' },
+  './spinner': { types: './dist/components/spinner/index.d.ts', import: './dist/components/spinner/index.js' },
   './themes/light.css': './themes/light.css',
   './package.json': './package.json',
 };

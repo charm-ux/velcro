@@ -17,7 +17,7 @@ export class HomePage extends LitElement {
       html`
         <h1>Velcro</h1>
         <p>Shoelace-style web components built on <code>@charm-ux/core</code> and Lit. This site is a private prototype.</p>
-        <p>Implemented so far: <a href="/components/button"><code>&lt;sl-button&gt;</code></a>.</p>
+        <p>Implemented so far: <a href="/components/button"><code>&lt;sl-button&gt;</code></a>, <a href="/components/spinner"><code>&lt;sl-spinner&gt;</code></a>.</p>
       `,
       false
     );
