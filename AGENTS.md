@@ -39,7 +39,8 @@ Run these explicitly and keep the evidence tied to the exact content/head:
 - `node scripts/security/gitleaks.mjs install` — acquire the pinned scanner into ignored scratch (once)
 - `node scripts/security/gitleaks.mjs dir <path>` / `git <repo> [range]` — secret scan
 - `node scripts/security/git-privacy.mjs staged | identity | message <file> | history [range] | pre-push`
-- `node scripts/security/artifacts.mjs <path...>` — PR/release text and packages
+- `node scripts/security/artifacts.mjs <path...>` — explicit plain UTF-8 `.txt`/`.md` outbound text
+  (PR title/body, release notes) only; archives, images, packages and site artifacts are not supported
 
 Run them before staging, committing, pushing, opening PRs, uploading artifacts,
 or publishing. These tools arrive with the privacy tasks; until a check exists

@@ -14,6 +14,22 @@ values or weaken gates to accommodate a registry problem.
   meaningful tests with zero skips, and the actual proposed index. Raw test output
   stays under ignored `.airig/verify/`; summaries contain no raw tool errors.
 - `node scripts/security/privacy.mjs files <path...>`: working-copy content.
+- `node scripts/security/artifacts.mjs <path...>`: explicit outbound **plain text**,
+  such as a PR title/body or release notes saved as `.txt` or `.md` files. It runs
+  the trusted privacy rules and the pinned Gitleaks scan over private in-memory
+  snapshots of the exact bytes (numbered `.txt` copies, so stock path exclusions
+  cannot apply; any exclusion or incomplete scan fails) and, when clean, prints
+  each input's byte/line counts and SHA-256 plus an ordered-set hash. A clean
+  result applies only to those exact bytes: send the same bytes you scanned, and
+  rescan after any edit or tool-side reformatting. At most 16 inputs, 1 MiB each,
+  4 MiB total. Directories, symlinks, special files, archives, images, binaries,
+  other file types, empty, oversized, non-UTF-8 and unreadable inputs fail closed,
+  and there are no options or skip flags. Output is fixed text (logical labels such
+  as `outbound/text-1.txt`, rule names, line numbers, counts); matched text, input
+  paths and raw errors are never printed. Exit 0 clean, 1 findings, 2 failure. This
+  is **not** artifact, bundle, package or site certification, it never sends or
+  uploads anything, and pattern scanning does not detect all credentials or personal
+  data. Archives, screenshots and package/site artifacts remain gated.
 - `node scripts/security/git-privacy.mjs staged`: all exact staged blobs/paths,
   including an alternate `GIT_INDEX_FILE`, never substituted working-copy files.
 - `node scripts/security/git-privacy.mjs identity`: repository-local explicit
@@ -97,7 +113,8 @@ that exact initial publication. Freeze those refs and run trusted `history <oid>
 for every proposed public tip, with the same source, secret, author/committer,
 message and complete ancestry checks used for routine publication. Verify the
 frozen ref-to-OID mapping again immediately before the authorized operation; any
-change invalidates the evidence and approval. Scan outbound text separately too.
+change invalidates the evidence and approval. Scan outbound text separately too,
+with `artifacts.mjs` on the exact final bytes (plain text only).
 Nothing in this document authorizes an outbound command or claims GitHub controls
 already exist.
 
