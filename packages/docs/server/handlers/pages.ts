@@ -1,0 +1,83 @@
+/*
+ * Derived from @beatzball/create-litro 0.15.3, fullstack recipe template file `dist/recipes/fullstack/template/server/routes/[...].ts`
+ * (Litro, Copyright 2026 beatzball, Apache License 2.0). See THIRD_PARTY_NOTICES.md.
+ * Changes: relocated to server/handlers/pages.ts (registered explicitly in nitro.config.ts); header added only.
+ */
+import { defineEventHandler, setResponseHeader, setResponseStatus, getRequestURL } from 'h3';
+import { createPageHandler } from '@beatzball/litro/runtime/create-page-handler.js';
+import { normalizePathname } from '@beatzball/litro';
+import type { LitroRoute } from '@beatzball/litro';
+import { routes, pageModules } from '#litro/page-manifest';
+
+function matchRoute(
+  pathname: string,
+): { route: LitroRoute; params: Record<string, string> } | undefined {
+  for (const route of routes) {
+    if (route.isCatchAll) return { route, params: {} };
+
+    if (!route.isDynamic) {
+      if (pathname === route.path) return { route, params: {} };
+      continue;
+    }
+
+    // Use named capture groups so param values are automatically mapped to names.
+    // Only the three param forms become capture groups. Every literal run
+    // between them is escaped, so a bracket or a dot in a static part of
+    // the path matches itself instead of acting as regex syntax. Unescaped,
+    // '/@[handle]/:id' matched '/@h/123' as a character class (issue 234).
+    const regexStr =
+      '^' +
+      route.path
+        .split(/(:[^/]+)/)
+        .map((part, i) =>
+          i % 2 === 1
+            ? part
+                .replace(/^:([^/]+)\(\.\*\)\*$/, '(?<$1>.+)') // :param(.*)* — catch-all
+                .replace(/^:([^/?]+)\?$/, '(?<$1>[^/]*)?') // :param? — optional
+                .replace(/^:([^/]+)$/, '(?<$1>[^/]+)') // :param — required
+            : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+        )
+        .join('') +
+      '$';
+
+    try {
+      const match = pathname.match(new RegExp(regexStr));
+      if (match) return { route, params: (match.groups ?? {}) as Record<string, string> };
+    } catch {
+      // malformed pattern — skip
+    }
+  }
+  return undefined;
+}
+
+export default defineEventHandler(async (event) => {
+  // Canonicalize before matching: '/docs/a/' and '/docs/a' are one page.
+  // The client router strips the same trailing slash, so both halves agree
+  // (issue 203). A mismatch renders a blank 200 page, not an error.
+  const pathname = normalizePathname(getRequestURL(event).pathname);
+  const result = matchRoute(pathname);
+
+  if (!result) {
+    // A miss has to say 404 in the status, not only in the body. Without
+    // this the 404 page goes out 200 OK, so crawlers index it and a
+    // prerender counts it as a real page.
+    setResponseStatus(event, 404);
+    setResponseHeader(event, 'content-type', 'text/html; charset=utf-8');
+    return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8" /><title>404</title></head>
+<body><h1>404 — Not Found</h1><p>No page matched <code>${pathname}</code>.</p></body>
+</html>`;
+  }
+
+  const { route: matched, params } = result;
+
+  // Populate route params (e.g. slug from /blog/:slug) on the event context
+  // so pageData fetchers can access them via event.context.params.
+  event.context.params = { ...event.context.params, ...params };
+
+  const handler = createPageHandler({
+    route: matched,
+    pageModule: pageModules[matched.filePath],
+  });
+  return handler(event);
+});

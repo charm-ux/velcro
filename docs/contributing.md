@@ -10,7 +10,15 @@ values or weaken gates to accommodate a registry problem.
 
 ## Explicit checks
 
-- `pnpm verify`: pinned tools, complete executable hook files, real scanner,
+- `pnpm verify` runs `verify:source` then `verify:product`. `verify:product`
+  builds the library, statically builds the docs (which generates the type inputs),
+  type-checks the docs, then runs the
+  Chromium-only Playwright suite (at least eight tests, no failures, flakes or
+  skips, fresh report required). Raw output stays in ignored `.airig/product/`.
+  Install the browser once with `pnpm exec playwright install chromium` (add
+  `--with-deps` on Linux); it is never installed automatically. Firefox/WebKit are
+  not covered.
+- `pnpm verify:source`: pinned tools, complete executable hook files, real scanner,
   meaningful tests with zero skips, and the actual proposed index. Raw test output
   stays under ignored `.airig/verify/`; summaries contain no raw tool errors.
 - `node scripts/security/privacy.mjs files <path...>`: working-copy content.
@@ -153,7 +161,7 @@ is a blocker; do not broaden the exception to make a generated commit pass.
 ## CI and trust limitations
 
 CI pins actions, Node and pnpm; public-npm frozen install remains required. The
-`required` aggregate runs with `always()` and accepts exactly `verify` and
+`required` aggregate runs with `always()` and accepts exactly `verify`, `product` and
 `security` with successful results. Missing, skipped, failed or cancelled jobs
 block. Security scans PR objects with engines from the base checkout, not
 candidate-modified engines; a base lacking the guard fails closed.

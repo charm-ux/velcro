@@ -1,0 +1,68 @@
+/*
+ * Velcro light theme (prototype). Defines only the Shoelace-named design tokens that the
+ * implemented components read. It is not a complete Shoelace theme and there is no dark theme yet.
+ *
+ * Token names, and values written to match Shoelace's published light theme, follow Shoelace v2.20.1
+ * (src/themes/light.css), Copyright (c) 2020 A Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md.
+ * Values were not mechanically diffed against upstream.
+ */
+:root,
+:host,
+.sl-theme-light {
+  color-scheme: light;
+
+  --sl-color-primary-50: #f0f9ff;
+  --sl-color-primary-100: #e0f2fe;
+  --sl-color-primary-300: #7dd3fc;
+  --sl-color-primary-400: #38bdf8;
+  --sl-color-primary-500: #0ea5e9;
+  --sl-color-primary-600: #0284c7;
+  --sl-color-primary-700: #0369a1;
+
+  --sl-color-success-500: #22c55e;
+  --sl-color-success-600: #16a34a;
+  --sl-color-success-700: #15803d;
+
+  --sl-color-warning-500: #f59e0b;
+  --sl-color-warning-600: #d97706;
+  --sl-color-warning-700: #b45309;
+
+  --sl-color-danger-500: #ef4444;
+  --sl-color-danger-600: #dc2626;
+  --sl-color-danger-700: #b91c1c;
+
+  --sl-color-neutral-0: #fff;
+  --sl-color-neutral-100: #f4f4f5;
+  --sl-color-neutral-300: #d4d4d8;
+  --sl-color-neutral-500: #71717a;
+  --sl-color-neutral-600: #52525b;
+  --sl-color-neutral-700: #3f3f46;
+  --sl-color-neutral-900: #18181b;
+  --sl-color-neutral-1000: #000;
+
+  --sl-font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --sl-font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --sl-font-size-small: 0.875rem;
+  --sl-font-size-medium: 1rem;
+  --sl-font-size-large: 1.25rem;
+  --sl-font-weight-semibold: 500;
+
+  --sl-spacing-small: 0.75rem;
+  --sl-spacing-medium: 1rem;
+  --sl-spacing-large: 1.25rem;
+
+  --sl-border-radius-pill: 9999px;
+  --sl-transition-x-fast: 150ms;
+
+  --sl-input-font-family: var(--sl-font-sans);
+  --sl-input-border-width: 1px;
+  --sl-input-height-small: 1.875rem;
+  --sl-input-height-medium: 2.5rem;
+  --sl-input-height-large: 3.125rem;
+  --sl-input-border-radius-small: 0.1875rem;
+  --sl-input-border-radius-medium: 0.25rem;
+  --sl-input-border-radius-large: 0.34375rem;
+
+  --sl-focus-ring: solid 3px #38bdf866;
+  --sl-focus-ring-offset: 1px;
+}

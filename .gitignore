@@ -9,6 +9,10 @@ coverage/
 *.tgz
 *.log
 
+# Browser test output
+test-results/
+playwright-report/
+
 # Local environment and caches
 .env
 .env.*

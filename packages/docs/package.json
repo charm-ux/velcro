@@ -1,0 +1,29 @@
+{
+  "name": "@velcro/docs",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Private Litro static documentation site for Velcro (prototype).",
+  "type": "module",
+  "imports": {
+    "#litro/page-manifest": "./server/stubs/page-manifest.ts"
+  },
+  "scripts": {
+    "generate:examples": "node scripts/generate-examples.mjs",
+    "build": "pnpm --filter @charm-ux/velcro run build && node scripts/generate-examples.mjs && litro generate",
+    "preview": "node ./scripts/preview.mjs",
+    "typecheck": "node scripts/generate-examples.mjs && tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@beatzball/litro": "0.17.4",
+    "@charm-ux/velcro": "workspace:*",
+    "@lit-labs/ssr": "3.3.1",
+    "@lit-labs/ssr-client": "1.1.8",
+    "h3": "1.15.11",
+    "lit": "3.3.3"
+  },
+  "devDependencies": {
+    "nitropack": "2.13.5",
+    "vite": "8.1.6"
+  }
+}
