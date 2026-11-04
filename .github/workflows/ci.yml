@@ -33,7 +33,7 @@ jobs:
       - run: node scripts/security/gitleaks.mjs install
       - name: Verify with private raw output
         run: |
-          pnpm verify > .airig/ci/verify.log 2>&1 || { echo 'verify: blocked; private evidence retained'; exit 1; }
+          pnpm verify:source > .airig/ci/verify.log 2>&1 || { echo 'verify: blocked; private evidence retained'; exit 1; }
           echo 'verify: passed'
 
   security:
@@ -68,9 +68,41 @@ jobs:
           HEAD_OID: ${{ github.event.pull_request.head.sha }}
         run: node .airig/trusted/scripts/security/git-privacy.mjs policy "$BASE_OID" "$HEAD_OID"
 
+  product:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
+        with:
+          version: 9.15.9
+          run_install: false
+      - name: Public frozen dependency install
+        run: |
+          mkdir -p .airig/ci
+          pnpm install --frozen-lockfile --registry=https://registry.npmjs.org/ > .airig/ci/product-install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
+          echo 'install: passed'
+      - name: Install Chromium and system dependencies (disposable runner)
+        run: |
+          pnpm exec playwright install --with-deps chromium > .airig/ci/browser.log 2>&1 || { echo 'browser setup: blocked; private evidence retained'; exit 1; }
+          echo 'browser setup: passed'
+      - name: Product verification (Chromium only)
+        run: |
+          mkdir -p .airig/ci
+          pnpm verify:product > .airig/ci/product.log 2>&1 || { echo 'product: blocked; private evidence retained'; exit 1; }
+          echo 'product: passed'
+
   required:
     if: ${{ always() }}
-    needs: [verify, security]
+    needs: [verify, product, security]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -86,8 +118,8 @@ jobs:
             let good = false;
             try {
               const n = JSON.parse(process.env.VELCRO_CI_NEEDS);
-              good = n && Object.keys(n).sort().join(",") === "security,verify"
-                && ["security", "verify"].every(k => n[k]?.result === "success");
+              good = n && Object.keys(n).sort().join(",") === "product,security,verify"
+                && ["security", "verify", "product"].every(k => n[k]?.result === "success");
             } catch {}
             console.log(good ? "required: passed" : "required: blocked");
             process.exitCode = good ? 0 : 1;

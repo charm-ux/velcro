@@ -2,6 +2,39 @@
   "name": "@charm-ux/velcro",
   "version": "0.1.0",
   "private": true,
-  "description": "Velcro component library (scaffold only; no components yet).",
-  "license": "UNLICENSED"
+  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; button only).",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./button": {
+      "types": "./dist/components/button/index.d.ts",
+      "import": "./dist/components/button/index.js"
+    },
+    "./themes/light.css": "./themes/light.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "themes",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/components/*/index.js",
+    "*.css"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "generate": "plop --plopfile plopfile.mjs"
+  },
+  "dependencies": {
+    "@charm-ux/core": "0.5.2",
+    "lit": "3.3.3"
+  }
 }

@@ -1,0 +1,26 @@
+<div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap">
+  <sl-button id="demo-primary" variant="primary">
+    <span slot="prefix" aria-hidden="true">★</span>
+    Primary
+  </sl-button>
+  <sl-button id="demo-default">Default</sl-button>
+  <sl-button id="demo-disabled" disabled>Disabled</sl-button>
+  <sl-button variant="success" pill>
+    Pill
+    <span slot="suffix" aria-hidden="true">→</span>
+  </sl-button>
+  <sl-button variant="danger" outline size="small">Small outline</sl-button>
+</div>
+<p>Primary clicks: <output id="demo-count">0</output>. Disabled clicks: <output id="demo-disabled-count">0</output>.</p>
+<script type="module">
+  const count = document.querySelector('#demo-count');
+  const disabledCount = document.querySelector('#demo-disabled-count');
+  let clicks = 0;
+  let disabledClicks = 0;
+  document.querySelector('#demo-primary').addEventListener('click', () => {
+    count.textContent = String(++clicks);
+  });
+  document.querySelector('#demo-disabled').addEventListener('click', () => {
+    disabledCount.textContent = String(++disabledClicks);
+  });
+</script>

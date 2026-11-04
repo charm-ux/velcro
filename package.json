@@ -9,7 +9,9 @@
     "node": "24.22.1"
   },
   "scripts": {
-    "verify": "node scripts/verify.mjs",
+    "verify": "pnpm verify:source && pnpm verify:product",
+    "verify:source": "node scripts/verify.mjs",
+    "verify:product": "node scripts/verify-product.mjs",
     "hooks:install": "node scripts/install-hooks.mjs --local",
     "test": "node --test \"tests/**/*.test.mjs\"",
     "changeset": "changeset",
