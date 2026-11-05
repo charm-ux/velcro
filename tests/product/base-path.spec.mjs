@@ -12,8 +12,9 @@ const layouts = [
   { name: 'root build', dir: 'static', base: '' },
   { name: 'project-site build', dir: 'static-prefixed', base: '/velcro' },
 ];
-const routes = ['/', '/components/button', '/components/spinner'];
-const examples = { '/components/button': '#demo-primary', '/components/spinner': 'sl-spinner' };
+const components = ['badge', 'button', 'divider', 'spinner'];
+const routes = ['/', ...components.map(c => `/components/${c}`)];
+const examples = { '/components/badge': '#demo-default', '/components/button': '#demo-primary', '/components/divider': '#demo-horizontal', '/components/spinner': 'sl-spinner' };
 
 function* files(dir) {
   for (const name of readdirSync(dir)) {
@@ -56,7 +57,7 @@ for (const { name, dir, base } of layouts) {
         if (examples[route]) {
           const frame = page.frameLocator('iframe.example');
           await expect(frame.locator(examples[route]).first()).toBeVisible();
-          await frame.locator(examples[route]).first().evaluate(() => customElements.whenDefined(document.querySelector('sl-button, sl-spinner').localName));
+          await frame.locator(examples[route]).first().evaluate(() => customElements.whenDefined(document.querySelector('sl-badge, sl-button, sl-divider, sl-spinner').localName));
         }
         await page.waitForLoadState('networkidle');
 
@@ -69,7 +70,7 @@ for (const { name, dir, base } of layouts) {
         // The page the client router rendered (it swaps in a client-rendered element; it does not hydrate the prerendered
         // one) carries the same prefixed links as the prerendered HTML.
         const hrefs = await page.locator('litro-outlet a[href]').evaluateAll(links => links.map(a => a.getAttribute('href')));
-        expect(hrefs).toEqual(expect.arrayContaining([`${base}/components/button`, `${base}/components/spinner`]));
+        expect(hrefs).toEqual(expect.arrayContaining(components.map(c => `${base}/components/${c}`)));
         expect(hrefs.filter(h => h.startsWith('/') && h !== `${base}/` && !h.startsWith(`${base}/components/`))).toEqual([]);
       });
 
@@ -85,7 +86,7 @@ for (const { name, dir, base } of layouts) {
 
     test('navigation links reach every route and keep the prefix', async ({ page }) => {
       await page.goto(url('/'), { waitUntil: 'networkidle' });
-      for (const [label, route] of [['Button', '/components/button'], ['Spinner', '/components/spinner'], ['Home', '/']]) {
+      for (const [label, route] of [['Badge', '/components/badge'], ['Button', '/components/button'], ['Divider', '/components/divider'], ['Spinner', '/components/spinner'], ['Home', '/']]) {
         await page.locator('header nav').getByRole('link', { name: label }).click();
         await page.waitForLoadState('networkidle');
         await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');

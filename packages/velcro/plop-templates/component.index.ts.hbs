@@ -1,8 +1,9 @@
-import { project } from '@charm-ux/core/dist/utilities/project.js';
-import Velcro{{pascalCase name}} from './{{kebabCase name}}.js';
+import { defineVelcroComponent } from '../../utilities/registration.js';
+import { Velcro{{pascalCase name}} } from './class.js';
 
-export * from './{{kebabCase name}}.js';
+export * from './class.js';
 
-// Shoelace-compatible tag names: the core scope builds `${prefix}-${baseName}`.
-project.updateProject({ prefix: 'sl' });
-project.scope.registerComponent(Velcro{{pascalCase name}});
+// Registers the exported class itself as <sl-{{kebabCase name}}> through the native registry. Core's shared prefix and scope
+// are not touched: never call project.updateProject or registerComponent here. This is a scaffold, not a compatibility
+// check; scope-dependent core features (declared dependencies, scope-aware templates) are not supported by this path.
+defineVelcroComponent(Velcro{{pascalCase name}});

@@ -24,7 +24,7 @@ const fail = code => { throw new PrepareError(code); };
 
 export const LIMITS = Object.freeze({ maxEntries: 200, maxFiles: 120, maxFileBytes: 1024 * 1024, maxTotalBytes: 8 * 1024 * 1024, maxDepth: 6 });
 export const REQUIRED = Object.freeze([
-  'index.html', 'components/button/index.html', 'components/spinner/index.html',
+  'index.html', 'components/badge/index.html', 'components/button/index.html', 'components/divider/index.html', 'components/spinner/index.html',
   '_litro/app.js', '_litro/velcro.js', '_litro/velcro.css', 'THIRD_PARTY_NOTICES.md',
 ]);
 const SOURCE_NOTICES = 'THIRD_PARTY_NOTICES.md';

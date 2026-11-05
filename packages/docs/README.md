@@ -1,6 +1,6 @@
 # Velcro docs (private prototype)
 
-A Litro static site that documents and runs Velcro's `sl-button` and `sl-spinner`. Light theme only; one page per component.
+A Litro static site that documents and runs Velcro's `sl-badge`, `sl-button`, `sl-divider` and `sl-spinner`. Light theme only; one page per component.
 
 ```sh
 pnpm install

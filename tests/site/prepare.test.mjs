@@ -24,7 +24,9 @@ function fixture(mutate = () => {}) {
   const src = path.join(dir, 'static');
   const files = {
     'index.html': '<!doctype html><a href="/velcro/components/button">button</a>\n',
+    'components/badge/index.html': '<p>badge</p>\n',
     'components/button/index.html': '<p>button</p>\n',
+    'components/divider/index.html': '<p>divider</p>\n',
     'components/spinner/index.html': '<p>spinner</p>\n',
     '_litro/app.js': 'export const a = 1;\n',
     '_litro/velcro.js': 'export const v = 1;\n',
@@ -69,7 +71,7 @@ test('a complete site stages with exactly the allowlisted files, notices, 404, .
   const staged = readdirSync(path.join(f.runDir, 'site'), { recursive: true, withFileTypes: true }).filter(e => e.isFile())
     .map(e => path.relative(path.join(f.runDir, 'site'), path.join(e.parentPath, e.name)).split(path.sep).join('/')).sort();
   assert.deepEqual(staged, ['.nojekyll', '404.html', 'THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_RUNTIME_NOTICES.md', '_litro/app.js',
-    '_litro/assets/chunk-abc123.js', '_litro/velcro.css', '_litro/velcro.js', 'components/button/index.html', 'components/spinner/index.html', 'index.html']);
+    '_litro/assets/chunk-abc123.js', '_litro/velcro.css', '_litro/velcro.js', 'components/badge/index.html', 'components/button/index.html', 'components/divider/index.html', 'components/spinner/index.html', 'index.html']);
   assert.equal(readFileSync(path.join(f.runDir, 'site/.nojekyll')).length, 0);
   assert.match(readFileSync(path.join(f.runDir, 'site/404.html'), 'utf8'), /href="\/velcro\/"/);
   assert.deepEqual(m.omitted, ['_litro/THIRD_PARTY_NOTICES.md', 'nitro.json']);
@@ -122,6 +124,8 @@ test('bounds: entry count, file size and total size', async () => {
 
 test('required routes and assets, closure agreement and notice duplicates are enforced', async () => {
   await blocked(fixture(leaf(c => { delete c.files['components/spinner/index.html']; })), 'required-missing');
+  await blocked(fixture(leaf(c => { delete c.files['components/badge/index.html']; })), 'required-missing');
+  await blocked(fixture(leaf(c => { delete c.files['components/divider/index.html']; })), 'required-missing');
   await blocked(fixture(leaf(c => { delete c.files['_litro/velcro.css']; })), 'required-missing');
   await blocked(fixture({ after: c => { c.files['_litro/app.js'] = 'tampered\n'; writeFileSync(path.join(c.src, '_litro/app.js'), 'tampered\n'); } }), 'closure-mismatch');
   await blocked(fixture({ after: c => { c.closure.files.push({ file: 'gone.js', sha256: sha(Buffer.from('x')), bytes: 1 }); } }), 'closure-file-missing');

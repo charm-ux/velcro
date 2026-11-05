@@ -1,8 +1,7 @@
-import { project } from '@charm-ux/core/dist/utilities/project.js';
-import VelcroButton from './button.js';
+import { defineVelcroComponent } from '../../utilities/registration.js';
+import { VelcroButton } from './class.js';
 
-export * from './button.js';
+export * from './class.js';
 
-// Shoelace-compatible tag names: the core scope builds `${prefix}-${baseName}`.
-project.updateProject({ prefix: 'sl' });
-project.scope.registerComponent(VelcroButton);
+// Registers the exported class itself as <sl-button> through the native registry. Core's shared prefix and scope are not touched.
+defineVelcroComponent(VelcroButton);

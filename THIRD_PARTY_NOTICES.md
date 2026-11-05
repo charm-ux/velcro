@@ -25,6 +25,18 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   `packages/velcro/themes/light.css` (token names, and values written to match `src/themes/light.css`; not
   mechanically diffed). The button implementation and styles are original and built on `@charm-ux/core`, and the
   spinner is built on the `@charm-ux/core` spinner; no Shoelace runtime or source files are included.
+- Also used in: `packages/velcro/src/components/badge/badge.ts` (API documentation wording, and the rendered structure:
+  a `span` with the `base` part, `role="status"` and `badge` / `badge--*` class names around a default slot, adapted
+  from `src/components/badge/badge.component.ts`), `packages/velcro/src/components/badge/badge.styles.ts` (styles
+  adapted from `src/components/badge/badge.styles.ts`, with the keyframes renamed),
+  `packages/velcro/src/components/divider/divider.ts` (API documentation wording and the host `role="separator"` /
+  `aria-orientation` behavior, adapted from `src/components/divider/divider.component.ts`) and
+  `packages/velcro/src/components/divider/divider.styles.ts` (styles adapted from
+  `src/components/divider/divider.styles.ts`, with the core host-rule resets added). The badge and divider are built
+  on the `@charm-ux/core` badge and divider; no Shoelace runtime or source files are included. Source retrieved for
+  inspection: files of the `v2.20.1` tag (`src/components/{badge,divider}/*`, `src/themes/light.css`); the added light
+  theme tokens (`--sl-color-neutral-200`, `--sl-border-radius-small`, `--sl-letter-spacing-normal`,
+  `--sl-panel-border-color`, `--sl-panel-border-width`) follow that file's names and values.
 - The 2.20.1 release carries no NOTICE file. Its license text, verbatim:
 
 ```text

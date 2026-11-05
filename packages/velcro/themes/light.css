@@ -33,6 +33,7 @@
 
   --sl-color-neutral-0: #fff;
   --sl-color-neutral-100: #f4f4f5;
+  --sl-color-neutral-200: #e4e4e7;
   --sl-color-neutral-300: #d4d4d8;
   --sl-color-neutral-500: #71717a;
   --sl-color-neutral-600: #52525b;
@@ -46,11 +47,13 @@
   --sl-font-size-medium: 1rem;
   --sl-font-size-large: 1.25rem;
   --sl-font-weight-semibold: 500;
+  --sl-letter-spacing-normal: normal;
 
   --sl-spacing-small: 0.75rem;
   --sl-spacing-medium: 1rem;
   --sl-spacing-large: 1.25rem;
 
+  --sl-border-radius-small: 0.1875rem;
   --sl-border-radius-pill: 9999px;
   --sl-transition-x-fast: 150ms;
 
@@ -62,6 +65,9 @@
   --sl-input-border-radius-small: 0.1875rem;
   --sl-input-border-radius-medium: 0.25rem;
   --sl-input-border-radius-large: 0.34375rem;
+
+  --sl-panel-border-color: var(--sl-color-neutral-200);
+  --sl-panel-border-width: 1px;
 
   --sl-focus-ring: solid 3px #38bdf866;
   --sl-focus-ring-offset: 1px;
