@@ -122,6 +122,7 @@ const orderShim = `case "$*" in
   *"@velcro/docs run build:prefixed"*) echo "prefixed LITRO_BASE_PATH=[$LITRO_BASE_PATH]" >> calls.log; touch prefixed.marker ;;
   *"@velcro/docs run build"*) echo "build LITRO_BASE_PATH=[$LITRO_BASE_PATH]" >> calls.log; [ -f prefixed.marker ] || exit 1; touch generated.marker ;;
   *"@velcro/docs run typecheck"*) echo "typecheck LITRO_BASE_PATH=[$LITRO_BASE_PATH]" >> calls.log; [ -f generated.marker ] || exit 1 ;;
+  *"run test:upstream --no-build"*) echo upstream >> calls.log; [ -z "$UPSTREAM_FAIL" ] || exit 1 ;;
   *"exec playwright"*) echo browser >> calls.log
     node -e 'const t=[];for(let i=0;i<8;i++)t.push({projectName:"chromium",status:"expected",results:[{status:"passed"}]});
       require("fs").writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_NAME,JSON.stringify({errors:[],suites:[{specs:t.map(x=>({tests:[x]}))}],
@@ -137,11 +138,21 @@ for (const [label, inherited] of [['unset', {}], ['empty', { LITRO_BASE_PATH: ''
     try {
       const out = runCli(dir, false, inherited);
       assert.deepEqual(readFileSync(path.join(dir, 'calls.log'), 'utf8').trim().split('\n'),
-        ['library', 'prefixed LITRO_BASE_PATH=[/velcro]', 'build LITRO_BASE_PATH=[]', 'typecheck LITRO_BASE_PATH=[]', 'browser']);
-      assert.match(out, /tests 8, passed 8, failed 0, flaky 0, skipped 0\nverify:product: passed \(Chromium only\)\n/);
+        ['library', 'prefixed LITRO_BASE_PATH=[/velcro]', 'build LITRO_BASE_PATH=[]', 'typecheck LITRO_BASE_PATH=[]', 'browser', 'upstream']);
+      assert.match(out, /tests 8, passed 8, failed 0, flaky 0, skipped 0\nverify:product: upstream-conformance passed\nverify:product: passed \(Chromium only\)\n/);
     } finally { cleanup(dir); }
   });
 }
+
+test('CLI fails without evidence when the upstream conformance gate fails', () => {
+  const dir = fixture({ prepare: d => { stubPlaywright(d); gitInit(d); }, shim: orderShim });
+  try {
+    const out = runCli(dir, true, { UPSTREAM_FAIL: '1' });
+    assert.match(out, /upstream-conformance failed/);
+    assert.doesNotMatch(out, /verify:product: passed/);
+    assert.throws(() => readFileSync(path.join(dir, EVIDENCE)), /ENOENT/);
+  } finally { cleanup(dir); }
+});
 
 test('CLI stops before typecheck when the docs build fails', () => {
   const dir = fixture({ prepare: stubPlaywright, shim: orderShim.replace('touch generated.marker', 'exit 1') });
