@@ -1,0 +1,5 @@
+---
+'@charm-ux/velcro': minor
+---
+
+Add the Shoelace 2.20.1 dark theme (`@charm-ux/velcro/themes/dark.css`, selectors `:host` and `.sl-theme-dark`) and complete the light theme (`@charm-ux/velcro/themes/light.css`) to the full Shoelace 2.20.1 token set. Both files are copies of the upstream theme files with a provenance header; one consequence is that the light theme's `--sl-font-sans` (and every other token) now has the upstream value. A product spec pins each file's content to the upstream SHA-256, checks that both themes define the same tokens, and checks that card, badge, button, progress bar and skeleton resolve dark values under `.sl-theme-dark` while light is unchanged. Dark rendering is token-checked, not screenshot-checked, and only the examples above were exercised. Load `dark.css` after `light.css`: both rules have equal specificity on `.sl-theme-*` and `:root`, so the later sheet wins on the same element. The docs example iframes now include the dark rules (still light by default); the site-wide toggle is not part of this change.

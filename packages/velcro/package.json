@@ -108,6 +108,7 @@
       "types": "./dist/components/visually-hidden/class.d.ts",
       "import": "./dist/components/visually-hidden/class.js"
     },
+    "./themes/dark.css": "./themes/dark.css",
     "./themes/light.css": "./themes/light.css",
     "./package.json": "./package.json"
   },

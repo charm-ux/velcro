@@ -1,6 +1,6 @@
 # Velcro docs (private prototype)
 
-A Litro static site that documents and runs every Velcro component listed in `catalog.jsonl`. Light theme only; one page per component.
+A Litro static site that documents and runs every Velcro component listed in `catalog.jsonl`. Light and dark theme tokens are shipped to the example iframes (light by default; there is no site-wide toggle yet); one page per component.
 
 ```sh
 pnpm install

@@ -32,7 +32,7 @@ const gaps = [
   'The "ready" event of the core base is emitted once after the first update (non-bubbling, non-composed). Shoelace has no such event. The element has no other events, methods, slots, parts or custom properties.',
   'The Shoelace overview example with a number input (and its React variants) is not ported because sl-input is not implemented. The tests change values by script instead. The React examples are not ported.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Scope-dependent core features are not used. Server-side rendering is not supported.',
-  'Checked in Chromium only; no Firefox, WebKit, screen reader or RTL check. Only the light theme exists; this component reads no theme tokens.',
+  'Checked in Chromium only; no Firefox, WebKit, screen reader or RTL check. Both the light and dark themes exist; this component reads no theme tokens.',
 ];
 
 @customElement('page-components-format-number')

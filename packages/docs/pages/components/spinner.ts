@@ -24,7 +24,7 @@ const gaps = [
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. The package root, which registers all four components, is checked in Chromium against core\'s prefix, project configuration and scope maps, with core\'s own button loaded in either order. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported: a Velcro component that needs them fails when it is created, even when it is the only Charm library on the page. Server-side rendering is not supported.',
   'Geometry and animation were checked by computed-style assertions in Chromium only; there is no pixel comparison against Shoelace.',
   'sl-button still draws its own internal loading indicator; it does not use sl-spinner yet.',
-  'Only the light theme exists. Dark and the full token set are not done.',
+  'Both the light and dark themes exist; dark values are token-checked against Shoelace 2.20.1, but dark rendering of this component is not screenshot-checked.',
 ];
 
 @customElement('page-components-spinner')

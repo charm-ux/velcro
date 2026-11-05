@@ -10,14 +10,14 @@ Velcro is an **unreleased early prototype**; its packages are marked `private: t
 completed 58-component library. The current implementation is a partial slice:
 
 - six components, `sl-badge`, `sl-button`, `sl-card`, `sl-divider`, `sl-progress-ring` and `sl-spinner` (`packages/velcro`, package `@charm-ux/velcro`), built on `@charm-ux/core`;
-- the Shoelace light theme only (`packages/velcro/themes/light.css`);
+- the Shoelace light and dark themes (`packages/velcro/themes/light.css` and `dark.css`, copied from Shoelace 2.20.1 and token-checked against it);
 - a Litro static documentation site (`packages/docs`, package `@velcro/docs`) with the home page and one route per
   component (`/components/badge`, `/components/button`, `/components/card`, `/components/divider`, `/components/progress-ring`, `/components/spinner`).
 
 Nothing is published or deployed, and the validation described here is local; this README reports no hosted CI or
 publication result. This slice has no upstream Shoelace runtime dependency: no Shoelace runtime is loaded or included.
 It does contain Shoelace-derived material adapted into source (the button's, spinner's, badge's, card's and divider's API documentation wording, the
-progress ring's, spinner's, badge's, card's and divider's structure and styles, and the light-theme token names and values), whose upstream notice is retained in
+progress ring's, spinner's, badge's, card's and divider's structure and styles, and the light and dark theme files), whose upstream notice is retained in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (see Licensing and notices).
 
 ## Prerequisites

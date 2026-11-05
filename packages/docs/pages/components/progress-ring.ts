@@ -31,7 +31,7 @@ const gaps = [
   'The indicator transition is not reduced or stopped for prefers-reduced-motion, as in Shoelace; this is recorded as parity, not as an accessibility endorsement.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported. Server-side rendering is not supported.',
   'Geometry and styles were checked by computed-style assertions in Chromium only; there is no pixel comparison against Shoelace, and no Firefox, WebKit (including the Safari workaround for the dash offset), RTL or localization check.',
-  'Only the light theme exists, and the theme should be loaded: the ring reads --sl-color-neutral-200 and --sl-color-primary-600 (with built-in fallbacks). Dark and the full token set are not done.',
+  'Both the light and dark themes exist (dark values are token-checked against Shoelace 2.20.1; dark rendering of this component is not screenshot-checked), and the theme should be loaded: the ring reads --sl-color-neutral-200 and --sl-color-primary-600 (with built-in fallbacks).',
 ];
 
 @customElement('page-components-progress-ring')

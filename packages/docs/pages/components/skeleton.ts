@@ -35,7 +35,7 @@ const gaps = [
   'The "React" variants of the Shoelace examples are not ported.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix; the sl-skeleton entry and the package root (which the examples load) both register this way. The root import is checked in Chromium against core\'s prefix, project configuration and scope maps. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported: a Velcro component that needs them fails when it is created, even when it is the only Charm library on the page. Server-side rendering is not supported.',
   'Rendering was checked by computed-style assertions in Chromium only; there is no pixel comparison against Shoelace, and no Firefox, WebKit, RTL or localization check.',
-  'Only the light theme exists, and the theme should be loaded: the skeleton reads --sl-color-neutral-200/300 and --sl-border-radius-* (with fallbacks for its own defaults, but the examples use --sl-border-radius-medium and --sl-border-radius-circle, which come from the theme). Dark and the full token set are not done.',
+  'Both the light and dark themes exist (dark values are token-checked against Shoelace 2.20.1; dark rendering of this component is not screenshot-checked), and the theme should be loaded: the skeleton reads --sl-color-neutral-200/300 and --sl-border-radius-* (with fallbacks for its own defaults, but the examples use --sl-border-radius-medium and --sl-border-radius-circle, which come from the theme).',
 ];
 
 @customElement('page-components-skeleton')

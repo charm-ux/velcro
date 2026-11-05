@@ -86,7 +86,7 @@ export function checkExports(exportsMap, catalog) {
   const problems = [];
   if (exportsMap === null || typeof exportsMap !== 'object' || Array.isArray(exportsMap)) return ['package.json: exports missing'];
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const fixed = { '.': target('index'), './themes/light.css': './themes/light.css', './package.json': './package.json' };
+  const fixed = { '.': target('index'), './themes/dark.css': './themes/dark.css', './themes/light.css': './themes/light.css', './package.json': './package.json' };
   const names = new Set(catalog.map(c => c.name));
   for (const [key, value] of Object.entries(fixed)) if (!same(exportsMap[key], value)) problems.push(`package.json: export ${key} is missing or has wrong targets`);
   for (const name of names) {
