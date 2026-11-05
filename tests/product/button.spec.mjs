@@ -98,7 +98,8 @@ test('no upstream Shoelace runtime is requested or defined', async ({ page }) =>
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);
-  const defined = await frame.locator('body').evaluate(() => ['sl-icon', 'sl-spinner', 'sl-dialog'].filter(tag => customElements.get(tag)));
+  const defined = await frame.locator('body').evaluate(() => ['sl-icon', 'sl-dialog'].filter(tag => customElements.get(tag)));
+  // sl-spinner is Velcro's own component now; its upstream-free check lives in spinner.spec.mjs.
   expect(defined).toEqual([]);
   expect(await frame.locator('body').evaluate(() => Boolean(window.Shoelace || document.querySelector('script[src*="shoelace"]')))).toBe(false);
 });

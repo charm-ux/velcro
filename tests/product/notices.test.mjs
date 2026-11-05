@@ -39,6 +39,8 @@ test('copied or adapted upstream files carry a provenance header', () => {
     'packages/docs/nitro.config.ts',
     'packages/docs/vite.config.ts',
     'packages/velcro/src/components/button/button.ts',
+    'packages/velcro/src/components/spinner/spinner.ts',
+    'packages/velcro/src/components/spinner/spinner.styles.ts',
     'packages/velcro/themes/light.css',
   ];
   for (const file of files) assert.match(read(file).slice(0, 900), /THIRD_PARTY_NOTICES\.md/, file);

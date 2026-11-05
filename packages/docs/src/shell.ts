@@ -114,10 +114,10 @@ export const shellStyles = css`
 
 export function shell(content: TemplateResult, sidebar = true): TemplateResult {
   return html`
-    <div class="banner" role="note">Velcro is an unreleased prototype. Only the button is implemented; it is not a drop-in Shoelace replacement yet. Light theme only.</div>
+    <div class="banner" role="note">Velcro is an unreleased prototype. Only the button and spinner are implemented; it is not a drop-in Shoelace replacement yet. Light theme only.</div>
     <header>
       <a class="brand" href="/">Velcro</a>
-      <nav aria-label="Primary"><a href="/">Home</a><a href="/components/button">Button</a></nav>
+      <nav aria-label="Primary"><a href="/">Home</a><a href="/components/button">Button</a><a href="/components/spinner">Spinner</a></nav>
     </header>
     <div class="layout">
       ${sidebar
@@ -125,6 +125,7 @@ export function shell(content: TemplateResult, sidebar = true): TemplateResult {
             <h2>Components</h2>
             <ul>
               <li><a href="/components/button">Button</a></li>
+              <li><a href="/components/spinner">Spinner</a></li>
             </ul>
           </aside>`
         : html`<div></div>`}
