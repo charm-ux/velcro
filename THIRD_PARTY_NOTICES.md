@@ -60,6 +60,12 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   Shoelace runtime or source files are included. Source retrieved for inspection: files of the `v2.20.1` tag
   (`src/components/progress-bar/*`, `docs/pages/components/progress-bar.md`, `src/themes/light.css`); the added light
   theme tokens (`--sl-font-weight-normal`, `--sl-shadow-small`) follow that file's names and values.
+- Also used in: `packages/velcro/src/components/relative-time/relative-time.ts` (API documentation wording, the unit
+  thresholds, the rendered `time` element with a `datetime` attribute and the sync scheduling, adapted from
+  `src/components/relative-time/relative-time.component.ts`), `packages/velcro/src/components/relative-time/relative-time.styles.ts`
+  (written for Velcro; upstream has no styles file) and the docs page examples adapted from
+  `docs/pages/components/relative-time.md`. Built on the `@charm-ux/core` base element and the shared localization
+  controller; no Shoelace runtime or source files are included.
 - Also used in: `packages/velcro/src/components/resize-observer/resize-observer.ts` (API documentation wording and
   behavior: a `ResizeObserver` over the elements assigned to the default slot, started and stopped by `disabled` and
   reporting through `sl-resize`, adapted from `src/components/resize-observer/resize-observer.component.ts`) and
