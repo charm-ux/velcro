@@ -56,7 +56,7 @@ jobs:
           echo 'browser setup: passed'
       - name: Product verification (Chromium, Firefox and WebKit)
         run: |
-          pnpm verify:product > .airig/ci/product.log 2>&1 || { grep '^verify:product: ' .airig/ci/product.log | cut -c1-300 | head -90 || true; echo 'product: blocked; private evidence retained'; exit 1; }
+          pnpm verify:product > .airig/ci/product.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/product.log; echo 'product: blocked; private evidence retained'; exit 1; }
           echo 'product: passed'
       - name: Site preparation, notices and scans
         run: node scripts/site/prepare.mjs --base /velcro --out .airig/site/run --expect-sha "$GITHUB_SHA"

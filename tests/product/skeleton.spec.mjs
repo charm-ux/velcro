@@ -45,7 +45,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the Shoel
   for (const heading of ['Effects', 'Paragraphs', 'Avatars', 'Custom shapes', 'Custom colors']) expect(html).toContain(heading);
   expect(html).toContain('without changing the shared core prefix');
   expect(html).toContain('prefers-reduced-motion');
-  expect(html).toContain('no Firefox, WebKit, RTL or localization check');
+  expect(html).toContain('no RTL or localization check');
   expect(html).toContain('<code>indicator</code>');
   expect(html).toContain('inherits the core <code>ready</code> event');
   expect(html).toContain('It does not bubble, is not composed');

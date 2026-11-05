@@ -40,7 +40,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).toContain('without changing the shared core prefix');
   expect(html).not.toContain('not isolated from core');
   expect(html).toContain('definite height');
-  expect(html).toContain('no Firefox, WebKit, RTL or localization check');
+  expect(html).toContain('no RTL or localization check');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
   const home = await (await request.get('/')).text();

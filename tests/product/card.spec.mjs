@@ -75,7 +75,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the ready
   // The host hidden and box-sizing differences from Shoelace's shared base styles are listed as gaps.
   expect(html).toContain('The host hidden attribute hides the card');
   expect(html).toContain('box-sizing: border-box on the host and on every element in the shadow tree');
-  expect(html).toContain('no Firefox, WebKit, RTL or localization check');
+  expect(html).toContain('no RTL or localization check');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
   expect(await (await request.get('/')).text()).toContain('/components/card');
