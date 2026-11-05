@@ -37,6 +37,17 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   inspection: files of the `v2.20.1` tag (`src/components/{badge,divider}/*`, `src/themes/light.css`); the added light
   theme tokens (`--sl-color-neutral-200`, `--sl-border-radius-small`, `--sl-letter-spacing-normal`,
   `--sl-panel-border-color`, `--sl-panel-border-width`) follow that file's names and values.
+- Also used in: `packages/velcro/src/components/progress-bar/progress-bar.ts` (API documentation wording, and the
+  rendered structure: a `base` part with `role="progressbar"` and an `indicator` part sized by a width style around
+  the default slot with the `label` part, adapted from `src/components/progress-bar/progress-bar.component.ts`),
+  `packages/velcro/src/components/progress-bar/progress-bar.styles.ts` (styles adapted from
+  `src/components/progress-bar/progress-bar.styles.ts`, with the keyframes renamed and a host width reset added) and
+  the docs example and page `packages/docs/examples/progress-bar/basic.html` and
+  `packages/docs/pages/components/progress-bar.ts` (examples and wording adapted from
+  `docs/pages/components/progress-bar.md`). The progress bar is built on the `@charm-ux/core` progress bar; no
+  Shoelace runtime or source files are included. Source retrieved for inspection: files of the `v2.20.1` tag
+  (`src/components/progress-bar/*`, `docs/pages/components/progress-bar.md`, `src/themes/light.css`); the added light
+  theme tokens (`--sl-font-weight-normal`, `--sl-shadow-small`) follow that file's names and values.
 - The 2.20.1 release carries no NOTICE file. Its license text, verbatim:
 
 ```text

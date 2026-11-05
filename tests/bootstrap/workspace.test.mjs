@@ -49,6 +49,8 @@ const prototypeExports = {
   './button': { types: './dist/components/button/index.d.ts', import: './dist/components/button/index.js' },
   './button/class': { types: './dist/components/button/class.d.ts', import: './dist/components/button/class.js' },
   './divider': { types: './dist/components/divider/index.d.ts', import: './dist/components/divider/index.js' },
+  './progress-bar': { types: './dist/components/progress-bar/index.d.ts', import: './dist/components/progress-bar/index.js' },
+  './progress-bar/class': { types: './dist/components/progress-bar/class.d.ts', import: './dist/components/progress-bar/class.js' },
   './spinner': { types: './dist/components/spinner/index.d.ts', import: './dist/components/spinner/index.js' },
   './spinner/class': { types: './dist/components/spinner/class.d.ts', import: './dist/components/spinner/class.js' },
   './themes/light.css': './themes/light.css',
