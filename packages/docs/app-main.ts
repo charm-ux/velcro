@@ -1,7 +1,8 @@
 /*
  * Derived from @beatzball/create-litro 0.15.3, fullstack recipe template file `dist/recipes/fullstack/template/app-main.ts`
  * (Litro, Copyright 2026 beatzball, Apache License 2.0). See THIRD_PARTY_NOTICES.md.
- * Changes: header added; form-actions enhancement removed (the docs have no action forms); route paths prefixed with the build-time base path.
+ * Changes: header added; form-actions enhancement removed (the docs have no action forms); route paths prefixed with the build-time base path;
+ * the browser-only Velcro runtime is loaded so the Velcro elements in the prerendered pages upgrade.
  */
 /**
  * The real client entry.
@@ -32,3 +33,46 @@ if (outlet) {
 } else {
   console.warn('[litro] <litro-outlet> not found — router will not start.');
 }
+
+// Velcro's browser-only runtime (and its light theme tokens), loaded after Lit's hydration hook is installed. The pages
+// prerender Velcro elements as plain markup; this upgrades them. Examples still load the same bundle in their iframes.
+void import('./velcro-entry.js');
+
+// Page headings live in the page component's shadow root, which native fragment navigation cannot reach. Resolve the
+// fragment (direct loads, reloads, back/forward to a #fragment) once the router has rendered the page.
+function findDeep(root: Document | ShadowRoot, id: string): Element | null {
+  const direct = root.getElementById(id);
+  if (direct) return direct;
+  for (const el of root.querySelectorAll('*')) {
+    if (el.shadowRoot) {
+      const found = findDeep(el.shadowRoot, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+function revealFragment() {
+  let id = '';
+  try {
+    id = decodeURIComponent(location.hash.slice(1));
+  } catch {
+    return;
+  }
+  if (id) findDeep(document, id)?.scrollIntoView();
+}
+if (outlet) {
+  const reveal = () => outlet.hasAttribute('data-litro-settled') && requestAnimationFrame(() => requestAnimationFrame(revealFragment));
+  new MutationObserver(reveal).observe(outlet, { attributes: true, attributeFilter: ['data-litro-settled'] });
+  reveal();
+}
+window.addEventListener('hashchange', revealFragment);
+
+// Keep every theme control showing the head script's preference (the single source of truth), including after a
+// change made in another tab. The controls live in page shadow roots.
+function syncThemeControls(root: Document | ShadowRoot, value: string) {
+  for (const el of root.querySelectorAll('*')) {
+    if (el instanceof HTMLSelectElement && el.classList.contains('theme') && el.value !== value) el.value = value;
+    if (el.shadowRoot) syncThemeControls(el.shadowRoot, value);
+  }
+}
+window.addEventListener('velcro-docs-theme-change', event => syncThemeControls(document, String((event as CustomEvent).detail)));

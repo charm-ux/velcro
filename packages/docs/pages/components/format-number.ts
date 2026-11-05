@@ -1,12 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
-import { shell, shellStyles } from '../../src/shell.js';
+import { docsShell, shellStyles } from '../../src/shell.js';
+import { themeHead } from '../../src/theme.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Format Number - Velcro',
-  seoHead: '<meta name="description" content="Velcro format number (prototype).">',
+  seoHead: themeHead + '<meta name="description" content="Velcro format number (prototype).">',
 }));
 
 const attributes: Array<[string, string, string, string]> = [
@@ -41,7 +42,7 @@ export class FormatNumberPage extends LitElement {
 
   override render() {
     const source = examples['format-number/basic'];
-    return shell(html`
+    return docsShell('format-number', html`
       <h1>Format Number</h1>
       <p><code>&lt;sl-format-number&gt;</code> is registered by <code>@charm-ux/velcro</code> on the <code>@charm-ux/core</code> base element. Prototype status: unreleased.</p>
       <p>Formats a number using the specified locale and options.</p>

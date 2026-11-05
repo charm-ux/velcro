@@ -1,12 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
-import { shell, shellStyles } from '../../src/shell.js';
+import { docsShell, shellStyles } from '../../src/shell.js';
+import { themeHead } from '../../src/theme.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Visually Hidden - Velcro',
-  seoHead: '<meta name="description" content="Velcro visually hidden utility (prototype).">',
+  seoHead: themeHead + '<meta name="description" content="Velcro visually hidden utility (prototype).">',
 }));
 
 const gaps = [
@@ -24,7 +25,7 @@ export class VisuallyHiddenPage extends LitElement {
 
   override render() {
     const source = examples['visually-hidden/basic'];
-    return shell(html`
+    return docsShell('visually-hidden', html`
       <h1>Visually Hidden</h1>
       <p><code>&lt;sl-visually-hidden&gt;</code> is registered by <code>@charm-ux/velcro</code> on top of the <code>@charm-ux/core</code> base element. Prototype status: unreleased.</p>
       <p>The visually hidden utility makes content accessible to assistive devices without displaying it on the screen.</p>

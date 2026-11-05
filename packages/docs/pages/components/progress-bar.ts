@@ -1,12 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
-import { shell, shellStyles } from '../../src/shell.js';
+import { docsShell, shellStyles } from '../../src/shell.js';
+import { themeHead } from '../../src/theme.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
-  seoTitle: 'Progress bar - Velcro',
-  seoHead: '<meta name="description" content="Velcro progress bar (prototype).">',
+  seoTitle: 'Progress Bar - Velcro',
+  seoHead: themeHead + '<meta name="description" content="Velcro progress bar (prototype).">',
 }));
 
 const attributes: Array<[string, string, string, string]> = [
@@ -43,14 +44,14 @@ export class ProgressBarPage extends LitElement {
 
   override render() {
     const source = examples['progress-bar/basic'];
-    return shell(html`
-      <h1>Progress bar</h1>
+    return docsShell('progress-bar', html`
+      <h1>Progress Bar</h1>
       <p><code>&lt;sl-progress-bar&gt;</code> is registered by <code>@charm-ux/velcro</code> on top of the <code>@charm-ux/core</code> progress bar. Prototype status: unreleased.</p>
       <p>Progress bars are used to show the status of an ongoing operation.</p>
 
       <h2 id="examples">Examples</h2>
       <p>The example covers the default bar, a label for assistive devices, a custom height, custom colors, showing values in the default slot, and the indeterminate state.</p>
-      <iframe class="example" title="Progress bar example" srcdoc=${exampleDocument(source)}></iframe>
+      <iframe class="example" title="Progress Bar example" srcdoc=${exampleDocument(source)}></iframe>
       <pre><code>${source}</code></pre>
 
       <h2 id="attributes">Attributes and properties</h2>

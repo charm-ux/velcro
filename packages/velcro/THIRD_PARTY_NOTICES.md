@@ -343,3 +343,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    See the License for the specific language governing permissions and
    limitations under the License.
 ```
+
+## Litro Starlight and Supernova recipes, @beatzball/create-litro 0.15.5 source (Apache-2.0)
+
+- Source: the Litro repository (https://github.com/beatzball/litro), `packages/create-litro/recipes/starlight/template/`
+  and `packages/create-litro/recipes/supernova/template/` at create-litro 0.15.5. Copyright 2026 beatzball. Licensed
+  under the Apache License, Version 2.0; the repository's LICENSE is identical to the license text reproduced in the
+  section above, which applies to these files too. No NOTICE file is shipped with the recipes.
+- Adapted (not copied byte-for-byte), each with a change-notice header comment:
+  - `src/components/starlight-{page,header,sidebar,toc}.ts` and the theme head script in `src/route-meta.ts`
+    -> `packages/docs/src/shell.ts` and `packages/docs/src/theme.ts` (layout folded into template functions; Litro
+    branding, drawer and footer credit removed; catalog-driven sidebar, generated table of contents, previous/next
+    links, a light/dark/system control and docs-scoped `--velcro-docs-*` colors added).
+  - `pages/index.ts` and `src/components/litro-{hero-nova,feature-row,install-command}.ts` (Supernova)
+    -> `packages/docs/pages/index.ts` (rewritten as plain sections; logos, stats, video, terminal windows, status
+    line, social links and branding removed; a live showcase of every catalog component added).
+- No Shoelace runtime, fonts, images or other recipe assets were copied.

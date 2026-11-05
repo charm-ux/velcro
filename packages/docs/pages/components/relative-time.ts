@@ -1,12 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
-import { shell, shellStyles } from '../../src/shell.js';
+import { docsShell, shellStyles } from '../../src/shell.js';
+import { themeHead } from '../../src/theme.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Relative Time - Velcro',
-  seoHead: '<meta name="description" content="Velcro relative time (prototype).">',
+  seoHead: themeHead + '<meta name="description" content="Velcro relative time (prototype).">',
 }));
 
 const attributes: Array<[string, string, string, string]> = [
@@ -36,7 +37,7 @@ export class RelativeTimePage extends LitElement {
 
   override render() {
     const source = examples['relative-time/basic'];
-    return shell(html`
+    return docsShell('relative-time', html`
       <h1>Relative Time</h1>
       <p><code>&lt;sl-relative-time&gt;</code> is registered by <code>@charm-ux/velcro</code> on the <code>@charm-ux/core</code> base element. Prototype status: unreleased.</p>
       <p>Outputs a localized time phrase relative to the current date and time, using the browser's <code>Intl.RelativeTimeFormat</code>. No language packs are required.</p>

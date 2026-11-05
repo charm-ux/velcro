@@ -1,6 +1,20 @@
 # Velcro docs (private prototype)
 
-A Litro static site that documents and runs every Velcro component listed in `catalog.jsonl`. Light and dark theme tokens are shipped to the example iframes (light by default; there is no site-wide toggle yet); one page per component.
+A Litro static site that documents and runs every Velcro component listed in `catalog.jsonl`: a landing page (hero,
+feature rows, install command and a live showcase of every component) in front of a docs layout (header with a
+light/dark/system theme control, catalog-driven sidebar, on-page contents, previous/next links), one page per component.
+The layout and landing page are adapted from Litro's Starlight and Supernova recipes (Apache-2.0, see
+`THIRD_PARTY_NOTICES.md`).
+
+- Theme: `src/theme.ts` puts the docs palette (`--velcro-docs-*`) and a synchronous script into every page's `<head>`.
+  The script sets `sl-theme-dark` or `sl-theme-light` on `<html>` before first paint from the stored choice
+  (`localStorage`, key `velcro-docs-theme`) or the system preference, and keeps following the system in "system" mode.
+  Without JavaScript the palette follows `prefers-color-scheme` through CSS. Example iframes mirror the page's class, and Velcro's
+  light and dark theme tokens (`themes/light.css`, `themes/dark.css`, dark under `.sl-theme-dark`) load in both.
+- Showcase: `showcase/<name>.html` holds one snippet per catalog entry; the build and `tests/bootstrap/showcase.test.mjs`
+  fail when one is missing, stray or does not use the component's tag.
+- Velcro in the pages: the pages prerender Velcro elements as plain markup; `app-main.ts` loads the browser-only
+  `velcro-entry.ts` after Lit's hydration hook, which upgrades them. Pages never import Velcro on the server.
 
 ```sh
 pnpm install

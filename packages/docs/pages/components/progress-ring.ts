@@ -1,12 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
-import { shell, shellStyles } from '../../src/shell.js';
+import { docsShell, shellStyles } from '../../src/shell.js';
+import { themeHead } from '../../src/theme.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Progress Ring - Velcro',
-  seoHead: '<meta name="description" content="Velcro progress ring (prototype).">',
+  seoHead: themeHead + '<meta name="description" content="Velcro progress ring (prototype).">',
 }));
 
 const attributes: Array<[string, string, string, string]> = [
@@ -40,7 +41,7 @@ export class ProgressRingPage extends LitElement {
 
   override render() {
     const source = examples['progress-ring/basic'];
-    return shell(html`
+    return docsShell('progress-ring', html`
       <h1>Progress Ring</h1>
       <p><code>&lt;sl-progress-ring&gt;</code> is registered by <code>@charm-ux/velcro</code> directly on the <code>@charm-ux/core</code> base element. Prototype status: unreleased.</p>
       <p>Progress rings are used to show the progress of a determinate operation in a circular fashion.</p>

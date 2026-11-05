@@ -1,12 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
-import { shell, shellStyles } from '../../src/shell.js';
+import { docsShell, shellStyles } from '../../src/shell.js';
+import { themeHead } from '../../src/theme.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Button - Velcro',
-  seoHead: '<meta name="description" content="Velcro button (prototype).">',
+  seoHead: themeHead + '<meta name="description" content="Velcro button (prototype).">',
 }));
 
 const attributes: Array<[string, string, string, string]> = [
@@ -39,7 +40,7 @@ export class ButtonPage extends LitElement {
 
   override render() {
     const source = examples['button/basic'];
-    return shell(html`
+    return docsShell('button', html`
       <h1>Button</h1>
       <p><code>&lt;sl-button&gt;</code> is registered by <code>@charm-ux/velcro</code> on top of the <code>@charm-ux/core</code> button. Prototype status: unreleased.</p>
 

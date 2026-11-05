@@ -1,12 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
-import { shell, shellStyles } from '../../src/shell.js';
+import { docsShell, shellStyles } from '../../src/shell.js';
+import { themeHead } from '../../src/theme.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Skeleton - Velcro',
-  seoHead: '<meta name="description" content="Velcro skeleton (prototype).">',
+  seoHead: themeHead + '<meta name="description" content="Velcro skeleton (prototype).">',
 }));
 
 const attributes: Array<[string, string, string, string]> = [
@@ -43,7 +44,7 @@ export class SkeletonPage extends LitElement {
   static override styles = [shellStyles];
 
   override render() {
-    return shell(html`
+    return docsShell('skeleton', html`
       <h1>Skeleton</h1>
       <p><code>&lt;sl-skeleton&gt;</code> is registered by <code>@charm-ux/velcro</code> on top of the <code>@charm-ux/core</code> skeleton. Prototype status: unreleased.</p>
       <p>Skeletons are used to provide a visual representation of where content will eventually be drawn. This prevents large areas of empty space during asynchronous operations.</p>

@@ -10,6 +10,8 @@ export const CATALOG_PATH = 'packages/docs/catalog.jsonl';
 const NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const TAG = /^sl-[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const TITLE = /^[A-Za-z0-9][A-Za-z0-9 .-]{0,59}$/;
+// Title Case, as in Shoelace's docs: every space-separated word starts with a capital letter or a digit.
+const TITLE_CASE = /^[A-Z0-9][^ ]*(?: [A-Z0-9][^ ]*)*$/;
 const SELECTOR = /^[#.]?[A-Za-z][A-Za-z0-9_-]{0,79}$/;
 const KEYS = ['example', 'name', 'tag', 'title'];
 
@@ -41,7 +43,7 @@ export function parseCatalog(text) {
     const { name, title, tag, example } = value;
     if (![name, title, tag, example].every(v => typeof v === 'string')) fail('catalog-shape');
     if (name.length > 40 || !NAME.test(name)) fail('catalog-name');
-    if (!TITLE.test(title)) fail('catalog-title');
+    if (!TITLE.test(title) || !TITLE_CASE.test(title)) fail('catalog-title');
     if (!TAG.test(tag) || tag !== `sl-${name}`) fail('catalog-tag');
     if (!SELECTOR.test(example)) fail('catalog-example');
     if (seen.has(name)) fail('catalog-duplicate');

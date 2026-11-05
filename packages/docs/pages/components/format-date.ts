@@ -1,12 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
-import { shell, shellStyles } from '../../src/shell.js';
+import { docsShell, shellStyles } from '../../src/shell.js';
+import { themeHead } from '../../src/theme.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Format Date - Velcro',
-  seoHead: '<meta name="description" content="Velcro format date (prototype).">',
+  seoHead: themeHead + '<meta name="description" content="Velcro format date (prototype).">',
 }));
 
 const attributes: Array<[string, string, string, string]> = [
@@ -43,7 +44,7 @@ export class FormatDatePage extends LitElement {
 
   override render() {
     const source = examples['format-date/basic'];
-    return shell(html`
+    return docsShell('format-date', html`
       <h1>Format Date</h1>
       <p><code>&lt;sl-format-date&gt;</code> is registered by <code>@charm-ux/velcro</code> on the <code>@charm-ux/core</code> base element. Prototype status: unreleased.</p>
       <p>Formats a date/time using the specified locale and options. Localization is handled by the browser's <code>Intl.DateTimeFormat</code>; no language packs are required.</p>

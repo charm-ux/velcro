@@ -1,12 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
-import { shell, shellStyles } from '../../src/shell.js';
+import { docsShell, shellStyles } from '../../src/shell.js';
+import { themeHead } from '../../src/theme.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Badge - Velcro',
-  seoHead: '<meta name="description" content="Velcro badge (prototype).">',
+  seoHead: themeHead + '<meta name="description" content="Velcro badge (prototype).">',
 }));
 
 const attributes: Array<[string, string, string, string]> = [
@@ -31,7 +32,7 @@ export class BadgePage extends LitElement {
 
   override render() {
     const source = examples['badge/basic'];
-    return shell(html`
+    return docsShell('badge', html`
       <h1>Badge</h1>
       <p><code>&lt;sl-badge&gt;</code> is registered by <code>@charm-ux/velcro</code> on top of the <code>@charm-ux/core</code> badge. Prototype status: unreleased.</p>
       <p>Badges are used to draw attention and display statuses or counts.</p>
