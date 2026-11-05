@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 
-// Scope of these checks: Velcro's own badge, button, divider, skeleton, spinner and visually-hidden (everything the package root registers) register
+// Scope of these checks: Velcro's own badge, button, divider, progress-bar, skeleton, spinner and visually-hidden (everything the package root registers) register
 // by defining their exported classes natively, in Chromium, alone or next to core's own button. They do NOT show that scope-dependent or nested core components work.
 // Needs the built library: `pnpm --filter @charm-ux/velcro run build` (verify:product does this first).
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -21,6 +21,7 @@ test.beforeAll(async () => {
     spinner: "export * from '@charm-ux/velcro/spinner';",
     buttonClass: "export * from '@charm-ux/velcro/button/class';",
     spinnerClass: "export * from '@charm-ux/velcro/spinner/class';",
+    progressBarClass: "export * from '@charm-ux/velcro/progress-bar/class';",
     coreButton: "export * from 'core-internal:components/button/index';",
     coreProject: "export { project } from 'core-internal:utilities/project';",
   });
@@ -40,7 +41,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 // Everything the package root registers.
-const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-divider', 'sl-skeleton', 'sl-spinner', 'sl-visually-hidden'];
+const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-bar', 'sl-skeleton', 'sl-spinner', 'sl-visually-hidden'];
 
 const importAll = (page, ...names) => page.evaluate(async list => {
   const out = [];
@@ -58,6 +59,7 @@ test('class-only entries define nothing and leave core state alone, and construc
   const r = await page.evaluate(async () => {
     const b = await import('/buttonClass.js');
     const s = await import('/spinnerClass.js');
+    const p = await import('/progressBarClass.js');
     let constructError;
     try {
       new b.VelcroButton();
@@ -65,24 +67,25 @@ test('class-only entries define nothing and leave core state alone, and construc
       constructError = e.name;
     }
     return {
-      exports: [Object.keys(b).sort(), Object.keys(s).sort()],
+      exports: [Object.keys(b).sort(), Object.keys(s).sort(), Object.keys(p).sort()],
+      aliasProgressBar: p.SlProgressBar === p.VelcroProgressBar,
       aliasButton: b.SlButton === b.VelcroButton,
       aliasSpinner: s.SlSpinner === s.VelcroSpinner,
-      defined: [customElements.get('sl-button'), customElements.get('sl-spinner')],
+      defined: [customElements.get('sl-button'), customElements.get('sl-spinner'), customElements.get('sl-progress-bar')],
       defines: window.__defines.slice(),
       constructError,
     };
   });
-  expect(r.exports).toEqual([['SlButton', 'VelcroButton'], ['SlSpinner', 'VelcroSpinner']]);
-  expect(r.aliasButton && r.aliasSpinner).toBe(true);
-  expect(r.defined).toEqual([undefined, undefined]);
+  expect(r.exports).toEqual([['SlButton', 'VelcroButton'], ['SlSpinner', 'VelcroSpinner'], ['SlProgressBar', 'VelcroProgressBar']]);
+  expect(r.aliasButton && r.aliasSpinner && r.aliasProgressBar).toBe(true);
+  expect(r.defined).toEqual([undefined, undefined, undefined]);
   expect(r.defines).toEqual([]);
   expect(r.constructError).toBe('TypeError');
   expect(await corePrefixState(page)).toEqual(before);
   expect(before.button).toBe('ch-button');
 });
 
-for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spinnerClass', 'root'], ['root', 'spinnerClass']]) {
+for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spinnerClass', 'root'], ['root', 'spinnerClass'], ['progressBarClass', 'root'], ['root', 'progressBarClass']]) {
   test(`identity and construction hold for import order ${order.join(' then ')}`, async ({ page }) => {
     await importAll(page, ...order);
     const r = await page.evaluate(async () => {
@@ -90,7 +93,7 @@ for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spi
       const out = {};
       // Badge and divider have no class-only entry or Sl* alias in this batch, so their alias check is the class itself.
       for (const [tag, Cls, Alias] of [['sl-badge', m.VelcroBadge, m.VelcroBadge], ['sl-button', m.VelcroButton, m.SlButton],
-        ['sl-divider', m.VelcroDivider, m.VelcroDivider], ['sl-skeleton', m.VelcroSkeleton, m.SlSkeleton], ['sl-spinner', m.VelcroSpinner, m.SlSpinner],
+        ['sl-divider', m.VelcroDivider, m.VelcroDivider], ['sl-progress-bar', m.VelcroProgressBar, m.SlProgressBar], ['sl-skeleton', m.VelcroSkeleton, m.SlSkeleton], ['sl-spinner', m.VelcroSpinner, m.SlSpinner],
         ['sl-visually-hidden', m.VelcroVisuallyHidden, m.SlVisuallyHidden]]) {
         const el = new Cls();
         document.body.append(el);
@@ -205,7 +208,7 @@ for (const order of ['velcro first', 'core first']) {
   });
 }
 
-// Whole-root isolation: importing the package root (all four registering entries) must not change core's prefix,
+// Whole-root isolation: importing the package root (all five registering entries) must not change core's prefix,
 // project config, scope object or either scope Map, compared by identity and by entry (so same-size value changes show).
 test('the whole package root changes no core state: prefix, config, scope object and both scope maps', async ({ page }) => {
   const r = await page.evaluate(async () => {
@@ -234,9 +237,9 @@ test('the whole package root changes no core state: prefix, config, scope object
       for (const [k] of after[entriesKey]) if (!before[entriesKey].some(([k2]) => k2 === k)) problems.push(`${label} key added: ${k}`);
     }
     return { seeded: [before.tagEntries.length, before.baseEntries.length], problems, sameConfig: before.config === after.config,
-      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-divider', 'sl-skeleton', 'sl-spinner', 'sl-visually-hidden'].map(t => customElements.get(t) !== undefined) };
+      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-bar', 'sl-skeleton', 'sl-spinner', 'sl-visually-hidden'].map(t => customElements.get(t) !== undefined) };
   });
-  expect(r.defined).toEqual([true, true, true, true, true, true]);
+  expect(r.defined).toEqual([true, true, true, true, true, true, true]);
   expect(r.seeded[0]).toBeGreaterThan(0);
   expect(r.seeded[1]).toBeGreaterThan(0);
   expect(r.problems).toEqual([]);
@@ -251,6 +254,7 @@ test('type and export regressions: class-only and registering entries, aliases, 
   writeFileSync(path.join(dir, 'check.mts'), `
 import { SlButton, VelcroButton } from '@charm-ux/velcro/button/class';
 import { SlSpinner, VelcroSpinner } from '@charm-ux/velcro/spinner/class';
+import { SlProgressBar, VelcroProgressBar } from '@charm-ux/velcro/progress-bar/class';
 import * as rootEntry from '@charm-ux/velcro';
 import * as buttonEntry from '@charm-ux/velcro/button';
 import * as spinnerEntry from '@charm-ux/velcro/spinner';
@@ -259,6 +263,8 @@ import * as dividerEntry from '@charm-ux/velcro/divider';
 
 const ctorButton: typeof VelcroButton = SlButton;
 const ctorSpinner: typeof VelcroSpinner = SlSpinner;
+const ctorProgressBar: typeof VelcroProgressBar = SlProgressBar;
+const progressValue: number = new SlProgressBar().value;
 const button: SlButton = new VelcroButton();
 const spinner: SlSpinner = new SlSpinner();
 const variant: 'default' | 'primary' | 'success' | 'neutral' | 'warning' | 'danger' | 'text' = button.variant;
@@ -276,7 +282,7 @@ rootEntry.defineVelcroComponent;
 void import('@charm-ux/velcro/dist/utilities/registration.js');
 // @ts-expect-error badge and divider have registering entries only; no class-only subpath exists for them in this batch
 void import('@charm-ux/velcro/badge/class');
-export { ctorButton, ctorSpinner, spinner, variant, fromRoot, fromRootSpinner, fromButton, fromSpinner, tag, badgeClass, dividerClass, vertical };
+export { ctorButton, ctorSpinner, ctorProgressBar, progressValue, spinner, variant, fromRoot, fromRootSpinner, fromButton, fromSpinner, tag, badgeClass, dividerClass, vertical };
 `);
   const tsc = createRequire(path.join(root, 'package.json')).resolve('typescript/bin/tsc');
   const run = () => execFileSync(process.execPath, [tsc, '--noEmit', '--strict', '--module', 'nodenext', '--moduleResolution',
