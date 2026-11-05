@@ -59,7 +59,7 @@ for (const { name, dir, base } of layouts) {
         await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
         await expect(page.locator('h1').first()).toBeVisible();
         if (examples[route]) {
-          const frame = page.frameLocator('iframe.example');
+          const frame = page.frameLocator('iframe.example').first();
           await expect(frame.locator(examples[route]).first()).toBeVisible();
           await frame.locator(examples[route]).first().evaluate((_el, selector) => customElements.whenDefined(document.querySelector(selector).localName), tags);
         }
