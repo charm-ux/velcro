@@ -1,0 +1,55 @@
+<div class="skeleton-shapes">
+  <sl-skeleton id="demo-square" class="square"></sl-skeleton>
+  <sl-skeleton id="demo-circle" class="circle"></sl-skeleton>
+  <sl-skeleton id="demo-triangle" class="triangle"></sl-skeleton>
+  <sl-skeleton id="demo-cross" class="cross"></sl-skeleton>
+  <sl-skeleton id="demo-comment" class="comment"></sl-skeleton>
+</div>
+
+<style>
+  .skeleton-shapes sl-skeleton {
+    display: inline-flex;
+    width: 50px;
+    height: 50px;
+  }
+
+  .skeleton-shapes .square::part(indicator) {
+    --border-radius: var(--sl-border-radius-medium);
+  }
+
+  .skeleton-shapes .circle::part(indicator) {
+    --border-radius: var(--sl-border-radius-circle);
+  }
+
+  .skeleton-shapes .triangle::part(indicator) {
+    --border-radius: 0;
+    clip-path: polygon(50% 0, 0 100%, 100% 100%);
+  }
+
+  .skeleton-shapes .cross::part(indicator) {
+    --border-radius: 0;
+    clip-path: polygon(
+      20% 0%,
+      0% 20%,
+      30% 50%,
+      0% 80%,
+      20% 100%,
+      50% 70%,
+      80% 100%,
+      100% 80%,
+      70% 50%,
+      100% 20%,
+      80% 0%,
+      50% 30%
+    );
+  }
+
+  .skeleton-shapes .comment::part(indicator) {
+    --border-radius: 0;
+    clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 75% 75%, 75% 100%, 50% 75%, 0% 75%);
+  }
+
+  .skeleton-shapes sl-skeleton:not(:last-child) {
+    margin-right: 0.5rem;
+  }
+</style>

@@ -2,4 +2,5 @@
 {"name":"button","title":"Button","tag":"sl-button","example":"#demo-primary"}
 {"name":"divider","title":"Divider","tag":"sl-divider","example":"#demo-horizontal"}
 {"name":"progress-bar","title":"Progress bar","tag":"sl-progress-bar","example":"#demo-default"}
+{"name":"skeleton","title":"Skeleton","tag":"sl-skeleton","example":"#demo-avatar"}
 {"name":"spinner","title":"Spinner","tag":"sl-spinner","example":"sl-spinner"}

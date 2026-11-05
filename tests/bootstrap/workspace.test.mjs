@@ -52,6 +52,7 @@ const prototypeExports = {
   ...Object.fromEntries(catalog.map(c => [`./${c.name}`, exportTargets(`components/${c.name}/index`)])),
   './button/class': exportTargets('components/button/class'),
   './progress-bar/class': exportTargets('components/progress-bar/class'),
+  './skeleton/class': exportTargets('components/skeleton/class'),
   './spinner/class': exportTargets('components/spinner/class'),
   './themes/light.css': './themes/light.css',
   './package.json': './package.json',

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 
-// Scope of these checks: Velcro's own badge, button, divider, progress-bar and spinner (everything the package root registers) register
+// Scope of these checks: Velcro's own badge, button, divider, progress-bar, skeleton and spinner (everything the package root registers) register
 // by defining their exported classes natively, in Chromium, alone or next to core's own button. They do NOT show that scope-dependent or nested core components work.
 // Needs the built library: `pnpm --filter @charm-ux/velcro run build` (verify:product does this first).
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -17,6 +17,7 @@ test.beforeAll(async () => {
     badge: "export * from '@charm-ux/velcro/badge';",
     button: "export * from '@charm-ux/velcro/button';",
     divider: "export * from '@charm-ux/velcro/divider';",
+    skeleton: "export * from '@charm-ux/velcro/skeleton';",
     spinner: "export * from '@charm-ux/velcro/spinner';",
     buttonClass: "export * from '@charm-ux/velcro/button/class';",
     spinnerClass: "export * from '@charm-ux/velcro/spinner/class';",
@@ -40,7 +41,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 // Everything the package root registers.
-const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-bar', 'sl-spinner'];
+const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-bar', 'sl-skeleton', 'sl-spinner'];
 
 const importAll = (page, ...names) => page.evaluate(async list => {
   const out = [];
@@ -92,7 +93,7 @@ for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spi
       const out = {};
       // Badge and divider have no class-only entry or Sl* alias in this batch, so their alias check is the class itself.
       for (const [tag, Cls, Alias] of [['sl-badge', m.VelcroBadge, m.VelcroBadge], ['sl-button', m.VelcroButton, m.SlButton],
-        ['sl-divider', m.VelcroDivider, m.VelcroDivider], ['sl-progress-bar', m.VelcroProgressBar, m.SlProgressBar], ['sl-spinner', m.VelcroSpinner, m.SlSpinner]]) {
+        ['sl-divider', m.VelcroDivider, m.VelcroDivider], ['sl-progress-bar', m.VelcroProgressBar, m.SlProgressBar], ['sl-skeleton', m.VelcroSkeleton, m.SlSkeleton], ['sl-spinner', m.VelcroSpinner, m.SlSpinner]]) {
         const el = new Cls();
         document.body.append(el);
         await el.updateComplete;
@@ -116,14 +117,14 @@ for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spi
 }
 
 test('repeated and mixed imports define each tag exactly once with one constructor', async ({ page }) => {
-  await importAll(page, 'root', 'badge', 'button', 'divider', 'spinner', 'buttonClass', 'spinnerClass', 'root', 'button', 'divider');
+  await importAll(page, 'root', 'badge', 'button', 'divider', 'skeleton', 'spinner', 'buttonClass', 'spinnerClass', 'root', 'button', 'divider');
   const r = await page.evaluate(async () => {
     const again = await import('/root.js');
     const sub = await import('/button.js');
     return {
       defines: window.__defines.slice().sort(),
       sameButton: again.VelcroButton === sub.VelcroButton && customElements.get('sl-button') === sub.VelcroButton,
-      sameOthers: ['Badge', 'Divider', 'Spinner'].every(n => customElements.get(`sl-${n.toLowerCase()}`) === again[`Velcro${n}`]),
+      sameOthers: ['Badge', 'Divider', 'Skeleton', 'Spinner'].every(n => customElements.get(`sl-${n.toLowerCase()}`) === again[`Velcro${n}`]),
     };
   });
   expect(r.defines).toEqual(ALL_TAGS);
@@ -235,9 +236,9 @@ test('the whole package root changes no core state: prefix, config, scope object
       for (const [k] of after[entriesKey]) if (!before[entriesKey].some(([k2]) => k2 === k)) problems.push(`${label} key added: ${k}`);
     }
     return { seeded: [before.tagEntries.length, before.baseEntries.length], problems, sameConfig: before.config === after.config,
-      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-bar', 'sl-spinner'].map(t => customElements.get(t) !== undefined) };
+      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-bar', 'sl-skeleton', 'sl-spinner'].map(t => customElements.get(t) !== undefined) };
   });
-  expect(r.defined).toEqual([true, true, true, true, true]);
+  expect(r.defined).toEqual([true, true, true, true, true, true]);
   expect(r.seeded[0]).toBeGreaterThan(0);
   expect(r.seeded[1]).toBeGreaterThan(0);
   expect(r.problems).toEqual([]);

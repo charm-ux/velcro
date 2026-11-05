@@ -148,7 +148,7 @@ test('properties and attributes: defaults, reflection, and live updates of the r
       const base = el.shadowRoot.querySelector('[part~="base"]');
       return { now: base.getAttribute('aria-valuenow'), label: base.getAttribute('aria-label'), width: el.shadowRoot.querySelector('[part~="indicator"]').style.width, slot: el.shadowRoot.querySelector('slot') !== null };
     };
-    const out = { defaults: { value: el.value, indeterminate: el.indeterminate, label: el.label, ...read() }, attrs: [el.hasAttribute('value'), el.hasAttribute('indeterminate')] };
+    const out = { defaults: { value: el.value, indeterminate: el.indeterminate, rawLabel: el.label, ...read() }, attrs: [el.hasAttribute('value'), el.hasAttribute('indeterminate')] };
     el.value = 25;
     el.label = 'Saving';
     await el.updateComplete;
@@ -166,7 +166,7 @@ test('properties and attributes: defaults, reflection, and live updates of the r
     el.remove();
     return out;
   });
-  expect(result.defaults).toEqual({ value: 0, indeterminate: false, label: '', now: '0', label: 'Progress', width: '0%', slot: true });
+  expect(result.defaults).toEqual({ value: 0, indeterminate: false, rawLabel: '', now: '0', label: 'Progress', width: '0%', slot: true });
   expect(result.attrs).toEqual([true, false]);
   expect(result.afterProps).toEqual({ reflected: '25', labelAttr: false, now: '25', label: 'Saving', width: '25%', slot: true });
   expect(result.afterAttr).toEqual({ value: 80, type: 'number', now: '80', label: 'Saving', width: '80%', slot: true });
@@ -262,31 +262,48 @@ test('events: only the inherited non-bubbling ready event fires, once, on first 
   expect(result.bubbled).toEqual([]);
 });
 
-test('removing the value and label attributes restores the defaults (0 and empty), as in Shoelace', async ({ page }) => {
+test('removing the value attribute restores 0 and the attribute stays absent, as in Shoelace', async ({ page }) => {
   const { frame } = await openExample(page);
   const result = await frame.locator('body').evaluate(async () => {
     const el = document.createElement('sl-progress-bar');
     el.setAttribute('value', '50');
-    el.setAttribute('label', 'Upload');
     document.body.append(el);
     await el.updateComplete;
     const read = () => ({
       value: el.value,
-      label: el.label,
       now: el.shadowRoot.querySelector('[part~="base"]').getAttribute('aria-valuenow'),
-      name: el.shadowRoot.querySelector('[part~="base"]').getAttribute('aria-label'),
       width: el.shadowRoot.querySelector('[part~="indicator"]').style.width,
     });
     const before = read();
     el.removeAttribute('value');
+    await el.updateComplete;
+    const out = { before, after: read(), hasAttribute: el.hasAttribute('value') };
+    el.remove();
+    return out;
+  });
+  expect(result.before).toEqual({ value: 50, now: '50', width: '50%' });
+  expect(result.after).toEqual({ value: 0, now: '0', width: '0%' });
+  expect(result.hasAttribute).toBe(false);
+});
+
+// Velcro divergence (documented on the page): Shoelace leaves a removed, non-reflected label null and then throws on render.
+test('removing the label attribute keeps rendering: label returns to empty and the default name (Velcro robustness, not Shoelace parity)', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const result = await frame.locator('body').evaluate(async () => {
+    const el = document.createElement('sl-progress-bar');
+    el.setAttribute('label', 'Upload');
+    document.body.append(el);
+    await el.updateComplete;
+    const name = () => el.shadowRoot.querySelector('[part~="base"]').getAttribute('aria-label');
+    const before = { label: el.label, name: name() };
     el.removeAttribute('label');
     await el.updateComplete;
-    const after = read();
+    const out = { before, after: { label: el.label, name: name() } };
     el.remove();
-    return { before, after };
+    return out;
   });
-  expect(result.before).toEqual({ value: 50, label: 'Upload', now: '50', name: 'Upload', width: '50%' });
-  expect(result.after).toEqual({ value: 0, label: '', now: '0', name: 'Progress', width: '0%' });
+  expect(result.before).toEqual({ label: 'Upload', name: 'Upload' });
+  expect(result.after).toEqual({ label: '', name: 'Progress' });
 });
 
 test('the host is left untouched: no style attribute is written by core', async ({ page }) => {
