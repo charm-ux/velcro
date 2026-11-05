@@ -26,12 +26,13 @@ const gaps = [
   'The default accessible name is the fixed English string "Progress" (used when label is empty). Shoelace localizes it through its localization controller; that is not implemented and localized output has not been compared.',
   'The base part has role="progressbar" with aria-valuemin 0, aria-valuemax 100 and aria-valuenow (0 when indeterminate), as in Shoelace. Whether a given screen reader announces it was not tested.',
   'The value is not clamped: values outside 0 to 100 set the indicator width as given, as in Shoelace.',
-  'The right-to-left variant of the indeterminate animation follows the element\'s computed direction when it renders; it is not re-evaluated when only an ancestor\'s direction changes, and it was not checked in a browser.',
+  'The right-to-left variant of the indeterminate animation follows the element\'s computed direction when it renders. It is checked in Chromium for an element\'s own dir attribute only; it is not re-evaluated when only an ancestor\'s direction changes.',
   'The "Showing Values" example uses text buttons ("-10", "+10") instead of Shoelace\'s circular icon buttons, because sl-icon is not implemented.',
   'Neither Shoelace 2.20.1 nor this component reduces or stops the indeterminate animation or the width transition for prefers-reduced-motion. This is recorded as parity, not as an accessibility endorsement.',
   'The inherited core properties max, meter, hide-label and help-text, the core "progress-bar-*" parts, the "--progress-bar-*" and "--form-control-*" custom properties and the core markup exist on the element or its base class but have no effect; they are not part of the Shoelace contract.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported: a Velcro component that needs them fails when it is created, even when it is the only Charm library on the page. Server-side rendering is not supported.',
   'Rendering was checked by computed-style assertions in Chromium only; there is no pixel comparison against Shoelace, and no Firefox, WebKit or localization check.',
+  'The label font uses --sl-font-sans, whose Velcro light-theme value is a shorter system font stack than Shoelace\'s (no BlinkMacSystemFont, Helvetica, Arial or emoji fonts); label glyphs can differ from Shoelace and no font-family assertion covers it.',
   'Only the light theme exists, and the theme must be loaded: the progress bar reads --sl-color-*, --sl-border-radius-pill, --sl-shadow-small, --sl-font-sans and --sl-font-weight-normal. Dark and the full token set are not done.',
 ];
 
@@ -75,7 +76,7 @@ export class ProgressBarPage extends LitElement {
       </table>
 
       <h2 id="events">Events</h2>
-      <p>None.</p>
+      <p>None of Shoelace's. One inherited divergence: the core base class dispatches a non-bubbling, non-composed <code>ready</code> event on the element after its first update, which Shoelace does not do. It is kept and checked in the browser spec.</p>
 
       <h2 id="methods">Methods</h2>
       <p>None.</p>

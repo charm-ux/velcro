@@ -232,7 +232,6 @@ test('docs example script: the buttons change value and slotted label; value cla
   await frame.locator('#demo-increase').click();
   await expect.poll(() => bar.evaluate(el => el.value)).toBe(60);
   await expect(bar).toHaveText('60%');
-  await expect(bar.locator('..').getByRole('progressbar')).toHaveAttribute('aria-valuenow', '60').catch(() => {});
   expect(await bar.evaluate(el => el.shadowRoot.querySelector('[part~="base"]').getAttribute('aria-valuenow'))).toBe('60');
   for (let i = 0; i < 6; i++) await frame.locator('#demo-increase').click();
   await expect.poll(() => bar.evaluate(el => el.value)).toBe(100);
@@ -240,21 +239,88 @@ test('docs example script: the buttons change value and slotted label; value cla
   await expect.poll(() => bar.evaluate(el => el.value)).toBe(90);
 });
 
-test('no events are fired and no public methods are added beyond the Lit element API', async ({ page }) => {
+test('events: only the inherited non-bubbling ready event fires, once, on first update; no sl-* or change events', async ({ page }) => {
   const { frame } = await openExample(page);
   const result = await frame.locator('body').evaluate(async () => {
     const el = document.createElement('sl-progress-bar');
     const seen = [];
-    for (const type of ['sl-change', 'sl-input', 'sl-focus', 'sl-blur', 'change', 'input']) el.addEventListener(type, () => seen.push(type));
+    for (const type of ['ready', 'sl-change', 'sl-input', 'sl-focus', 'sl-blur', 'change', 'input']) {
+      el.addEventListener(type, e => seen.push({ type, bubbles: e.bubbles, composed: e.composed }));
+    }
+    const bubbled = [];
+    document.body.addEventListener('ready', () => bubbled.push('ready'));
     document.body.append(el);
     await el.updateComplete;
     el.value = 10;
     el.indeterminate = true;
+    el.label = 'x';
     await el.updateComplete;
     el.remove();
-    return seen;
+    return { seen, bubbled };
   });
-  expect(result).toEqual([]);
+  expect(result.seen).toEqual([{ type: 'ready', bubbles: false, composed: false }]);
+  expect(result.bubbled).toEqual([]);
+});
+
+test('removing the value and label attributes restores the defaults (0 and empty), as in Shoelace', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const result = await frame.locator('body').evaluate(async () => {
+    const el = document.createElement('sl-progress-bar');
+    el.setAttribute('value', '50');
+    el.setAttribute('label', 'Upload');
+    document.body.append(el);
+    await el.updateComplete;
+    const read = () => ({
+      value: el.value,
+      label: el.label,
+      now: el.shadowRoot.querySelector('[part~="base"]').getAttribute('aria-valuenow'),
+      name: el.shadowRoot.querySelector('[part~="base"]').getAttribute('aria-label'),
+      width: el.shadowRoot.querySelector('[part~="indicator"]').style.width,
+    });
+    const before = read();
+    el.removeAttribute('value');
+    el.removeAttribute('label');
+    await el.updateComplete;
+    const after = read();
+    el.remove();
+    return { before, after };
+  });
+  expect(result.before).toEqual({ value: 50, label: 'Upload', now: '50', name: 'Upload', width: '50%' });
+  expect(result.after).toEqual({ value: 0, label: '', now: '0', name: 'Progress', width: '0%' });
+});
+
+test('the host is left untouched: no style attribute is written by core', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const result = await frame.locator('body').evaluate(async () => {
+    const el = document.createElement('sl-progress-bar');
+    el.setAttribute('value', '40');
+    document.body.append(el);
+    await el.updateComplete;
+    el.value = 60;
+    await el.updateComplete;
+    const out = { style: el.getAttribute('style'), percent: el.style.getPropertyValue('--progress-percent') };
+    el.remove();
+    return out;
+  });
+  expect(result).toEqual({ style: null, percent: '' });
+  expect(await frame.locator('#demo-default').evaluate(el => el.getAttribute('style'))).toBeNull();
+});
+
+test('rich default-slot content: a slotted [icon] element inherits --label-color, not core\'s icon color', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const result = await frame.locator('body').evaluate(async () => {
+    const el = document.createElement('sl-progress-bar');
+    el.setAttribute('value', '50');
+    el.style.setProperty('--progress-bar-icon-color', 'rgb(255, 0, 0)');
+    el.style.setProperty('--label-color', 'rgb(1, 2, 3)');
+    el.innerHTML = '<span icon id="rich">50%</span>';
+    document.body.append(el);
+    await el.updateComplete;
+    const out = getComputedStyle(el.querySelector('#rich')).color;
+    el.remove();
+    return out;
+  });
+  expect(result).toBe('rgb(1, 2, 3)');
 });
 
 test.describe('forced colors', () => {

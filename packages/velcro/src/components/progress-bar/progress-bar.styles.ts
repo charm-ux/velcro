@@ -1,6 +1,6 @@
 // Adapted from Shoelace v2.20.1 (src/components/progress-bar/progress-bar.styles.ts), Copyright (c) 2020 A Beautiful Site, LLC,
 // MIT License. See THIRD_PARTY_NOTICES.md. Changes: a Velcro keyframes name pair (so they cannot collide with core's
-// `indeterminate` keyframes) and host resets for the core progress bar's host rules.
+// `indeterminate` keyframes) and resets for the core progress bar's host width and slotted-icon color rules.
 import { css } from 'lit';
 
 // The tokens (--sl-color-*, --sl-border-radius-pill, --sl-shadow-small, --sl-font-sans, --sl-font-weight-normal) come
@@ -15,6 +15,11 @@ export default css`
     display: block;
     /* Core's host rule sets width: 100%; Shoelace's host has no width, so a block host fills its container itself. */
     width: auto;
+  }
+
+  /* Core's styles color a slotted [icon] with --progress-bar-icon-color (black); the label must inherit --label-color. */
+  ::slotted([icon]) {
+    color: inherit;
   }
 
   .progress-bar {

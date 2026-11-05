@@ -42,8 +42,20 @@ export class VelcroProgressBar extends CoreProgressBar {
   @property()
   public override label = '';
 
+  // Shoelace's base class restores a reflected property's initial value when its attribute is removed; Lit alone would
+  // leave `value` null and `label` null. Only the two non-boolean properties need it (`indeterminate` converts to false).
+  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
+    super.attributeChangedCallback(name, previous, next);
+    if (next === null && name === 'value') this.value = 0;
+    if (next === null && name === 'label') this.label = '';
+  }
+
+  // Core writes `--progress-percent` onto the host here. Nothing in the Velcro template reads it and Shoelace never
+  // touches the host's style, so it is a no-op.
+  protected override syncRange() {}
+
   // What is reused from core: the CharmElement base (scoping attribute, `dir`, the `ready` event), the `baseName`, the
-  // shared base styles and `render()`, which delegates to this hook. Core's markup (a form-control label, a track with
+  // shared base styles (including the `ready` event, which Shoelace does not have) and `render()`, which delegates to this hook. Core's markup (a form-control label, a track with
   // `progress-bar-*` parts, help text and `max`/`meter` support) is replaced because Shoelace's contract is a single
   // `base` progressbar with `indicator` and `label` parts and a fixed 0 to 100 range.
   protected override progressBarTemplate() {

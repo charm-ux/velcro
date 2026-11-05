@@ -20,6 +20,7 @@ test.beforeAll(async () => {
     spinner: "export * from '@charm-ux/velcro/spinner';",
     buttonClass: "export * from '@charm-ux/velcro/button/class';",
     spinnerClass: "export * from '@charm-ux/velcro/spinner/class';",
+    progressBarClass: "export * from '@charm-ux/velcro/progress-bar/class';",
     coreButton: "export * from 'core-internal:components/button/index';",
     coreProject: "export { project } from 'core-internal:utilities/project';",
   });
@@ -57,6 +58,7 @@ test('class-only entries define nothing and leave core state alone, and construc
   const r = await page.evaluate(async () => {
     const b = await import('/buttonClass.js');
     const s = await import('/spinnerClass.js');
+    const p = await import('/progressBarClass.js');
     let constructError;
     try {
       new b.VelcroButton();
@@ -64,24 +66,25 @@ test('class-only entries define nothing and leave core state alone, and construc
       constructError = e.name;
     }
     return {
-      exports: [Object.keys(b).sort(), Object.keys(s).sort()],
+      exports: [Object.keys(b).sort(), Object.keys(s).sort(), Object.keys(p).sort()],
+      aliasProgressBar: p.SlProgressBar === p.VelcroProgressBar,
       aliasButton: b.SlButton === b.VelcroButton,
       aliasSpinner: s.SlSpinner === s.VelcroSpinner,
-      defined: [customElements.get('sl-button'), customElements.get('sl-spinner')],
+      defined: [customElements.get('sl-button'), customElements.get('sl-spinner'), customElements.get('sl-progress-bar')],
       defines: window.__defines.slice(),
       constructError,
     };
   });
-  expect(r.exports).toEqual([['SlButton', 'VelcroButton'], ['SlSpinner', 'VelcroSpinner']]);
-  expect(r.aliasButton && r.aliasSpinner).toBe(true);
-  expect(r.defined).toEqual([undefined, undefined]);
+  expect(r.exports).toEqual([['SlButton', 'VelcroButton'], ['SlSpinner', 'VelcroSpinner'], ['SlProgressBar', 'VelcroProgressBar']]);
+  expect(r.aliasButton && r.aliasSpinner && r.aliasProgressBar).toBe(true);
+  expect(r.defined).toEqual([undefined, undefined, undefined]);
   expect(r.defines).toEqual([]);
   expect(r.constructError).toBe('TypeError');
   expect(await corePrefixState(page)).toEqual(before);
   expect(before.button).toBe('ch-button');
 });
 
-for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spinnerClass', 'root'], ['root', 'spinnerClass']]) {
+for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spinnerClass', 'root'], ['root', 'spinnerClass'], ['progressBarClass', 'root'], ['root', 'progressBarClass']]) {
   test(`identity and construction hold for import order ${order.join(' then ')}`, async ({ page }) => {
     await importAll(page, ...order);
     const r = await page.evaluate(async () => {
@@ -249,6 +252,7 @@ test('type and export regressions: class-only and registering entries, aliases, 
   writeFileSync(path.join(dir, 'check.mts'), `
 import { SlButton, VelcroButton } from '@charm-ux/velcro/button/class';
 import { SlSpinner, VelcroSpinner } from '@charm-ux/velcro/spinner/class';
+import { SlProgressBar, VelcroProgressBar } from '@charm-ux/velcro/progress-bar/class';
 import * as rootEntry from '@charm-ux/velcro';
 import * as buttonEntry from '@charm-ux/velcro/button';
 import * as spinnerEntry from '@charm-ux/velcro/spinner';
@@ -257,6 +261,8 @@ import * as dividerEntry from '@charm-ux/velcro/divider';
 
 const ctorButton: typeof VelcroButton = SlButton;
 const ctorSpinner: typeof VelcroSpinner = SlSpinner;
+const ctorProgressBar: typeof VelcroProgressBar = SlProgressBar;
+const progressValue: number = new SlProgressBar().value;
 const button: SlButton = new VelcroButton();
 const spinner: SlSpinner = new SlSpinner();
 const variant: 'default' | 'primary' | 'success' | 'neutral' | 'warning' | 'danger' | 'text' = button.variant;
@@ -274,7 +280,7 @@ rootEntry.defineVelcroComponent;
 void import('@charm-ux/velcro/dist/utilities/registration.js');
 // @ts-expect-error badge and divider have registering entries only; no class-only subpath exists for them in this batch
 void import('@charm-ux/velcro/badge/class');
-export { ctorButton, ctorSpinner, spinner, variant, fromRoot, fromRootSpinner, fromButton, fromSpinner, tag, badgeClass, dividerClass, vertical };
+export { ctorButton, ctorSpinner, ctorProgressBar, progressValue, spinner, variant, fromRoot, fromRootSpinner, fromButton, fromSpinner, tag, badgeClass, dividerClass, vertical };
 `);
   const tsc = createRequire(path.join(root, 'package.json')).resolve('typescript/bin/tsc');
   const run = () => execFileSync(process.execPath, [tsc, '--noEmit', '--strict', '--module', 'nodenext', '--moduleResolution',
