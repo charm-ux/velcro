@@ -1,0 +1,27 @@
+<div style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap">
+  <sl-progress-ring id="demo-default" value="25"></sl-progress-ring>
+  <sl-progress-ring id="demo-size" value="50" style="--size: 200px"></sl-progress-ring>
+  <sl-progress-ring id="demo-width" value="50" style="--track-width: 6px; --indicator-width: 12px"></sl-progress-ring>
+  <sl-progress-ring
+    id="demo-colors"
+    value="50"
+    style="--track-color: pink; --indicator-color: deeppink"
+  ></sl-progress-ring>
+  <sl-progress-ring id="demo-label" value="50" label="Upload progress"></sl-progress-ring>
+</div>
+<div>
+  <sl-progress-ring id="demo-values" value="50" style="margin-bottom: 0.5rem">50%</sl-progress-ring>
+  <br />
+  <button type="button" id="demo-decrease" aria-label="Decrease">-</button>
+  <button type="button" id="demo-increase" aria-label="Increase">+</button>
+</div>
+<script>
+  const ring = document.querySelector('#demo-values');
+  const change = amount => {
+    const value = Math.max(0, Math.min(100, ring.value + amount));
+    ring.value = value;
+    ring.textContent = `${value}%`;
+  };
+  document.querySelector('#demo-increase').addEventListener('click', () => change(10));
+  document.querySelector('#demo-decrease').addEventListener('click', () => change(-10));
+</script>

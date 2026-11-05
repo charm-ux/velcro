@@ -2,7 +2,7 @@
   "name": "@charm-ux/velcro",
   "version": "0.1.0",
   "private": true,
-  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, card, divider, skeleton and spinner only).",
+  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, card, divider, progress-bar, progress-ring, skeleton, spinner and visually-hidden only).",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
@@ -36,6 +36,22 @@
       "types": "./dist/components/divider/index.d.ts",
       "import": "./dist/components/divider/index.js"
     },
+    "./progress-bar": {
+      "types": "./dist/components/progress-bar/index.d.ts",
+      "import": "./dist/components/progress-bar/index.js"
+    },
+    "./progress-bar/class": {
+      "types": "./dist/components/progress-bar/class.d.ts",
+      "import": "./dist/components/progress-bar/class.js"
+    },
+    "./progress-ring": {
+      "types": "./dist/components/progress-ring/index.d.ts",
+      "import": "./dist/components/progress-ring/index.js"
+    },
+    "./progress-ring/class": {
+      "types": "./dist/components/progress-ring/class.d.ts",
+      "import": "./dist/components/progress-ring/class.js"
+    },
     "./spinner": {
       "types": "./dist/components/spinner/index.d.ts",
       "import": "./dist/components/spinner/index.js"
@@ -51,6 +67,14 @@
     "./skeleton/class": {
       "types": "./dist/components/skeleton/class.d.ts",
       "import": "./dist/components/skeleton/class.js"
+    },
+    "./visually-hidden": {
+      "types": "./dist/components/visually-hidden/index.d.ts",
+      "import": "./dist/components/visually-hidden/index.js"
+    },
+    "./visually-hidden/class": {
+      "types": "./dist/components/visually-hidden/class.d.ts",
+      "import": "./dist/components/visually-hidden/class.js"
     },
     "./themes/light.css": "./themes/light.css",
     "./package.json": "./package.json"

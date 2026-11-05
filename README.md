@@ -9,15 +9,15 @@ Charm users can adopt without rewriting application markup or event handlers. Th
 Velcro is an **unreleased early prototype**; its packages are marked `private: true` and are not released. It is not a drop-in replacement for Shoelace and not a
 completed 58-component library. The current implementation is a partial slice:
 
-- five components, `sl-badge`, `sl-button`, `sl-card`, `sl-divider` and `sl-spinner` (`packages/velcro`, package `@charm-ux/velcro`), built on `@charm-ux/core`;
+- six components, `sl-badge`, `sl-button`, `sl-card`, `sl-divider`, `sl-progress-ring` and `sl-spinner` (`packages/velcro`, package `@charm-ux/velcro`), built on `@charm-ux/core`;
 - the Shoelace light theme only (`packages/velcro/themes/light.css`);
 - a Litro static documentation site (`packages/docs`, package `@velcro/docs`) with the home page and one route per
-  component (`/components/badge`, `/components/button`, `/components/card`, `/components/divider`, `/components/spinner`).
+  component (`/components/badge`, `/components/button`, `/components/card`, `/components/divider`, `/components/progress-ring`, `/components/spinner`).
 
 Nothing is published or deployed, and the validation described here is local; this README reports no hosted CI or
 publication result. This slice has no upstream Shoelace runtime dependency: no Shoelace runtime is loaded or included.
 It does contain Shoelace-derived material adapted into source (the button's, spinner's, badge's, card's and divider's API documentation wording, the
-spinner's, badge's, card's and divider's structure and styles, and the light-theme token names and values), whose upstream notice is retained in
+progress ring's, spinner's, badge's, card's and divider's structure and styles, and the light-theme token names and values), whose upstream notice is retained in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (see Licensing and notices).
 
 ## Prerequisites
