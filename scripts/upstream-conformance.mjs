@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 export const VENDOR = 'tests/upstream/shoelace-2.20.1';
 export const LEDGER = 'tests/upstream/known-failures.json';
 export const DOCS = 'docs/conformance.md';
+export const INVENTORY = 'tests/upstream/inventory.json';
 
 function walk(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap(e =>
@@ -50,7 +51,9 @@ export function keyResults(results) {
 export function scoreboard(results) {
   const board = {};
   for (const r of results) {
-    const c = (board[r.component] ??= { passed: 0, failed: 0, skipped: 0, failures: [] });
+    const c = (board[r.component] ??= { passed: 0, failed: 0, skipped: 0, failures: [], titles: [], infrastructure: [] });
+    if (r.infrastructure) { c.infrastructure.push(r.reason ?? r.title); continue; }
+    c.titles.push(r.title);
     if (r.skipped) c.skipped++;
     else if (r.passed) c.passed++;
     else { c.failed++; c.failures.push({ title: r.title, reason: r.reason ?? '' }); }
@@ -58,24 +61,42 @@ export function scoreboard(results) {
   return Object.fromEntries(Object.keys(board).sort().map(k => [k, board[k]]));
 }
 
-// Compares a run with the ledger. Returns { ok, unexpected, fixed, problems }.
-export function evaluate(board, ledger, components) {
+const malformedList = (value, ok) => !value || typeof value !== 'object' || Array.isArray(value)
+  || Object.values(value).some(v => !Array.isArray(v) || !v.every(ok));
+
+// Compares a run with the pinned inventory and the ledger. Returns { ok, unexpected, fixed, problems }.
+// The inventory lists every expected test title per component (repeated titles carry their [#n] suffix): any missing or
+// extra outcome fails, infrastructure (load/session) failures always fail and can never be ledgered, and only assertion
+// failures of inventoried tests may be ledgered.
+export function evaluate(board, ledger, inventory, components) {
   const problems = [];
   const unexpected = [];
   const fixed = [];
-  if (!ledger || typeof ledger !== 'object' || Array.isArray(ledger)) return { ok: false, unexpected, fixed, problems: ['malformed ledger'] };
-  for (const [component, entries] of Object.entries(ledger)) {
-    if (!components.includes(component)) problems.push(`ledger names unknown component ${component}`);
-    if (!Array.isArray(entries)) { problems.push(`malformed ledger entry for ${component}`); continue; }
-    for (const e of entries) {
-      if (!e || typeof e.title !== 'string' || typeof e.reason !== 'string' || !e.reason.trim()) problems.push(`malformed ledger entry for ${component}`);
-    }
+  if (malformedList(ledger, e => e && typeof e.title === 'string' && typeof e.reason === 'string' && e.reason.trim())) {
+    return { ok: false, unexpected, fixed, problems: ['malformed ledger'] };
   }
-  for (const component of components) {
+  if (malformedList(inventory, t => typeof t === 'string')) return { ok: false, unexpected, fixed, problems: ['malformed inventory'] };
+  const names = [...new Set([...components, ...Object.keys(inventory), ...Object.keys(board), ...Object.keys(ledger)])].sort();
+  for (const component of names) {
+    if (!components.includes(component)) { problems.push(`unknown component ${component}`); continue; }
+    const expected = inventory[component];
+    if (!expected?.length) { problems.push(`no inventory for ${component}`); continue; }
+    if (new Set(expected).size !== expected.length) problems.push(`duplicate inventory titles in ${component}`);
     const result = board[component];
-    if (!result || result.passed + result.failed === 0) { problems.push(`no results for ${component}`); continue; }
+    if (!result) { problems.push(`no results for ${component}`); continue; }
+    for (const reason of result.infrastructure) problems.push(`infrastructure failure in ${component}: ${reason}`);
     if (result.skipped) problems.push(`skipped tests in ${component}`);
-    const known = new Set((Array.isArray(ledger[component]) ? ledger[component] : []).map(e => e.title));
+    const want = new Set(expected);
+    const seen = new Set();
+    for (const t of result.titles) {
+      if (seen.has(t)) problems.push(`duplicate outcome in ${component}: ${t}`);
+      seen.add(t);
+      if (!want.has(t)) problems.push(`outcome not in inventory for ${component}: ${t}`);
+    }
+    for (const t of expected) if (!seen.has(t)) problems.push(`missing outcome for ${component}: ${t}`);
+    const entries = ledger[component] ?? [];
+    for (const e of entries) if (!want.has(e.title)) problems.push(`ledger title not in inventory for ${component}: ${e.title}`);
+    const known = new Set(entries.map(e => e.title));
     const failing = new Set(result.failures.map(f => f.title));
     for (const f of result.failures) if (!known.has(f.title)) unexpected.push(`${component}: ${f.title}`);
     for (const t of known) if (!failing.has(t)) fixed.push(`${component}: ${t}`);
@@ -93,9 +114,15 @@ export function renderDocs(board, ledger) {
     'Velcro\'s components in Chromium. A resolver plugin points each test\'s Shoelace import at Velcro\'s',
     'registering entry for that component; no test is edited or skipped. Run it with `pnpm test:upstream`.',
     '',
+    'The complete pinned list of expected tests per component (repeated titles carry a `[#n]` suffix) is',
+    '`tests/upstream/inventory.json`; a run must report exactly those outcomes, with nothing missing or extra.',
     'Every failing test is listed in `tests/upstream/known-failures.json` with a one-line reason. The',
-    '`verify:product` gate fails on any failure that is not in that ledger and on any ledgered test that now',
+    '`verify:product` gate fails on any missing or extra outcome, on any load or session (infrastructure) failure,',
+    'which can never be ledgered, on any failure that is not in the ledger and on any ledgered test that now',
     'passes, so the ledger can only shrink. This page is regenerated by `pnpm test:upstream -- --write-docs`.',
+    '',
+    'The gate covers Chromium only. The runner config takes a browser list (`VELCRO_UPSTREAM_BROWSERS`) so a',
+    'later Firefox and WebKit lane can reuse it.',
     '',
     'Shoelace 2.20.1 ships no test file for resize-observer, so it has no row here.',
     '',
@@ -118,7 +145,15 @@ export function renderDocs(board, ledger) {
   lines.push('Harness notes: the runner page loads Velcro\'s light theme where upstream loads Shoelace\'s, uses upstream\'s',
     'mocha settings (3 s timeout, one retry), and adds two guards so one failure cannot discard a whole file\'s',
     'results: real form submission and navigation by `form.submit()` are suppressed, and an assertion that carries a',
-    'sinon spy is reported instead of crashing the runner. Neither guard can turn a failing assertion into a pass.', '');
+    'sinon spy is reported instead of crashing the runner. Neither guard can turn a failing assertion into a pass.', '',
+    '## Dependency note: inflation override', '',
+    'The test runner\'s dev server pulls in `inflation` through `co-body` (range `^2.0.0`). The root `package.json`',
+    'pins it to 2.0.0 with a pnpm override because the published integrity hash of 2.1.0 is falsely reported by',
+    'the repository privacy scanner (an opaque base64 hash, not workstation data; the same value appears in',
+    'Shoelace\'s own lockfile). This is an interim workaround: it affects development and test tooling only, not',
+    'Velcro\'s package dependencies, but it holds back normal updates of that package. The intended fix is a narrow',
+    'scanner change that recognizes validated lockfile integrity fields, which needs separate human review as a',
+    'protected change; remove the override once that lands.', '');
   return lines.join('\n');
 }
 
@@ -151,19 +186,26 @@ function main() {
   if (!existsSync(json) || statSync(json).mtimeMs < startedAt) return fail('missing or stale results');
   const components = readdirSync(path.join(root, VENDOR, 'src/components')).sort();
   const board = scoreboard(keyResults(JSON.parse(readFileSync(json, 'utf8'))));
-  writeFileSync(path.join(root, '.airig/upstream/scoreboard.json'), `${JSON.stringify(board, null, 2)}\n`, { mode: 0o600 });
+  const summary = Object.fromEntries(Object.entries(board).map(([c, { titles, ...rest }]) => [c, rest]));
+  writeFileSync(path.join(root, '.airig/upstream/scoreboard.json'), `${JSON.stringify(summary, null, 2)}\n`, { mode: 0o600 });
   const ledgerFile = path.join(root, LEDGER);
   if (args.has('--write-ledger')) {
     const ledger = Object.fromEntries(Object.entries(board).filter(([, b]) => b.failed)
       .map(([c, b]) => [c, b.failures.map(f => ({ title: f.title, reason: f.reason || 'fails' }))]));
     writeFileSync(ledgerFile, `${JSON.stringify(ledger, null, 2)}\n`);
   }
+  const inventoryFile = path.join(root, INVENTORY);
+  if (args.has('--write-inventory')) {
+    if (Object.values(board).some(b => b.infrastructure.length)) return fail('refusing to write an inventory from a run with infrastructure failures');
+    writeFileSync(inventoryFile, `${JSON.stringify(Object.fromEntries(Object.entries(board).map(([c, b]) => [c, b.titles])), null, 2)}\n`);
+  }
   const ledger = JSON.parse(readFileSync(ledgerFile, 'utf8'));
+  const inventory = JSON.parse(readFileSync(inventoryFile, 'utf8'));
   if (args.has('--write-docs')) writeFileSync(path.join(root, DOCS), renderDocs(board, ledger));
   let passed = 0, failed = 0;
   for (const [c, b] of Object.entries(board)) { passed += b.passed; failed += b.failed; say(`${c} ${b.passed} passed, ${b.failed} failed`); }
   say(`total ${passed + failed}, passed ${passed}, failed ${failed}; scoreboard in ignored .airig/upstream/`);
-  const result = evaluate(board, ledger, components);
+  const result = evaluate(board, ledger, inventory, components);
   for (const p of result.problems) say(`problem: ${p}`);
   for (const u of result.unexpected) say(`unexpected failure: ${u}`);
   for (const f of result.fixed) say(`now passes, remove from ledger: ${f}`);

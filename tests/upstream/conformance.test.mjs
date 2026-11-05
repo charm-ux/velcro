@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { DOCS, LEDGER, VENDOR, checkVendor, evaluate, keyResults, scoreboard } from '../../scripts/upstream-conformance.mjs';
+import { DOCS, INVENTORY, LEDGER, VENDOR, checkVendor, evaluate, keyResults, scoreboard } from '../../scripts/upstream-conformance.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const components = readdirSync(new URL(`../../${VENDOR}/src/components/`, import.meta.url)).sort();
@@ -33,27 +33,60 @@ test('the ledger names known components with a title and a one-line reason per e
   }
 });
 
-const r = (component, title, passed, extra = {}) => ({ component, title, passed, skipped: false, ...extra });
+const inventory = JSON.parse(readFileSync(new URL(`../../${INVENTORY}`, import.meta.url), 'utf8'));
 
-test('gate passes only when failures equal the ledger exactly', () => {
-  const board = scoreboard(keyResults([r('a', 'x', true), r('a', 'y', false, { reason: 'boom' }), r('b', 'z', true)]));
-  const led = { a: [{ title: 'y', reason: 'known' }] };
-  assert.equal(evaluate(board, led, ['a', 'b']).ok, true);
-  // A new failure that is not ledgered.
-  const worse = scoreboard(keyResults([r('a', 'x', false), r('a', 'y', false), r('b', 'z', true)]));
-  assert.deepEqual(evaluate(worse, led, ['a', 'b']).unexpected, ['a: x']);
-  // A ledgered test that now passes must be removed from the ledger.
-  const better = scoreboard(keyResults([r('a', 'x', true), r('a', 'y', true), r('b', 'z', true)]));
-  assert.deepEqual(evaluate(better, led, ['a', 'b']).fixed, ['a: y']);
+test('the pinned inventory covers every vendored component, is unique, and contains every ledgered title', () => {
+  assert.deepEqual(Object.keys(inventory).sort(), components);
+  assert.equal(Object.values(inventory).flat().length, 260);
+  for (const [c, titles] of Object.entries(inventory)) {
+    assert.equal(new Set(titles).size, titles.length, c);
+    for (const e of ledger[c] ?? []) assert.ok(titles.includes(e.title), `${c}: ${e.title}`);
+  }
 });
 
-test('gate fails on missing components, skips, unknown or malformed ledger entries', () => {
-  const board = scoreboard(keyResults([r('a', 'x', true)]));
-  assert.equal(evaluate(board, {}, ['a', 'b']).ok, false);
-  assert.equal(evaluate(scoreboard([r('a', 'x', true, { skipped: true }), r('a', 'w', true)]), {}, ['a']).ok, false);
-  assert.equal(evaluate(board, { c: [] }, ['a']).ok, false);
-  assert.equal(evaluate(board, { a: [{ title: 'q' }] }, ['a']).ok, false);
-  for (const bad of [null, [], 'x']) assert.equal(evaluate(board, bad, ['a']).ok, false);
+const r = (component, title, passed, extra = {}) => ({ component, title, passed, skipped: false, ...extra });
+
+const inv = { a: ['x', 'y', 'w'], b: ['z'] };
+const led = { a: [{ title: 'y', reason: 'known' }] };
+const baseline = () => [r('a', 'x', true), r('a', 'y', false, { reason: 'boom' }), r('a', 'w', true), r('b', 'z', true)];
+const gate = (results, ledgerArg = led, inventoryArg = inv) => evaluate(scoreboard(keyResults(results)), ledgerArg, inventoryArg, ['a', 'b']);
+
+test('gate passes only when outcomes equal the inventory and failures equal the ledger exactly', () => {
+  assert.equal(gate(baseline()).ok, true);
+  const worse = baseline(); worse[0] = r('a', 'x', false);
+  assert.deepEqual(gate(worse).unexpected, ['a: x']);
+  const better = baseline(); better[1] = r('a', 'y', true);
+  assert.deepEqual(gate(better).fixed, ['a: y']);
+});
+
+test('negative control: dropping one passing outcome fails although the component still has other results', () => {
+  const dropped = baseline().filter(t => t.title !== 'w');
+  const result = gate(dropped);
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.problems, ['missing outcome for a: w']);
+});
+
+test('gate fails on extra or duplicated outcomes and on infrastructure failures, which cannot be ledgered', () => {
+  assert.equal(gate([...baseline(), r('a', 'new', true)]).ok, false);
+  const dup = scoreboard(baseline()); dup.a.titles.push('x');
+  assert.equal(evaluate(dup, led, inv, ['a', 'b']).ok, false);
+  const infra = [...baseline(), r('b', '(session error)', false, { infrastructure: true, reason: 'load failed' })];
+  assert.match(gate(infra).problems.join('\n'), /infrastructure failure in b/);
+  assert.equal(gate(infra, { ...led, b: [{ title: '(session error)', reason: 'x' }] }).ok, false);
+});
+
+test('gate fails on missing components, skips, unknown or malformed ledger and inventory entries', () => {
+  assert.equal(gate(baseline().filter(t => t.component !== 'b')).ok, false);
+  const skipped = baseline(); skipped[0] = r('a', 'x', true, { skipped: true });
+  assert.equal(gate(skipped).ok, false);
+  assert.equal(gate(baseline(), { ...led, c: [] }).ok, false);
+  assert.equal(gate(baseline(), { a: [{ title: 'y' }] }).ok, false);
+  assert.equal(gate(baseline(), { a: [{ title: 'nope', reason: 'r' }, { title: 'y', reason: 'k' }] }).ok, false);
+  for (const bad of [null, [], 'x']) {
+    assert.equal(gate(baseline(), bad).ok, false);
+    assert.equal(gate(baseline(), led, bad).ok, false);
+  }
+  assert.equal(gate(baseline(), led, { a: ['x', 'y', 'w'] }).ok, false);
 });
 
 test('repeated titles get stable occurrence suffixes', () => {

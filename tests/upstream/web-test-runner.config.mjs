@@ -13,6 +13,8 @@ const vendor = 'tests/upstream/shoelace-2.20.1';
 const components = readdirSync(new URL('./shoelace-2.20.1/src/components/', import.meta.url)).sort();
 // Optional single-component filter, e.g. VELCRO_UPSTREAM_ONLY=button.
 const only = process.env.VELCRO_UPSTREAM_ONLY;
+// Browsers are parameterized for a later Firefox/WebKit lane; the gate and its ledger currently cover Chromium only.
+const products = (process.env.VELCRO_UPSTREAM_BROWSERS || 'chromium').split(',');
 
 const velcroEntries = {
   name: 'velcro-upstream-resolver',
@@ -43,9 +45,14 @@ function jsonReporter(file) {
           for (const s of suite.suites ?? []) walk(s, [...trail, s.name]);
         };
         if (session.testResults) walk(session.testResults, []);
+        // Load, runtime and runner failures are infrastructure problems, never ledgerable assertion failures.
         for (const e of session.errors ?? []) {
-          results.push({ component, title: '(file failed to load or run)', passed: false, skipped: false,
+          results.push({ component, title: '(session error)', passed: false, skipped: false, infrastructure: true,
             reason: String(e.message ?? e).split('\n')[0].slice(0, 200) });
+        }
+        if (session.status !== 'FINISHED') {
+          results.push({ component, title: '(session did not finish)', passed: false, skipped: false, infrastructure: true,
+            reason: String(session.status) });
         }
       }
       writeFileSync(file, JSON.stringify(results, null, 2));
@@ -64,7 +71,7 @@ export default {
   // Upstream's own mocha settings (3s timeout, one retry).
   testFramework: { config: { timeout: 3000, retries: 1 } },
   plugins: [velcroEntries, esbuildPlugin({ ts: true, target: 'es2020' })],
-  browsers: [playwrightLauncher({ product: 'chromium' })],
+  browsers: products.map(product => playwrightLauncher({ product })),
   // Mirrors upstream's runner page, with Velcro's light theme in place of Shoelace's.
   testRunnerHtml: testFramework => `
     <html lang="en-US">
