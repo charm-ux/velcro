@@ -1,0 +1,35 @@
+<div class="resize-observer-overview">
+  <sl-resize-observer id="demo-observer">
+    <div id="demo-box">Resize this box and watch the log 👇</div>
+  </sl-resize-observer>
+  <p>Resize events: <output id="demo-count">0</output></p>
+  <pre id="demo-log"></pre>
+</div>
+
+<script>
+  const container = document.querySelector('.resize-observer-overview');
+  const resizeObserver = container.querySelector('sl-resize-observer');
+  const count = container.querySelector('#demo-count');
+  const log = container.querySelector('#demo-log');
+  let events = 0;
+
+  resizeObserver.addEventListener('sl-resize', event => {
+    events += 1;
+    count.textContent = String(events);
+    const { width, height } = event.detail.entries[0].contentRect;
+    log.textContent = `${Math.round(width)} x ${Math.round(height)}`;
+  });
+</script>
+
+<style>
+  .resize-observer-overview div {
+    display: flex;
+    border: solid 2px var(--sl-input-border-color);
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4rem 2rem;
+    resize: horizontal;
+    overflow: auto;
+  }
+</style>
