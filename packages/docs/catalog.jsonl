@@ -2,6 +2,7 @@
 {"name":"button","title":"Button","tag":"sl-button","example":"#demo-primary"}
 {"name":"card","title":"Card","tag":"sl-card","example":"#demo-basic"}
 {"name":"divider","title":"Divider","tag":"sl-divider","example":"#demo-horizontal"}
+{"name":"format-bytes","title":"Format Bytes","tag":"sl-format-bytes","example":"#demo-default"}
 {"name":"progress-bar","title":"Progress bar","tag":"sl-progress-bar","example":"#demo-default"}
 {"name":"progress-ring","title":"Progress Ring","tag":"sl-progress-ring","example":"#demo-default"}
 {"name":"skeleton","title":"Skeleton","tag":"sl-skeleton","example":"#demo-avatar"}
