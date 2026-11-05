@@ -113,6 +113,11 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   explanatory wording adapted from `docs/pages/components/skeleton.md`). The skeleton is built on the
   `@charm-ux/core` skeleton; no Shoelace runtime or source files are included. The added light theme tokens
   (`--sl-border-radius-medium`, `--sl-border-radius-circle`) follow `src/themes/light.css` names and values.
+- Also used in: `tests/upstream/shoelace-2.20.1/` (test files only, never shipped): the upstream test files
+  `src/components/<name>/<name>.test.ts` for each implemented component and the helper
+  `src/internal/test/form-control-base-tests.ts`, copied unmodified from commit
+  `fb59fda70ed737c92611051b49bc7e3a5fed5dc5` with the upstream `LICENSE.md` and a hash manifest (`UPSTREAM.json`).
+  They run against Velcro as a conformance check; nothing from them is included in any package or site.
 - The 2.20.1 release carries no NOTICE file. Its license text, verbatim:
 
 ```text
