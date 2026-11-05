@@ -2,7 +2,8 @@
 import { scanText } from './security/privacy.mjs';
 
 export const MAX_FAILURES = 40;
-export const MAX_LINE = 200;
+export const MAX_LINE = 400;
+const MAX_DETAIL_LINES = 12;
 const ENGINES = ['chromium', 'firefox', 'webkit'];
 const ANSI = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 // Absolute filesystem paths (POSIX and Windows); web routes such as /components/button are left alone.
@@ -22,13 +23,28 @@ export function redactLine(text, root) {
   return s;
 }
 
+// The first message line plus the Expected/Received values and diff lines (not the code frame or call log), joined on one line.
+function detail(message) {
+  const lines = message.replace(ANSI, '').split('\n').map(l => l.trim());
+  const out = [];
+  let started = false;
+  for (const line of lines) {
+    if (!line) continue;
+    if (!started) { out.push(line); started = true; continue; }
+    if (/^(>?\s*\d+\s*\|)|^Call log|^at /.test(line)) break;
+    if (/^(Expected|Received|Locator|[-+] )/.test(line)) out.push(line);
+    if (out.length >= MAX_DETAIL_LINES) break;
+  }
+  return out.join(' ; ');
+}
+
 const firstLine = t => {
   const results = Array.isArray(t.results) ? t.results : [];
   for (const r of [...results].reverse()) {
     const message = r?.error?.message ?? r?.errors?.[0]?.message;
     if (typeof message === 'string') {
-      const line = message.replace(ANSI, '').split('\n').map(l => l.trim()).find(Boolean);
-      if (line) return line;
+      const d = detail(message);
+      if (d) return d;
     }
   }
   return 'no error message';

@@ -281,13 +281,19 @@ test('summary: per engine counts, then one line per failing test with the first 
   assert.deepEqual(failingEngines, ['firefox']);
 });
 
-test('summary: is bounded to 40 failures and 200 characters per line', () => {
+test('summary: is bounded to 40 failures and 400 characters per line', () => {
   const specs = Array.from({ length: 100 }, (_, i) => fake('firefox', 'unexpected', 'x'.repeat(5000), i + 1));
   const { lines } = summarizeReport(rep(specs));
   assert.equal(MAX_FAILURES, 40);
   assert.equal(lines.length, 3 + 40 + 1);
   assert.match(lines.at(-1), /60 more failing tests not listed/);
   for (const l of lines) assert.ok(l.length <= MAX_LINE, l.length);
+});
+
+test('summary: includes the Expected and Received values and diff lines but not the code frame', () => {
+  const message = 'Error: expect(received).toEqual(expected) // deep equality\n\n- Expected  - 1\n+ Received  + 1\n\n  Array [\n-   32,\n+   31,\n  ]\n\n  > 12 |   expect(x)\n     |          ^\n    at foo.mjs:3:4';
+  const { lines } = summarizeReport(rep([fake('firefox', 'unexpected', message)]));
+  assert.equal(lines.at(-1), 'firefox x.spec.mjs:1 title 1 | Error: expect(received).toEqual(expected) // deep equality ; - Expected - 1 ; + Received + 1 ; - 32, ; + 31,');
 });
 
 test('summary: redacts absolute paths, the repo root, escape codes and anything the privacy scanner flags', () => {
