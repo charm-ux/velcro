@@ -1,0 +1,5 @@
+---
+'@charm-ux/velcro': minor
+---
+
+Add a prototype `VelcroFormatNumber`, registered as `sl-format-number` on the `@charm-ux/core` base element (there is no core format-number): `value`, `type` (`currency`, `decimal`, `percent`), `no-grouping`, `currency`, `currency-display`, minimum/maximum integer, fraction and significant digit properties that format a number with `Intl.NumberFormat`, and `lang` for the formatting locale, using the shared localization controller. Like Shoelace it has no slots, parts, custom properties or ARIA role and does not reflect its properties; as a divergence (Shoelace restores only reflected properties) removing an attribute restores the default (or unset for the digit options); unlike Shoelace it inherits the core `ready` event. Not implemented or unverified: translations, the Shoelace overview example (needs `sl-input`) and React examples, invalid options (Intl throws, as in Shoelace), other browsers and RTL. Adds the `@charm-ux/velcro/format-number` and `@charm-ux/velcro/format-number/class` exports and updates the third-party notices.

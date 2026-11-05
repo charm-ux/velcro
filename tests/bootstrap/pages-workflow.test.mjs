@@ -11,15 +11,47 @@ const job = name => new RegExp(`\\n  ${name}:\\n([\\s\\S]*?)(?=\\n  [a-z-]+:\\n|
 const build = job('build');
 const deploy = job('deploy');
 
-test('the only trigger is a manual dispatch; nothing automatic, no PR or foreign-ref input', () => {
-  assert.match(code, /\non:\n {2}workflow_dispatch:\n/);
-  assert.equal([...code.matchAll(/^on:\n((?: {2}.*\n)+)/gm)][0][1].trim(), 'workflow_dispatch:');
-  assert.doesNotMatch(code, /\bpush:|pull_request|schedule:|workflow_run|repository_dispatch|inputs:|github\.event\.(?:inputs|pull_request)|github\.head_ref/);
-  assert.doesNotMatch(code, /secrets\.|PERSONAL|\bPAT\b|GH_TOKEN|GITHUB_TOKEN:/);
+const EXACT_TRIGGERS = 'push:\n    branches:\n      - main\n  workflow_dispatch:';
+const triggerProblems = source => {
+  const found = [...source.matchAll(/^on:\n((?: {2}.*\n)+)/gm)][0]?.[1].trimEnd().replace(/^ {2}/, '');
+  const problems = [];
+  if (found !== EXACT_TRIGGERS) problems.push('trigger set is not exactly push to main + workflow_dispatch');
+  if (/pull_request|schedule:|workflow_run|repository_dispatch|inputs:|tags:|paths(-ignore)?:|branches-ignore:|github\.event\.(?:inputs|pull_request)|github\.head_ref/.test(source)) {
+    problems.push('forbidden trigger, filter or input');
+  }
+  if (/secrets\.|PERSONAL|\bPAT\b|GH_TOKEN|GITHUB_TOKEN:/.test(source)) problems.push('secret or token');
+  return problems;
+};
+
+test('triggers are exactly push to main (no filters) plus manual dispatch; no PR, schedule, input or secret', () => {
+  assert.deepEqual(triggerProblems(code), []);
 });
 
-test('build and deployment are main-only and use the exact dispatched SHA', () => {
-  for (const j of [build, deploy]) assert.match(j, /if: \$\{\{ github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/main' \}\}/);
+test('the trigger check rejects forbidden variants', () => {
+  const mutate = to => code.replace(/^on:\n(?: {2}.*\n)+/m, `on:\n${to}\n`);
+  const variants = {
+    'a pull_request trigger': `  ${EXACT_TRIGGERS}\n  pull_request:`,
+    'a pull_request_target trigger': `  ${EXACT_TRIGGERS}\n  pull_request_target:`,
+    'a branches wildcard': '  push:\n    branches:\n      - "*"\n  workflow_dispatch:',
+    'a double-star branches wildcard': '  push:\n    branches:\n      - "**"\n  workflow_dispatch:',
+    'push to another branch': '  push:\n    branches:\n      - release\n  workflow_dispatch:',
+    'push to main and another branch': '  push:\n    branches:\n      - main\n      - dev\n  workflow_dispatch:',
+    'push without a branch filter': '  push:\n  workflow_dispatch:',
+    'a push tags trigger': '  push:\n    branches:\n      - main\n    tags:\n      - v*\n  workflow_dispatch:',
+    'a paths filter': '  push:\n    branches:\n      - main\n    paths:\n      - docs/**\n  workflow_dispatch:',
+    'a schedule': `  ${EXACT_TRIGGERS}\n  schedule:\n    - cron: "0 0 * * *"`,
+    'workflow_run': `  ${EXACT_TRIGGERS}\n  workflow_run:`,
+    'repository_dispatch': `  ${EXACT_TRIGGERS}\n  repository_dispatch:`,
+    'a dispatch input': '  push:\n    branches:\n      - main\n  workflow_dispatch:\n    inputs:\n      ref:',
+    'no manual dispatch': '  push:\n    branches:\n      - main',
+    'only a manual dispatch': '  workflow_dispatch:',
+  };
+  for (const [name, to] of Object.entries(variants)) assert.notDeepEqual(triggerProblems(mutate(to)), [], name);
+  assert.notDeepEqual(triggerProblems(`${code}\n  token: \${{ secrets.X }}\n`), [], 'a secret');
+});
+
+test('build and deployment are main-only push/dispatch jobs and use the exact SHA', () => {
+  for (const j of [build, deploy]) assert.match(j, /if: \$\{\{ \(github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch'\) && github\.ref == 'refs\/heads\/main' \}\}/);
   assert.match(build, /ref: \$\{\{ github\.sha \}\}/);
   assert.match(build, /persist-credentials: false/);
   assert.match(build, /--expect-sha "\$GITHUB_SHA"/);
