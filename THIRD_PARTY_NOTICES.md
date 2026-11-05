@@ -43,6 +43,12 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   inspection: files of the `v2.20.1` tag (`src/components/{badge,divider,progress-ring}/*`, `src/themes/light.css`); the added light
   theme tokens (`--sl-color-neutral-200`, `--sl-border-radius-small`, `--sl-letter-spacing-normal`,
   `--sl-panel-border-color`, `--sl-panel-border-width`) follow that file's names and values.
+- Also used in: `packages/velcro/src/components/card/card.ts` (API documentation wording, and the rendered structure:
+  a `div` with the `base` part around `image`, `header`, `body` and `footer` slots with `card` / `card--has-*` class
+  names, adapted from `src/components/card/card.component.ts`) and `packages/velcro/src/components/card/card.styles.ts`
+  (styles adapted from `src/components/card/card.styles.ts`). The card is built on the `@charm-ux/core` card; no
+  Shoelace runtime or source files are included. The added light theme tokens (`--sl-border-radius-medium`,
+  `--sl-shadow-x-small`, `--sl-panel-background-color`) follow `src/themes/light.css` names and values.
 - Also used in: `packages/velcro/src/components/progress-bar/progress-bar.ts` (API documentation wording, and the
   rendered structure: a `base` part with `role="progressbar"` and an `indicator` part sized by a width style around
   the default slot with the `label` part, adapted from `src/components/progress-bar/progress-bar.component.ts`),

@@ -51,6 +51,7 @@ const prototypeExports = {
   '.': { types: './dist/index.d.ts', import: './dist/index.js' },
   ...Object.fromEntries(catalog.map(c => [`./${c.name}`, exportTargets(`components/${c.name}/index`)])),
   './button/class': exportTargets('components/button/class'),
+  './card/class': exportTargets('components/card/class'),
   './progress-bar/class': exportTargets('components/progress-bar/class'),
   './progress-ring/class': exportTargets('components/progress-ring/class'),
   './skeleton/class': exportTargets('components/skeleton/class'),

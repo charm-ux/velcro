@@ -1,5 +1,6 @@
 export * from './components/badge/index.js';
 export * from './components/button/index.js';
+export * from './components/card/index.js';
 export * from './components/divider/index.js';
 export * from './components/progress-bar/index.js';
 export * from './components/progress-ring/index.js';

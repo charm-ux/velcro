@@ -1,5 +1,6 @@
 {"name":"badge","title":"Badge","tag":"sl-badge","example":"#demo-default"}
 {"name":"button","title":"Button","tag":"sl-button","example":"#demo-primary"}
+{"name":"card","title":"Card","tag":"sl-card","example":"#demo-basic"}
 {"name":"divider","title":"Divider","tag":"sl-divider","example":"#demo-horizontal"}
 {"name":"progress-bar","title":"Progress bar","tag":"sl-progress-bar","example":"#demo-default"}
 {"name":"progress-ring","title":"Progress Ring","tag":"sl-progress-ring","example":"#demo-default"}
