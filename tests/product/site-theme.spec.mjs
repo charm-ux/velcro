@@ -219,6 +219,39 @@ test('the docs page itself carries the Velcro light tokens and the theme control
   await expect(page.getByRole('navigation', { name: 'Components' }).getByRole('link', { name: 'Button', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 
+const panelOf = locator =>
+  locator.evaluate(async el => {
+    await customElements.whenDefined(el.localName);
+    await el.updateComplete;
+    return {
+      panel: getComputedStyle(el.shadowRoot.querySelector('[part~="base"]')).backgroundColor,
+      text: getComputedStyle(el).color,
+      token: getComputedStyle(el).getPropertyValue('--sl-color-neutral-0').trim(),
+    };
+  });
+
+for (const scheme of ['light', 'dark']) {
+  test(`Velcro components render with ${scheme} tokens on the page (showcase) and inside an example iframe`, async ({ browser }) => {
+    const context = await browser.newContext({ colorScheme: scheme });
+    const page = await context.newPage();
+    await page.goto('/', { waitUntil: 'networkidle' });
+    await settle(page);
+    const onPage = await panelOf(page.locator('#showcase [data-component="card"] sl-card'));
+    await page.goto('/components/card', { waitUntil: 'networkidle' });
+    await settle(page);
+    const inFrame = await panelOf(page.frameLocator('iframe.example').locator('#demo-basic'));
+    for (const [where, r] of [['page', onPage], ['iframe', inFrame]]) {
+      // Shoelace's neutral-0 token is hsl(0 0% 100%) in light and hsl(240 5.9% 11%) in dark (bundled CSS is minified).
+      expect(r.token, where).toBe(scheme === 'dark' ? '#1a1a1e' : '#fff');
+      // The card panel (--sl-panel-background-color) is white in light and a near-black panel in dark.
+      if (scheme === 'dark') expect(Math.max(...r.panel.match(/\d+/g).slice(0, 3).map(Number)), where).toBeLessThan(60);
+      else expect(r.panel, where).toBe('rgb(255, 255, 255)');
+      expect(contrast(r.text, r.panel), `${where} ${JSON.stringify(r)}`).toBeGreaterThanOrEqual(4.5);
+    }
+    await context.close();
+  });
+}
+
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false, colorScheme: 'dark' });
 

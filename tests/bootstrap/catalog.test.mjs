@@ -105,6 +105,9 @@ test('catalog parsing fails closed on every malformed shape', () => {
   bad('{"name":1,"title":"A","tag":"sl-a","example":"#x"}\n', 'catalog-shape');
   for (const name of ['A', 'a_b', '../a', 'a-', '-a', 'a--b', '1a', '']) bad(ok.replace('"name":"a"', `"name":${JSON.stringify(name)}`), 'catalog-name');
   bad(ok.replace('"title":"A"', '"title":"<b>"'), 'catalog-title');
+  bad(ok.replace('"title":"A"', '"title":"Progress bar"'), 'catalog-title');
+  bad(ok.replace('"title":"A"', '"title":"a"'), 'catalog-title');
+  bad(ok.replace('"title":"A"', '"title":"A  B"'), 'catalog-title');
   bad(ok.replace('"tag":"sl-a"', '"tag":"ch-a"'), 'catalog-tag');
   bad(ok.replace('"tag":"sl-a"', '"tag":"sl-b"'), 'catalog-tag');
   bad(ok.replace('"#x"', '"a b"'), 'catalog-example');

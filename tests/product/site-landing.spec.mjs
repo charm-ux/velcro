@@ -8,6 +8,8 @@ test('the prerendered landing page carries the hero, the install command and one
   const html = await (await request.get('/')).text();
   expect(html).toContain('<title>Velcro</title>');
   expect(html).toContain('pnpm --filter @charm-ux/velcro run build');
+  // The component count comes from the catalog.
+  expect(html).toMatch(new RegExp(`(?:<!--[^>]*-->)?${catalog.length}(?:<!--[^>]*-->)? components so far`));
   for (const c of catalog) {
     expect(html, c.name).toContain(`data-component="${c.name}"`);
     expect(html, c.name).toContain(`<${c.tag}`);

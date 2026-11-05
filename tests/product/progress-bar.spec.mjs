@@ -54,7 +54,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   const response = await request.get(PAGE);
   expect(response.ok()).toBe(true);
   const html = await response.text();
-  expect(html).toContain('<title>Progress bar - Velcro</title>');
+  expect(html).toContain('<title>Progress Bar - Velcro</title>');
   expect(html).toContain('Velcro is an unreleased prototype');
   expect(html).toContain('Not implemented or unverified');
   expect(html).toContain('localizes it through its localization controller');
