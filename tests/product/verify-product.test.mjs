@@ -6,16 +6,17 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { evaluateReport } from '../../scripts/verify-product.mjs';
 
+const ENGINES = ['chromium', 'firefox', 'webkit'];
 const startedAt = Date.parse('2026-01-01T00:00:00Z');
 const mk = (n = 8, over = {}) => ({
-  stats: { startTime: '2026-01-01T00:00:01Z', expected: n, unexpected: 0, flaky: 0, skipped: 0 },
+  stats: { startTime: '2026-01-01T00:00:01Z', expected: n * 3, unexpected: 0, flaky: 0, skipped: 0 },
   errors: [],
-  suites: [{ specs: Array.from({ length: n }, () => ({ tests: [{ projectName: 'chromium', status: 'expected', results: [{ status: 'passed' }] }] })) }],
+  suites: [{ specs: Array.from({ length: n }, () => ({ tests: ENGINES.map(projectName => ({ projectName, status: 'expected', results: [{ status: 'passed' }] })) })) }],
   ...over,
 });
 const ev = r => evaluateReport(r, { startedAt });
 
-test('accepts a fresh all-passing Chromium run of at least eight tests', () => {
+test('accepts a fresh all-passing run of at least eight tests in each of Chromium, Firefox and WebKit', () => {
   assert.equal(ev(mk(8)).ok, true);
   assert.equal(ev(mk(9)).ok, true);
 });
@@ -30,7 +31,13 @@ test('rejects empty, short, stale, malformed, failing, flaky and skipped reports
     const r = mk(8); r.stats[k] = 1; assert.equal(ev(r).ok, false, k);
   }
   const r = mk(8); r.suites[0].specs[0].tests[0].status = 'skipped'; assert.equal(ev(r).ok, false);
-  const f = mk(8); f.suites[0].specs[0].tests[0].projectName = 'firefox'; assert.equal(ev(f).ok, false);
+  const f = mk(8); f.suites[0].specs[0].tests[0].projectName = 'opera'; assert.equal(ev(f).ok, false);
+  for (const engine of ENGINES) {
+    const m = mk(8); m.suites[0].specs.forEach(sp => { sp.tests = sp.tests.filter(x => x.projectName !== engine); });
+    m.stats.expected = 16; assert.equal(ev(m).ok, false, `missing ${engine}`);
+    const u = mk(8); u.suites[0].specs[0].tests = u.suites[0].specs[0].tests.filter(x => x.projectName !== engine);
+    u.stats.expected = 23; assert.equal(ev(u).ok, false, `uneven ${engine}`);
+  }
   const t = mk(8); t.suites[0].specs[0].tests[0].results.push({ status: 'passed' }); assert.equal(ev(t).ok, false);
   const s = mk(8); delete s.stats.startTime; assert.equal(ev(s).ok, false);
 });
@@ -73,7 +80,7 @@ function stubPlaywright(dir) {
   const pkg = path.join(dir, 'node_modules/@playwright/test');
   mkdirSync(pkg, { recursive: true });
   writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: '@playwright/test', type: 'module', exports: './index.js' }));
-  writeFileSync(path.join(pkg, 'index.js'), 'export const chromium = { executablePath: () => process.execPath };\n');
+  writeFileSync(path.join(pkg, 'index.js'), 'export const chromium = { executablePath: () => process.execPath };\nexport const firefox = chromium;\nexport const webkit = chromium;\n');
 }
 function runCli(dir, expectFail = true, extraEnv = {}) {
   const r = spawnSync(process.execPath, [path.join(dir, 'scripts/verify-product.mjs')], {
@@ -123,9 +130,9 @@ const orderShim = `case "$*" in
   *"@velcro/docs run build"*) echo "build LITRO_BASE_PATH=[$LITRO_BASE_PATH]" >> calls.log; [ -f prefixed.marker ] || exit 1; touch generated.marker ;;
   *"@velcro/docs run typecheck"*) echo "typecheck LITRO_BASE_PATH=[$LITRO_BASE_PATH]" >> calls.log; [ -f generated.marker ] || exit 1 ;;
   *"exec playwright"*) echo browser >> calls.log
-    node -e 'const t=[];for(let i=0;i<8;i++)t.push({projectName:"chromium",status:"expected",results:[{status:"passed"}]});
+    node -e 'const t=[];for(let i=0;i<8;i++)for(const p of ["chromium","firefox","webkit"])t.push({projectName:p,status:"expected",results:[{status:"passed"}]});
       require("fs").writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_NAME,JSON.stringify({errors:[],suites:[{specs:t.map(x=>({tests:[x]}))}],
-      stats:{startTime:new Date().toISOString(),expected:8,unexpected:0,flaky:0,skipped:0}}))' ;;
+      stats:{startTime:new Date().toISOString(),expected:24,unexpected:0,flaky:0,skipped:0}}))' ;;
 esac
 `;
 
@@ -138,7 +145,7 @@ for (const [label, inherited] of [['unset', {}], ['empty', { LITRO_BASE_PATH: ''
       const out = runCli(dir, false, inherited);
       assert.deepEqual(readFileSync(path.join(dir, 'calls.log'), 'utf8').trim().split('\n'),
         ['library', 'prefixed LITRO_BASE_PATH=[/velcro]', 'build LITRO_BASE_PATH=[]', 'typecheck LITRO_BASE_PATH=[]', 'browser']);
-      assert.match(out, /tests 8, passed 8, failed 0, flaky 0, skipped 0\nverify:product: passed \(Chromium only\)\n/);
+      assert.match(out, /tests 24, passed 24, failed 0, flaky 0, skipped 0\nverify:product: per engine chromium 8, firefox 8, webkit 8\nverify:product: passed \(Chromium, Firefox and WebKit\)\n/);
     } finally { cleanup(dir); }
   });
 }
@@ -218,7 +225,7 @@ test('source that was dirty at any boundary leaves no publication evidence, even
     const dir = fixture({ prepare: d => { stubPlaywright(d); gitInit(d); c.dirty?.(d); }, shim: c.shim });
     try {
       const out = runCli(dir, false);
-      assert.match(out, /verify:product: passed \(Chromium only\)\nverify:product: note: source was not clean and unchanged at every boundary; no publication evidence recorded\n$/, label);
+      assert.match(out, /verify:product: passed \(Chromium, Firefox and WebKit\)\nverify:product: note: source was not clean and unchanged at every boundary; no publication evidence recorded\n$/, label);
       assert.throws(() => readFileSync(path.join(dir, EVIDENCE)), /ENOENT/, label);
     } finally { cleanup(dir); }
   }

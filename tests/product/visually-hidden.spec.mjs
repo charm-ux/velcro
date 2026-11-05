@@ -109,7 +109,7 @@ test('hidden state: clip-based styles match Shoelace', async ({ page }) => {
   expect(overridden).toEqual({ width: '1px', position: 'absolute' });
 });
 
-test('focus reveals the content and blurring hides it again', async ({ page }) => {
+test('focus reveals the content and blurring hides it again', async ({ page, browserName }) => {
   const { frame } = await openExample(page);
   const host = frame.locator('#demo-skip');
   await frame.locator('#demo-skip-link').focus();
@@ -124,7 +124,8 @@ test('focus reveals the content and blurring hides it again', async ({ page }) =
   // Keyboard path: the first Tab stop in the document is the hidden link.
   await frame.locator('body').evaluate(() => document.activeElement?.blur());
   await frame.locator('#demo-external').evaluate(el => el.focus());
-  await page.keyboard.press('Shift+Tab');
+  // Safari's default (and so WebKit's on macOS) skips links in the Tab order; Option moves through all focusable elements.
+  await page.keyboard.press(browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Shift+Tab' : 'Shift+Tab');
   await expect(frame.locator('#demo-skip-link')).toBeFocused();
   expect((await hiddenStyles(host)).clipPath).toBe('none');
 });

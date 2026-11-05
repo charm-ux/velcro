@@ -50,11 +50,11 @@ jobs:
         run: |
           pnpm verify:source > .airig/ci/verify.log 2>&1 || { echo 'verify: blocked; private evidence retained'; exit 1; }
           echo 'verify: passed'
-      - name: Install Chromium and system dependencies (disposable runner)
+      - name: Install Chromium, Firefox and WebKit with system dependencies (disposable runner)
         run: |
-          pnpm exec playwright install --with-deps chromium > .airig/ci/browser.log 2>&1 || { echo 'browser setup: blocked; private evidence retained'; exit 1; }
+          pnpm exec playwright install --with-deps chromium firefox webkit > .airig/ci/browser.log 2>&1 || { echo 'browser setup: blocked; private evidence retained'; exit 1; }
           echo 'browser setup: passed'
-      - name: Product verification (Chromium only)
+      - name: Product verification (Chromium, Firefox and WebKit)
         run: |
           pnpm verify:product > .airig/ci/product.log 2>&1 || { echo 'product: blocked; private evidence retained'; exit 1; }
           echo 'product: passed'

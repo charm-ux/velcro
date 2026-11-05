@@ -119,8 +119,8 @@ project configuration or scope maps. Browser regressions cover the current five
 leaf components, whole-root map/prefix isolation and constructor identity.
 Button, card and spinner also expose class-only entries and `Sl*` aliases; badge and
 divider do not yet expose equivalent class-only subpaths. The root remains a
-registering aggregate. These checks are Chromium evidence, not a general FUI/CUI,
-SSR, packed-consumer or cross-browser guarantee.
+registering aggregate. These checks run in Chromium, Firefox and WebKit; they are not a general FUI/CUI,
+SSR or packed-consumer guarantee.
 
 This implementation is not a complete replacement for core's scope machinery. Core classes
 with dependencies or templates using `this.scope` can fail when registered outside

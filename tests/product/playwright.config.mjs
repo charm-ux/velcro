@@ -21,7 +21,11 @@ export default defineConfig({
   reporter: 'list',
   // webServer.port makes Playwright set baseURL itself.
   use: { trace: 'off' },
-  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'firefox', use: { browserName: 'firefox' } },
+    { name: 'webkit', use: { browserName: 'webkit' } },
+  ],
   webServer: {
     command: 'node packages/docs/scripts/preview.mjs',
     cwd: root,

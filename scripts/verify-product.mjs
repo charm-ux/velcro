@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { clearTestedEvidence, sameSnapshot, snapshotTested, writeTestedEvidence } from './site/tested.mjs';
 
 export const MIN_TESTS = 8;
+export const ENGINES = ['chromium', 'firefox', 'webkit'];
 
 function collect(suite, out) {
   for (const spec of suite?.specs ?? []) {
@@ -29,11 +30,13 @@ export function evaluateReport(report, { startedAt, minTests = MIN_TESTS } = {})
   if (report.errors.length > 0) return fail('report errors');
   const tests = [];
   for (const s of report.suites) collect(s, tests);
-  const bad = tests.filter(t => t.status !== 'expected' || t.projectName !== 'chromium'
+  const perEngine = Object.fromEntries(ENGINES.map(e => [e, tests.filter(t => t.projectName === e).length]));
+  const bad = tests.filter(t => t.status !== 'expected' || !ENGINES.includes(t.projectName)
     || !Array.isArray(t.results) || t.results.length !== 1 || t.results[0].status !== 'passed');
   const counts = { total: tests.length, passed: stats.expected, failed: stats.unexpected,
-    flaky: stats.flaky, skipped: stats.skipped };
-  if (tests.length < minTests || stats.expected !== tests.length) return { ok: false, reason: 'too few or inconsistent tests', counts };
+    flaky: stats.flaky, skipped: stats.skipped, perEngine };
+  const even = ENGINES.every(e => perEngine[e] === perEngine[ENGINES[0]]);
+  if (!even || ENGINES.some(e => perEngine[e] < minTests) || stats.expected !== tests.length) return { ok: false, reason: 'too few or inconsistent tests', counts };
   if (stats.unexpected || stats.flaky || stats.skipped || bad.length) return { ok: false, reason: 'failures, flakes or skips', counts };
   return { ok: true, counts };
 }
@@ -85,23 +88,28 @@ function main() {
   if (!step('docs-build', ['--filter', '@velcro/docs', 'run', 'build'], { LITRO_BASE_PATH: '' })) return fail('blocked');
   if (!step('docs-typecheck', ['--filter', '@velcro/docs', 'run', 'typecheck'], { LITRO_BASE_PATH: '' })) return fail('blocked');
 
-  const probe = spawnSync(process.execPath, ['--input-type=module', '-e',
-    "import { chromium } from '@playwright/test'; process.stdout.write(chromium.executablePath())"],
-  { cwd: root, encoding: 'utf8' });
-  if (probe.status !== 0 || !probe.stdout || !existsSync(probe.stdout.trim())) {
-    return fail('Chromium is not installed. Run `pnpm exec playwright install chromium` (add `--with-deps` on Linux) and retry; it is never installed automatically.');
+  for (const engine of ENGINES) {
+    const probe = spawnSync(process.execPath, ['--input-type=module', '-e',
+      `import { ${engine} } from '@playwright/test'; process.stdout.write(${engine}.executablePath())`],
+    { cwd: root, encoding: 'utf8' });
+    if (probe.status !== 0 || !probe.stdout || !existsSync(probe.stdout.trim())) {
+      return fail(`${engine} is not installed. Run \`pnpm exec playwright install chromium firefox webkit\` (add \`--with-deps\` on Linux) and retry; browsers are never installed automatically.`);
+    }
   }
 
   const reportFile = path.join(scratch, 'report.json');
   const ok = step('browser-tests', ['exec', 'playwright', 'test', '-c', 'tests/product/playwright.config.mjs',
-    '--project=chromium', '--reporter=json', '--output', path.join(scratch, 'artifacts')],
+    ...ENGINES.map(e => `--project=${e}`), '--reporter=json', '--output', path.join(scratch, 'artifacts')],
   { PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile, VELCRO_PRODUCT_OUT: scratch });
   if (!ok) return fail('blocked');
   if (!existsSync(reportFile) || statSync(reportFile).mtimeMs < startedAt) return fail('missing or stale report');
   let result;
   try { result = evaluateReport(JSON.parse(readFileSync(reportFile, 'utf8')), { startedAt }); } catch { return fail('malformed report'); }
   const c = result.counts;
-  if (c) process.stdout.write(`verify:product: tests ${c.total}, passed ${c.passed}, failed ${c.failed}, flaky ${c.flaky}, skipped ${c.skipped}\n`);
+  if (c) {
+    process.stdout.write(`verify:product: tests ${c.total}, passed ${c.passed}, failed ${c.failed}, flaky ${c.flaky}, skipped ${c.skipped}\n`);
+    process.stdout.write(`verify:product: per engine ${ENGINES.map(e => `${e} ${c.perEngine[e]}`).join(', ')}\n`);
+  }
   if (!result.ok) return fail(`blocked (${result.reason})`);
   // Success evidence only if the tested bytes are still exactly the captured bytes.
   let after;
@@ -110,7 +118,7 @@ function main() {
   sources.push(sourceState(root));
   const evidenceOk = sources.every(x => x.clean && x.sha === sources[0].sha);
   if (evidenceOk) writeTestedEvidence(root, tested, sources[0].sha);
-  process.stdout.write('verify:product: passed (Chromium only)\n');
+  process.stdout.write('verify:product: passed (Chromium, Firefox and WebKit)\n');
   if (!evidenceOk) process.stdout.write('verify:product: note: source was not clean and unchanged at every boundary; no publication evidence recorded\n');
 }
 

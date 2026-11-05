@@ -45,15 +45,23 @@ test('showcase: every catalog component is rendered live, upgraded, and links to
   expect(errors).toEqual([]);
 });
 
-test('hero, feature rows and the copy button', async ({ page, context }) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+test('hero, feature rows and the copy button', async ({ page, context, browserName }) => {
+  // Only Chromium has clipboard permissions, so it reads the real clipboard. In every engine the page's writeText call is also
+  // recorded (and still forwarded), which is the engine-neutral proof of what the button copies.
+  if (browserName === 'chromium') await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.addInitScript(() => {
+    const original = navigator.clipboard.writeText.bind(navigator.clipboard);
+    window.__copied = [];
+    navigator.clipboard.writeText = text => { window.__copied.push(text); return original(text); };
+  });
   await page.goto('/', { waitUntil: 'networkidle' });
   await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
   await expect(page.getByRole('heading', { level: 1, name: 'Velcro' })).toBeVisible();
   await expect(page.locator('.row')).toHaveCount(3);
   await page.getByRole('button', { name: 'Copy' }).click();
   await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('pnpm --filter @charm-ux/velcro run build');
+  expect(await page.evaluate(() => window.__copied)).toEqual(['pnpm --filter @charm-ux/velcro run build']);
+  if (browserName === 'chromium') expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('pnpm --filter @charm-ux/velcro run build');
   await page.getByRole('link', { name: 'See every component' }).click();
   expect(new URL(page.url()).hash).toBe('#showcase');
 });

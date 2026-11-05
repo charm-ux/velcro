@@ -44,11 +44,10 @@ test('workflow is pinned, read-only, full-history and has an always-running aggr
   assert.match(text, /--frozen-lockfile/);
   assert.match(text, /registry\.npmjs\.org/);
   const job = /\n  product:\n([\s\S]*?)\n  required:/.exec(text)?.[1] ?? '';
-  assert.match(job, /playwright install --with-deps chromium/);
+  assert.match(job, /playwright install --with-deps chromium firefox webkit/);
   assert.match(job, /--frozen-lockfile/);
   assert.match(job, /pnpm verify:product/);
   assert.doesNotMatch(text, /\bpaths(-ignore)?:|\n {2}product:\n {4}if:/);
-  assert.doesNotMatch(text, /firefox|webkit/i);
   assert.doesNotMatch(text, /upload-artifact|pull_request_target|secrets\./);
   assert.match(text, /Report protected changes requiring independent human review/);
   assert.doesNotMatch(text, /Block protected policy changes|continue-on-error/);
