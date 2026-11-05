@@ -1,0 +1,20 @@
+<div class="skeleton-effects">
+  <sl-skeleton id="demo-none" effect="none"></sl-skeleton>
+  None
+
+  <sl-skeleton id="demo-sheen" effect="sheen"></sl-skeleton>
+  Sheen
+
+  <sl-skeleton id="demo-pulse" effect="pulse"></sl-skeleton>
+  Pulse
+</div>
+
+<style>
+  .skeleton-effects {
+    font-size: var(--sl-font-size-small);
+  }
+
+  .skeleton-effects sl-skeleton:not(:first-child) {
+    margin-top: 1rem;
+  }
+</style>
