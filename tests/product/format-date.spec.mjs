@@ -109,13 +109,17 @@ test('defaults: the date is the current time, no format options, auto hour forma
       minute: el.minute, second: el.second, timeZoneName: el.timeZoneName, timeZone: el.timeZone, hourFormat: el.hourFormat };
     const stamp = new Date(el.shadowRoot.querySelector('time').getAttribute('datetime')).getTime();
     const isDate = el.date instanceof Date;
+    const initialLang = el.lang;
+    el.setAttribute('lang', 'fr'); el.removeAttribute('lang'); await el.updateComplete;
+    const removedLang = el.lang;
     el.weekday = 'long'; el.month = 'short'; el.day = '2-digit'; el.year = '2-digit'; el.hour = 'numeric'; el.minute = '2-digit';
     el.second = '2-digit'; el.timeZoneName = 'short'; el.timeZone = 'UTC'; el.hourFormat = '24'; el.era = 'short'; el.date = '2021-03-04T05:06:07Z';
     await el.updateComplete;
-    return { defaults, isDate, recent: before - stamp < 60000 && stamp - Date.now() < 1000, attrs: el.getAttributeNames(), text: el.shadowRoot.textContent.replace(/\\s+/g, ' ').trim() };
+    return { defaults, initialLang, removedLang, isDate, recent: before - stamp < 60000 && stamp - Date.now() < 1000, attrs: el.getAttributeNames(), text: el.shadowRoot.textContent.replace(/\\s+/g, ' ').trim() };
   `);
   expect(out.defaults).toEqual({ hourFormat: 'auto' });
   expect(out.isDate).toBe(true);
+  expect([out.initialLang, out.removedLang]).toEqual(['', null]); // Shoelace starts at undefined; removal leaves null in both
   expect(out.recent).toBe(true);
   expect(out.attrs).toEqual([]);
   expect(out.text).toContain('Thursday');
