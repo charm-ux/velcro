@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 
-// Scope of these checks: Velcro's own badge, button, divider and spinner (everything the package root registers) register
+// Scope of these checks: Velcro's own badge, button, divider, progress-bar and spinner (everything the package root registers) register
 // by defining their exported classes natively, in Chromium, alone or next to core's own button. They do NOT show that scope-dependent or nested core components work.
 // Needs the built library: `pnpm --filter @charm-ux/velcro run build` (verify:product does this first).
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -39,7 +39,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 // Everything the package root registers.
-const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-divider', 'sl-spinner'];
+const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-bar', 'sl-spinner'];
 
 const importAll = (page, ...names) => page.evaluate(async list => {
   const out = [];
@@ -89,7 +89,7 @@ for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spi
       const out = {};
       // Badge and divider have no class-only entry or Sl* alias in this batch, so their alias check is the class itself.
       for (const [tag, Cls, Alias] of [['sl-badge', m.VelcroBadge, m.VelcroBadge], ['sl-button', m.VelcroButton, m.SlButton],
-        ['sl-divider', m.VelcroDivider, m.VelcroDivider], ['sl-spinner', m.VelcroSpinner, m.SlSpinner]]) {
+        ['sl-divider', m.VelcroDivider, m.VelcroDivider], ['sl-progress-bar', m.VelcroProgressBar, m.SlProgressBar], ['sl-spinner', m.VelcroSpinner, m.SlSpinner]]) {
         const el = new Cls();
         document.body.append(el);
         await el.updateComplete;
@@ -203,7 +203,7 @@ for (const order of ['velcro first', 'core first']) {
   });
 }
 
-// Whole-root isolation: importing the package root (all four registering entries) must not change core's prefix,
+// Whole-root isolation: importing the package root (all five registering entries) must not change core's prefix,
 // project config, scope object or either scope Map, compared by identity and by entry (so same-size value changes show).
 test('the whole package root changes no core state: prefix, config, scope object and both scope maps', async ({ page }) => {
   const r = await page.evaluate(async () => {
@@ -232,7 +232,7 @@ test('the whole package root changes no core state: prefix, config, scope object
       for (const [k] of after[entriesKey]) if (!before[entriesKey].some(([k2]) => k2 === k)) problems.push(`${label} key added: ${k}`);
     }
     return { seeded: [before.tagEntries.length, before.baseEntries.length], problems, sameConfig: before.config === after.config,
-      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-divider', 'sl-spinner'].map(t => customElements.get(t) !== undefined) };
+      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-bar', 'sl-spinner'].map(t => customElements.get(t) !== undefined) };
   });
   expect(r.defined).toEqual([true, true, true, true]);
   expect(r.seeded[0]).toBeGreaterThan(0);
