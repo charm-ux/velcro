@@ -37,6 +37,12 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   inspection: files of the `v2.20.1` tag (`src/components/{badge,divider}/*`, `src/themes/light.css`); the added light
   theme tokens (`--sl-color-neutral-200`, `--sl-border-radius-small`, `--sl-letter-spacing-normal`,
   `--sl-panel-border-color`, `--sl-panel-border-width`) follow that file's names and values.
+- Also used in: `packages/velcro/src/components/visually-hidden/visually-hidden.ts` (API documentation wording and the
+  rendered structure, a default slot only, adapted from `src/components/visually-hidden/visually-hidden.component.ts`)
+  and `packages/velcro/src/components/visually-hidden/visually-hidden.styles.ts` (styles adapted from
+  `src/components/visually-hidden/visually-hidden.styles.ts`, declarations unchanged), plus two example snippets in the
+  docs page examples adapted from `docs/pages/components/visually-hidden.md`. The component extends the `@charm-ux/core`
+  base element; no Shoelace runtime or source files are included.
 - The 2.20.1 release carries no NOTICE file. Its license text, verbatim:
 
 ```text

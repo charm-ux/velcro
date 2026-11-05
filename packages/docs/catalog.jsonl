@@ -2,3 +2,4 @@
 {"name":"button","title":"Button","tag":"sl-button","example":"#demo-primary"}
 {"name":"divider","title":"Divider","tag":"sl-divider","example":"#demo-horizontal"}
 {"name":"spinner","title":"Spinner","tag":"sl-spinner","example":"sl-spinner"}
+{"name":"visually-hidden","title":"Visually Hidden","tag":"sl-visually-hidden","example":"#demo-skip"}
