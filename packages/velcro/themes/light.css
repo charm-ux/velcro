@@ -54,6 +54,8 @@
   --sl-spacing-large: 1.25rem;
 
   --sl-border-radius-small: 0.1875rem;
+  --sl-border-radius-medium: 0.25rem;
+  --sl-border-radius-circle: 50%;
   --sl-border-radius-pill: 9999px;
   --sl-transition-x-fast: 150ms;
 
