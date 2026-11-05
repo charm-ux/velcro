@@ -11,10 +11,16 @@ const pkgDir = path.join(root, 'packages/velcro');
 const requireFromRoot = createRequire(path.join(root, 'package.json'));
 const plopBin = path.join(path.dirname(requireFromRoot.resolve('plop/package.json')), 'bin/plop.js');
 
-// Runs the real generator against a copy of the plopfile, templates and barrel in ignored scratch.
+// Runs the real generator against a copy of the plopfile, templates, barrel and catalog in ignored scratch, laid out like the
+// repository (<repo>/packages/velcro, <repo>/packages/docs, <repo>/tests/product). Returns the package directory.
 function scratch() {
   mkdirSync(path.join(root, '.airig'), { recursive: true });
-  const dir = mkdtempSync(path.join(root, '.airig/generator-'));
+  const repo = mkdtempSync(path.join(root, '.airig/generator-'));
+  const dir = path.join(repo, 'packages/velcro');
+  mkdirSync(dir, { recursive: true });
+  mkdirSync(path.join(repo, 'packages/docs'), { recursive: true });
+  writeFileSync(path.join(repo, 'packages/docs/catalog.jsonl'),
+    '{"name":"button","title":"Button","tag":"sl-button","example":"#demo-primary"}\n{"name":"spinner","title":"Spinner","tag":"sl-spinner","example":"sl-spinner"}\n');
   cpSync(path.join(pkgDir, 'plopfile.mjs'), path.join(dir, 'plopfile.mjs'));
   cpSync(path.join(pkgDir, 'plop-templates'), path.join(dir, 'plop-templates'), { recursive: true });
   mkdirSync(path.join(dir, 'src/utilities'), { recursive: true });
@@ -85,4 +91,35 @@ test('repeat generation adds the barrel export once and never overwrites existin
     "export * from './components/divider/index.js';",
   ]);
   assert.ok(existsSync(path.join(dir, 'src/components/divider/class.ts')));
+});
+
+test('generator also scaffolds the docs page, an example, a failing spec skeleton and a sorted catalog entry', () => {
+  const dir = scratch();
+  const repo = path.join(dir, '../..');
+  generate(dir, 'divider');
+  const lines = read(repo, 'packages/docs/catalog.jsonl').split('\n').filter(Boolean).map(l => JSON.parse(l));
+  assert.deepEqual(lines.map(l => l.name), ['button', 'divider', 'spinner']);
+  assert.deepEqual(lines[1], { name: 'divider', title: 'Divider', tag: 'sl-divider', example: '#demo-default' });
+
+  const page = read(repo, 'packages/docs/pages/components/divider.ts');
+  assert.match(page, /@customElement\('page-components-divider'\)/);
+  assert.match(page, /examples\['divider\/basic'\]/);
+  assert.match(read(repo, 'packages/docs/examples/divider/basic.html'), /<sl-divider id="demo-default"><\/sl-divider>/);
+
+  // The skeleton must not pass: no fixme/skip, no assertion that can succeed, and it throws.
+  const spec = read(repo, 'tests/product/divider.spec.mjs');
+  assert.match(spec, /throw new Error\(/);
+  assert.doesNotMatch(spec, /\.(skip|fixme)|expect\(/);
+});
+
+test('repeat generation leaves the catalog, page, example and spec untouched', () => {
+  const dir = scratch();
+  const repo = path.join(dir, '../..');
+  generate(dir, 'divider');
+  const files = ['packages/docs/pages/components/divider.ts', 'packages/docs/examples/divider/basic.html', 'tests/product/divider.spec.mjs'];
+  for (const f of files) writeFileSync(path.join(repo, f), `// hand edited ${f}\n`);
+  const catalog = read(repo, 'packages/docs/catalog.jsonl');
+  generate(dir, 'divider');
+  for (const f of files) assert.equal(read(repo, f), `// hand edited ${f}\n`);
+  assert.equal(read(repo, 'packages/docs/catalog.jsonl'), catalog);
 });

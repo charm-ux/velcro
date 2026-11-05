@@ -8,6 +8,25 @@ Run `pnpm install --frozen-lockfile` and acquire the pinned scanner with
 The installer verifies archive and executable checksums; never fabricate integrity
 values or weaken gates to accommodate a registry problem.
 
+## Adding a component
+
+Every component ships its Litro docs page, and therefore its GitHub Pages route. `pnpm generate` (in `packages/velcro`)
+scaffolds the component and these pieces; fill them in, and add the `./<name>` entry to `packages/velcro/package.json`
+`exports` by hand:
+
+- `packages/docs/pages/components/<name>.ts`: the docs page.
+- `packages/docs/examples/<name>/*.html`: at least one example that uses `<sl-<name>>`.
+- `packages/docs/catalog.jsonl`: one line per component, sorted by name (`name`, `title`, `tag`, and the CSS selector the
+  browser tests wait for in the example). It is the only list: navigation, home page, required site pages and browser
+  routes all derive from it.
+- `tests/product/<name>.spec.mjs`: the browser spec. The generated skeleton fails until it is replaced with real checks.
+
+The coverage gate (`tests/bootstrap/catalog.test.mjs`, part of `verify:source`) fails when a component directory has no catalog
+entry, an entry has no component, or any piece above or the package/barrel export is missing. The page is published
+through the manual Pages workflow, which refuses a site that lacks a catalog page.
+Set `VELCRO_PRODUCT_PORT` (integer, 1024-65535, default 4321) to run the product tests on another port, so worktrees can
+verify in parallel.
+
 ## Explicit checks
 
 - `pnpm verify` runs `verify:source` then `verify:product`. `verify:product`

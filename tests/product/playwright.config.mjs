@@ -1,14 +1,16 @@
 import { defineConfig } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
+import { productPort } from './support/port.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
-const port = 4321;
+const port = productPort();
 const outputDir = process.env.VELCRO_PRODUCT_OUT
   ? process.env.VELCRO_PRODUCT_OUT + '/artifacts'
   : fileURLToPath(new URL('../../.airig/product/test-results', import.meta.url));
 
 // Build first, in this order: `pnpm --filter @velcro/docs run build:prefixed`, then `pnpm --filter @velcro/docs run build`
 // (the prefixed helper consumes dist/static, so the root build must come last), or run `pnpm verify:product`, which does both.
+// VELCRO_PRODUCT_PORT (integer 1024-65535, default 4321) moves the preview so separate worktrees can verify in parallel.
 // This serves the static production output only.
 // The root site is served here; base-path.spec.mjs starts its own loopback servers on ephemeral ports for both layouts.
 export default defineConfig({

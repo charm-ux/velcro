@@ -35,7 +35,7 @@ Work in a repository-local `.worktrees/<branch-dir>` checkout (see [AGENTS.md](A
 ```sh
 pnpm install --frozen-lockfile
 pnpm --filter @velcro/docs run build     # builds @charm-ux/velcro, then generates the static site in packages/docs/dist/static
-pnpm --filter @velcro/docs run preview   # serves that output on port 4321 (set PORT to change)
+pnpm --filter @velcro/docs run preview   # serves that output on port 4321 (set PORT to change; the product tests use VELCRO_PRODUCT_PORT)
 pnpm --filter @velcro/docs run build:prefixed   # same site for a project URL prefix (default /velcro) in dist/static-prefixed
 ```
 
