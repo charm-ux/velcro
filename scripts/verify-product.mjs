@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { clearTestedEvidence, sameSnapshot, snapshotTested, writeTestedEvidence } from './site/tested.mjs';
 
 export const MIN_TESTS = 8;
 
@@ -37,6 +38,17 @@ export function evaluateReport(report, { startedAt, minTests = MIN_TESTS } = {})
   return { ok: true, counts };
 }
 
+// Publication evidence needs a clean, unchanged source tree at every boundary. Ignored build output does not count; tracked
+// changes and non-ignored untracked files do. Any git failure counts as dirty. Local development runs are unaffected apart
+// from not leaving evidence.
+function sourceState(root) {
+  const head = spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
+  const status = spawnSync('git', ['-C', root, 'status', '--porcelain', '--untracked-files=all'], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+  const sha = head.status === 0 ? head.stdout.trim() : '';
+  const clean = status.status === 0 && status.stdout === '' && /^[0-9a-f]{40}$/.test(sha);
+  return { clean, sha };
+}
+
 function main() {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const fail = msg => { process.stderr.write(`verify:product: ${msg}\n`); process.exitCode = 1; };
@@ -53,14 +65,25 @@ function main() {
     process.stdout.write(`verify:product: ${label} ${good ? 'passed' : 'failed; evidence retained in ignored scratch'}\n`);
     return good;
   };
+  // Evidence from an earlier run must never survive into this one; it is written again only after every check passed.
+  clearTestedEvidence(root);
+  const sources = [sourceState(root)];
   const version = spawnSync('pnpm', ['--version'], { encoding: 'utf8' }).stdout?.trim();
   const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
   if (`pnpm@${version}` !== pkg.packageManager) return fail('pinned pnpm required');
 
   if (!step('library-build', ['--filter', '@charm-ux/velcro', 'run', 'build'])) return fail('blocked');
   // The SSG build generates the ignored route/manifest type inputs the typecheck needs.
-  if (!step('docs-build', ['--filter', '@velcro/docs', 'run', 'build'])) return fail('blocked');
-  if (!step('docs-typecheck', ['--filter', '@velcro/docs', 'run', 'typecheck'])) return fail('blocked');
+  // The project-site build runs first: it leaves dist/static-prefixed and then the root build restores dist/static.
+  // LITRO_BASE_PATH is pinned in every docs step (the browser tests mount the project build at /velcro; the root steps
+  // need it empty), so a value or an empty string inherited from the caller's shell cannot change what is tested.
+  if (!step('docs-build-prefixed', ['--filter', '@velcro/docs', 'run', 'build:prefixed'], { LITRO_BASE_PATH: '/velcro' })) return fail('blocked');
+  // Capture the exact bytes the browser checks will test (every file of the project-site output plus its closure record).
+  sources.push(sourceState(root));
+  let tested;
+  try { tested = snapshotTested(root); } catch { return fail('blocked (tested site could not be captured)'); }
+  if (!step('docs-build', ['--filter', '@velcro/docs', 'run', 'build'], { LITRO_BASE_PATH: '' })) return fail('blocked');
+  if (!step('docs-typecheck', ['--filter', '@velcro/docs', 'run', 'typecheck'], { LITRO_BASE_PATH: '' })) return fail('blocked');
 
   const probe = spawnSync(process.execPath, ['--input-type=module', '-e',
     "import { chromium } from '@playwright/test'; process.stdout.write(chromium.executablePath())"],
@@ -80,7 +103,15 @@ function main() {
   const c = result.counts;
   if (c) process.stdout.write(`verify:product: tests ${c.total}, passed ${c.passed}, failed ${c.failed}, flaky ${c.flaky}, skipped ${c.skipped}\n`);
   if (!result.ok) return fail(`blocked (${result.reason})`);
+  // Success evidence only if the tested bytes are still exactly the captured bytes.
+  let after;
+  try { after = snapshotTested(root); } catch { return fail('blocked (tested site could not be re-read)'); }
+  if (!sameSnapshot(tested, after)) return fail('blocked (tested site changed during verification)');
+  sources.push(sourceState(root));
+  const evidenceOk = sources.every(x => x.clean && x.sha === sources[0].sha);
+  if (evidenceOk) writeTestedEvidence(root, tested, sources[0].sha);
   process.stdout.write('verify:product: passed (Chromium only)\n');
+  if (!evidenceOk) process.stdout.write('verify:product: note: source was not clean and unchanged at every boundary; no publication evidence recorded\n');
 }
 
 if (import.meta.main) {

@@ -10,7 +10,8 @@ dependency and `@beatzball/litro-router`, which minified bundles can contain wit
 
 **Release gate (mandatory):** before any package, CDN or site artifact is published, uploaded or deployed, a complete
 license inventory and the required notices for every dependency bundled into that artifact must be produced and
-shipped with it. No built artifact is published or deployed today.
+shipped with it. This file alone never certifies an artifact: where a built artifact carries generated runtime notices
+(for example `THIRD_PARTY_RUNTIME_NOTICES.md` in the documentation site), those notices are the inventory for it.
 
 ## Shoelace v2.20.1 (MIT)
 

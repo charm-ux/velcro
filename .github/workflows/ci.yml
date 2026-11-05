@@ -99,6 +99,13 @@ jobs:
           mkdir -p .airig/ci
           pnpm verify:product > .airig/ci/product.log 2>&1 || { echo 'product: blocked; private evidence retained'; exit 1; }
           echo 'product: passed'
+      # Verifies site preparation (notices, allowlist, scans) on every PR. Nothing is uploaded or deployed here.
+      - run: node scripts/security/gitleaks.mjs install
+      - name: Site preparation check (no upload)
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node scripts/site/prepare.mjs --base /velcro --out .airig/site/run --expect-sha "$SOURCE_SHA"
 
   required:
     if: ${{ always() }}

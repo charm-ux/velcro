@@ -1,4 +1,6 @@
 // Serves the static production output (dist/static) for local preview. Set PORT to change the port.
+// With LITRO_BASE_PATH set (for example /velcro) it behaves like a project-site host: it serves dist/static-prefixed
+// (the output of `build:prefixed`) only under that prefix and answers 404 for any path outside it.
 // Binds to the IPv4 loopback address only; the address is assembled at runtime so no host literal is committed.
 // A deliberately tiny file server for the checked-in static build, not a hosting feature.
 import { createReadStream } from 'node:fs';
@@ -6,10 +8,14 @@ import { realpath, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseSiteBase } from '../site-base.ts';
 
 export const loopbackHost = ['127', '0', '0', '1'].join('.');
 
-const defaultRoot = resolve(process.env.PREVIEW_ROOT ?? fileURLToPath(new URL('../dist/static', import.meta.url)));
+const defaultBase = parseSiteBase(process.env.LITRO_BASE_PATH);
+const defaultRoot = resolve(
+  process.env.PREVIEW_ROOT ?? fileURLToPath(new URL(defaultBase ? '../dist/static-prefixed' : '../dist/static', import.meta.url))
+);
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.md': 'text/markdown; charset=utf-8' };
 
 export function isInside(root, file) {
@@ -46,12 +52,33 @@ async function resolveFile(root, realRoot, target) {
   return { status: 404 };
 }
 
-export function createPreviewServer(root = defaultRoot) {
+// Splits a request target into its path under the prefix. Returns null outside the prefix.
+function stripPrefix(prefix, target) {
+  if (!prefix) return target;
+  const pathEnd = target.search(/[?#]/);
+  const pathname = pathEnd === -1 ? target : target.slice(0, pathEnd);
+  if (pathname !== prefix && !pathname.startsWith(`${prefix}/`)) return null;
+  return (pathname.slice(prefix.length) || '/') + (pathEnd === -1 ? '' : target.slice(pathEnd));
+}
+
+export function createPreviewServer(root = defaultRoot, prefix = '') {
   const base = resolve(root);
+  const mount = parseSiteBase(prefix);
   return createServer(async (req, res) => {
     try {
+      const target = req.url ?? '/';
+      const inner = stripPrefix(mount, target);
+      if (inner === null) {
+        reply(res, 404, 'Not found');
+        return;
+      }
+      if (mount && target.split(/[?#]/)[0] === mount) {
+        // Like a project-site host, send the bare prefix to its trailing-slash form.
+        res.writeHead(301, { location: `${mount}/${target.slice(mount.length)}` }).end();
+        return;
+      }
       const realRoot = await realpath(base);
-      const { status, file } = await resolveFile(base, realRoot, req.url ?? '/');
+      const { status, file } = await resolveFile(base, realRoot, inner);
       if (status !== 200) {
         reply(res, status, { 400: 'Bad request', 403: 'Forbidden', 404: 'Not found' }[status] ?? 'Server error');
         return;
@@ -68,8 +95,8 @@ export function createPreviewServer(root = defaultRoot) {
   });
 }
 
-export function startPreview({ port = Number(process.env.PORT ?? 4321), host = loopbackHost, root } = {}) {
-  const server = createPreviewServer(root);
+export function startPreview({ port = Number(process.env.PORT ?? 4321), host = loopbackHost, root, base = defaultBase } = {}) {
+  const server = createPreviewServer(root, base);
   return new Promise(resolveStart => server.listen(port, host, () => resolveStart(server)));
 }
 

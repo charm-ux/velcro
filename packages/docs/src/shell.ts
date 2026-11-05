@@ -1,4 +1,5 @@
 import { css, html, type TemplateResult } from 'lit';
+import { withBase } from './base.js';
 
 export const shellStyles = css`
   :host {
@@ -116,18 +117,18 @@ export function shell(content: TemplateResult, sidebar = true): TemplateResult {
   return html`
     <div class="banner" role="note">Velcro is an unreleased prototype. Only the badge, button, divider and spinner are implemented; it is not a drop-in Shoelace replacement yet. Light theme only.</div>
     <header>
-      <a class="brand" href="/">Velcro</a>
-      <nav aria-label="Primary"><a href="/">Home</a><a href="/components/badge">Badge</a><a href="/components/button">Button</a><a href="/components/divider">Divider</a><a href="/components/spinner">Spinner</a></nav>
+      <a class="brand" href=${withBase('/')}>Velcro</a>
+      <nav aria-label="Primary"><a href=${withBase('/')}>Home</a><a href=${withBase('/components/badge')}>Badge</a><a href=${withBase('/components/button')}>Button</a><a href=${withBase('/components/divider')}>Divider</a><a href=${withBase('/components/spinner')}>Spinner</a></nav>
     </header>
     <div class="layout">
       ${sidebar
         ? html`<aside aria-label="Components">
             <h2>Components</h2>
             <ul>
-              <li><a href="/components/badge">Badge</a></li>
-              <li><a href="/components/button">Button</a></li>
-              <li><a href="/components/divider">Divider</a></li>
-              <li><a href="/components/spinner">Spinner</a></li>
+              <li><a href=${withBase('/components/badge')}>Badge</a></li>
+              <li><a href=${withBase('/components/button')}>Button</a></li>
+              <li><a href=${withBase('/components/divider')}>Divider</a></li>
+              <li><a href=${withBase('/components/spinner')}>Spinner</a></li>
             </ul>
           </aside>`
         : html`<div></div>`}

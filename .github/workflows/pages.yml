@@ -1,0 +1,79 @@
+# Manual GitHub Pages deployment for the documentation site. Runs only on workflow_dispatch from main: there is no
+# automatic or pull-request trigger. Everything that can fail runs in `build` with read-only permissions and uploads
+# the Pages artifact only after the full verification and the site preparation check passed. Preparation stages only the exact
+# output that verify:product browser-tested (its recorded evidence); the output is never rebuilt after verification. The `deploy` job holds the
+# only write/OIDC permissions and runs nothing but the pinned deployment action. The first real deployment needs
+# explicit owner approval (see docs/deployment.md).
+name: Pages
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: pages-deployment
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
+        with:
+          version: 9.15.9
+          run_install: false
+      - name: Public frozen dependency install
+        run: |
+          mkdir -p .airig/ci
+          pnpm install --frozen-lockfile --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
+          echo 'install: passed'
+      - run: node scripts/security/gitleaks.mjs install
+      - name: History privacy and secret scan
+        run: node scripts/security/git-privacy.mjs history HEAD
+      - name: Source verification with private raw output
+        run: |
+          pnpm verify:source > .airig/ci/verify.log 2>&1 || { echo 'verify: blocked; private evidence retained'; exit 1; }
+          echo 'verify: passed'
+      - name: Install Chromium and system dependencies (disposable runner)
+        run: |
+          pnpm exec playwright install --with-deps chromium > .airig/ci/browser.log 2>&1 || { echo 'browser setup: blocked; private evidence retained'; exit 1; }
+          echo 'browser setup: passed'
+      - name: Product verification (Chromium only)
+        run: |
+          pnpm verify:product > .airig/ci/product.log 2>&1 || { echo 'product: blocked; private evidence retained'; exit 1; }
+          echo 'product: passed'
+      - name: Site preparation, notices and scans
+        run: node scripts/site/prepare.mjs --base /velcro --out .airig/site/run --expect-sha "$GITHUB_SHA"
+      - name: Upload the prepared site as the Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
+        with:
+          path: .airig/site/run/site
+          include-hidden-files: true
+
+  deploy:
+    needs: build
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346

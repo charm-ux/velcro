@@ -1,13 +1,15 @@
 /*
  * Derived from @beatzball/create-litro 0.15.3, fullstack recipe template file `dist/recipes/fullstack/template/server/routes/[...].ts`
  * (Litro, Copyright 2026 beatzball, Apache License 2.0). See THIRD_PARTY_NOTICES.md.
- * Changes: relocated to server/handlers/pages.ts (registered explicitly in nitro.config.ts); header added only.
+ * Changes: relocated to server/handlers/pages.ts (registered explicitly in nitro.config.ts); header added; the build-time base path is
+ * stripped from the request path before route matching.
  */
 import { defineEventHandler, setResponseHeader, setResponseStatus, getRequestURL } from 'h3';
 import { createPageHandler } from '@beatzball/litro/runtime/create-page-handler.js';
 import { normalizePathname } from '@beatzball/litro';
 import type { LitroRoute } from '@beatzball/litro';
 import { routes, pageModules } from '#litro/page-manifest';
+import { siteBase } from '../../src/base.js';
 
 function matchRoute(
   pathname: string,
@@ -54,7 +56,11 @@ export default defineEventHandler(async (event) => {
   // Canonicalize before matching: '/docs/a/' and '/docs/a' are one page.
   // The client router strips the same trailing slash, so both halves agree
   // (issue 203). A mismatch renders a blank 200 page, not an error.
-  const pathname = normalizePathname(getRequestURL(event).pathname);
+  // Under a base path the request URL keeps the prefix (nitro's baseURL), but routes are defined without it.
+  const requested = getRequestURL(event).pathname;
+  const pathname = normalizePathname(
+    siteBase && (requested === siteBase || requested.startsWith(`${siteBase}/`)) ? requested.slice(siteBase.length) || '/' : requested,
+  );
   const result = matchRoute(pathname);
 
   if (!result) {

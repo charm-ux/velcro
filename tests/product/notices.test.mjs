@@ -24,6 +24,9 @@ test('notice scope is source-only and the bundled-dependency release gate is exp
   assert.match(root, /complete\s+license inventory and the required notices for every dependency bundled/);
   assert.doesNotMatch(root, /retains the notices that upstream licenses require for material adapted or copied into this repository\. Nothing/);
   assert.doesNotMatch(root, /so the built site must keep this file available/);
+  assert.doesNotMatch(root, /deployed today|No built artifact is published/i, 'shipped notices must not state a time-bound release fact');
+  assert.match(root, /never certifies an artifact/);
+  assert.match(root, /THIRD_PARTY_RUNTIME_NOTICES\.md/);
 });
 
 test('the velcro package ships its notice', () => {
