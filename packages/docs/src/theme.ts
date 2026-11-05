@@ -1,7 +1,7 @@
 /*
  * Head script adapted from @beatzball/create-litro (Litro, Copyright 2026 beatzball, Apache License 2.0), Starlight
  * recipe `recipes/starlight/template/src/route-meta.ts`. See THIRD_PARTY_NOTICES.md.
- * Changes: three-way light/dark/system preference with an in-memory fallback, the sl-theme-dark/sl-theme-light class
+ * Changes: three-way light/dark/system preference with an in-memory choice that wins after a failed storage write, the sl-theme-dark/sl-theme-light class
  * instead of data-theme, a storage listener and a small API for the header control; the palette is Velcro's own.
  */
 /**
@@ -72,14 +72,17 @@ const script = [
   `var K=${JSON.stringify(THEME_STORAGE_KEY)},d=document.documentElement,mem=null,`,
   'm=window.matchMedia?window.matchMedia("(prefers-color-scheme: dark)"):null;',
   'function ok(v){return v==="light"||v==="dark"||v==="system"}',
-  'function g(){try{var v=localStorage.getItem(K);if(ok(v))return v}catch(e){if(mem)return mem}return mem||"system"}',
+  // mem holds a choice whose storage write failed; it is authoritative for this page until another tab writes one.
+  'function g(){if(mem)return mem;try{var v=localStorage.getItem(K);if(ok(v))return v}catch(e){}return"system"}',
   'function a(){var p=g(),k=p==="dark"||(p==="system"&&!!m&&m.matches);',
   'd.classList.toggle("sl-theme-dark",k);d.classList.toggle("sl-theme-light",!k);d.setAttribute("data-theme-preference",p)}',
   'a();',
+  // The header control is useless without this script, so it is shown only once the script has run.
+  'd.style.setProperty("--velcro-docs-theme-control","inline-block");',
   'if(m){if(m.addEventListener)m.addEventListener("change",a);else if(m.addListener)m.addListener(a)}',
-  'window.addEventListener("storage",function(e){if(e.key===K)a()});',
-  'window.__velcroDocsTheme={get:g,set:function(p){if(!ok(p))return;mem=p;',
-  'try{if(p==="system")localStorage.removeItem(K);else localStorage.setItem(K,p)}catch(e){}a()}};',
+  'window.addEventListener("storage",function(e){if(e.key===K||e.key===null){mem=null;a()}});',
+  'window.__velcroDocsTheme={get:g,set:function(p){if(!ok(p))return;',
+  'try{if(p==="system")localStorage.removeItem(K);else localStorage.setItem(K,p);mem=null}catch(e){mem=p}a()}};',
   '})();',
 ].join('');
 

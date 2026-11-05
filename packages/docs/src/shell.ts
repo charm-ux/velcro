@@ -86,11 +86,14 @@ export const shellStyles = css`
     color: var(--velcro-docs-text);
     background: var(--velcro-docs-surface);
   }
-  header.site nav a[aria-current='page'] {
+  header.site nav a[aria-current='page'],
+  header.site nav a[aria-current='true'] {
     color: var(--velcro-docs-accent-text);
     background: var(--velcro-docs-accent-low);
   }
   .theme {
+    /* Hidden until the head theme script has run (it sets the property); without JavaScript it would do nothing. */
+    display: var(--velcro-docs-theme-control, none);
     margin-left: auto;
     font: inherit;
     font-size: 0.875rem;
@@ -176,6 +179,7 @@ export const shellStyles = css`
   }
   .pager {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: 1rem;
     margin-top: 1rem;
@@ -187,7 +191,10 @@ export const shellStyles = css`
     border: 1px solid var(--velcro-docs-border);
     border-radius: 0.5rem;
     text-decoration: none;
-    min-width: 10rem;
+    flex: 1 1 12rem;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .pager a:hover {
     border-color: var(--velcro-docs-accent);
@@ -303,7 +310,7 @@ function siteHeader(current: string): TemplateResult {
       <a class="brand" href=${withBase('/')}>Velcro <sl-badge variant="neutral" pill>prototype</sl-badge></a>
       <nav aria-label="Primary">
         <a href=${withBase('/')} aria-current=${current === '' ? 'page' : 'false'}>Home</a>
-        <a href=${componentHref(first.name)} aria-current=${current !== '' ? 'page' : 'false'}>Components</a>
+        <a href=${componentHref(first.name)} aria-current=${current === first.name ? 'page' : current !== '' ? 'true' : 'false'}>Components</a>
       </nav>
       <select class="theme" aria-label="Color theme" @change=${onThemeChange}>
         ${(['system', 'light', 'dark'] as const).map(

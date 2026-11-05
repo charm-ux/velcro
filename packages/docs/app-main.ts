@@ -37,3 +37,32 @@ if (outlet) {
 // Velcro's browser-only runtime (and its light theme tokens), loaded after Lit's hydration hook is installed. The pages
 // prerender Velcro elements as plain markup; this upgrades them. Examples still load the same bundle in their iframes.
 void import('./velcro-entry.js');
+
+// Page headings live in the page component's shadow root, which native fragment navigation cannot reach. Resolve the
+// fragment (direct loads, reloads, back/forward to a #fragment) once the router has rendered the page.
+function findDeep(root: Document | ShadowRoot, id: string): Element | null {
+  const direct = root.getElementById(id);
+  if (direct) return direct;
+  for (const el of root.querySelectorAll('*')) {
+    if (el.shadowRoot) {
+      const found = findDeep(el.shadowRoot, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+function revealFragment() {
+  let id = '';
+  try {
+    id = decodeURIComponent(location.hash.slice(1));
+  } catch {
+    return;
+  }
+  if (id) findDeep(document, id)?.scrollIntoView();
+}
+if (outlet) {
+  const reveal = () => outlet.hasAttribute('data-litro-settled') && requestAnimationFrame(() => requestAnimationFrame(revealFragment));
+  new MutationObserver(reveal).observe(outlet, { attributes: true, attributeFilter: ['data-litro-settled'] });
+  reveal();
+}
+window.addEventListener('hashchange', revealFragment);
