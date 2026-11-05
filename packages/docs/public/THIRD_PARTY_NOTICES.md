@@ -32,9 +32,15 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   `packages/velcro/src/components/divider/divider.ts` (API documentation wording and the host `role="separator"` /
   `aria-orientation` behavior, adapted from `src/components/divider/divider.component.ts`) and
   `packages/velcro/src/components/divider/divider.styles.ts` (styles adapted from
-  `src/components/divider/divider.styles.ts`, with the core host-rule resets added). The badge and divider are built
+  `src/components/divider/divider.styles.ts`, with the core host-rule resets added),
+  `packages/velcro/src/components/progress-ring/progress-ring.ts` (API documentation wording, and the rendered
+  structure: a `div` `base` part with `role="progressbar"`, an svg track and indicator circle, and a default slot with
+  the `label` part, adapted from `src/components/progress-ring/progress-ring.component.ts`) and
+  `packages/velcro/src/components/progress-ring/progress-ring.styles.ts` (styles adapted from
+  `src/components/progress-ring/progress-ring.styles.ts`, with token fallbacks and a forced-colors rule added; no
+  tokens beyond those already in the light theme are needed). The badge and divider are built
   on the `@charm-ux/core` badge and divider; no Shoelace runtime or source files are included. Source retrieved for
-  inspection: files of the `v2.20.1` tag (`src/components/{badge,divider}/*`, `src/themes/light.css`); the added light
+  inspection: files of the `v2.20.1` tag (`src/components/{badge,divider,progress-ring}/*`, `src/themes/light.css`); the added light
   theme tokens (`--sl-color-neutral-200`, `--sl-border-radius-small`, `--sl-letter-spacing-normal`,
   `--sl-panel-border-color`, `--sl-panel-border-width`) follow that file's names and values.
 - Also used in: `packages/velcro/src/components/progress-bar/progress-bar.ts` (API documentation wording, and the
