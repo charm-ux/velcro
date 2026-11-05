@@ -1,7 +1,8 @@
 /*
  * Derived from @beatzball/create-litro 0.15.3, fullstack recipe template file `dist/recipes/fullstack/template/app-main.ts`
  * (Litro, Copyright 2026 beatzball, Apache License 2.0). See THIRD_PARTY_NOTICES.md.
- * Changes: header added; form-actions enhancement removed (the docs have no action forms); route paths prefixed with the build-time base path.
+ * Changes: header added; form-actions enhancement removed (the docs have no action forms); route paths prefixed with the build-time base path;
+ * the browser-only Velcro runtime is loaded so the Velcro elements in the prerendered pages upgrade.
  */
 /**
  * The real client entry.
@@ -32,3 +33,7 @@ if (outlet) {
 } else {
   console.warn('[litro] <litro-outlet> not found — router will not start.');
 }
+
+// Velcro's browser-only runtime (and its light theme tokens), loaded after Lit's hydration hook is installed. The pages
+// prerender Velcro elements as plain markup; this upgrades them. Examples still load the same bundle in their iframes.
+void import('./velcro-entry.js');

@@ -1,12 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
-import { shell, shellStyles } from '../../src/shell.js';
+import { docsShell, shellStyles } from '../../src/shell.js';
+import { themeHead } from '../../src/theme.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Resize Observer - Velcro',
-  seoHead: '<meta name="description" content="Velcro resize observer (prototype).">',
+  seoHead: themeHead + '<meta name="description" content="Velcro resize observer (prototype).">',
 }));
 
 const gaps = [
@@ -25,7 +26,7 @@ export class ResizeObserverPage extends LitElement {
 
   override render() {
     const source = examples['resize-observer/basic'];
-    return shell(html`
+    return docsShell('resize-observer', html`
       <h1>Resize Observer</h1>
       <p><code>&lt;sl-resize-observer&gt;</code> is registered by <code>@charm-ux/velcro</code> on top of the <code>@charm-ux/core</code> base element. Prototype status: unreleased.</p>
       <p>The Resize Observer component offers a thin, declarative interface to the <a href="https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver"><code>ResizeObserver</code> API</a>. It reports changes to the dimensions of the elements it wraps through the <code>sl-resize</code> event. A collection of <code>ResizeObserverEntry</code> objects is attached to <code>event.detail.entries</code>.</p>

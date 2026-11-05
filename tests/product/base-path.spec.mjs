@@ -86,12 +86,29 @@ for (const { name, dir, base } of layouts) {
     }
 
     test('navigation links reach every route and keep the prefix', async ({ page }) => {
-      await page.goto(url('/'), { waitUntil: 'networkidle' });
-      for (const [label, route] of [...catalog.map(c => [c.title, `/components/${c.name}`]), ['Home', '/']]) {
-        await page.locator('header nav').getByRole('link', { name: label, exact: true }).click();
+      const arrive = async route => {
         await page.waitForLoadState('networkidle');
         await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
         expect(new URL(page.url()).pathname).toBe(`${base}${route === '/' ? '/' : route}`);
+      };
+      await page.goto(url('/'), { waitUntil: 'networkidle' });
+      // Header -> first component, then every component through the docs sidebar, then back home through the header.
+      await page.locator('header nav').getByRole('link', { name: 'Components', exact: true }).click();
+      await arrive(`/components/${catalog[0].name}`);
+      for (const c of catalog) {
+        await page.getByRole('navigation', { name: 'Components' }).getByRole('link', { name: c.title, exact: true }).click();
+        await arrive(`/components/${c.name}`);
+      }
+      // Previous/next links walk the catalog order.
+      if (catalog.length > 1) {
+        await page.getByRole('navigation', { name: 'Previous and next' }).getByRole('link', { name: `Previous ${catalog.at(-2).title}` }).click();
+        await arrive(`/components/${catalog.at(-2).name}`);
+      }
+      await page.locator('header nav').getByRole('link', { name: 'Home', exact: true }).click();
+      await arrive('/');
+      // The landing showcase links every component page.
+      for (const c of catalog) {
+        await expect(page.locator(`#showcase [data-component="${c.name}"] a[href="${base}/components/${c.name}"]`)).toHaveCount(1);
       }
     });
 

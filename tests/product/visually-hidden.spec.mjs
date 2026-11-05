@@ -45,9 +45,10 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(home).toContain('/components/visually-hidden');
 });
 
-test('sl-visually-hidden registers inside the example document only, as the exported class', async ({ page }) => {
+test('sl-visually-hidden registers inside the example document (the docs page registers its own copy separately), as the exported class', async ({ page }) => {
   const { frame, requests } = await openExample(page);
-  expect(await page.evaluate(() => customElements.get('sl-visually-hidden'))).toBeUndefined();
+  // The docs page loads the same runtime through its client entry (app-main.ts) into its own, separate registry.
+  expect(await page.evaluate(() => customElements.whenDefined('sl-visually-hidden').then(ctor => typeof ctor))).toBe('function');
   const info = await frame.locator('body').evaluate(() => {
     const ctor = customElements.get('sl-visually-hidden');
     return {

@@ -66,9 +66,10 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
 });
 
-test('sl-progress-bar registers inside the example document only, as the exported class', async ({ page }) => {
+test('sl-progress-bar registers inside the example document (the docs page registers its own copy separately), as the exported class', async ({ page }) => {
   const { frame, requests } = await openExample(page);
-  expect(await page.evaluate(() => customElements.get('sl-progress-bar'))).toBeUndefined();
+  // The docs page loads the same runtime through its client entry (app-main.ts) into its own, separate registry.
+  expect(await page.evaluate(() => customElements.whenDefined('sl-progress-bar').then(ctor => typeof ctor))).toBe('function');
   const info = await frame.locator('body').evaluate(() => {
     const ctor = customElements.get('sl-progress-bar');
     return { defined: ctor !== undefined, baseName: ctor?.baseName, coreTag: customElements.get('ch-progress-bar') !== undefined, viaConstructor: ctor ? new ctor().localName : null };

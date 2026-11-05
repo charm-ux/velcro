@@ -1,12 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
-import { shell, shellStyles } from '../../src/shell.js';
+import { docsShell, shellStyles } from '../../src/shell.js';
+import { themeHead } from '../../src/theme.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Format Bytes - Velcro',
-  seoHead: '<meta name="description" content="Velcro format bytes (prototype).">',
+  seoHead: themeHead + '<meta name="description" content="Velcro format bytes (prototype).">',
 }));
 
 const attributes: Array<[string, string, string, string]> = [
@@ -34,7 +35,7 @@ export class FormatBytesPage extends LitElement {
 
   override render() {
     const source = examples['format-bytes/basic'];
-    return shell(html`
+    return docsShell('format-bytes', html`
       <h1>Format Bytes</h1>
       <p><code>&lt;sl-format-bytes&gt;</code> is registered by <code>@charm-ux/velcro</code> on the <code>@charm-ux/core</code> base element. Prototype status: unreleased.</p>
       <p>Formats a number as a human readable bytes value.</p>

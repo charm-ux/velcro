@@ -1,12 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
-import { shell, shellStyles } from '../../src/shell.js';
+import { docsShell, shellStyles } from '../../src/shell.js';
+import { themeHead } from '../../src/theme.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Progress bar - Velcro',
-  seoHead: '<meta name="description" content="Velcro progress bar (prototype).">',
+  seoHead: themeHead + '<meta name="description" content="Velcro progress bar (prototype).">',
 }));
 
 const attributes: Array<[string, string, string, string]> = [
@@ -43,7 +44,7 @@ export class ProgressBarPage extends LitElement {
 
   override render() {
     const source = examples['progress-bar/basic'];
-    return shell(html`
+    return docsShell('progress-bar', html`
       <h1>Progress bar</h1>
       <p><code>&lt;sl-progress-bar&gt;</code> is registered by <code>@charm-ux/velcro</code> on top of the <code>@charm-ux/core</code> progress bar. Prototype status: unreleased.</p>
       <p>Progress bars are used to show the status of an ongoing operation.</p>

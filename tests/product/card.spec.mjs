@@ -81,9 +81,10 @@ test('docs page is prerendered with Velcro branding, prototype status, the ready
   expect(await (await request.get('/')).text()).toContain('/components/card');
 });
 
-test('sl-card registers inside the example document only, as the exported class, and no core ch-card is defined', async ({ page }) => {
+test('sl-card registers inside the example document (the docs page registers its own copy separately), as the exported class, and no core ch-card is defined', async ({ page }) => {
   const { frame, requests } = await openExample(page);
-  expect(await page.evaluate(() => customElements.get('sl-card'))).toBeUndefined();
+  // The docs page loads the same runtime through its client entry (app-main.ts) into its own, separate registry.
+  expect(await page.evaluate(() => customElements.whenDefined('sl-card').then(ctor => typeof ctor))).toBe('function');
   const info = await frame.locator('body').evaluate(() => {
     const ctor = customElements.get('sl-card');
     return {

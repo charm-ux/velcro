@@ -47,9 +47,10 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(home).toContain('/components/progress-ring');
 });
 
-test('sl-progress-ring registers inside the example document only, not in the docs app bundle', async ({ page }) => {
+test('sl-progress-ring registers inside the example document, and separately in the docs page through the client entry', async ({ page }) => {
   const { frame, requests } = await openExample(page);
-  expect(await page.evaluate(() => customElements.get('sl-progress-ring'))).toBeUndefined();
+  // The docs page loads the same runtime through its client entry (app-main.ts) into its own, separate registry.
+  expect(await page.evaluate(() => customElements.whenDefined('sl-progress-ring').then(ctor => typeof ctor))).toBe('function');
   expect(await frame.locator('body').evaluate(() => customElements.get('sl-progress-ring') !== undefined)).toBe(true);
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
 });

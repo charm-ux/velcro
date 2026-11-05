@@ -51,9 +51,10 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(home).toContain('/components/format-bytes');
 });
 
-test('sl-format-bytes registers inside the example document only, as its own class', async ({ page }) => {
+test('sl-format-bytes registers inside the example document (the docs page registers its own copy separately), as its own class', async ({ page }) => {
   const { frame, requests } = await openExample(page);
-  expect(await page.evaluate(() => customElements.get('sl-format-bytes'))).toBeUndefined();
+  // The docs page loads the same runtime through its client entry (app-main.ts) into its own, separate registry.
+  expect(await page.evaluate(() => customElements.whenDefined('sl-format-bytes').then(ctor => typeof ctor))).toBe('function');
   expect(await frame.locator('body').evaluate(() => customElements.get('sl-format-bytes') !== undefined)).toBe(true);
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
 });
