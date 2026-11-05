@@ -65,6 +65,7 @@ const state = page => page.evaluate(async () => {
     ring: { label: ring.label, value: ring.value, aria: ring.shadowRoot.querySelector('[part~="base"]')?.getAttribute('aria-label') },
     badge: { variant: badge.variant, pill: badge.pill, cls: badge.shadowRoot.querySelector('[part~="base"]')?.className.trim().split(/\s+/).sort() },
     button: { variant: button.variant, size: button.size, disabled: Boolean(button.disabled), href: button.href ?? null },
+    toggle: { pressed: Boolean(button.pressed), expanded: Boolean(button.expanded) },
     errors: window.errors,
   };
 });
@@ -113,6 +114,28 @@ test('React 19 wrappers restore element defaults when a supplied prop is removed
   expect(s.badge).toMatchObject({ variant: 'primary', pill: false });
   expect(s.badge.cls).toContain('badge--primary');
   expect(s.button).toEqual({ variant: 'default', size: 'medium', disabled: false, href: null });
+  expect(s.errors).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+test('React 19 wrappers never touch props omitted on both renders: element-managed state survives re-renders', async ({ page }) => {
+  const pageErrors = await mount(page);
+  await page.evaluate(() => window.renderScenario({ ring: { value: 1 }, badge: {}, button: { toggle: true } }));
+  // Uncontrolled toggle: the click sets pressed on the element itself.
+  await page.locator('#button').click();
+  expect((await state(page)).toggle.pressed).toBe(true);
+  // State the element (or other code) sets directly, not through props.
+  await page.evaluate(() => { document.getElementById('button').expanded = true; });
+  // Parent re-renders with unchanged props, then with an unrelated prop change.
+  await page.evaluate(() => window.renderScenario({ ring: { value: 1 }, badge: {}, button: { toggle: true } }));
+  await page.evaluate(() => window.renderScenario({ ring: { value: 2 }, badge: { variant: 'success' }, button: { toggle: true, size: 'small' } }));
+  const s = await state(page);
+  expect(s.toggle).toEqual({ pressed: true, expanded: true });
+  expect(s.button.size).toBe('small');
+  // A supplied value that does not change is not re-assigned over element state.
+  await page.locator('#button').click();
+  await page.evaluate(() => window.renderScenario({ ring: { value: 2 }, badge: { variant: 'success' }, button: { toggle: true, size: 'small' } }));
+  expect((await state(page)).toggle.pressed).toBe(false);
   expect(s.errors).toEqual([]);
   expect(pageErrors).toEqual([]);
 });

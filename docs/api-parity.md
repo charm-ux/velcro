@@ -10,12 +10,12 @@ Shoelace members count when its own docs would list them (described and not priv
 whitespace, quote style and union order. Missing and mismatched entries form the ledger
 `docs/api/api-parity-ledger.json`, which may only shrink.
 
-Totals: 130 Shoelace entries compared, 93 matching, 21 mismatched, 16 missing; 5 Velcro-only and 63 inherited extras.
+Totals: 130 Shoelace entries compared, 93 matching, 21 mismatched, 16 missing; 5 Velcro-only and 68 inherited extras.
 
 | Component | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | `sl-badge` | 5 | 5 | 0 | 0 | 0 | 2 |
-| `sl-button` | 42 | 20 | 6 | 16 | 1 | 22 |
+| `sl-button` | 42 | 20 | 6 | 16 | 1 | 27 |
 | `sl-card` | 13 | 13 | 0 | 0 | 0 | 5 |
 | `sl-divider` | 4 | 4 | 0 | 0 | 0 | 6 |
 | `sl-format-bytes` | 3 | 3 | 0 | 0 | 1 | 2 |
@@ -104,7 +104,12 @@ Inherited extras:
 - `event change` (from @charm-ux/core CoreButton)
 - `event focus` (from @charm-ux/core CoreButton)
 - `event ready` (from @charm-ux/core CharmElement)
+- `css-property --button-active-bg-color` (from @charm-ux/core CoreButton)
+- `css-property --button-active-border-color` (from @charm-ux/core CoreButton)
+- `css-property --button-active-fg-color` (from @charm-ux/core CoreButton)
+- `css-property --button-active-shadow` (from @charm-ux/core CoreButton)
 - `css-property --button-bg-color` (from @charm-ux/core CoreButton)
+- `css-property --button-disabled-shadow` (from @charm-ux/core CoreButton)
 - `css-property --button-fg-color` (from @charm-ux/core CoreButton)
 - `css-property --button-icon-size` (from @charm-ux/core CoreButton)
 - `css-property --button-pressed-bg-color` (from @charm-ux/core CoreButton)

@@ -1265,8 +1265,48 @@
           "status": "prototype",
           "cssProperties": [
             {
+              "description": "Sets the background color of the button when active.",
+              "name": "--button-active-bg-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets the border color of the button when active.",
+              "name": "--button-active-border-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets button's text color when active.",
+              "name": "--button-active-fg-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets button's box-shadow when active.",
+              "name": "--button-active-shadow",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
               "description": "Sets the background color of the button.",
               "name": "--button-bg-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets button's box-shadow when disabled.",
+              "name": "--button-disabled-shadow",
               "inheritedFrom": {
                 "name": "CoreButton",
                 "package": "@charm-ux/core"

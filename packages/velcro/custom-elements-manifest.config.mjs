@@ -22,13 +22,15 @@ const reactDir = process.env.VELCRO_CEM_REACT_OUTDIR || path.join('dist', 'react
  * Every Velcro component renders its own shadow template, so most of core's template-bound API (slots, parts, and the
  * CSS custom properties its component styles read) does not apply to a Velcro element. Only the inherited entries
  * listed here are kept: they still take effect, because the component keeps core's styles and their selectors still
- * match its template. tests/product/inherited-api.spec.mjs measures this in the browser for every component and fails
+ * match its template (including :active and [disabled] rules whose specificity beats Velcro's).
+ * tests/product/inherited-api.spec.mjs measures this in the browser for every component and fails
  * when this list and the measured effect differ.
  */
 export const keptInherited = {
   VelcroButton: {
-    cssProperties: ['--button-bg-color', '--button-fg-color', '--button-icon-size', '--button-pressed-bg-color',
-      '--button-pressed-border', '--button-pressed-fg-color'],
+    cssProperties: ['--button-active-bg-color', '--button-active-border-color', '--button-active-fg-color',
+      '--button-active-shadow', '--button-bg-color', '--button-disabled-shadow', '--button-fg-color', '--button-icon-size',
+      '--button-pressed-bg-color', '--button-pressed-border', '--button-pressed-fg-color'],
   },
 };
 function velcroInheritance() {
@@ -83,8 +85,9 @@ function hideNativeEvents() {
  * Corrects three defects of the generated React output (checked by type-tests/ and tests/product/react.spec.mjs):
  * - The wrappers hand every property to React. React 19 assigns `undefined` to the element property when a prop is
  *   removed, which overwrites the element's default (and can break rendering, e.g. the progress ring's label). The
- *   element's properties are instead set by `useElementProps`: a supplied value is assigned, and an omitted or removed
- *   one restores the value the element had before the wrapper first set it. Global attributes (exportparts, for, part,
+ *   element's properties are instead set by `useElementProps`: a changed supplied value is assigned, a removed one
+ *   restores the element's value from before the wrapper first set it, and a prop omitted throughout is never
+ *   touched. Global attributes (exportparts, for, part,
  *   tabindex) stay React attributes and are passed only when supplied.
  * - Events with a typed detail get a wrong type name (`<C>ElementEvent<C><Event>ElementEvent`).
  * - The JSX `ref` type accepts only the element or a callback; React object refs (createRef/useRef) are added.
@@ -104,26 +107,34 @@ export function fixWrapperSource(text) {
   return out.replace(/^(  return React\.createElement\()/m, `  useElementProps(ref, { ${managed.join(', ')} });\n\n$1`);
 }
 const useElementProps = `
-/** Sets element properties from props; an omitted or removed prop restores the element's own initial value. */
+/**
+ * Sets element properties from props, the @lit/react way: a supplied value is assigned when it differs from the value
+ * supplied on the previous render; a prop that was supplied and is now omitted restores the value the element had
+ * before the wrapper first set it; a prop omitted on both renders is never touched, so state the element manages
+ * itself (a toggled pressed, an expanded) survives re-renders.
+ */
 export function useElementProps(targetElement, props) {
-  const defaults = useRef(null);
+  const previous = useRef({});
+  const defaults = useRef({});
   useLayoutEffect(() => {
     const el = targetElement?.current;
     if (!el) {
       return;
     }
-    if (!defaults.current) {
-      defaults.current = {};
-      for (const name of Object.keys(props)) {
-        defaults.current[name] = el[name];
-      }
-    }
     for (const [name, value] of Object.entries(props)) {
-      const next = value === undefined ? defaults.current[name] : value;
-      if (el[name] !== next) {
-        el[name] = next;
+      const before = previous.current[name];
+      if (value !== undefined) {
+        if (!(name in defaults.current)) {
+          defaults.current[name] = el[name];
+        }
+        if (value !== before) {
+          el[name] = value;
+        }
+      } else if (before !== undefined) {
+        el[name] = defaults.current[name];
       }
     }
+    previous.current = { ...props };
   });
 }
 `;

@@ -9,12 +9,14 @@ Ship a Custom Elements Manifest and generated React wrappers.
   `@charm-ux/core`, with every inherited member, attribute and event naming its core class and package. Core's
   template-bound slots, parts and CSS custom properties are not inherited, because every Velcro component renders its
   own template, except core CSS custom properties that a browser test shows still take effect (the button's
-  `--button-icon-size`, `--button-bg-color`, `--button-fg-color` and the pressed-state colors). The `@status` tag and the CSS custom property defaults are now part of the JSDoc.
+  `--button-icon-size`, `--button-bg-color`, `--button-fg-color`, the pressed- and active-state properties and
+  `--button-disabled-shadow`). The `@status` tag and the CSS custom property defaults are now part of the JSDoc.
 - The build also generates React wrappers and JSX types from the manifest under `dist/react` (exports `./react` and
   `./react/*`), and type-checks the `sl-button` wrapper against Shoelace's props and events. The wrappers import
   `react`, which is not a dependency of the package. React's own `onFocus`/`onBlur` props cover the native focus and
   blur events, which are therefore not generated as event props. The wrappers set element properties only from
-  supplied props; an omitted or removed prop keeps or restores the element's own default (React 19 would otherwise
+  supplied props that changed; a removed prop restores the element's own default, and a prop never supplied is never
+  touched, so state the element manages itself survives re-renders (React 19 would otherwise
   assign `undefined`). They are rendered in React 19 in the browser tests. The JSX types accept React object refs.
 - JSDoc only: the `ready` event is no longer declared by five components themselves; it is inherited from core, which
   is where it comes from. The button documents its `button-control` part. No runtime behavior changes.

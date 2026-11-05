@@ -2,7 +2,8 @@
 // listed exactly when it still has an effect on the Velcro element (core's styles are kept and their selector still
 // matches the Velcro template), and an inherited core slot or part is listed exactly when the Velcro template renders
 // it. Measured in the browser: each candidate is set on the host and every computed style in the shadow tree and of
-// the slotted content is compared, in the default state and with each reflected boolean attribute set.
+// the slotted content is compared, in the default state, with each reflected boolean attribute set, and under real
+// :hover, :active (pointer held) and :focus-visible (keyboard modality) interaction in each of those.
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { expect, test } from '@playwright/test';
@@ -24,7 +25,9 @@ const CONTENT = {
   'sl-visually-hidden': 'Hidden',
 };
 const ATTRS = { 'sl-progress-bar': { value: '40' }, 'sl-progress-ring': { value: '40' }, 'sl-format-bytes': { value: '1000' }, 'sl-format-number': { value: '1000' } };
-const VALUES = ['37px', 'rgb(1, 2, 3)', 'dotted', '3s', 'none', '0.25', 'flex-end'];
+// One valid value of each kind a core custom property takes: length, color, border style, border shorthand, a visible
+// box shadow, time, keyword, number, alignment.
+const VALUES = ['37px', 'rgb(1, 2, 3)', 'dotted', '3px solid rgb(1, 2, 3)', '2px 2px rgb(1, 2, 3)', '3s', 'none', '0.25', 'flex-end'];
 
 for (const [tag, decl] of elements) {
   test(`${tag}: inherited CSS custom properties, slots and parts are listed exactly when they still apply`, async ({ page }) => {
@@ -37,58 +40,89 @@ for (const [tag, decl] of elements) {
 
     await page.goto('/components/button', { waitUntil: 'networkidle' });
     await page.evaluate(t => customElements.whenDefined(t), tag);
-    const result = await page.evaluate(async ({ tag, content, attrs, booleans, candidates, slots, parts, values }) => {
-      const frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const candidates = (parent.cssProperties ?? []).map(p => p.name).filter(n => !own('cssProperties').has(n));
+    await page.evaluate(async ({ tag, content, attrs }) => {
       const host = document.createElement(tag);
+      host.id = 'probe';
+      // On top of the page, so pointer states (:hover, :active) reach it.
+      host.style.cssText = 'position: fixed; top: 8px; left: 8px; z-index: 2147483647;';
       for (const [k, v] of Object.entries(attrs)) host.setAttribute(k, v);
       host.innerHTML = content;
-      document.body.append(host);
+      document.body.prepend(host);
       await host.updateComplete;
-      await frame();
+      // Running animations and transitions would make snapshots differ: freeze them at their start.
+      const freeze = new CSSStyleSheet();
+      freeze.replaceSync('*, :host { animation-play-state: paused !important; animation-delay: 0s !important; transition: none !important; }');
+      host.shadowRoot.adoptedStyleSheets = [...host.shadowRoot.adoptedStyleSheets, freeze];
       const nodes = () => {
         const out = [host, ...host.children];
         const walk = root => { for (const el of root.querySelectorAll('*')) { out.push(el); if (el.shadowRoot) walk(el.shadowRoot); } };
         walk(host.shadowRoot);
         return out;
       };
-      // Running animations and transitions would make snapshots differ: freeze them at their start.
-      const freeze = new CSSStyleSheet();
-      freeze.replaceSync('*, :host { animation-play-state: paused !important; animation-delay: 0s !important; transition: none !important; }');
-      host.shadowRoot.adoptedStyleSheets = [...host.shadowRoot.adoptedStyleSheets, freeze];
       const snapshot = () => nodes().map(el => {
         const cs = getComputedStyle(el);
         return [...cs].filter(p => !p.startsWith('--')).map(p => `${p}:${cs.getPropertyValue(p)}`).join(';');
       }).join('|');
-      const effective = new Set();
-      for (const state of [null, ...booleans]) {
-        if (state) host.setAttribute(state, '');
-        await host.updateComplete;
-        await frame();
+      // getComputedStyle recalculates synchronously, so the current state (including a held pointer) is measured as is.
+      window.probeMeasure = (candidates, values) => {
         const base = snapshot();
+        const hit = [];
         for (const name of candidates) {
-          if (effective.has(name)) continue;
           for (const v of values) {
-            // getComputedStyle recalculates synchronously, so no frame is needed between setting and reading.
             host.style.setProperty(name, v);
             const changed = snapshot() !== base;
             host.style.removeProperty(name);
-            if (changed) { effective.add(name); break; }
+            if (changed) { hit.push(name); break; }
           }
         }
-        await frame();
-        if (state) host.removeAttribute(state);
+        return hit;
+      };
+      window.probeState = async (attr, on) => { host.toggleAttribute(attr, on); await host.updateComplete; };
+    }, { tag, content: CONTENT[tag] ?? '', attrs: ATTRS[tag] ?? {} });
+
+    const effective = new Set();
+    const measure = async label => {
+      for (const name of await page.evaluate(([c, v]) => window.probeMeasure(c, v), [candidates.filter(c => !effective.has(c)), VALUES])) {
+        effective.add(name);
+        found.push(`${name} (${label})`);
       }
-      const shadow = host.shadowRoot;
-      const renderedSlots = slots.filter(s => shadow.querySelector(s ? `slot[name="${s}"]` : 'slot:not([name])'));
-      const renderedParts = parts.filter(p => [...shadow.querySelectorAll('[part]')].some(el => el.getAttribute('part').split(/\s+/).includes(p)));
-      host.remove();
-      return { cssProperties: [...effective].sort(), slots: renderedSlots.sort(), parts: renderedParts.sort() };
+    };
+    const found = [];
+    // A display: contents host has no box of its own; point at its slotted content instead.
+    const box = (await page.locator('#probe').boundingBox()) ?? (await page.locator('#probe > *').first().boundingBox());
+    const center = [box.x + box.width / 2, box.y + box.height / 2];
+    // Default, each reflected boolean attribute, and the interaction states :hover, :active (pointer held down) and
+    // :focus-visible (keyboard focus), each alone and combined with each boolean attribute.
+    for (const state of [null, ...booleans]) {
+      if (state) await page.evaluate(a => window.probeState(a, true), state);
+      await measure(state ?? 'default');
+      await page.mouse.move(...center);
+      await measure(`${state ?? 'default'} + :hover`);
+      await page.mouse.down();
+      await measure(`${state ?? 'default'} + :active`);
+      await page.mouse.up();
+      await page.mouse.move(0, 0);
+      await page.evaluate(() => { document.activeElement?.blur?.(); document.getElementById('probe').blur?.(); });
+      await page.keyboard.down('Shift');
+      await page.keyboard.up('Shift');
+      await page.evaluate(() => document.getElementById('probe').focus?.());
+      await measure(`${state ?? 'default'} + :focus-visible`);
+      await page.evaluate(() => document.getElementById('probe').blur?.());
+      if (state) await page.evaluate(a => window.probeState(a, false), state);
+    }
+    const result = await page.evaluate(({ slots, parts }) => {
+      const shadow = document.getElementById('probe').shadowRoot;
+      return {
+        slots: slots.filter(s => shadow.querySelector(s ? `slot[name="${s}"]` : 'slot:not([name])')).sort(),
+        parts: parts.filter(p => [...shadow.querySelectorAll('[part]')].some(el => el.getAttribute('part').split(/\s+/).includes(p))).sort(),
+      };
     }, {
-      tag, content: CONTENT[tag] ?? '', attrs: ATTRS[tag] ?? {}, booleans, values: VALUES,
-      candidates: (parent.cssProperties ?? []).map(p => p.name).filter(n => !own('cssProperties').has(n)),
       slots: (parent.slots ?? []).map(s => s.name).filter(n => !own('slots').has(n)),
       parts: (parent.cssParts ?? []).map(p => p.name).filter(n => !own('cssParts').has(n)),
     });
+    result.cssProperties = [...effective].sort();
+    test.info().annotations.push({ type: 'effective', description: found.join(', ') });
     expect({ cssProperties: listed('cssProperties'), slots: listed('slots'), parts: listed('cssParts') }).toEqual(result);
     for (const p of (decl.cssProperties ?? []).filter(x => x.inheritedFrom)) expect(p.inheritedFrom.package).toBe('@charm-ux/core');
   });
