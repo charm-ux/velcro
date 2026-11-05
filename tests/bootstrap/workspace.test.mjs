@@ -54,6 +54,7 @@ const prototypeExports = {
   './card/class': exportTargets('components/card/class'),
   './progress-bar/class': exportTargets('components/progress-bar/class'),
   './progress-ring/class': exportTargets('components/progress-ring/class'),
+  './resize-observer/class': exportTargets('components/resize-observer/class'),
   './skeleton/class': exportTargets('components/skeleton/class'),
   './spinner/class': exportTargets('components/spinner/class'),
   './themes/light.css': './themes/light.css',

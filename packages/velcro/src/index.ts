@@ -5,6 +5,7 @@ export * from './components/divider/index.js';
 export * from './components/format-bytes/index.js';
 export * from './components/progress-bar/index.js';
 export * from './components/progress-ring/index.js';
+export * from './components/resize-observer/index.js';
 export * from './components/skeleton/index.js';
 export * from './components/spinner/index.js';
 export * from './components/visually-hidden/index.js';
