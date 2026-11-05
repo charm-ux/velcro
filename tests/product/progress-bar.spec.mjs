@@ -262,7 +262,7 @@ test('events: only the inherited non-bubbling ready event fires, once, on first 
   expect(result.bubbled).toEqual([]);
 });
 
-test('removing the value attribute restores 0 and the attribute stays absent, as in Shoelace', async ({ page }) => {
+test('removing the value attribute restores 0, which Lit reflects back as value="0", as in Shoelace', async ({ page }) => {
   const { frame } = await openExample(page);
   const result = await frame.locator('body').evaluate(async () => {
     const el = document.createElement('sl-progress-bar');
@@ -277,13 +277,13 @@ test('removing the value attribute restores 0 and the attribute stays absent, as
     const before = read();
     el.removeAttribute('value');
     await el.updateComplete;
-    const out = { before, after: read(), hasAttribute: el.hasAttribute('value') };
+    const out = { before, after: read(), attribute: el.getAttribute('value') };
     el.remove();
     return out;
   });
   expect(result.before).toEqual({ value: 50, now: '50', width: '50%' });
   expect(result.after).toEqual({ value: 0, now: '0', width: '0%' });
-  expect(result.hasAttribute).toBe(false);
+  expect(result.attribute).toBe('0');
 });
 
 // Velcro divergence (documented on the page): Shoelace leaves a removed, non-reflected label null and then throws on render.
