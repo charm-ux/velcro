@@ -37,6 +37,15 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   inspection: files of the `v2.20.1` tag (`src/components/{badge,divider}/*`, `src/themes/light.css`); the added light
   theme tokens (`--sl-color-neutral-200`, `--sl-border-radius-small`, `--sl-letter-spacing-normal`,
   `--sl-panel-border-color`, `--sl-panel-border-width`) follow that file's names and values.
+- Also used in: `packages/velcro/src/components/skeleton/skeleton.ts` (API documentation wording, and the rendered
+  structure: a `div` with the `base` part and `skeleton` / `skeleton--*` class names around a `div` with the
+  `indicator` part, adapted from `src/components/skeleton/skeleton.component.ts`),
+  `packages/velcro/src/components/skeleton/skeleton.styles.ts` (styles adapted from
+  `src/components/skeleton/skeleton.styles.ts`, with the keyframes renamed and token fallbacks added) and
+  `packages/docs/examples/skeleton/*.html` with `packages/docs/pages/components/skeleton.ts` (example markup and
+  explanatory wording adapted from `docs/pages/components/skeleton.md`). The skeleton is built on the
+  `@charm-ux/core` skeleton; no Shoelace runtime or source files are included. The added light theme tokens
+  (`--sl-border-radius-medium`, `--sl-border-radius-circle`) follow `src/themes/light.css` names and values.
 - The 2.20.1 release carries no NOTICE file. Its license text, verbatim:
 
 ```text
