@@ -44,6 +44,11 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   resolution and the `number`, `date` and `relativeTime` helpers of `@shoelace-style/localize` as used by
   `src/utilities/localize.ts`; no source of that package is included). Built on the `@charm-ux/core` base element; no
   Shoelace runtime or source files are included.
+- Also used in: `packages/velcro/src/components/format-number/format-number.ts` (API documentation wording and the
+  `Intl.NumberFormat` option mapping, adapted from `src/components/format-number/format-number.component.ts`) and
+  `packages/velcro/src/components/format-number/format-number.styles.ts` (written for Velcro; upstream has no styles
+  file). Uses the localization controller listed above. Built on the `@charm-ux/core` base element; no Shoelace runtime
+  or source files are included.
 - Also used in: `packages/velcro/src/components/skeleton/skeleton.ts` (API documentation wording, and the rendered
   structure: a `div` with the `base` part and `skeleton` / `skeleton--*` class names around a `div` with the
   `indicator` part, adapted from `src/components/skeleton/skeleton.component.ts`),
