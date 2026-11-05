@@ -17,12 +17,12 @@ later Firefox and WebKit lane can reuse it.
 
 Shoelace 2.20.1 ships no test file for resize-observer, so it has no row here.
 
-Totals: 260 tests, 185 passed, 75 failed.
+Totals: 260 tests, 257 passed, 3 failed.
 
 | Component | Tests | Passed | Failed |
 | --- | ---: | ---: | ---: |
 | badge | 17 | 17 | 0 |
-| button | 87 | 15 | 72 |
+| button | 87 | 87 | 0 |
 | card | 17 | 17 | 0 |
 | divider | 3 | 3 | 0 |
 | format-bytes | 9 | 8 | 1 |
@@ -36,81 +36,6 @@ Totals: 260 tests, 185 passed, 75 failed.
 | visually-hidden | 2 | 2 | 0 |
 
 ## Failing tests
-
-### button
-
-- should make sure that `.validity.valid` is `false` in custom error case: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- should make sure that calling `.checkValidity()` will still return `true` when custom error has been set: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- should make sure that calling `.reportValidity()` will still return `true` when custom error has been set: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- should not emit an `sl-invalid` event when `.checkValidity()` is called in custom error case, and not disabled: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- should not emit an `sl-invalid` event when `.reportValidity()` is called in custom error case, and not disabled: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- should make sure that `.validity.valid` is `false` in custom error case [#2]: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- should make sure that calling `.checkValidity()` will return `false` in custom error case: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- should make sure that calling `.reportValidity()` will return `false` in custom error case: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- should emit an `sl-invalid` event when `.checkValidity()` is called in custom error case and not disabled: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- should emit an `sl-invalid` event when `.reportValidity()` is called in custom error case and not disabled: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- should make sure that calling `.checkValidity()` will return `true` in custom error case: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- should make sure that calling `.reportValidity()` will return `true` in custom error case: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- should not emit an `sl-invalid` event when `.checkValidity()` is called in custom error case: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- should not emit an `sl-invalid` event when `.reportValidity()` is called in custom error case: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- <sl-button> > should have title if title attribute is set: title attribute is not forwarded to the inner control
-- <sl-button> > accessibility tests > should be accessible when variant is "primary": axe reports a violation (color contrast) for this variant under the light theme
-- <sl-button> > accessibility tests > should be accessible when variant is "success": axe reports a violation (color contrast) for this variant under the light theme
-- <sl-button> > accessibility tests > should be accessible when variant is "warning": axe reports a violation (color contrast) for this variant under the light theme
-- <sl-button> > when an attribute is removed > should return to 'default' when attribute removed with no initial attribute: variant/size is not restored to its default when cleared
-- <sl-button> > when an attribute is removed > should return to 'default' when attribute removed with an initial attribute: variant/size is not restored to its default when cleared
-- <sl-button> > when a property is set to null > should return to 'default' when property set to null with no initial attribute: variant/size is not restored to its default when cleared
-- <sl-button> > when a property is set to null > should return to 'default' when property set to null with an initial attribute: variant/size is not restored to its default when cleared
-- <sl-button> > when provided no parameters > default values are set correctly: a boolean property has no false default (undefined)
-- <sl-button> > when loading > should have a spinner present: no spinner is rendered in the loading state
-- <sl-button> > when href is present > should render a link with rel="" when a target is provided and rel is empty: custom or empty rel is overridden by "noreferrer noopener"
-- <sl-button> > when href is present > should render a link with a custom rel when a custom rel is provided: custom or empty rel is overridden by "noreferrer noopener"
-- <sl-button> > when submitting a form > should submit when the button is inside the form: type="submit" calls form.submit(), which fires no submit event and ignores form* overrides
-- <sl-button> > when submitting a form > should submit when the button is outside the form and has a form attribute: type="submit" calls form.submit(), which fires no submit event and ignores form* overrides
-- <sl-button> > when submitting a form > should override form attributes when formaction, formmethod, formnovalidate, and formtarget are used inside a form: type="submit" calls form.submit(), which fires no submit event and ignores form* overrides
-- <sl-button> > when submitting a form > should override form attributes when formaction, formmethod, formnovalidate, and formtarget are used outside a form: type="submit" calls form.submit(), which fires no submit event and ignores form* overrides
-- <sl-button> > Form validity base test for sl-button (type="button") > should have a property `validity` of type `object`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (type="button") > should have a property `validationMessage` of type `string`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (type="button") > should implement method `checkValidity`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (type="button") > should implement method `setCustomValidity`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (type="button") > should implement method `reportValidity`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (type="button") > should be valid initially: Velcro button has no validity property
-- <sl-button> > Form validity base test for sl-button (type="button") > should make sure that calling `.checkValidity()` will return `true` when valid: Velcro button has no checkValidity()
-- <sl-button> > Form validity base test for sl-button (type="button") > should make sure that calling `.reportValidity()` will return `true` when valid: Velcro button has no reportValidity()
-- <sl-button> > Form validity base test for sl-button (type="button") > should not emit an `sl-invalid` event when `.checkValidity()` is called while valid: Velcro button has no checkValidity()
-- <sl-button> > Form validity base test for sl-button (type="button") > should not emit an `sl-invalid` event when `.reportValidity()` is called while valid: Velcro button has no reportValidity()
-- <sl-button> > Form validity base test for sl-button (type="button") > should not emit an `sl-invalid` event when `.checkValidity()` is called in custom error case while disabled: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- <sl-button> > Form validity base test for sl-button (type="button") > should not emit an `sl-invalid` event when `.reportValidity()` is called in custom error case while disabled: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- <sl-button> > Form validity base test for sl-button (type="button") > Should find the correct form when given a form property: Velcro button has no getForm()
-- <sl-button> > Form validity base test for sl-button (type="button") > Should find the correct form when given a form attribute: Velcro button has no getForm()
-- <sl-button> > Form validity base test for sl-button (type="submit") > should have a property `validity` of type `object`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (type="submit") > should have a property `validationMessage` of type `string`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (type="submit") > should implement method `checkValidity`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (type="submit") > should implement method `setCustomValidity`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (type="submit") > should implement method `reportValidity`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (type="submit") > should be valid initially: Velcro button has no validity property
-- <sl-button> > Form validity base test for sl-button (type="submit") > should make sure that calling `.checkValidity()` will return `true` when valid: Velcro button has no checkValidity()
-- <sl-button> > Form validity base test for sl-button (type="submit") > should make sure that calling `.reportValidity()` will return `true` when valid: Velcro button has no reportValidity()
-- <sl-button> > Form validity base test for sl-button (type="submit") > should not emit an `sl-invalid` event when `.checkValidity()` is called while valid: Velcro button has no checkValidity()
-- <sl-button> > Form validity base test for sl-button (type="submit") > should not emit an `sl-invalid` event when `.reportValidity()` is called while valid: Velcro button has no reportValidity()
-- <sl-button> > Form validity base test for sl-button (type="submit") > should not emit an `sl-invalid` event when `.checkValidity()` is called in custom error case while disabled: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- <sl-button> > Form validity base test for sl-button (type="submit") > should not emit an `sl-invalid` event when `.reportValidity()` is called in custom error case while disabled: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- <sl-button> > Form validity base test for sl-button (type="submit") > Should find the correct form when given a form property: Velcro button has no getForm()
-- <sl-button> > Form validity base test for sl-button (type="submit") > Should find the correct form when given a form attribute: Velcro button has no getForm()
-- <sl-button> > Form validity base test for sl-button (href="xyz") > should have a property `validity` of type `object`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (href="xyz") > should have a property `validationMessage` of type `string`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (href="xyz") > should implement method `checkValidity`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (href="xyz") > should implement method `setCustomValidity`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (href="xyz") > should implement method `reportValidity`: Velcro button lacks this form-control validation member
-- <sl-button> > Form validity base test for sl-button (href="xyz") > should be valid initially: Velcro button has no validity property
-- <sl-button> > Form validity base test for sl-button (href="xyz") > should make sure that calling `.checkValidity()` will return `true` when valid: Velcro button has no checkValidity()
-- <sl-button> > Form validity base test for sl-button (href="xyz") > should make sure that calling `.reportValidity()` will return `true` when valid: Velcro button has no reportValidity()
-- <sl-button> > Form validity base test for sl-button (href="xyz") > should not emit an `sl-invalid` event when `.checkValidity()` is called while valid: Velcro button has no checkValidity()
-- <sl-button> > Form validity base test for sl-button (href="xyz") > should not emit an `sl-invalid` event when `.reportValidity()` is called while valid: Velcro button has no reportValidity()
-- <sl-button> > Form validity base test for sl-button (href="xyz") > should not emit an `sl-invalid` event when `.checkValidity()` is called in custom error case while disabled: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- <sl-button> > Form validity base test for sl-button (href="xyz") > should not emit an `sl-invalid` event when `.reportValidity()` is called in custom error case while disabled: Velcro button has no setCustomValidity() (no Shoelace form-control validation API)
-- <sl-button> > Form validity base test for sl-button (href="xyz") > Should find the correct form when given a form property: Velcro button has no getForm()
-- <sl-button> > Form validity base test for sl-button (href="xyz") > Should find the correct form when given a form attribute: Velcro button has no getForm()
 
 ### format-bytes
 

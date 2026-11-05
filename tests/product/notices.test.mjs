@@ -44,6 +44,8 @@ test('copied or adapted upstream files carry a provenance header', () => {
     'packages/velcro/src/components/badge/badge.ts',
     'packages/velcro/src/components/badge/badge.styles.ts',
     'packages/velcro/src/components/button/button.ts',
+    'packages/velcro/src/components/button/button.styles.ts',
+    'packages/velcro/src/internal/form.ts',
     'packages/velcro/src/components/card/card.ts',
     'packages/velcro/src/components/card/card.styles.ts',
     'packages/velcro/src/components/divider/divider.ts',
