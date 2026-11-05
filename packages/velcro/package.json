@@ -7,6 +7,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "customElements": "custom-elements.json",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -118,11 +119,18 @@
     },
     "./themes/dark.css": "./themes/dark.css",
     "./themes/light.css": "./themes/light.css",
+    "./custom-elements.json": "./custom-elements.json",
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./react/*": "./dist/react/*",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "themes",
+    "custom-elements.json",
     "THIRD_PARTY_NOTICES.md"
   ],
   "sideEffects": [
@@ -131,11 +139,23 @@
     "*.css"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "generate": "plop --plopfile plopfile.mjs"
+    "build": "tsc -p tsconfig.json && pnpm run analyze && tsc -p tsconfig.react.json",
+    "generate": "plop --plopfile plopfile.mjs",
+    "analyze": "cem analyze"
   },
   "dependencies": {
     "@charm-ux/core": "0.5.2",
     "lit": "3.3.3"
+  },
+  "devDependencies": {
+    "@custom-elements-manifest/analyzer": "0.10.10",
+    "@types/react": "19.2.6",
+    "@wc-toolkit/cem-sorter": "1.0.1",
+    "@wc-toolkit/jsx-types": "1.5.2",
+    "@wc-toolkit/react-wrappers": "1.2.1",
+    "@wc-toolkit/type-parser": "1.2.0",
+    "custom-elements-manifest-inheritance": "1.1.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
   }
 }

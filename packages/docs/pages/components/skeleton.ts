@@ -3,22 +3,13 @@ import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
 import { docsShell, shellStyles } from '../../src/shell.js';
 import { themeHead } from '../../src/theme.js';
+import { apiReference } from '../../src/api.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Skeleton - Velcro',
   seoHead: themeHead + '<meta name="description" content="Velcro skeleton (prototype).">',
 }));
-
-const attributes: Array<[string, string, string, string]> = [
-  ['effect', 'pulse | sheen | none', 'none', 'Determines which effect the skeleton will use.'],
-];
-
-const cssProperties: Array<[string, string, string]> = [
-  ['--border-radius', 'var(--sl-border-radius-pill)', "The skeleton's border radius."],
-  ['--color', 'var(--sl-color-neutral-200)', 'The color of the skeleton.'],
-  ['--sheen-color', 'var(--sl-color-neutral-300)', 'The sheen color when the skeleton is in its loading state.'],
-];
 
 const sections: Array<[string, string, string, string]> = [
   ['overview', 'Overview', 'skeleton/basic', 'Skeletons are simple containers for scaffolding layouts that mimic what users will see when content has finished loading. Use more than one to build the arrangement you want.'],
@@ -59,31 +50,11 @@ export class SkeletonPage extends LitElement {
         `
       )}
 
-      <h2 id="attributes">Attributes and properties</h2>
-      <table>
-        <thead><tr><th>Name</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
-        <tbody>
-          ${attributes.map(([n, t, d, desc]) => html`<tr><td><code>${n}</code></td><td>${t}</td><td><code>${d}</code></td><td>${desc}</td></tr>`)}
-        </tbody>
-      </table>
-      <p>The property is not reflected to an attribute (as in Shoelace) and an unknown value draws a static skeleton.</p>
-
-      <h2 id="slots">Slots</h2>
-      <p>None.</p>
-
-      <h2 id="parts">CSS parts</h2>
-      <p><code>base</code> (the wrapper <code>div</code>) and <code>indicator</code> (the inner <code>div</code> that draws the color, radius and animation).</p>
-
-      <h2 id="css-properties">CSS custom properties</h2>
-      <table>
-        <thead><tr><th>Property</th><th>Default</th><th>Description</th></tr></thead>
-        <tbody>
-          ${cssProperties.map(([p, d, desc]) => html`<tr><td><code>${p}</code></td><td><code>${d}</code></td><td>${desc}</td></tr>`)}
-        </tbody>
-      </table>
-
-      <h2 id="events">Events</h2>
-      <p>Shoelace 2.20.1 emits no events from the skeleton. Velcro differs: the element inherits the core <code>ready</code> event, a <code>CustomEvent</code> dispatched on the element itself after its first update. It does not bubble, is not composed, is not cancelable and has an empty <code>detail</code>, so only a listener attached directly to the skeleton receives it, and it fires once per element. It is not part of the Shoelace contract and is not named with the <code>sl-</code> prefix.</p>
+      ${apiReference('sl-skeleton', {
+        attributes: html`<p>The property is not reflected to an attribute (as in Shoelace) and an unknown value draws a static skeleton.</p>`,
+        parts: html`<p><code>base</code> (the wrapper <code>div</code>) and <code>indicator</code> (the inner <code>div</code> that draws the color, radius and animation).</p>`,
+        events: html`<p>Shoelace 2.20.1 emits no events from the skeleton. Velcro differs: the element inherits the core <code>ready</code> event, a <code>CustomEvent</code> dispatched on the element itself after its first update. It does not bubble, is not composed, is not cancelable and has an empty <code>detail</code>, so only a listener attached directly to the skeleton receives it, and it fires once per element. It is not part of the Shoelace contract and is not named with the <code>sl-</code> prefix.</p>`,
+      })}
 
       <h2 id="not-implemented">Not implemented or unverified</h2>
       <ul>

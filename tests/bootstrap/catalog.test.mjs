@@ -26,6 +26,9 @@ const baseExports = names => ({
   ...Object.fromEntries(names.map(x => [`./${x}`, tgt(`components/${x}/index`)])),
   './themes/dark.css': './themes/dark.css',
   './themes/light.css': './themes/light.css',
+  './custom-elements.json': './custom-elements.json',
+  './react': { types: './dist/react/index.d.ts', import: './dist/react/index.js' },
+  './react/*': './dist/react/*',
   './package.json': './package.json',
 });
 

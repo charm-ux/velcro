@@ -19,12 +19,12 @@ import styles from './progress-ring.styles.js';
  * @csspart base - The component's base wrapper.
  * @csspart label - The progress ring label.
  *
- * @cssproperty --size - The diameter of the progress ring (cannot be a percentage).
- * @cssproperty --track-width - The width of the track.
- * @cssproperty --track-color - The color of the track.
- * @cssproperty --indicator-width - The width of the indicator. Defaults to the track width.
- * @cssproperty --indicator-color - The color of the indicator.
- * @cssproperty --indicator-transition-duration - The duration of the indicator's transition when the value changes.
+ * @cssproperty [--size=128px] - The diameter of the progress ring (cannot be a percentage).
+ * @cssproperty [--track-width=4px] - The width of the track.
+ * @cssproperty [--track-color=var(--sl-color-neutral-200)] - The color of the track.
+ * @cssproperty [--indicator-width=var(--track-width)] - The width of the indicator. Defaults to the track width.
+ * @cssproperty [--indicator-color=var(--sl-color-primary-600)] - The color of the indicator.
+ * @cssproperty [--indicator-transition-duration=0.35s] - The duration of the indicator's transition when the value changes.
  */
 export class VelcroProgressRing extends CharmElement {
   public static override baseName = 'progress-ring';

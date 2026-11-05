@@ -28,8 +28,6 @@ const availableUnits: UnitConfig[] = [
  *
  * @tag sl-relative-time
  * @status prototype
- *
- * @event ready - Inherited from the core base: emitted (non-bubbling, non-composed) after the first update. Shoelace has no such event.
  */
 export class VelcroRelativeTime extends CharmElement {
   public static override baseName = 'relative-time';

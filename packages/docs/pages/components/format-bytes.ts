@@ -3,19 +3,13 @@ import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
 import { docsShell, shellStyles } from '../../src/shell.js';
 import { themeHead } from '../../src/theme.js';
+import { apiReference } from '../../src/api.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Format Bytes - Velcro',
   seoHead: themeHead + '<meta name="description" content="Velcro format bytes (prototype).">',
 }));
-
-const attributes: Array<[string, string, string, string]> = [
-  ['value', 'number', '0', 'The number to format in bytes.'],
-  ['unit', 'byte | bit', 'byte', 'The type of unit to display.'],
-  ['display', 'long | short | narrow', 'short', 'Determines how to display the result, e.g. "100 bytes", "100 b", or "100b".'],
-  ['lang', 'string', '(none)', 'The number formatting locale. Falls back to the lang of the document element, then the browser language.'],
-];
 
 const gaps = [
   'There is no core format-bytes: the component extends the core CharmElement base and renders text only. The text is produced by Intl.NumberFormat with the unit style, through a minimal localization controller (packages/velcro/src/internal/localize.ts).',
@@ -44,26 +38,11 @@ export class FormatBytesPage extends LitElement {
       <iframe class="example" title="Format Bytes example" srcdoc=${exampleDocument(source)}></iframe>
       <pre><code>${source}</code></pre>
 
-      <h2 id="attributes">Attributes and properties</h2>
-      <table>
-        <thead><tr><th>Name</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
-        <tbody>
-          ${attributes.map(([n, t, d, desc]) => html`<tr><td><code>${n}</code></td><td>${t}</td><td><code>${d}</code></td><td>${desc}</td></tr>`)}
-        </tbody>
-      </table>
-      <p>As in Shoelace, none of these are reflected to attributes. Divergence: removing the <code>value</code>, <code>unit</code> or <code>display</code> attribute restores the default here, whereas Shoelace only restores reflected properties, so there the property would become null.</p>
-
-      <h2 id="slots">Slots</h2>
-      <p>None.</p>
-
-      <h2 id="parts">CSS parts</h2>
-      <p>None. The component renders text directly in its shadow root and has no ARIA role.</p>
-
-      <h2 id="css-properties">CSS custom properties</h2>
-      <p>None.</p>
-
-      <h2 id="events">Events</h2>
-      <p>Only the inherited <code>ready</code> event (see below); Shoelace 2.20.1 has none.</p>
+      ${apiReference('sl-format-bytes', {
+        attributes: html`<p>As in Shoelace, none of these are reflected to attributes. Divergence: removing the <code>value</code>, <code>unit</code> or <code>display</code> attribute restores the default here, whereas Shoelace only restores reflected properties, so there the property would become null.</p>`,
+        parts: html`<p>The component renders text directly in its shadow root and has no ARIA role.</p>`,
+        events: html`<p>Only the inherited <code>ready</code> event (see below); Shoelace 2.20.1 has none.</p>`,
+      })}
 
       <h2 id="not-implemented">Not implemented or unverified</h2>
       <ul>

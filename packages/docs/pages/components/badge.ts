@@ -3,18 +3,13 @@ import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
 import { docsShell, shellStyles } from '../../src/shell.js';
 import { themeHead } from '../../src/theme.js';
+import { apiReference } from '../../src/api.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Badge - Velcro',
   seoHead: themeHead + '<meta name="description" content="Velcro badge (prototype).">',
 }));
-
-const attributes: Array<[string, string, string, string]> = [
-  ['variant', 'primary | success | neutral | warning | danger', 'primary', "The badge's theme variant."],
-  ['pill', 'boolean', 'false', 'Draws a pill-style badge with rounded edges.'],
-  ['pulse', 'boolean', 'false', 'Makes the badge pulsate to draw attention.'],
-];
 
 const gaps = [
   'The base part carries role="status", as in Shoelace, so each badge is a live region. Whether a given screen reader announces content changes was not tested.',
@@ -41,26 +36,12 @@ export class BadgePage extends LitElement {
       <iframe class="example" title="Badge example" srcdoc=${exampleDocument(source)}></iframe>
       <pre><code>${source}</code></pre>
 
-      <h2 id="attributes">Attributes and properties</h2>
-      <table>
-        <thead><tr><th>Name</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
-        <tbody>
-          ${attributes.map(([n, t, d, desc]) => html`<tr><td><code>${n}</code></td><td>${t}</td><td><code>${d}</code></td><td>${desc}</td></tr>`)}
-        </tbody>
-      </table>
-      <p>All three are reflected to attributes and update the rendered badge when changed.</p>
-
-      <h2 id="slots">Slots</h2>
-      <p>The default slot holds the badge's content.</p>
-
-      <h2 id="parts">CSS parts</h2>
-      <p><code>base</code> (the <code>span</code> element, with <code>role="status"</code>).</p>
-
-      <h2 id="css-properties">CSS custom properties</h2>
-      <p>None. Colors and radius come from the theme tokens.</p>
-
-      <h2 id="events">Events</h2>
-      <p>None.</p>
+      ${apiReference('sl-badge', {
+        attributes: html`<p><code>variant</code>, <code>pill</code> and <code>pulse</code> are reflected to attributes and update the rendered badge when changed.</p>`,
+        parts: html`<p><code>base</code> (the <code>span</code> element, with <code>role="status"</code>).</p>`,
+        'css-properties': html`<p>Colors and radius come from the theme tokens.</p>`,
+        events: html`<p>None from Shoelace; only the inherited core <code>ready</code> event.</p>`,
+      })}
 
       <h2 id="not-implemented">Not implemented or unverified</h2>
       <ul>

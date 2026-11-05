@@ -1,0 +1,4390 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "src/components/badge/badge.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Badges are used to draw attention and display statuses or counts. API modelled on Shoelace's `sl-badge`.",
+          "name": "VelcroBadge",
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            }
+          ],
+          "slots": [
+            {
+              "description": "The badge's content.",
+              "name": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "method",
+              "name": "badgeTemplate",
+              "privacy": "protected"
+            },
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'badge'",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "pill",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Draws a pill-style badge with rounded edges.",
+              "attribute": "pill",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pulse",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Makes the badge pulsate to draw attention.",
+              "attribute": "pulse",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "'primary' | 'success' | 'neutral' | 'warning' | 'danger'"
+              },
+              "privacy": "public",
+              "default": "'primary'",
+              "description": "The badge's theme variant.",
+              "attribute": "variant",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "pill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws a pill-style badge with rounded edges.",
+              "fieldName": "pill",
+              "propName": "pill"
+            },
+            {
+              "name": "pulse",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Makes the badge pulsate to draw attention.",
+              "fieldName": "pulse",
+              "propName": "pulse"
+            },
+            {
+              "name": "variant",
+              "type": {
+                "text": "'primary' | 'success' | 'neutral' | 'warning' | 'danger'"
+              },
+              "default": "'primary'",
+              "description": "The badge's theme variant.",
+              "fieldName": "variant",
+              "propName": "variant"
+            }
+          ],
+          "superclass": {
+            "name": "CoreBadge",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-badge",
+          "customElement": true,
+          "status": "prototype",
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/badge/badge.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroBadge",
+            "module": "src/components/badge/badge.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroBadge",
+          "declaration": {
+            "name": "VelcroBadge",
+            "module": "src/components/badge/badge.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/button/button.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Buttons represent actions that are available to the user. API modelled on Shoelace's `sl-button`.",
+          "name": "VelcroButton",
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            },
+            {
+              "description": "The inner native button or link (core's part name; it also carries `base`).",
+              "name": "button-control"
+            },
+            {
+              "description": "The container that wraps the caret icon.",
+              "name": "caret"
+            },
+            {
+              "description": "The button's label.",
+              "name": "label"
+            },
+            {
+              "description": "The container that wraps the prefix.",
+              "name": "prefix"
+            },
+            {
+              "description": "The spinner shown while `loading`.",
+              "name": "spinner"
+            },
+            {
+              "description": "The container that wraps the suffix.",
+              "name": "suffix"
+            }
+          ],
+          "slots": [
+            {
+              "description": "The button's label.",
+              "name": ""
+            },
+            {
+              "description": "A presentational prefix icon or similar element.",
+              "name": "prefix"
+            },
+            {
+              "description": "A presentational suffix icon or similar element.",
+              "name": "suffix"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "_hides",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "_internals",
+              "type": {
+                "text": "ElementInternals"
+              },
+              "privacy": "protected",
+              "readonly": true,
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "_shows",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "_toggles",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "allowWrap",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "An optional toggle that allows text to wrap. Helper for longer text scenarios.",
+              "attribute": "allow-wrap",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "autofocus",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Auto focuses the component on page load.",
+              "attribute": "autofocus",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CharmFocusableElement",
+                "module": "src/base/focusable-element/charm-focusable-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              },
+              "default": "'button'"
+            },
+            {
+              "kind": "method",
+              "name": "buttonTemplate",
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "caret",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Draws the button with a caret, used to indicate that the button triggers a dropdown menu or similar behavior.",
+              "attribute": "caret",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "circle",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Draws a circular icon button. When this attribute is present, the button expects a single icon element in the default slot.",
+              "attribute": "circle",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "click",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Programmatic `click()` does nothing while disabled, like a native disabled button. Once rendered it activates\nthe inner native button/link exactly once: that single composed click reaches host listeners, and a host\n`preventDefault()` cancels the link's default action. (Core's `click()` instead dispatches a host click and then\nseparately clicks the link, which fires listeners twice and cannot be cancelled.)",
+              "type": {
+                "text": "click() => void"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "contentTemplate",
+              "privacy": "protected"
+            },
+            {
+              "kind": "field",
+              "name": "current",
+              "type": {
+                "text": "'page' | 'step' | 'location' | 'date' | 'time' | 'true' | 'false' | null | undefined"
+              },
+              "privacy": "public",
+              "description": "Sets \"aria-current\" on the internal button or link.",
+              "attribute": "current",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "privacy": "public",
+              "description": "Disables the component on page load.",
+              "attribute": "disabled",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "download",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "Downloads the linked file as the filename.\nOnly used when `href` is set.",
+              "attribute": "download",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "expanded",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "privacy": "public",
+              "description": "Sets \"aria-expanded\" on the internal button or link.",
+              "attribute": "expanded",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "focusableEventOptions",
+              "type": {
+                "text": "CustomEventInit"
+              },
+              "privacy": "protected",
+              "default": "{}",
+              "inheritedFrom": {
+                "name": "CharmFocusableElement",
+                "module": "src/base/focusable-element/charm-focusable-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "formAssociated",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "static": true,
+              "default": "true",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hadFocus",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "false",
+              "inheritedFrom": {
+                "name": "CharmFocusableElement",
+                "module": "src/base/focusable-element/charm-focusable-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "handleBlur",
+              "privacy": "protected"
+            },
+            {
+              "kind": "method",
+              "name": "handleClick",
+              "privacy": "protected",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "MouseEvent"
+                  }
+                }
+              ],
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "handleFocus",
+              "privacy": "protected"
+            },
+            {
+              "kind": "field",
+              "name": "hasFocus",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "false",
+              "inheritedFrom": {
+                "name": "CharmFocusableElement",
+                "module": "src/base/focusable-element/charm-focusable-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hideHandler",
+              "type": {
+                "text": "() => void | undefined"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hides",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "referencing a dismissible element's ID, this button will hide it when clicked",
+              "attribute": "hides",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "href",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "When set, the underlying button will be rendered as an `<a>` with this `href`\ninstead of a `<button>`.",
+              "attribute": "href",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "iconOnly",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "privacy": "public",
+              "description": "Allows component to render using only the icon as visual element.\nOptional, default is false, associated attribute is 'icon-only'",
+              "attribute": "icon-only",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Draws the button in a loading state.",
+              "attribute": "loading",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "An optional name for the button. Ignored when `href` is set.",
+              "attribute": "name",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "outline",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Draws an outlined button.",
+              "attribute": "outline",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pill",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Draws a pill-style button with rounded edges.",
+              "attribute": "pill",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pressed",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "privacy": "public",
+              "description": "Sets \"aria-pressed\" on the internal button or link.",
+              "attribute": "pressed",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "referrerPolicy",
+              "type": {
+                "text": "| 'no-referrer'\n    | 'no-referrer-when-downgrade'\n    | 'origin'\n    | 'origin-when-cross-origin'\n    | 'same-origin'\n    | 'strict-origin'\n    | 'strict-origin-when-cross-origin'\n    | 'unsafe-url'\n    | (string & {})"
+              },
+              "privacy": "public",
+              "default": "'strict-origin-when-cross-origin'",
+              "description": "Defining which referrer is sent when fetching the resource.\nOnly applies to links.",
+              "attribute": "referrerpolicy",
+              "parsedType": {
+                "text": "'no-referrer' | 'no-referrer-when-downgrade' | 'origin' | 'origin-when-cross-origin' | 'same-origin' | 'strict-origin' | 'strict-origin-when-cross-origin' | 'unsafe-url' | (string & {})"
+              },
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "shadowRootOptions",
+              "type": {
+                "text": "object"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "{ ...LitElement.shadowRootOptions, delegatesFocus: true }",
+              "inheritedFrom": {
+                "name": "CharmFocusableElement",
+                "module": "src/base/focusable-element/charm-focusable-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "showHandler",
+              "type": {
+                "text": "() => void | undefined"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "shows",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "referencing a dismissible element's ID, this button will show it when clicked",
+              "attribute": "shows",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'small' | 'medium' | 'large'"
+              },
+              "privacy": "public",
+              "default": "'medium'",
+              "description": "The button's size.",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "target",
+              "type": {
+                "text": "'_blank' | '_parent' | '_self' | '_top' | (string & {}) | undefined"
+              },
+              "privacy": "public",
+              "description": "Tells the browser where to open the link. Only used when `href` is set.",
+              "attribute": "target",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "toggle",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Allows a toggling behavior on the component that emits change event if not disabled.\nOnly when is a button.",
+              "attribute": "toggle",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "toggleHandler",
+              "type": {
+                "text": "() => void | undefined"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "toggles",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "referencing a dismissible element's ID, this button will show/hide it when clicked",
+              "attribute": "toggles",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "type",
+              "type": {
+                "text": "'button' | 'submit' | 'reset'"
+              },
+              "privacy": "public",
+              "default": "'button'",
+              "description": "Allows the component to be treated standalone or part of a form.\nThe type of button. When the type is `submit`, the button will submit the surrounding form. Note that the default\nvalue is `button` instead of `submit`, which is opposite of how native `<button>` elements behave.",
+              "attribute": "type",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "useBlurHandler",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "true",
+              "inheritedFrom": {
+                "name": "CharmFocusableElement",
+                "module": "src/base/focusable-element/charm-focusable-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "useFocusHandler",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "true",
+              "inheritedFrom": {
+                "name": "CharmFocusableElement",
+                "module": "src/base/focusable-element/charm-focusable-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "An optional value for the button. Ignored when `href` is set.",
+              "attribute": "value",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "'default' | 'primary' | 'success' | 'neutral' | 'warning' | 'danger' | 'text'"
+              },
+              "privacy": "public",
+              "default": "'default'",
+              "description": "The button's theme variant.",
+              "attribute": "variant",
+              "reflects": true
+            }
+          ],
+          "events": [
+            {
+              "description": "Custom event that indicates when focus is lost.",
+              "name": "blur",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Custom event that indicates the current toggling state through e.target.pressed.",
+              "name": "change",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Custom event that indicates when focus is gained.",
+              "name": "focus",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Emitted when the button loses focus.",
+              "name": "sl-blur"
+            },
+            {
+              "description": "Emitted when the button gains focus.",
+              "name": "sl-focus"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "allow-wrap",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "An optional toggle that allows text to wrap. Helper for longer text scenarios.",
+              "fieldName": "allowWrap",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "allowWrap"
+            },
+            {
+              "name": "autofocus",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Auto focuses the component on page load.",
+              "fieldName": "autofocus",
+              "inheritedFrom": {
+                "name": "CharmFocusableElement",
+                "module": "src/base/focusable-element/charm-focusable-element.ts",
+                "package": "@charm-ux/core"
+              },
+              "propName": "autofocus"
+            },
+            {
+              "name": "caret",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws the button with a caret, used to indicate that the button triggers a dropdown menu or similar behavior.",
+              "fieldName": "caret",
+              "propName": "caret"
+            },
+            {
+              "name": "circle",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws a circular icon button. When this attribute is present, the button expects a single icon element in the default slot.",
+              "fieldName": "circle",
+              "propName": "circle"
+            },
+            {
+              "name": "current",
+              "type": {
+                "text": "'page' | 'step' | 'location' | 'date' | 'time' | 'true' | 'false' | null | undefined"
+              },
+              "description": "Sets \"aria-current\" on the internal button or link.",
+              "fieldName": "current",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "current"
+            },
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "description": "Disables the component on page load.",
+              "fieldName": "disabled",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "disabled"
+            },
+            {
+              "name": "download",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "Downloads the linked file as the filename.\nOnly used when `href` is set.",
+              "fieldName": "download",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "download"
+            },
+            {
+              "name": "expanded",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "description": "Sets \"aria-expanded\" on the internal button or link.",
+              "fieldName": "expanded",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "expanded"
+            },
+            {
+              "name": "hides",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "referencing a dismissible element's ID, this button will hide it when clicked",
+              "fieldName": "hides",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "hides"
+            },
+            {
+              "name": "href",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "When set, the underlying button will be rendered as an `<a>` with this `href`\ninstead of a `<button>`.",
+              "fieldName": "href",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "href"
+            },
+            {
+              "name": "icon-only",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "description": "Allows component to render using only the icon as visual element.\nOptional, default is false, associated attribute is 'icon-only'",
+              "fieldName": "iconOnly",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "iconOnly"
+            },
+            {
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws the button in a loading state.",
+              "fieldName": "loading",
+              "propName": "loading"
+            },
+            {
+              "name": "name",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "An optional name for the button. Ignored when `href` is set.",
+              "fieldName": "name",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "name"
+            },
+            {
+              "name": "outline",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws an outlined button.",
+              "fieldName": "outline",
+              "propName": "outline"
+            },
+            {
+              "name": "pill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws a pill-style button with rounded edges.",
+              "fieldName": "pill",
+              "propName": "pill"
+            },
+            {
+              "name": "pressed",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "description": "Sets \"aria-pressed\" on the internal button or link.",
+              "fieldName": "pressed",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "pressed"
+            },
+            {
+              "name": "referrerpolicy",
+              "type": {
+                "text": "| 'no-referrer'\n    | 'no-referrer-when-downgrade'\n    | 'origin'\n    | 'origin-when-cross-origin'\n    | 'same-origin'\n    | 'strict-origin'\n    | 'strict-origin-when-cross-origin'\n    | 'unsafe-url'\n    | (string & {})"
+              },
+              "default": "'strict-origin-when-cross-origin'",
+              "description": "Defining which referrer is sent when fetching the resource.\nOnly applies to links.",
+              "fieldName": "referrerPolicy",
+              "parsedType": {
+                "text": "'no-referrer' | 'no-referrer-when-downgrade' | 'origin' | 'origin-when-cross-origin' | 'same-origin' | 'strict-origin' | 'strict-origin-when-cross-origin' | 'unsafe-url' | (string & {})"
+              },
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "referrerpolicy"
+            },
+            {
+              "name": "shows",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "referencing a dismissible element's ID, this button will show it when clicked",
+              "fieldName": "shows",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "shows"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'small' | 'medium' | 'large'"
+              },
+              "default": "'medium'",
+              "description": "The button's size.",
+              "fieldName": "size",
+              "propName": "size"
+            },
+            {
+              "name": "target",
+              "type": {
+                "text": "'_blank' | '_parent' | '_self' | '_top' | (string & {}) | undefined"
+              },
+              "description": "Tells the browser where to open the link. Only used when `href` is set.",
+              "fieldName": "target",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "target"
+            },
+            {
+              "name": "toggle",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Allows a toggling behavior on the component that emits change event if not disabled.\nOnly when is a button.",
+              "fieldName": "toggle",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "toggle"
+            },
+            {
+              "name": "toggles",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "referencing a dismissible element's ID, this button will show/hide it when clicked",
+              "fieldName": "toggles",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "toggles"
+            },
+            {
+              "name": "type",
+              "type": {
+                "text": "'button' | 'submit' | 'reset'"
+              },
+              "default": "'button'",
+              "description": "Allows the component to be treated standalone or part of a form.\nThe type of button. When the type is `submit`, the button will submit the surrounding form. Note that the default\nvalue is `button` instead of `submit`, which is opposite of how native `<button>` elements behave.",
+              "fieldName": "type",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "type"
+            },
+            {
+              "name": "value",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "An optional value for the button. Ignored when `href` is set.",
+              "fieldName": "value",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "value"
+            },
+            {
+              "name": "variant",
+              "type": {
+                "text": "'default' | 'primary' | 'success' | 'neutral' | 'warning' | 'danger' | 'text'"
+              },
+              "default": "'default'",
+              "description": "The button's theme variant.",
+              "fieldName": "variant",
+              "propName": "variant"
+            }
+          ],
+          "superclass": {
+            "name": "CoreButton",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-button",
+          "customElement": true,
+          "status": "prototype",
+          "cssProperties": [
+            {
+              "description": "Sets the background color of the button when active.",
+              "name": "--button-active-bg-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets the border color of the button when active.",
+              "name": "--button-active-border-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets button's text color when active.",
+              "name": "--button-active-fg-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets button's box-shadow when active.",
+              "name": "--button-active-shadow",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets the background color of the button.",
+              "name": "--button-bg-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets button's box-shadow when disabled.",
+              "name": "--button-disabled-shadow",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets button's text color.",
+              "name": "--button-fg-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets the height and width of the slotted icon and svg.",
+              "name": "--button-icon-size",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets the background color of the button when toggled.",
+              "name": "--button-pressed-bg-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets the border of the button when toggled.",
+              "name": "--button-pressed-border",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets button's text color when toggled.",
+              "name": "--button-pressed-fg-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/button/button.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroButton",
+            "module": "src/components/button/button.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroButton",
+          "declaration": {
+            "name": "VelcroButton",
+            "module": "src/components/button/button.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/card/card.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Cards can be used to group related subjects in a container. API modelled on Shoelace's `sl-card`.",
+          "name": "VelcroCard",
+          "cssProperties": [
+            {
+              "description": "The card's border color, including borders that occur inside the card.",
+              "name": "--border-color",
+              "default": "var(--sl-color-neutral-200)"
+            },
+            {
+              "description": "The border radius for the card's edges.",
+              "name": "--border-radius",
+              "default": "var(--sl-border-radius-medium)"
+            },
+            {
+              "description": "The width of the card's borders.",
+              "name": "--border-width",
+              "default": "1px"
+            },
+            {
+              "description": "The padding to use for the card's sections.",
+              "name": "--padding",
+              "default": "var(--sl-spacing-large)"
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            },
+            {
+              "description": "The container that wraps the card's main content.",
+              "name": "body"
+            },
+            {
+              "description": "The container that wraps the card's footer.",
+              "name": "footer"
+            },
+            {
+              "description": "The container that wraps the card's header.",
+              "name": "header"
+            },
+            {
+              "description": "The container that wraps the card's image.",
+              "name": "image"
+            }
+          ],
+          "slots": [
+            {
+              "description": "The card's main content.",
+              "name": ""
+            },
+            {
+              "description": "An optional footer for the card.",
+              "name": "footer"
+            },
+            {
+              "description": "An optional header for the card.",
+              "name": "header"
+            },
+            {
+              "description": "An optional image to render at the start of the card.",
+              "name": "image"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'card'",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "cardTemplate",
+              "privacy": "protected"
+            },
+            {
+              "kind": "method",
+              "name": "contentTemplate",
+              "privacy": "protected",
+              "description": "Generates the HTML template for card content.",
+              "inheritedFrom": {
+                "name": "CoreCard",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "footerTemplate",
+              "privacy": "protected",
+              "description": "Generate HTML template for card footer.",
+              "inheritedFrom": {
+                "name": "CoreCard",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hasSlotController",
+              "privacy": "protected",
+              "readonly": true,
+              "default": "new HasSlotController(this, 'media', 'footer', 'heading', 'subheading')",
+              "inheritedFrom": {
+                "name": "CoreCard",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "headerTemplate",
+              "privacy": "protected",
+              "description": "Generate HTML template for card header.",
+              "inheritedFrom": {
+                "name": "CoreCard",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "heading",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "Provides a heading for the card.",
+              "attribute": "heading",
+              "inheritedFrom": {
+                "name": "CoreCard",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "mediaPosition",
+              "type": {
+                "text": "'top' | 'bottom' | 'start' | 'end' | undefined"
+              },
+              "privacy": "public",
+              "description": "A flag used to change visual positioning of any media (default 'top').",
+              "attribute": "media-position",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreCard",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "mediaTemplate",
+              "privacy": "protected",
+              "description": "Generate HTML template for card media.",
+              "inheritedFrom": {
+                "name": "CoreCard",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "shoelaceSlots",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new HasSlotController(this, 'footer', 'header', 'image')"
+            },
+            {
+              "kind": "field",
+              "name": "subheading",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "Provides a subheading for the card.",
+              "attribute": "subheading",
+              "inheritedFrom": {
+                "name": "CoreCard",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "superclass": {
+            "name": "CoreCard",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-card",
+          "customElement": true,
+          "status": "prototype",
+          "attributes": [
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "heading",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "Provides a heading for the card.",
+              "fieldName": "heading",
+              "inheritedFrom": {
+                "name": "CoreCard",
+                "package": "@charm-ux/core"
+              },
+              "propName": "heading"
+            },
+            {
+              "name": "media-position",
+              "type": {
+                "text": "'top' | 'bottom' | 'start' | 'end' | undefined"
+              },
+              "description": "A flag used to change visual positioning of any media (default 'top').",
+              "fieldName": "mediaPosition",
+              "inheritedFrom": {
+                "name": "CoreCard",
+                "package": "@charm-ux/core"
+              },
+              "propName": "mediaPosition"
+            },
+            {
+              "name": "subheading",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "Provides a subheading for the card.",
+              "fieldName": "subheading",
+              "inheritedFrom": {
+                "name": "CoreCard",
+                "package": "@charm-ux/core"
+              },
+              "propName": "subheading"
+            }
+          ],
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/card/card.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroCard",
+            "module": "src/components/card/card.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroCard",
+          "declaration": {
+            "name": "VelcroCard",
+            "module": "src/components/card/card.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/divider/divider.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Dividers are used to visually separate or group elements. API modelled on Shoelace's `sl-divider`.",
+          "name": "VelcroDivider",
+          "cssProperties": [
+            {
+              "description": "The color of the divider.",
+              "name": "--color",
+              "default": "var(--sl-panel-border-color)"
+            },
+            {
+              "description": "The width of the divider.",
+              "name": "--width",
+              "default": "var(--sl-panel-border-width)"
+            },
+            {
+              "description": "The spacing of the divider.",
+              "name": "--spacing",
+              "default": "var(--sl-spacing-medium)"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "alignContent",
+              "type": {
+                "text": "'center' | 'start' | 'end' | undefined"
+              },
+              "privacy": "public",
+              "description": "Determines the alignment of the content within the divider.",
+              "attribute": "align-content",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreDivider",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'divider'",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "contentTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the content slot of the divider.",
+              "inheritedFrom": {
+                "name": "CoreDivider",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "dividerTemplate",
+              "privacy": "protected"
+            },
+            {
+              "kind": "method",
+              "name": "endLineTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the end line of the divider.",
+              "inheritedFrom": {
+                "name": "CoreDivider",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hasSlotController",
+              "privacy": "protected",
+              "readonly": true,
+              "default": "new HasSlotController(this, '[default]')",
+              "inheritedFrom": {
+                "name": "CoreDivider",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "inset",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "privacy": "public",
+              "description": "Adds padding to the beginning and end of the divider.",
+              "attribute": "inset",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreDivider",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "orientation",
+              "type": {
+                "text": "'horizontal' | 'vertical' | undefined"
+              },
+              "privacy": "public",
+              "description": "The divider's orientation.",
+              "attribute": "orientation",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreDivider",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "presentation",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "privacy": "public",
+              "description": "Renders the divider as a presentational element instead of a content separator when set to true.",
+              "attribute": "presentation",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreDivider",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "startLineTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the start line of the divider.",
+              "inheritedFrom": {
+                "name": "CoreDivider",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "vertical",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Draws the divider in a vertical orientation.",
+              "attribute": "vertical",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "align-content",
+              "type": {
+                "text": "'center' | 'start' | 'end' | undefined"
+              },
+              "description": "Determines the alignment of the content within the divider.",
+              "fieldName": "alignContent",
+              "inheritedFrom": {
+                "name": "CoreDivider",
+                "package": "@charm-ux/core"
+              },
+              "propName": "alignContent"
+            },
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "inset",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "description": "Adds padding to the beginning and end of the divider.",
+              "fieldName": "inset",
+              "inheritedFrom": {
+                "name": "CoreDivider",
+                "package": "@charm-ux/core"
+              },
+              "propName": "inset"
+            },
+            {
+              "name": "orientation",
+              "type": {
+                "text": "'horizontal' | 'vertical' | undefined"
+              },
+              "description": "The divider's orientation.",
+              "fieldName": "orientation",
+              "inheritedFrom": {
+                "name": "CoreDivider",
+                "package": "@charm-ux/core"
+              },
+              "propName": "orientation"
+            },
+            {
+              "name": "presentation",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "description": "Renders the divider as a presentational element instead of a content separator when set to true.",
+              "fieldName": "presentation",
+              "inheritedFrom": {
+                "name": "CoreDivider",
+                "package": "@charm-ux/core"
+              },
+              "propName": "presentation"
+            },
+            {
+              "name": "vertical",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws the divider in a vertical orientation.",
+              "fieldName": "vertical",
+              "propName": "vertical"
+            }
+          ],
+          "superclass": {
+            "name": "CoreDivider",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-divider",
+          "customElement": true,
+          "status": "prototype",
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/divider/divider.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroDivider",
+            "module": "src/components/divider/divider.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroDivider",
+          "declaration": {
+            "name": "VelcroDivider",
+            "module": "src/components/divider/divider.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/format-bytes/format-bytes.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Formats a number as a human readable bytes value. API modelled on Shoelace's `sl-format-bytes`.",
+          "name": "VelcroFormatBytes",
+          "members": [
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'format-bytes'"
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "display",
+              "type": {
+                "text": "'long' | 'short' | 'narrow'"
+              },
+              "privacy": "public",
+              "default": "'short'",
+              "description": "Determines how to display the result, e.g. \"100 bytes\", \"100 b\", or \"100b\".",
+              "attribute": "display"
+            },
+            {
+              "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "''",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "unit",
+              "type": {
+                "text": "'byte' | 'bit'"
+              },
+              "privacy": "public",
+              "default": "'byte'",
+              "description": "The type of unit to display.",
+              "attribute": "unit"
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "public",
+              "default": "0",
+              "description": "The number to format in bytes.",
+              "attribute": "value"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "display",
+              "type": {
+                "text": "'long' | 'short' | 'narrow'"
+              },
+              "default": "'short'",
+              "description": "Determines how to display the result, e.g. \"100 bytes\", \"100 b\", or \"100b\".",
+              "fieldName": "display",
+              "propName": "display"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "lang",
+              "propName": "lang"
+            },
+            {
+              "name": "unit",
+              "type": {
+                "text": "'byte' | 'bit'"
+              },
+              "default": "'byte'",
+              "description": "The type of unit to display.",
+              "fieldName": "unit",
+              "propName": "unit"
+            },
+            {
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The number to format in bytes.",
+              "fieldName": "value",
+              "propName": "value"
+            }
+          ],
+          "superclass": {
+            "name": "CharmElement",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-format-bytes",
+          "customElement": true,
+          "status": "prototype",
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/format-bytes/format-bytes.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroFormatBytes",
+            "module": "src/components/format-bytes/format-bytes.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroFormatBytes",
+          "declaration": {
+            "name": "VelcroFormatBytes",
+            "module": "src/components/format-bytes/format-bytes.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/format-date/format-date.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Formats a date/time using the specified locale and options. API modelled on Shoelace's `sl-format-date`.",
+          "name": "VelcroFormatDate",
+          "members": [
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'format-date'"
+            },
+            {
+              "kind": "field",
+              "name": "date",
+              "type": {
+                "text": "Date | string"
+              },
+              "privacy": "public",
+              "default": "new Date()",
+              "description": "The date/time to format. If not set, the current date and time will be used. When passing a string, it's strongly\nrecommended to use the ISO 8601 format to ensure timezones are handled correctly.",
+              "attribute": "date"
+            },
+            {
+              "kind": "field",
+              "name": "day",
+              "type": {
+                "text": "'numeric' | '2-digit' | undefined"
+              },
+              "privacy": "public",
+              "description": "The format for displaying the day.",
+              "attribute": "day"
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "era",
+              "type": {
+                "text": "'narrow' | 'short' | 'long' | undefined"
+              },
+              "privacy": "public",
+              "description": "The format for displaying the era.",
+              "attribute": "era"
+            },
+            {
+              "kind": "field",
+              "name": "hour",
+              "type": {
+                "text": "'numeric' | '2-digit' | undefined"
+              },
+              "privacy": "public",
+              "description": "The format for displaying the hour.",
+              "attribute": "hour"
+            },
+            {
+              "kind": "field",
+              "name": "hourFormat",
+              "type": {
+                "text": "'auto' | '12' | '24'"
+              },
+              "privacy": "public",
+              "default": "'auto'",
+              "description": "The format for displaying the hour.",
+              "attribute": "hour-format"
+            },
+            {
+              "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "''",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
+              "name": "minute",
+              "type": {
+                "text": "'numeric' | '2-digit' | undefined"
+              },
+              "privacy": "public",
+              "description": "The format for displaying the minute.",
+              "attribute": "minute"
+            },
+            {
+              "kind": "field",
+              "name": "month",
+              "type": {
+                "text": "'numeric' | '2-digit' | 'narrow' | 'short' | 'long' | undefined"
+              },
+              "privacy": "public",
+              "description": "The format for displaying the month.",
+              "attribute": "month"
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "second",
+              "type": {
+                "text": "'numeric' | '2-digit' | undefined"
+              },
+              "privacy": "public",
+              "description": "The format for displaying the second.",
+              "attribute": "second"
+            },
+            {
+              "kind": "field",
+              "name": "timeZone",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "The time zone to express the time in.",
+              "attribute": "time-zone"
+            },
+            {
+              "kind": "field",
+              "name": "timeZoneName",
+              "type": {
+                "text": "'short' | 'long' | undefined"
+              },
+              "privacy": "public",
+              "description": "The format for displaying the time.",
+              "attribute": "time-zone-name"
+            },
+            {
+              "kind": "field",
+              "name": "weekday",
+              "type": {
+                "text": "'narrow' | 'short' | 'long' | undefined"
+              },
+              "privacy": "public",
+              "description": "The format for displaying the weekday.",
+              "attribute": "weekday"
+            },
+            {
+              "kind": "field",
+              "name": "year",
+              "type": {
+                "text": "'numeric' | '2-digit' | undefined"
+              },
+              "privacy": "public",
+              "description": "The format for displaying the year.",
+              "attribute": "year"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "date",
+              "type": {
+                "text": "Date | string"
+              },
+              "default": "new Date()",
+              "description": "The date/time to format. If not set, the current date and time will be used. When passing a string, it's strongly\nrecommended to use the ISO 8601 format to ensure timezones are handled correctly.",
+              "fieldName": "date",
+              "propName": "date"
+            },
+            {
+              "name": "day",
+              "type": {
+                "text": "'numeric' | '2-digit' | undefined"
+              },
+              "description": "The format for displaying the day.",
+              "fieldName": "day",
+              "propName": "day"
+            },
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "era",
+              "type": {
+                "text": "'narrow' | 'short' | 'long' | undefined"
+              },
+              "description": "The format for displaying the era.",
+              "fieldName": "era",
+              "propName": "era"
+            },
+            {
+              "name": "hour",
+              "type": {
+                "text": "'numeric' | '2-digit' | undefined"
+              },
+              "description": "The format for displaying the hour.",
+              "fieldName": "hour",
+              "propName": "hour"
+            },
+            {
+              "name": "hour-format",
+              "type": {
+                "text": "'auto' | '12' | '24'"
+              },
+              "default": "'auto'",
+              "description": "The format for displaying the hour.",
+              "fieldName": "hourFormat",
+              "propName": "hourFormat"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "lang",
+              "propName": "lang"
+            },
+            {
+              "name": "minute",
+              "type": {
+                "text": "'numeric' | '2-digit' | undefined"
+              },
+              "description": "The format for displaying the minute.",
+              "fieldName": "minute",
+              "propName": "minute"
+            },
+            {
+              "name": "month",
+              "type": {
+                "text": "'numeric' | '2-digit' | 'narrow' | 'short' | 'long' | undefined"
+              },
+              "description": "The format for displaying the month.",
+              "fieldName": "month",
+              "propName": "month"
+            },
+            {
+              "name": "second",
+              "type": {
+                "text": "'numeric' | '2-digit' | undefined"
+              },
+              "description": "The format for displaying the second.",
+              "fieldName": "second",
+              "propName": "second"
+            },
+            {
+              "name": "time-zone",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "The time zone to express the time in.",
+              "fieldName": "timeZone",
+              "propName": "timeZone"
+            },
+            {
+              "name": "time-zone-name",
+              "type": {
+                "text": "'short' | 'long' | undefined"
+              },
+              "description": "The format for displaying the time.",
+              "fieldName": "timeZoneName",
+              "propName": "timeZoneName"
+            },
+            {
+              "name": "weekday",
+              "type": {
+                "text": "'narrow' | 'short' | 'long' | undefined"
+              },
+              "description": "The format for displaying the weekday.",
+              "fieldName": "weekday",
+              "propName": "weekday"
+            },
+            {
+              "name": "year",
+              "type": {
+                "text": "'numeric' | '2-digit' | undefined"
+              },
+              "description": "The format for displaying the year.",
+              "fieldName": "year",
+              "propName": "year"
+            }
+          ],
+          "superclass": {
+            "name": "CharmElement",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-format-date",
+          "customElement": true,
+          "status": "prototype",
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/format-date/format-date.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroFormatDate",
+            "module": "src/components/format-date/format-date.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroFormatDate",
+          "declaration": {
+            "name": "VelcroFormatDate",
+            "module": "src/components/format-date/format-date.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/format-number/format-number.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Formats a number using the specified locale and options. API modelled on Shoelace's `sl-format-number`.",
+          "name": "VelcroFormatNumber",
+          "members": [
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'format-number'"
+            },
+            {
+              "kind": "field",
+              "name": "currency",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "'USD'",
+              "description": "The [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217) currency code to use when formatting.",
+              "attribute": "currency"
+            },
+            {
+              "kind": "field",
+              "name": "currencyDisplay",
+              "type": {
+                "text": "'symbol' | 'narrowSymbol' | 'code' | 'name'"
+              },
+              "privacy": "public",
+              "default": "'symbol'",
+              "description": "How to display the currency.",
+              "attribute": "currency-display"
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
+              "name": "maximumFractionDigits",
+              "type": {
+                "text": "number | undefined"
+              },
+              "privacy": "public",
+              "description": "The maximum number of fraction digits to use. Possible values are 0-20.",
+              "attribute": "maximum-fraction-digits"
+            },
+            {
+              "kind": "field",
+              "name": "maximumSignificantDigits",
+              "type": {
+                "text": "number | undefined"
+              },
+              "privacy": "public",
+              "description": "The maximum number of significant digits to use. Possible values are 1-21.",
+              "attribute": "maximum-significant-digits"
+            },
+            {
+              "kind": "field",
+              "name": "minimumFractionDigits",
+              "type": {
+                "text": "number | undefined"
+              },
+              "privacy": "public",
+              "description": "The minimum number of fraction digits to use. Possible values are 0-20.",
+              "attribute": "minimum-fraction-digits"
+            },
+            {
+              "kind": "field",
+              "name": "minimumIntegerDigits",
+              "type": {
+                "text": "number | undefined"
+              },
+              "privacy": "public",
+              "description": "The minimum number of integer digits to use. Possible values are 1-21.",
+              "attribute": "minimum-integer-digits"
+            },
+            {
+              "kind": "field",
+              "name": "minimumSignificantDigits",
+              "type": {
+                "text": "number | undefined"
+              },
+              "privacy": "public",
+              "description": "The minimum number of significant digits to use. Possible values are 1-21.",
+              "attribute": "minimum-significant-digits"
+            },
+            {
+              "kind": "field",
+              "name": "noGrouping",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Turns off grouping separators.",
+              "attribute": "no-grouping"
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "type",
+              "type": {
+                "text": "'currency' | 'decimal' | 'percent'"
+              },
+              "privacy": "public",
+              "default": "'decimal'",
+              "description": "The formatting style to use.",
+              "attribute": "type"
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "public",
+              "default": "0",
+              "description": "The number to format.",
+              "attribute": "value"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "currency",
+              "type": {
+                "text": "string"
+              },
+              "default": "'USD'",
+              "description": "The [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217) currency code to use when formatting.",
+              "fieldName": "currency",
+              "propName": "currency"
+            },
+            {
+              "name": "currency-display",
+              "type": {
+                "text": "'symbol' | 'narrowSymbol' | 'code' | 'name'"
+              },
+              "default": "'symbol'",
+              "description": "How to display the currency.",
+              "fieldName": "currencyDisplay",
+              "propName": "currencyDisplay"
+            },
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "fieldName": "lang",
+              "propName": "lang"
+            },
+            {
+              "name": "maximum-fraction-digits",
+              "type": {
+                "text": "number | undefined"
+              },
+              "description": "The maximum number of fraction digits to use. Possible values are 0-20.",
+              "fieldName": "maximumFractionDigits",
+              "propName": "maximumFractionDigits"
+            },
+            {
+              "name": "maximum-significant-digits",
+              "type": {
+                "text": "number | undefined"
+              },
+              "description": "The maximum number of significant digits to use. Possible values are 1-21.",
+              "fieldName": "maximumSignificantDigits",
+              "propName": "maximumSignificantDigits"
+            },
+            {
+              "name": "minimum-fraction-digits",
+              "type": {
+                "text": "number | undefined"
+              },
+              "description": "The minimum number of fraction digits to use. Possible values are 0-20.",
+              "fieldName": "minimumFractionDigits",
+              "propName": "minimumFractionDigits"
+            },
+            {
+              "name": "minimum-integer-digits",
+              "type": {
+                "text": "number | undefined"
+              },
+              "description": "The minimum number of integer digits to use. Possible values are 1-21.",
+              "fieldName": "minimumIntegerDigits",
+              "propName": "minimumIntegerDigits"
+            },
+            {
+              "name": "minimum-significant-digits",
+              "type": {
+                "text": "number | undefined"
+              },
+              "description": "The minimum number of significant digits to use. Possible values are 1-21.",
+              "fieldName": "minimumSignificantDigits",
+              "propName": "minimumSignificantDigits"
+            },
+            {
+              "name": "no-grouping",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Turns off grouping separators.",
+              "fieldName": "noGrouping",
+              "propName": "noGrouping"
+            },
+            {
+              "name": "type",
+              "type": {
+                "text": "'currency' | 'decimal' | 'percent'"
+              },
+              "default": "'decimal'",
+              "description": "The formatting style to use.",
+              "fieldName": "type",
+              "propName": "type"
+            },
+            {
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The number to format.",
+              "fieldName": "value",
+              "propName": "value"
+            }
+          ],
+          "superclass": {
+            "name": "CharmElement",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-format-number",
+          "customElement": true,
+          "status": "prototype",
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/format-number/format-number.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroFormatNumber",
+            "module": "src/components/format-number/format-number.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroFormatNumber",
+          "declaration": {
+            "name": "VelcroFormatNumber",
+            "module": "src/components/format-number/format-number.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/progress-bar/progress-bar.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Progress bars are used to show the status of an ongoing operation. API modelled on Shoelace's `sl-progress-bar`.",
+          "name": "VelcroProgressBar",
+          "cssProperties": [
+            {
+              "description": "The progress bar's height.",
+              "name": "--height",
+              "default": "1rem"
+            },
+            {
+              "description": "The color of the track.",
+              "name": "--track-color",
+              "default": "var(--sl-color-neutral-200)"
+            },
+            {
+              "description": "The color of the indicator.",
+              "name": "--indicator-color",
+              "default": "var(--sl-color-primary-600)"
+            },
+            {
+              "description": "The color of the label.",
+              "name": "--label-color",
+              "default": "var(--sl-color-neutral-0)"
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            },
+            {
+              "description": "The progress bar's indicator.",
+              "name": "indicator"
+            },
+            {
+              "description": "The progress bar's label.",
+              "name": "label"
+            }
+          ],
+          "slots": [
+            {
+              "description": "A label to show inside the progress indicator.",
+              "name": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'progress-bar'",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hasSlotController",
+              "privacy": "protected",
+              "readonly": true,
+              "default": "new HasSlotController(this, '[label], [help-text]')",
+              "inheritedFrom": {
+                "name": "CoreProgressBar",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "helpText",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "The input's help text. Alternatively, you can use the help-text slot.",
+              "attribute": "help-text",
+              "inheritedFrom": {
+                "name": "CoreProgressBar",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "helpTextTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for form control help text",
+              "inheritedFrom": {
+                "name": "CoreProgressBar",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hideLabel",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "privacy": "public",
+              "description": "Hides the input label and help text.",
+              "attribute": "hide-label",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreProgressBar",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "indeterminate",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "When true, percentage is ignored, the label is hidden, and the progress bar is drawn in an indeterminate state.",
+              "attribute": "indeterminate",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "''",
+              "description": "A custom label for assistive devices.",
+              "attribute": "label"
+            },
+            {
+              "kind": "method",
+              "name": "labelTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the label.",
+              "inheritedFrom": {
+                "name": "CoreProgressBar",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "max",
+              "type": {
+                "text": "number | undefined"
+              },
+              "privacy": "public",
+              "description": "The maximum value, which indicates the task is complete..",
+              "attribute": "max",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreProgressBar",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "meter",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "privacy": "public",
+              "description": "Update the role of the progress bar from 'progressbar' to 'meter' to indicate that it measures a specific value instead of progress towards a specific task.",
+              "attribute": "meter",
+              "inheritedFrom": {
+                "name": "CoreProgressBar",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "progressBarTemplate",
+              "privacy": "protected"
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "syncRange",
+              "privacy": "protected"
+            },
+            {
+              "kind": "method",
+              "name": "trackTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the track.",
+              "inheritedFrom": {
+                "name": "CoreProgressBar",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "public",
+              "default": "0",
+              "description": "The current progress as a percentage, 0 to 100.",
+              "attribute": "value",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "help-text",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "The input's help text. Alternatively, you can use the help-text slot.",
+              "fieldName": "helpText",
+              "inheritedFrom": {
+                "name": "CoreProgressBar",
+                "package": "@charm-ux/core"
+              },
+              "propName": "helpText"
+            },
+            {
+              "name": "hide-label",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "description": "Hides the input label and help text.",
+              "fieldName": "hideLabel",
+              "inheritedFrom": {
+                "name": "CoreProgressBar",
+                "package": "@charm-ux/core"
+              },
+              "propName": "hideLabel"
+            },
+            {
+              "name": "indeterminate",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "When true, percentage is ignored, the label is hidden, and the progress bar is drawn in an indeterminate state.",
+              "fieldName": "indeterminate",
+              "propName": "indeterminate"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "A custom label for assistive devices.",
+              "fieldName": "label",
+              "propName": "label"
+            },
+            {
+              "name": "max",
+              "type": {
+                "text": "number | undefined"
+              },
+              "description": "The maximum value, which indicates the task is complete..",
+              "fieldName": "max",
+              "inheritedFrom": {
+                "name": "CoreProgressBar",
+                "package": "@charm-ux/core"
+              },
+              "propName": "max"
+            },
+            {
+              "name": "meter",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "description": "Update the role of the progress bar from 'progressbar' to 'meter' to indicate that it measures a specific value instead of progress towards a specific task.",
+              "fieldName": "meter",
+              "inheritedFrom": {
+                "name": "CoreProgressBar",
+                "package": "@charm-ux/core"
+              },
+              "propName": "meter"
+            },
+            {
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The current progress as a percentage, 0 to 100.",
+              "fieldName": "value",
+              "propName": "value"
+            }
+          ],
+          "superclass": {
+            "name": "CoreProgressBar",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-progress-bar",
+          "customElement": true,
+          "status": "prototype",
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/progress-bar/progress-bar.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroProgressBar",
+            "module": "src/components/progress-bar/progress-bar.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroProgressBar",
+          "declaration": {
+            "name": "VelcroProgressBar",
+            "module": "src/components/progress-bar/progress-bar.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/progress-ring/progress-ring.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Progress rings are used to show the progress of a determinate operation in a circular fashion. API modelled on\nShoelace's `sl-progress-ring`.",
+          "name": "VelcroProgressRing",
+          "cssProperties": [
+            {
+              "description": "The diameter of the progress ring (cannot be a percentage).",
+              "name": "--size",
+              "default": "128px"
+            },
+            {
+              "description": "The width of the track.",
+              "name": "--track-width",
+              "default": "4px"
+            },
+            {
+              "description": "The color of the track.",
+              "name": "--track-color",
+              "default": "var(--sl-color-neutral-200)"
+            },
+            {
+              "description": "The width of the indicator. Defaults to the track width.",
+              "name": "--indicator-width",
+              "default": "var(--track-width)"
+            },
+            {
+              "description": "The color of the indicator.",
+              "name": "--indicator-color",
+              "default": "var(--sl-color-primary-600)"
+            },
+            {
+              "description": "The duration of the indicator's transition when the value changes.",
+              "name": "--indicator-transition-duration",
+              "default": "0.35s"
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            },
+            {
+              "description": "The progress ring label.",
+              "name": "label"
+            }
+          ],
+          "slots": [
+            {
+              "description": "A label to show inside the ring.",
+              "name": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'progress-ring'"
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "indicator",
+              "type": {
+                "text": "SVGCircleElement"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "indicatorOffset",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "''",
+              "description": "A custom label for assistive devices.",
+              "attribute": "label"
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "public",
+              "default": "0",
+              "description": "The current progress as a percentage, 0 to 100.",
+              "attribute": "value",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "A custom label for assistive devices.",
+              "fieldName": "label",
+              "propName": "label"
+            },
+            {
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The current progress as a percentage, 0 to 100.",
+              "fieldName": "value",
+              "propName": "value"
+            }
+          ],
+          "superclass": {
+            "name": "CharmElement",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-progress-ring",
+          "customElement": true,
+          "status": "prototype",
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/progress-ring/progress-ring.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroProgressRing",
+            "module": "src/components/progress-ring/progress-ring.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroProgressRing",
+          "declaration": {
+            "name": "VelcroProgressRing",
+            "module": "src/components/progress-ring/progress-ring.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/relative-time/relative-time.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Outputs a localized time phrase relative to the current date and time. API modelled on Shoelace's `sl-relative-time`.",
+          "name": "VelcroRelativeTime",
+          "members": [
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'relative-time'"
+            },
+            {
+              "kind": "field",
+              "name": "date",
+              "type": {
+                "text": "Date | string"
+              },
+              "privacy": "public",
+              "default": "new Date()",
+              "description": "The date from which to calculate time from. If not set, the current date and time will be used. When passing a\nstring, it's strongly recommended to use the ISO 8601 format to ensure timezones are handled correctly. To convert\na date to this format in JavaScript, use `date.toISOString()`.",
+              "attribute": "date"
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "format",
+              "type": {
+                "text": "'long' | 'short' | 'narrow'"
+              },
+              "privacy": "public",
+              "default": "'long'",
+              "description": "The formatting style to use.",
+              "attribute": "format"
+            },
+            {
+              "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
+              "name": "numeric",
+              "type": {
+                "text": "'always' | 'auto'"
+              },
+              "privacy": "public",
+              "default": "'auto'",
+              "description": "When `auto`, values such as \"yesterday\" and \"tomorrow\" will be shown when possible. When `always`, values such as\n\"1 day ago\" and \"in 1 day\" will be shown.",
+              "attribute": "numeric"
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "sync",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Keep the displayed value up to date as time passes.",
+              "attribute": "sync"
+            },
+            {
+              "kind": "field",
+              "name": "updateTimeout",
+              "type": {
+                "text": "number | undefined"
+              },
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "date",
+              "type": {
+                "text": "Date | string"
+              },
+              "default": "new Date()",
+              "description": "The date from which to calculate time from. If not set, the current date and time will be used. When passing a\nstring, it's strongly recommended to use the ISO 8601 format to ensure timezones are handled correctly. To convert\na date to this format in JavaScript, use `date.toISOString()`.",
+              "fieldName": "date",
+              "propName": "date"
+            },
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "format",
+              "type": {
+                "text": "'long' | 'short' | 'narrow'"
+              },
+              "default": "'long'",
+              "description": "The formatting style to use.",
+              "fieldName": "format",
+              "propName": "format"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "fieldName": "lang",
+              "propName": "lang"
+            },
+            {
+              "name": "numeric",
+              "type": {
+                "text": "'always' | 'auto'"
+              },
+              "default": "'auto'",
+              "description": "When `auto`, values such as \"yesterday\" and \"tomorrow\" will be shown when possible. When `always`, values such as\n\"1 day ago\" and \"in 1 day\" will be shown.",
+              "fieldName": "numeric",
+              "propName": "numeric"
+            },
+            {
+              "name": "sync",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Keep the displayed value up to date as time passes.",
+              "fieldName": "sync",
+              "propName": "sync"
+            }
+          ],
+          "superclass": {
+            "name": "CharmElement",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-relative-time",
+          "customElement": true,
+          "status": "prototype",
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/relative-time/relative-time.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroRelativeTime",
+            "module": "src/components/relative-time/relative-time.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroRelativeTime",
+          "declaration": {
+            "name": "VelcroRelativeTime",
+            "module": "src/components/relative-time/relative-time.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/resize-observer/resize-observer.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "The Resize Observer component offers a thin, declarative interface to the ResizeObserver API.\nAPI modelled on Shoelace's `sl-resize-observer`. There is no core counterpart, so it extends the core base element.",
+          "name": "VelcroResizeObserver",
+          "slots": [
+            {
+              "description": "One or more elements to watch for resizing.",
+              "name": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'resize-observer'"
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Disables the observer.",
+              "attribute": "disabled",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "handleSlotChange",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "observedElements",
+              "type": {
+                "text": "HTMLElement[]"
+              },
+              "privacy": "private",
+              "default": "[]"
+            },
+            {
+              "kind": "field",
+              "name": "resizeObserver",
+              "type": {
+                "text": "ResizeObserver | undefined"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "startObserver",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "stopObserver",
+              "privacy": "private"
+            }
+          ],
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "type": {
+                "text": "{ entries: ResizeObserverEntry[] }"
+              },
+              "description": "Emitted when the element is resized.",
+              "name": "sl-resize"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Disables the observer.",
+              "fieldName": "disabled",
+              "propName": "disabled"
+            }
+          ],
+          "superclass": {
+            "name": "CharmElement",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-resize-observer",
+          "customElement": true,
+          "status": "prototype",
+          "modulePath": "src/components/resize-observer/resize-observer.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroResizeObserver",
+            "module": "src/components/resize-observer/resize-observer.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroResizeObserver",
+          "declaration": {
+            "name": "VelcroResizeObserver",
+            "module": "src/components/resize-observer/resize-observer.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/skeleton/skeleton.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Skeletons are used to provide a visual representation of where content will eventually be drawn. API modelled on\nShoelace's `sl-skeleton`.",
+          "name": "VelcroSkeleton",
+          "cssProperties": [
+            {
+              "description": "The skeleton's border radius.",
+              "name": "--border-radius",
+              "default": "var(--sl-border-radius-pill)"
+            },
+            {
+              "description": "The color of the skeleton.",
+              "name": "--color",
+              "default": "var(--sl-color-neutral-200)"
+            },
+            {
+              "description": "The sheen color when the skeleton is in its loading state.",
+              "name": "--sheen-color",
+              "default": "var(--sl-color-neutral-300)"
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            },
+            {
+              "description": "The skeleton's indicator which is responsible for its color and animation.",
+              "name": "indicator"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "animation",
+              "type": {
+                "text": "'none' | 'wave' | 'pulse' | undefined"
+              },
+              "privacy": "public",
+              "description": "The animation type of the Skeleton.",
+              "attribute": "animation",
+              "reflects": true,
+              "inheritedFrom": {
+                "name": "CoreSkeleton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'skeleton'",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "effect",
+              "type": {
+                "text": "'pulse' | 'sheen' | 'none'"
+              },
+              "privacy": "public",
+              "default": "'none'",
+              "description": "Determines which effect the skeleton will use.",
+              "attribute": "effect"
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "shape",
+              "type": {
+                "text": "'rect' | 'circle' | undefined"
+              },
+              "privacy": "public",
+              "description": "The shape of the Skeleton.",
+              "attribute": "shape",
+              "inheritedFrom": {
+                "name": "CoreSkeleton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "skeletonTemplate",
+              "privacy": "protected"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "animation",
+              "type": {
+                "text": "'none' | 'wave' | 'pulse' | undefined"
+              },
+              "description": "The animation type of the Skeleton.",
+              "fieldName": "animation",
+              "inheritedFrom": {
+                "name": "CoreSkeleton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "animation"
+            },
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "effect",
+              "type": {
+                "text": "'pulse' | 'sheen' | 'none'"
+              },
+              "default": "'none'",
+              "description": "Determines which effect the skeleton will use.",
+              "fieldName": "effect",
+              "propName": "effect"
+            },
+            {
+              "name": "shape",
+              "type": {
+                "text": "'rect' | 'circle' | undefined"
+              },
+              "description": "The shape of the Skeleton.",
+              "fieldName": "shape",
+              "inheritedFrom": {
+                "name": "CoreSkeleton",
+                "package": "@charm-ux/core"
+              },
+              "propName": "shape"
+            }
+          ],
+          "superclass": {
+            "name": "CoreSkeleton",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-skeleton",
+          "customElement": true,
+          "status": "prototype",
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/skeleton/skeleton.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroSkeleton",
+            "module": "src/components/skeleton/skeleton.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroSkeleton",
+          "declaration": {
+            "name": "VelcroSkeleton",
+            "module": "src/components/skeleton/skeleton.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/spinner/spinner.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Spinners are used to show the progress of an indeterminate operation. API modelled on Shoelace's `sl-spinner`.",
+          "name": "VelcroSpinner",
+          "cssProperties": [
+            {
+              "description": "The width of the track.",
+              "name": "--track-width",
+              "default": "2px"
+            },
+            {
+              "description": "The color of the track.",
+              "name": "--track-color",
+              "default": "rgb(128 128 128 / 25%)"
+            },
+            {
+              "description": "The color of the spinner's indicator.",
+              "name": "--indicator-color",
+              "default": "var(--sl-color-primary-600)"
+            },
+            {
+              "description": "The time it takes for the spinner to complete one animation cycle.",
+              "name": "--speed",
+              "default": "2s"
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'spinner'",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "containerTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the ring container.",
+              "inheritedFrom": {
+                "name": "CoreSpinner",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "indicator",
+              "type": {
+                "text": "SVGCircleElement | undefined"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CoreSpinner",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "A custom label rendered under the progress ring.",
+              "attribute": "label",
+              "inheritedFrom": {
+                "name": "CoreSpinner",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "labelPosition",
+              "type": {
+                "text": "'below' | 'before' | 'after' | 'above' | undefined"
+              },
+              "privacy": "public",
+              "description": "The position of the progress label.",
+              "attribute": "label-position",
+              "inheritedFrom": {
+                "name": "CoreSpinner",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "labelTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the label.",
+              "inheritedFrom": {
+                "name": "CoreSpinner",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "spinnerTemplate",
+              "privacy": "protected"
+            }
+          ],
+          "superclass": {
+            "name": "CoreSpinner",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-spinner",
+          "customElement": true,
+          "status": "prototype",
+          "attributes": [
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "A custom label rendered under the progress ring.",
+              "fieldName": "label",
+              "inheritedFrom": {
+                "name": "CoreSpinner",
+                "package": "@charm-ux/core"
+              },
+              "propName": "label"
+            },
+            {
+              "name": "label-position",
+              "type": {
+                "text": "'below' | 'before' | 'after' | 'above' | undefined"
+              },
+              "description": "The position of the progress label.",
+              "fieldName": "labelPosition",
+              "inheritedFrom": {
+                "name": "CoreSpinner",
+                "package": "@charm-ux/core"
+              },
+              "propName": "labelPosition"
+            }
+          ],
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/spinner/spinner.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroSpinner",
+            "module": "src/components/spinner/spinner.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroSpinner",
+          "declaration": {
+            "name": "VelcroSpinner",
+            "module": "src/components/spinner/spinner.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/visually-hidden/visually-hidden.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "The visually hidden utility makes content accessible to assistive devices without displaying it on the screen.\nAPI modelled on Shoelace's `sl-visually-hidden`. There is no core counterpart, so it extends the core base element.",
+          "name": "VelcroVisuallyHidden",
+          "slots": [
+            {
+              "description": "The content to be visually hidden.",
+              "name": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'visually-hidden'"
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "superclass": {
+            "name": "CharmElement",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-visually-hidden",
+          "customElement": true,
+          "status": "prototype",
+          "attributes": [
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            }
+          ],
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/visually-hidden/visually-hidden.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroVisuallyHidden",
+            "module": "src/components/visually-hidden/visually-hidden.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroVisuallyHidden",
+          "declaration": {
+            "name": "VelcroVisuallyHidden",
+            "module": "src/components/visually-hidden/visually-hidden.ts"
+          }
+        }
+      ]
+    }
+  ]
+}
