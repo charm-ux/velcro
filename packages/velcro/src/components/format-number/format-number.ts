@@ -60,9 +60,9 @@ export class VelcroFormatNumber extends CharmElement {
   @property({ attribute: 'maximum-significant-digits', type: Number })
   public maximumSignificantDigits?: number;
 
-  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the number.
+  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the number. Like Shoelace it has no initial value (undefined).
   @property()
-  public override lang = '';
+  public override lang!: string;
 
   // Documented divergence: Shoelace's base element only restores the initial value of REFLECTED properties, and none of these
   // are reflected there. Here a removed attribute (the property becomes null) restores the default (or unset, for the digit

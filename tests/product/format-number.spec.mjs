@@ -69,7 +69,7 @@ test('the docs example formats the default, percentages, locales and currencies 
   await expect(frame.getByText('Default: 1,000')).toBeVisible();
 });
 
-test('structure and accessibility: text only in the shadow root, no parts, slots, role or generated elements', async ({ page }) => {
+test('structure and accessibility: upstream host sizing (inline, content-box), text only in the shadow root, no parts, slots, role or generated elements', async ({ page }) => {
   const { frame } = await openExample(page);
   const info = await frame.locator('#demo-default').evaluate(el => ({
     elements: el.shadowRoot.querySelectorAll('*').length,
@@ -81,7 +81,7 @@ test('structure and accessibility: text only in the shadow root, no parts, slots
     display: getComputedStyle(el).display,
     boxSizing: getComputedStyle(el).boxSizing,
   }));
-  expect(info).toEqual({ elements: 0, parts: 0, slots: 0, role: null, ariaAttrs: [], lightChildren: 0, display: 'inline', boxSizing: 'border-box' });
+  expect(info).toEqual({ elements: 0, parts: 0, slots: 0, role: null, ariaAttrs: [], lightChildren: 0, display: 'inline', boxSizing: 'content-box' });
 });
 
 test('defaults, and properties are not reflected to attributes', async ({ page }) => {
@@ -91,14 +91,14 @@ test('defaults, and properties are not reflected to attributes', async ({ page }
       'maximum-fraction-digits', 'minimum-significant-digits', 'maximum-significant-digits'];
     const defaults = { value: el.value, type: el.type, noGrouping: el.noGrouping, currency: el.currency, currencyDisplay: el.currencyDisplay,
       mid: el.minimumIntegerDigits, mfd: el.minimumFractionDigits, xfd: el.maximumFractionDigits, msd: el.minimumSignificantDigits,
-      xsd: el.maximumSignificantDigits, text: el.shadowRoot.textContent };
+      xsd: el.maximumSignificantDigits, lang: el.lang, text: el.shadowRoot.textContent };
     el.value = 1500.5; el.type = 'currency'; el.noGrouping = true; el.currency = 'EUR'; el.currencyDisplay = 'code';
     el.minimumIntegerDigits = 2; el.minimumFractionDigits = 1; el.maximumFractionDigits = 3;
     await el.updateComplete;
     return { defaults, attrs: el.getAttributeNames().filter(n => names.includes(n)), text: el.shadowRoot.textContent.split('').map(c => (c.trim() === '' ? ' ' : c)).join('') };
   `);
   expect(result.defaults).toEqual({ value: 0, type: 'decimal', noGrouping: false, currency: 'USD', currencyDisplay: 'symbol',
-    mid: undefined, mfd: undefined, xfd: undefined, msd: undefined, xsd: undefined, text: '0' });
+    mid: undefined, mfd: undefined, xfd: undefined, msd: undefined, xsd: undefined, lang: undefined, text: '0' });
   expect(result.attrs).toEqual([]);
   expect(result.text).toBe('EUR 1500.5');
 });

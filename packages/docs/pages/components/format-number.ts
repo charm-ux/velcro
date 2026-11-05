@@ -20,7 +20,7 @@ const attributes: Array<[string, string, string, string]> = [
   ['maximum-fraction-digits (maximumFractionDigits)', 'number', '(unset)', 'The maximum number of fraction digits to use. Possible values are 0-20.'],
   ['minimum-significant-digits (minimumSignificantDigits)', 'number', '(unset)', 'The minimum number of significant digits to use. Possible values are 1-21.'],
   ['maximum-significant-digits (maximumSignificantDigits)', 'number', '(unset)', 'The maximum number of significant digits to use. Possible values are 1-21.'],
-  ['lang', 'string', '(none)', 'The number formatting locale. Falls back to the lang of the document element, then the browser language.'],
+  ['lang', 'string', 'undefined', 'The number formatting locale. Falls back to the lang of the document element, then the browser language.'],
 ];
 
 const gaps = [
