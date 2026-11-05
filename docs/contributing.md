@@ -24,7 +24,7 @@ under `dist/components/<name>/`; `./<name>/class` is optional) to `packages/velc
 The coverage gate (`tests/bootstrap/catalog.test.mjs`, part of `verify:source`) fails when a component directory has no catalog
 entry, an entry has no component, a docs page has no entry, an example selector matches nothing, an export is stray or has
 wrong targets, or any piece above or the package/barrel export is missing. The page is published
-through the manual Pages workflow, which refuses a site that lacks a catalog page.
+automatically by the Pages workflow when the change is pushed to `main` (manual dispatch is the fallback); it refuses a site that lacks a catalog page.
 Set `VELCRO_PRODUCT_PORT` (integer, 1024-65535, default 4321) to run the product tests on another port, so worktrees can
 verify in parallel.
 
