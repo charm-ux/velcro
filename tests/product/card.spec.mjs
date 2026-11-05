@@ -38,6 +38,7 @@ const describe = locator =>
       classes: base.classList.value.trim(),
       baseTag: base.localName,
       baseRole: base.getAttribute('role'),
+      baseAttributes: base.getAttributeNames().sort(),
       hostRole: el.getAttribute('role'),
       base: {
         display: style(base).display,
@@ -55,7 +56,7 @@ const describe = locator =>
     };
   });
 
-test('docs page is prerendered with Velcro branding, prototype status and explicit limits', async ({ request }) => {
+test('docs page is prerendered with Velcro branding, prototype status, the ready event and explicit limits', async ({ request }) => {
   const response = await request.get(PAGE);
   expect(response.ok()).toBe(true);
   const html = await response.text();
@@ -67,9 +68,14 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).toContain('--padding');
   expect(html).toContain('The container that wraps the card');
   expect(html).toContain('base wrapper');
+  // The inherited ready event is documented as a divergence from Shoelace's card, which emits no events.
+  expect(html).toContain('<code>ready</code>');
+  expect(html).toContain('Emitted once, without bubbling, after the first render');
+  expect(html).toContain('which emits no events');
   expect(html).toContain('no Firefox, WebKit, RTL or localization check');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
+  expect(await (await request.get('/')).text()).toContain('/components/card');
 });
 
 test('sl-card registers inside the example document only, as the exported class, and no core ch-card is defined', async ({ page }) => {
@@ -88,15 +94,23 @@ test('sl-card registers inside the example document only, as the exported class,
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
 });
 
-test('structure: a base div with image, header, body and footer slot parts, no role and no core parts', async ({ page }) => {
+test('structure: a base div around image, header, body and footer slot parts, with no role on the host or the base', async ({ page }) => {
   const { frame } = await openExample(page);
   const basic = await describe(frame.locator('#demo-basic'));
   expect(basic.parts).toEqual(['base', 'image', 'header', 'body', 'footer']);
   expect(basic.slots).toEqual(['image', 'header', '', 'footer']);
   expect([basic.baseTag, basic.baseRole, basic.hostRole]).toEqual(['div', null, null]);
   expect(basic.classes).toBe('card');
-  // No reflected attributes: the inherited core properties (heading, subheading, media-position) are not set.
+  // No role or other ARIA: the base carries only its part and class, and the host nothing besides what the author wrote.
+  expect(basic.baseAttributes).toEqual(['class', 'part']);
   expect(await frame.locator('#demo-basic').evaluate(el => el.getAttributeNames())).toEqual(['id']);
+  // The card declares no attribute, property or method of its own: every observed attribute comes from the core classes
+  // and the class adds only the protected template hook that core's render() calls.
+  const surface = await frame.locator('#demo-basic').evaluate(el => ({
+    observed: [...el.constructor.observedAttributes].sort(),
+    own: Object.getOwnPropertyNames(el.constructor.prototype).filter(name => name !== 'constructor').sort(),
+  }));
+  expect(surface).toEqual({ observed: ['dir', 'heading', 'media-position', 'subheading'], own: ['cardTemplate'] });
 });
 
 test('section classes follow the slotted content', async ({ page }) => {
@@ -147,7 +161,7 @@ test('computed styles: Shoelace box model, tokens and hidden empty sections', as
   expect(geometry.imgTop).toBe(geometry.baseTop);
 });
 
-test('custom properties and ::part styling take effect', async ({ page }) => {
+test('custom property overrides and ::part styling take effect', async ({ page }) => {
   const { frame } = await openExample(page);
   const result = await frame.locator('body').evaluate(async () => {
     const el = document.createElement('sl-card');
@@ -160,7 +174,6 @@ test('custom properties and ::part styling take effect', async ({ page }) => {
     await el.updateComplete;
     const get = part => getComputedStyle(el.shadowRoot.querySelector(`[part~="${part}"]`));
     const out = {
-      defaults: null,
       body: get('body').padding,
       header: get('header').padding,
       footer: get('footer').padding,
@@ -177,7 +190,7 @@ test('custom properties and ::part styling take effect', async ({ page }) => {
     style.remove();
     return out;
   });
-  expect(result).toMatchObject({
+  expect(result).toEqual({
     body: '10px',
     header: '5px 10px',
     footer: '10px',
@@ -188,46 +201,166 @@ test('custom properties and ::part styling take effect', async ({ page }) => {
   });
 });
 
-test('dynamic slotting: adding and removing slotted children updates the section classes; no events fire', async ({ page }) => {
+test('slotting: adding, removing and re-slotting children updates the section classes, and ready is the only event dispatched', async ({ page }) => {
   const { frame } = await openExample(page);
   const steps = await frame.locator('body').evaluate(async () => {
     const el = document.createElement('sl-card');
     el.textContent = 'Body';
-    const events = [];
-    for (const type of ['sl-focus', 'sl-blur', 'change', 'input', 'sl-change']) el.addEventListener(type, () => events.push(type));
+    // Record everything the card dispatches on itself. This is installed before the card connects, so it sees ready too.
+    const dispatched = [];
+    const dispatch = el.dispatchEvent.bind(el);
+    el.dispatchEvent = event => {
+      dispatched.push(event.type);
+      return dispatch(event);
+    };
     document.body.append(el);
     await el.updateComplete;
-    const classes = () => el.shadowRoot.querySelector('[part~="base"]').classList.value.trim();
-    const settle = async () => {
-      await new Promise(resolve => setTimeout(resolve, 50));
+    const base = el.shadowRoot.querySelector('[part~="base"]');
+    const classes = () => [...base.classList].sort();
+    const slot = name => el.shadowRoot.querySelector(`slot[name="${name}"]`);
+    // Applies the change, waits for slotchange on every named slot (the card re-renders from it) and then for the update.
+    const change = async (names, mutate) => {
+      const seen = names.map(name => new Promise(resolve => slot(name).addEventListener('slotchange', resolve, { once: true })));
+      mutate();
+      await Promise.all(seen);
       await el.updateComplete;
+      return classes();
+    };
+    const child = name => {
+      const node = document.createElement('div');
+      node.slot = name;
+      node.textContent = name;
+      return node;
     };
     const out = { initial: classes() };
-    for (const name of ['header', 'footer', 'image']) {
-      const child = document.createElement('div');
-      child.slot = name;
-      child.textContent = name;
-      el.append(child);
-      await settle();
-      out[`${name}Added`] = classes();
-    }
-    for (const name of ['header', 'footer', 'image']) {
-      el.querySelector(`[slot="${name}"]`).remove();
-      await settle();
-    }
-    out.removed = classes();
-    out.events = events;
+    out.headerAdded = await change(['header'], () => el.append(child('header')));
+    out.footerAdded = await change(['footer'], () => el.append(child('footer')));
+    out.imageAdded = await change(['image'], () => el.append(child('image')));
+    const header = el.querySelector('[slot="header"]');
+    out.headerUnassigned = await change(['header'], () => header.setAttribute('slot', 'unknown'));
+    out.headerAssignedAgain = await change(['header'], () => header.setAttribute('slot', 'header'));
+    out.headerMovedToFooter = await change(['header', 'footer'], () => header.setAttribute('slot', 'footer'));
+    out.footersRemoved = await change(['footer'], () => el.querySelectorAll('[slot="footer"]').forEach(n => n.remove()));
+    out.imageRemoved = await change(['image'], () => el.querySelector('[slot="image"]').remove());
+    out.dispatched = dispatched;
     el.remove();
     return out;
   });
   expect(steps).toEqual({
-    initial: 'card',
-    headerAdded: 'card card--has-header',
-    footerAdded: 'card card--has-header card--has-footer',
-    imageAdded: 'card card--has-header card--has-footer card--has-image',
-    removed: 'card',
-    events: [],
+    initial: ['card'],
+    headerAdded: ['card', 'card--has-header'],
+    footerAdded: ['card', 'card--has-footer', 'card--has-header'],
+    imageAdded: ['card', 'card--has-footer', 'card--has-header', 'card--has-image'],
+    headerUnassigned: ['card', 'card--has-footer', 'card--has-image'],
+    headerAssignedAgain: ['card', 'card--has-footer', 'card--has-header', 'card--has-image'],
+    headerMovedToFooter: ['card', 'card--has-footer', 'card--has-image'],
+    footersRemoved: ['card', 'card--has-image'],
+    imageRemoved: ['card'],
+    dispatched: ['ready'],
   });
+});
+
+test('ready: inherited from the core base element, emitted once after the first render, without bubbling or composing', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const result = await frame.locator('body').evaluate(async () => {
+    const parent = document.createElement('div');
+    document.body.append(parent);
+    const el = document.createElement('sl-card');
+    const own = [];
+    const bubbled = [];
+    el.addEventListener('ready', event => {
+      own.push({
+        bubbles: event.bubbles,
+        composed: event.composed,
+        cancelable: event.cancelable,
+        detail: event.detail,
+        targetIsCard: event.target === el,
+        rendered: Boolean(el.shadowRoot?.querySelector('[part~="base"]')),
+      });
+    });
+    parent.addEventListener('ready', () => bubbled.push('ready'));
+    document.addEventListener('ready', () => bubbled.push('ready'));
+    parent.append(el);
+    await el.updateComplete;
+    const afterFirstRender = own.length;
+    // Later updates and a reconnect do not emit it again.
+    el.setAttribute('media-position', 'end');
+    await el.updateComplete;
+    const slotChanged = new Promise(resolve => el.shadowRoot.querySelector('slot[name="footer"]').addEventListener('slotchange', resolve, { once: true }));
+    const footer = document.createElement('div');
+    footer.slot = 'footer';
+    el.append(footer);
+    await slotChanged;
+    await el.updateComplete;
+    el.remove();
+    parent.append(el);
+    await el.updateComplete;
+    const detail = { afterFirstRender, final: own.length, bubbled, event: own[0] };
+    parent.remove();
+    return detail;
+  });
+  expect(result).toEqual({
+    afterFirstRender: 1,
+    final: 1,
+    bubbled: [],
+    event: { bubbles: false, composed: false, cancelable: false, detail: {}, targetIsCard: true, rendered: true },
+  });
+});
+
+test('inherited core card properties have no effect, core slots render nothing and the core card styles are not applied', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const result = await frame.locator('body').evaluate(async () => {
+    const el = document.createElement('sl-card');
+    el.innerHTML = 'Body<div slot="media" id="m">media</div><span slot="heading" id="h">heading</span><span slot="subheading" id="s">subheading</span>';
+    document.body.append(el);
+    await el.updateComplete;
+    const snapshot = () => {
+      const base = getComputedStyle(el.shadowRoot.querySelector('[part~="base"]'));
+      return {
+        tree: [...el.shadowRoot.querySelectorAll('*')].map(n => `${n.localName}|${n.getAttribute('class') ?? ''}|${n.getAttribute('part') ?? ''}|${n.getAttribute('name') ?? ''}`),
+        base: [base.flexDirection, base.flexWrap, base.padding, base.gap, base.borderTopWidth, base.backgroundColor, base.height].join(' '),
+        body: getComputedStyle(el.shadowRoot.querySelector('[part~="body"]')).padding,
+        host: getComputedStyle(el).display,
+      };
+    };
+    const before = snapshot();
+    el.heading = 'Heading';
+    el.subheading = 'Subheading';
+    el.mediaPosition = 'end';
+    for (const name of ['padding', 'border-size', 'border-style', 'border-radius', 'bg-color', 'fg-color', 'content-gap', 'box-shadow', 'body-padding-x', 'heading-size']) {
+      el.style.setProperty(`--card-${name}`, name.includes('color') ? 'rgb(9, 9, 9)' : '37px');
+    }
+    await el.updateComplete;
+    const after = snapshot();
+    const css = el.shadowRoot.adoptedStyleSheets.map(sheet => [...sheet.cssRules].map(rule => rule.cssText).join('\n')).join('\n');
+    const unslotted = ['m', 'h', 's'].map(id => {
+      const node = el.querySelector(`#${id}`);
+      return { assignedSlot: node.assignedSlot, boxes: node.getClientRects().length };
+    });
+    const out = {
+      set: { heading: el.heading, subheading: el.subheading, mediaPosition: el.mediaPosition, attribute: el.getAttribute('media-position') },
+      before,
+      after,
+      unslotted,
+      sheetCount: el.shadowRoot.adoptedStyleSheets.length,
+      coreRules: /--card-|\.base\b|\.card-content|\.footer\b|\[slot=["']?media/.test(css),
+    };
+    el.remove();
+    return out;
+  });
+  // The properties were really set (and media-position reflected), yet nothing rendered or computed changed.
+  expect(result.set).toEqual({ heading: 'Heading', subheading: 'Subheading', mediaPosition: 'end', attribute: 'end' });
+  expect(result.after).toEqual(result.before);
+  expect(result.before.base.startsWith('column nowrap 0px normal 1px')).toBe(true);
+  expect(result.before.body).toBe('20px');
+  expect(result.unslotted).toEqual([
+    { assignedSlot: null, boxes: 0 },
+    { assignedSlot: null, boxes: 0 },
+    { assignedSlot: null, boxes: 0 },
+  ]);
+  // Only the core base element styles and the card styles are adopted; no core card rule is among them.
+  expect(result.sheetCount).toBe(2);
+  expect(result.coreRules).toBe(false);
 });
 
 test('hidden attribute hides the host', async ({ page }) => {
@@ -245,7 +378,7 @@ test('hidden attribute hides the host', async ({ page }) => {
   expect(display).toEqual({ shown: 'inline-block', hidden: 'none' });
 });
 
-test('slotted button works inside the footer and no upstream Shoelace runtime is requested', async ({ page }) => {
+test('an sl-button inside the footer slot is assigned to the footer, and no upstream Shoelace runtime is requested', async ({ page }) => {
   const { frame, requests } = await openExample(page);
   const info = await frame.locator('#demo-footer').evaluate(el => {
     const slot = el.shadowRoot.querySelector('slot[name="footer"]');

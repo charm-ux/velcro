@@ -1,6 +1,6 @@
 // Adapted from Shoelace v2.20.1 (src/components/card/card.styles.ts), Copyright (c) 2020 A Beautiful Site, LLC,
-// MIT License. See THIRD_PARTY_NOTICES.md. No functional change; the core card styles target different class names
-// (`.base`, `.header`, `.footer`, `.card-content`) that this markup does not use, so they do not apply.
+// MIT License. See THIRD_PARTY_NOTICES.md. No functional change; the component keeps only the core base element
+// styles next to these and does not apply the core card styles.
 import { css } from 'lit';
 
 // The tokens (--sl-color-neutral-200, --sl-border-radius-medium, --sl-spacing-large, --sl-panel-background-color,

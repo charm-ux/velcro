@@ -4,3 +4,4 @@ routes.generated.ts
 .nitro/
 *.tsbuildinfo
 src/examples.generated.ts
+src/catalog.generated.ts

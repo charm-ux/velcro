@@ -9,15 +9,15 @@ Charm users can adopt without rewriting application markup or event handlers. Th
 Velcro is an **unreleased early prototype**; its packages are marked `private: true` and are not released. It is not a drop-in replacement for Shoelace and not a
 completed 58-component library. The current implementation is a partial slice:
 
-- four components, `sl-badge`, `sl-button`, `sl-divider` and `sl-spinner` (`packages/velcro`, package `@charm-ux/velcro`), built on `@charm-ux/core`;
+- five components, `sl-badge`, `sl-button`, `sl-card`, `sl-divider` and `sl-spinner` (`packages/velcro`, package `@charm-ux/velcro`), built on `@charm-ux/core`;
 - the Shoelace light theme only (`packages/velcro/themes/light.css`);
 - a Litro static documentation site (`packages/docs`, package `@velcro/docs`) with the home page and one route per
-  component (`/components/badge`, `/components/button`, `/components/divider`, `/components/spinner`).
+  component (`/components/badge`, `/components/button`, `/components/card`, `/components/divider`, `/components/spinner`).
 
 Nothing is published or deployed, and the validation described here is local; this README reports no hosted CI or
 publication result. This slice has no upstream Shoelace runtime dependency: no Shoelace runtime is loaded or included.
-It does contain Shoelace-derived material adapted into source (the button's, spinner's, badge's and divider's API documentation wording, the
-spinner's, badge's and divider's structure and styles, and the light-theme token names and values), whose upstream notice is retained in
+It does contain Shoelace-derived material adapted into source (the button's, spinner's, badge's, card's and divider's API documentation wording, the
+spinner's, badge's, card's and divider's structure and styles, and the light-theme token names and values), whose upstream notice is retained in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (see Licensing and notices).
 
 ## Prerequisites
@@ -35,7 +35,7 @@ Work in a repository-local `.worktrees/<branch-dir>` checkout (see [AGENTS.md](A
 ```sh
 pnpm install --frozen-lockfile
 pnpm --filter @velcro/docs run build     # builds @charm-ux/velcro, then generates the static site in packages/docs/dist/static
-pnpm --filter @velcro/docs run preview   # serves that output on port 4321 (set PORT to change)
+pnpm --filter @velcro/docs run preview   # serves that output on port 4321 (set PORT to change; the product tests use VELCRO_PRODUCT_PORT)
 pnpm --filter @velcro/docs run build:prefixed   # same site for a project URL prefix (default /velcro) in dist/static-prefixed
 ```
 

@@ -59,26 +59,36 @@ test('class-only entries define nothing and leave core state alone, and construc
   const r = await page.evaluate(async () => {
     const b = await import('/buttonClass.js');
     const s = await import('/spinnerClass.js');
+    const c = await import('/cardClass.js');
     let constructError;
     try {
       new b.VelcroButton();
     } catch (e) {
       constructError = e.name;
     }
+    let cardConstructError;
+    try {
+      new c.VelcroCard();
+    } catch (e) {
+      cardConstructError = e.name;
+    }
     return {
-      exports: [Object.keys(b).sort(), Object.keys(s).sort()],
+      exports: [Object.keys(b).sort(), Object.keys(s).sort(), Object.keys(c).sort()],
       aliasButton: b.SlButton === b.VelcroButton,
       aliasSpinner: s.SlSpinner === s.VelcroSpinner,
-      defined: [customElements.get('sl-button'), customElements.get('sl-spinner')],
+      aliasCard: c.SlCard === c.VelcroCard,
+      defined: [customElements.get('sl-button'), customElements.get('sl-spinner'), customElements.get('sl-card')],
       defines: window.__defines.slice(),
       constructError,
+      cardConstructError,
     };
   });
-  expect(r.exports).toEqual([['SlButton', 'VelcroButton'], ['SlSpinner', 'VelcroSpinner']]);
-  expect(r.aliasButton && r.aliasSpinner).toBe(true);
-  expect(r.defined).toEqual([undefined, undefined]);
+  expect(r.exports).toEqual([['SlButton', 'VelcroButton'], ['SlSpinner', 'VelcroSpinner'], ['SlCard', 'VelcroCard']]);
+  expect(r.aliasButton && r.aliasSpinner && r.aliasCard).toBe(true);
+  expect(r.defined).toEqual([undefined, undefined, undefined]);
   expect(r.defines).toEqual([]);
   expect(r.constructError).toBe('TypeError');
+  expect(r.cardConstructError).toBe('TypeError');
   expect(await corePrefixState(page)).toEqual(before);
   expect(before.button).toBe('ch-button');
 });

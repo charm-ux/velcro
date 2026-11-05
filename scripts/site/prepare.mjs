@@ -11,6 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { scanDir } from '../security/gitleaks.mjs';
 import { loadPolicy, scanText } from '../security/privacy.mjs';
+import { componentPages, readCatalog } from './catalog.mjs';
 import { generateRuntimeNotices } from './notices.mjs';
 import { TESTED_EVIDENCE, readTestedEvidence } from './tested.mjs';
 
@@ -23,10 +24,13 @@ export class PrepareError extends Error {
 const fail = code => { throw new PrepareError(code); };
 
 export const LIMITS = Object.freeze({ maxEntries: 200, maxFiles: 120, maxFileBytes: 1024 * 1024, maxTotalBytes: 8 * 1024 * 1024, maxDepth: 6 });
-export const REQUIRED = Object.freeze([
-  'index.html', 'components/badge/index.html', 'components/button/index.html', 'components/divider/index.html', 'components/spinner/index.html',
-  '_litro/app.js', '_litro/velcro.js', '_litro/velcro.css', 'THIRD_PARTY_NOTICES.md',
-]);
+const FIXED_REQUIRED = Object.freeze(['index.html', '_litro/app.js', '_litro/velcro.js', '_litro/velcro.css', 'THIRD_PARTY_NOTICES.md']);
+// The fixed files plus one page per catalog entry. An unreadable or malformed catalog blocks (fail closed).
+export function requiredFiles(repoRoot) {
+  let catalog;
+  try { catalog = readCatalog(repoRoot); } catch { return fail('catalog-invalid'); }
+  return Object.freeze([...FIXED_REQUIRED, ...componentPages(catalog)]);
+}
 const SOURCE_NOTICES = 'THIRD_PARTY_NOTICES.md';
 const RUNTIME_NOTICES = 'THIRD_PARTY_RUNTIME_NOTICES.md';
 const SEGMENT = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/;
@@ -67,7 +71,8 @@ function decodeText(bytes) {
 }
 
 /** Bounded, non-following walk of the build output. Returns [{rel, bytes}] for the allowlisted files only. */
-export function collectSource(dir, closure) {
+export function collectSource(dir, closure, required) {
+  if (!Array.isArray(required) || required.length === 0) fail('required-missing');
   let st;
   try { st = lstatSync(dir); } catch { return fail('source-missing'); }
   if (st.isSymbolicLink() || !st.isDirectory()) fail('source-not-directory');
@@ -108,7 +113,7 @@ export function collectSource(dir, closure) {
     const dup = readBounded(path.join(dir, '_litro', SOURCE_NOTICES), LIMITS.maxFileBytes);
     if (!root || !root.bytes.equals(dup)) fail('notice-duplicate-differs');
   }
-  for (const req of REQUIRED) if (!staged.some(f => f.rel === req)) fail('required-missing');
+  for (const req of required) if (!staged.some(f => f.rel === req)) fail('required-missing');
   // Every shipped bundle file must be exactly what the recorded closure describes, and nothing may be missing.
   const recorded = new Map((closure?.files ?? []).map(f => [`_litro/${f.file}`, f.sha256]));
   const bundle = staged.filter(f => f.kind === 'closure');
@@ -216,7 +221,7 @@ export async function prepareSite({ repoRoot, sourceDir, closurePath, runDir, ba
     }
     const closureSha = sha256(closureBytes);
     if (closureSha !== evidence.closureSha256) fail('tested-bytes-mismatch');
-    const { staged, omitted } = collectSource(sourceDir, closure);
+    const { staged, omitted } = collectSource(sourceDir, closure, requiredFiles(repoRoot));
     // Every byte about to be staged must be what the browser checks ran against, and nothing else may be present.
     const testedBy = new Map(evidence.files.map(f => [f.rel, f.sha256]));
     for (const f of staged) if (testedBy.get(f.rel) !== sha256(f.bytes)) fail('tested-bytes-mismatch');

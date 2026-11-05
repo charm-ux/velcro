@@ -4,6 +4,7 @@
 // See THIRD_PARTY_NOTICES.md. No Shoelace source file or runtime is included.
 import { html } from 'lit';
 import { classMap } from 'lit/directives/class-map.js';
+import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
 import { CoreCard } from '@charm-ux/core/dist/components/card/card.js';
 import { HasSlotController } from '@charm-ux/core/dist/controller/index.js';
 import styles from './card.styles.js';
@@ -29,15 +30,20 @@ import styles from './card.styles.js';
  * @cssproperty --border-radius - The border radius for the card's edges.
  * @cssproperty --border-width - The width of the card's borders.
  * @cssproperty --padding - The padding to use for the card's sections.
+ *
+ * @event ready - Emitted once, without bubbling, after the first render. Inherited from the core base element; Shoelace's card emits no events.
  */
 export class VelcroCard extends CoreCard {
-  public static override styles = [...super.styles, styles];
+  // Only the core base element's styles (box-sizing, `[hidden]`) are kept. The core card styles are dropped: they style
+  // core's own markup and declare the `--card-*` custom properties on the host, none of which exist in this structure.
+  public static override styles = [...CharmElement.styles, styles];
 
-  // Core's own controller watches core's slots (media, footer, heading, subheading); Shoelace's are different.
+  // Core's own controller keeps watching core's slots (media, footer, heading, subheading); Shoelace's differ.
   private readonly shoelaceSlots = new HasSlotController(this, 'footer', 'header', 'image');
 
-  // Core's article markup, `card-*` parts, `heading` / `subheading` / `media-position` properties and `--card-*`
-  // custom properties are replaced by Shoelace's structure; they remain on the element but have no effect.
+  // What is reused from core: the CharmElement base (`dir`, the `ready` event), the `baseName` used for registration
+  // and `render()`, which delegates to this hook. Core's article markup and `card-*` parts are replaced by Shoelace's
+  // structure. The `heading`, `subheading` and `media-position` properties are still declared by core but are not used.
   protected override cardTemplate() {
     return html`
       <div
