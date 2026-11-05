@@ -5,6 +5,7 @@ import { devNull, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { checkExports, readCatalog } from '../../scripts/site/catalog.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = rel => readFileSync(join(root, rel), 'utf8');
@@ -43,16 +44,15 @@ test('workspace file lists packages', () => {
   assert.match(read('pnpm-workspace.yaml'), /packages\/\*/);
 });
 
+const catalog = readCatalog(root);
+// The export contract follows the component catalog: fixed entries, ./<name> (and optionally ./<name>/class) per component.
+const exportTargets = file => ({ types: `./dist/${file}.d.ts`, import: `./dist/${file}.js` });
 const prototypeExports = {
   '.': { types: './dist/index.d.ts', import: './dist/index.js' },
-  './badge': { types: './dist/components/badge/index.d.ts', import: './dist/components/badge/index.js' },
-  './button': { types: './dist/components/button/index.d.ts', import: './dist/components/button/index.js' },
-  './button/class': { types: './dist/components/button/class.d.ts', import: './dist/components/button/class.js' },
-  './divider': { types: './dist/components/divider/index.d.ts', import: './dist/components/divider/index.js' },
-  './skeleton': { types: './dist/components/skeleton/index.d.ts', import: './dist/components/skeleton/index.js' },
-  './skeleton/class': { types: './dist/components/skeleton/class.d.ts', import: './dist/components/skeleton/class.js' },
-  './spinner': { types: './dist/components/spinner/index.d.ts', import: './dist/components/spinner/index.js' },
-  './spinner/class': { types: './dist/components/spinner/class.d.ts', import: './dist/components/spinner/class.js' },
+  ...Object.fromEntries(catalog.map(c => [`./${c.name}`, exportTargets(`components/${c.name}/index`)])),
+  './button/class': exportTargets('components/button/class'),
+  './skeleton/class': exportTargets('components/skeleton/class'),
+  './spinner/class': exportTargets('components/spinner/class'),
   './themes/light.css': './themes/light.css',
   './package.json': './package.json',
 };
@@ -69,7 +69,8 @@ function checkVelcroPackage(pkg) {
   if (pkg.exports !== undefined) {
     assert.equal(pkg.main, './dist/index.js');
     assert.equal(pkg.types, './dist/index.d.ts');
-    assert.deepEqual(pkg.exports, prototypeExports);
+    assert.deepEqual(checkExports(pkg.exports, catalog), []);
+    assert.deepEqual(Object.keys(pkg.exports).filter(k => k.endsWith('/class')).every(k => catalog.some(c => k === `./${c.name}/class`)), true);
     const files = ['dist', 'themes'];
     if (pkg.files?.includes('THIRD_PARTY_NOTICES.md')) files.push('THIRD_PARTY_NOTICES.md');
     assert.deepEqual(pkg.files, files);

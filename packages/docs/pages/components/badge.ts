@@ -3,7 +3,6 @@ import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
 import { shell, shellStyles } from '../../src/shell.js';
 import { examples, exampleDocument } from '../../src/example.js';
-import { withBase } from '../../src/base.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Badge - Velcro',
@@ -36,7 +35,6 @@ export class BadgePage extends LitElement {
       <h1>Badge</h1>
       <p><code>&lt;sl-badge&gt;</code> is registered by <code>@charm-ux/velcro</code> on top of the <code>@charm-ux/core</code> badge. Prototype status: unreleased.</p>
       <p>Badges are used to draw attention and display statuses or counts.</p>
-      <p>Next component: <a href=${withBase('/components/skeleton')}>Skeleton</a>.</p>
 
       <h2 id="examples">Examples</h2>
       <iframe class="example" title="Badge example" srcdoc=${exampleDocument(source)}></iframe>
