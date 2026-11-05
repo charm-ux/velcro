@@ -81,6 +81,13 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   resolution and the `number`, `date` and `relativeTime` helpers of `@shoelace-style/localize` as used by
   `src/utilities/localize.ts`; no source of that package is included). Built on the `@charm-ux/core` base element; no
   Shoelace runtime or source files are included.
+- Also used in: `packages/velcro/src/components/format-date/format-date.ts` (API documentation wording and the
+  rendering algorithm, a `time` element with an ISO `datetime` around an `Intl.DateTimeFormat` result with `hour-format`
+  mapped to `hour12`, adapted from `src/components/format-date/format-date.component.ts`),
+  `packages/velcro/src/components/format-date/format-date.styles.ts` (written for Velcro; upstream has no styles file)
+  and `packages/docs/examples/format-date/*.html` with `packages/docs/pages/components/format-date.ts` (example markup
+  and explanatory wording adapted from `docs/pages/components/format-date.md`). Built on the `@charm-ux/core` base
+  element; no Shoelace runtime or source files are included.
 - Also used in: `packages/velcro/src/components/format-number/format-number.ts` (API documentation wording and the
   `Intl.NumberFormat` option mapping, adapted from `src/components/format-number/format-number.component.ts`) and
   `packages/velcro/src/components/format-number/format-number.styles.ts` (written for Velcro; upstream has no styles
