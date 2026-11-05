@@ -17,13 +17,25 @@
     "test": "node --test \"tests/**/*.test.mjs\"",
     "changeset": "changeset",
     "changeset:status": "changeset status",
-    "changeset:version": "changeset version"
+    "changeset:version": "changeset version",
+    "test:upstream": "node scripts/upstream-conformance.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "2.29.8",
+    "@open-wc/testing": "4.0.0",
     "@playwright/test": "1.64.1",
+    "@web/dev-server-esbuild": "1.0.3",
+    "@web/test-runner": "0.19.0",
+    "@web/test-runner-commands": "0.9.0",
+    "@web/test-runner-playwright": "0.11.0",
     "plop": "3.1.2",
+    "sinon": "19.0.2",
     "tar": "7.5.22",
     "typescript": "5.9.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "inflation": "2.0.0"
+    }
   }
 }

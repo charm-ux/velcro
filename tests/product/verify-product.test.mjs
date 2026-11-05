@@ -5,6 +5,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { evaluateReport } from '../../scripts/verify-product.mjs';
+import { MAX_FAILURES, MAX_LINE, redactLine, summarizeReport } from '../../scripts/product-summary.mjs';
 
 const ENGINES = ['chromium', 'firefox', 'webkit'];
 const startedAt = Date.parse('2026-01-01T00:00:00Z');
@@ -67,6 +68,11 @@ function fixture(setup) {
   copyFileSync(path.join(realRoot, 'scripts/verify-product.mjs'), path.join(dir, 'scripts/verify-product.mjs'));
   mkdirSync(path.join(dir, 'scripts/site'));
   copyFileSync(path.join(realRoot, 'scripts/site/tested.mjs'), path.join(dir, 'scripts/site/tested.mjs'));
+  copyFileSync(path.join(realRoot, 'scripts/product-summary.mjs'), path.join(dir, 'scripts/product-summary.mjs'));
+  mkdirSync(path.join(dir, 'scripts/security'));
+  copyFileSync(path.join(realRoot, 'scripts/security/privacy.mjs'), path.join(dir, 'scripts/security/privacy.mjs'));
+  mkdirSync(path.join(dir, 'security'));
+  copyFileSync(path.join(realRoot, 'security/policy.json'), path.join(dir, 'security/policy.json'));
   writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ packageManager: 'pnpm@9.15.9' }));
   writeFileSync(path.join(dir, '.gitignore'), '.airig/\nnode_modules/\ncalls.log\n*.marker\npackages/docs/dist/\n');
   spawnSync('git', ['init', '-q'], { cwd: dir });
@@ -82,7 +88,7 @@ function stubPlaywright(dir) {
   writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: '@playwright/test', type: 'module', exports: './index.js' }));
   writeFileSync(path.join(pkg, 'index.js'), 'export const chromium = { executablePath: () => process.execPath };\nexport const firefox = chromium;\nexport const webkit = chromium;\n');
 }
-function runCli(dir, expectFail = true, extraEnv = {}) {
+function runCli(dir, expectFail = true, extraEnv = {}, strict = true) {
   const r = spawnSync(process.execPath, [path.join(dir, 'scripts/verify-product.mjs')], {
     cwd: dir, encoding: 'utf8', timeout: 60000,
     env: { ...process.env, ...extraEnv, PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` },
@@ -90,7 +96,7 @@ function runCli(dir, expectFail = true, extraEnv = {}) {
   const out = `${r.stdout}${r.stderr}`;
   if (expectFail) assert.notEqual(r.status, 0, out); else assert.equal(r.status, 0, out);
   assert.doesNotMatch(out, new RegExp(dir.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'path leaked');
-  assert.doesNotMatch(out, /\n\s+at |Error:|ENOENT|EACCES|ENOTDIR|SyntaxError|JSON|\/(Users|home|var|tmp|private)\//, 'raw error leaked');
+  if (strict) assert.doesNotMatch(out, /\n\s+at |Error:|ENOENT|EACCES|ENOTDIR|SyntaxError|JSON|\/(Users|home|var|tmp|private)\//, 'raw error leaked');
   assert.doesNotMatch(out, new RegExp(SENTINEL));
   return out;
 }
@@ -129,6 +135,7 @@ const orderShim = `case "$*" in
   *"@velcro/docs run build:prefixed"*) echo "prefixed LITRO_BASE_PATH=[$LITRO_BASE_PATH]" >> calls.log; touch prefixed.marker ;;
   *"@velcro/docs run build"*) echo "build LITRO_BASE_PATH=[$LITRO_BASE_PATH]" >> calls.log; [ -f prefixed.marker ] || exit 1; touch generated.marker ;;
   *"@velcro/docs run typecheck"*) echo "typecheck LITRO_BASE_PATH=[$LITRO_BASE_PATH]" >> calls.log; [ -f generated.marker ] || exit 1 ;;
+  *"run test:upstream --no-build"*) echo upstream >> calls.log; [ -z "$UPSTREAM_FAIL" ] || exit 1 ;;
   *"exec playwright"*) echo browser >> calls.log
     node -e 'const t=[];for(let i=0;i<8;i++)for(const p of ["chromium","firefox","webkit"])t.push({projectName:p,status:"expected",results:[{status:"passed"}]});
       require("fs").writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_NAME,JSON.stringify({errors:[],suites:[{specs:t.map(x=>({tests:[x]}))}],
@@ -144,11 +151,21 @@ for (const [label, inherited] of [['unset', {}], ['empty', { LITRO_BASE_PATH: ''
     try {
       const out = runCli(dir, false, inherited);
       assert.deepEqual(readFileSync(path.join(dir, 'calls.log'), 'utf8').trim().split('\n'),
-        ['library', 'prefixed LITRO_BASE_PATH=[/velcro]', 'build LITRO_BASE_PATH=[]', 'typecheck LITRO_BASE_PATH=[]', 'browser']);
-      assert.match(out, /tests 24, passed 24, failed 0, flaky 0, skipped 0\nverify:product: per engine chromium 8, firefox 8, webkit 8\nverify:product: passed \(Chromium, Firefox and WebKit\)\n/);
+        ['library', 'prefixed LITRO_BASE_PATH=[/velcro]', 'build LITRO_BASE_PATH=[]', 'typecheck LITRO_BASE_PATH=[]', 'browser', 'upstream']);
+      assert.match(out, /tests 24, passed 24, failed 0, flaky 0, skipped 0\nverify:product: per engine chromium 8, firefox 8, webkit 8\nverify:product: upstream-conformance passed\nverify:product: passed \(Chromium, Firefox and WebKit\)\n/);
     } finally { cleanup(dir); }
   });
 }
+
+test('CLI fails without evidence when the upstream conformance gate fails', () => {
+  const dir = fixture({ prepare: d => { stubPlaywright(d); gitInit(d); }, shim: orderShim });
+  try {
+    const out = runCli(dir, true, { UPSTREAM_FAIL: '1' });
+    assert.match(out, /upstream-conformance failed/);
+    assert.doesNotMatch(out, /verify:product: passed/);
+    assert.throws(() => readFileSync(path.join(dir, EVIDENCE)), /ENOENT/);
+  } finally { cleanup(dir); }
+});
 
 test('CLI stops before typecheck when the docs build fails', () => {
   const dir = fixture({ prepare: stubPlaywright, shim: orderShim.replace('touch generated.marker', 'exit 1') });
@@ -242,4 +259,63 @@ test('ignored build output does not make the source dirty, and a run outside a g
     runCli(none, false);
     assert.throws(() => readFileSync(path.join(none, EVIDENCE)), /ENOENT/);
   } finally { cleanup(none); }
+});
+
+// --- public failure summary ----------------------------------------------------------------------------------------------
+const fake = (projectName, status, message, i = 1) => ({
+  title: `title ${i}`, file: 'x.spec.mjs', line: i,
+  tests: [{ projectName, status, results: [{ status: status === 'expected' ? 'passed' : 'failed', error: message ? { message } : undefined }] }],
+});
+const rep = specs => ({ suites: [{ specs }] });
+
+test('summary: per engine counts, then one line per failing test with the first error line only', () => {
+  const { lines, failingEngines } = summarizeReport(rep([
+    fake('chromium', 'expected'), fake('firefox', 'unexpected', 'Error: boom\n\n  second line\n  <html>dump</html>', 7), fake('webkit', 'skipped'),
+  ]));
+  assert.deepEqual(lines, [
+    'chromium passed 1, failed 0, flaky 0, skipped 0',
+    'firefox passed 0, failed 1, flaky 0, skipped 0',
+    'webkit passed 0, failed 0, flaky 0, skipped 1',
+    'firefox x.spec.mjs:7 title 7 | Error: boom',
+  ]);
+  assert.deepEqual(failingEngines, ['firefox']);
+});
+
+test('summary: is bounded to 40 failures and 200 characters per line', () => {
+  const specs = Array.from({ length: 100 }, (_, i) => fake('firefox', 'unexpected', 'x'.repeat(5000), i + 1));
+  const { lines } = summarizeReport(rep(specs));
+  assert.equal(MAX_FAILURES, 40);
+  assert.equal(lines.length, 3 + 40 + 1);
+  assert.match(lines.at(-1), /60 more failing tests not listed/);
+  for (const l of lines) assert.ok(l.length <= MAX_LINE, l.length);
+});
+
+test('summary: redacts absolute paths, the repo root, escape codes and anything the privacy scanner flags', () => {
+  const root = ['', 'work', 'repo'].join('/');
+  const home = ['', 'Users', 'someone', 'project', 'a.mjs'].join('/');
+  const out = redactLine(`\u001b[31mfail\u001b[0m at ${root}/src/a.mjs and ${home}:3 on /components/button`, root);
+  assert.equal(out, 'fail at <repo>/src/a.mjs and <path> on /components/button');
+  const win = ['C:', 'Users', 'someone', 'a.mjs'].join('\\');
+  assert.equal(redactLine(`open ${win} failed`, root), 'open <path> failed');
+  const token = ['gh', 'p_'].join('') + 'a'.repeat(36);
+  assert.equal(redactLine(`token ${token}`, root), 'token <token>');
+  const mail = ['someone', 'example.com'].join('@');
+  assert.equal(redactLine(`owner ${mail}`, root), '[redacted]');
+  const { lines } = summarizeReport(rep([fake('firefox', 'unexpected', `bad ${home}`, 2)]), { root });
+  assert.doesNotMatch(lines.join('\n'), new RegExp(['Us', 'ers'].join('') + '|someone'));
+});
+
+test('CLI prints the bounded summary when the browser tests fail, and nothing private', () => {
+  const failing = orderShim.replace(/node -e '[\s\S]*?stats:\{[^']*\}\}\)\)' ;;/, `node -e '
+    const t=(p,s)=>({title:"t",file:"a.spec.mjs",line:3,tests:[{projectName:p,status:s,results:[{status:"failed",error:{message:"Error: no profile at "+"/"+"Us"+"ers/someone/x\\nsecond"}}]}]});
+    require("fs").writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_NAME,JSON.stringify({errors:[],suites:[{specs:[t("chromium","expected"),t("firefox","unexpected")]}],
+    stats:{startTime:new Date().toISOString(),expected:1,unexpected:1,flaky:0,skipped:0}})); process.exit(1)' ;;`);
+  const dir = fixture({ prepare: stubPlaywright, shim: failing });
+  try {
+    const out = runCli(dir, true, {}, false);
+    assert.doesNotMatch(out, new RegExp(['Us', 'ers'].join('') + '|someone'));
+    assert.match(out, /verify:product: firefox passed 0, failed 1, flaky 0, skipped 0\n/);
+    assert.match(out, /verify:product: firefox a\.spec\.mjs:3 t \| Error: no profile at <path>\n/);
+    assert.doesNotMatch(out, /second/);
+  } finally { cleanup(dir); }
 });

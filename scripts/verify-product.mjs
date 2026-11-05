@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { summarizeReport } from './product-summary.mjs';
 import { clearTestedEvidence, sameSnapshot, snapshotTested, writeTestedEvidence } from './site/tested.mjs';
 
 export const MIN_TESTS = 8;
@@ -101,7 +102,14 @@ function main() {
   const ok = step('browser-tests', ['exec', 'playwright', 'test', '-c', 'tests/product/playwright.config.mjs',
     ...ENGINES.map(e => `--project=${e}`), '--reporter=json', '--output', path.join(scratch, 'artifacts')],
   { PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile, VELCRO_PRODUCT_OUT: scratch });
-  if (!ok) return fail('blocked');
+  // Public, bounded and redacted; the raw log stays in ignored scratch.
+  const publish = () => {
+    try {
+      const { lines } = summarizeReport(JSON.parse(readFileSync(reportFile, 'utf8')), { root });
+      for (const line of lines) process.stdout.write(`verify:product: ${line}\n`);
+    } catch { process.stdout.write('verify:product: no readable report to summarize\n'); }
+  };
+  if (!ok) { publish(); return fail('blocked'); }
   if (!existsSync(reportFile) || statSync(reportFile).mtimeMs < startedAt) return fail('missing or stale report');
   let result;
   try { result = evaluateReport(JSON.parse(readFileSync(reportFile, 'utf8')), { startedAt }); } catch { return fail('malformed report'); }
@@ -110,7 +118,9 @@ function main() {
     process.stdout.write(`verify:product: tests ${c.total}, passed ${c.passed}, failed ${c.failed}, flaky ${c.flaky}, skipped ${c.skipped}\n`);
     process.stdout.write(`verify:product: per engine ${ENGINES.map(e => `${e} ${c.perEngine[e]}`).join(', ')}\n`);
   }
-  if (!result.ok) return fail(`blocked (${result.reason})`);
+  if (!result.ok) { publish(); return fail(`blocked (${result.reason})`); }
+  // Shoelace's own test files against the built library; gated by tests/upstream/known-failures.json.
+  if (!step('upstream-conformance', ['run', 'test:upstream', '--no-build'])) return fail('blocked (upstream conformance differs from the known-failures ledger)');
   // Success evidence only if the tested bytes are still exactly the captured bytes.
   let after;
   try { after = snapshotTested(root); } catch { return fail('blocked (tested site could not be re-read)'); }

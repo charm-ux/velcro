@@ -97,7 +97,7 @@ jobs:
       - name: Product verification (Chromium, Firefox and WebKit)
         run: |
           mkdir -p .airig/ci
-          pnpm verify:product > .airig/ci/product.log 2>&1 || { echo 'product: blocked; private evidence retained'; exit 1; }
+          pnpm verify:product > .airig/ci/product.log 2>&1 || { grep '^verify:product: ' .airig/ci/product.log | cut -c1-300 | head -90 || true; echo 'product: blocked; private evidence retained'; exit 1; }
           echo 'product: passed'
       # Verifies site preparation (notices, allowlist, scans) on every PR. Nothing is uploaded or deployed here.
       - run: node scripts/security/gitleaks.mjs install

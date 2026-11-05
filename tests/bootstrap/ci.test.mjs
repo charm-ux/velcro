@@ -66,12 +66,12 @@ test('product step keeps all command output private and still blocks on failure'
       // Sensitive-looking text is generated at runtime, never committed.
       const secret = ['', 'home', 'u' + 'ser', 'work'].join('/');
       writeFileSync(path.join(dir, 'bin/pnpm'),
-        `#!/bin/sh\necho "cwd ${secret}"\necho "SyntaxError at ${secret}/x.mjs:1" >&2\nexit ${code}\n`, { mode: 0o755 });
+        `#!/bin/sh\necho "cwd ${secret}"\necho "verify:product: webkit passed 1"\necho "SyntaxError at ${secret}/x.mjs:1" >&2\nexit ${code}\n`, { mode: 0o755 });
       const r = spawnSync('sh', ['-e', '-c', script], { cwd: dir, encoding: 'utf8',
         env: { ...process.env, PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } });
       const out = `${r.stdout}${r.stderr}`;
       assert.equal(r.status, code === 0 ? 0 : 1);
-      assert.equal(out.trim(), code === 0 ? 'product: passed' : 'product: blocked; private evidence retained');
+      assert.equal(out.trim(), code === 0 ? 'product: passed' : 'verify:product: webkit passed 1\nproduct: blocked; private evidence retained');
       assert.match(readFileSync(path.join(dir, '.airig/ci/product.log'), 'utf8'), /SyntaxError/);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }
