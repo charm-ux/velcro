@@ -7,3 +7,4 @@ src/examples.generated.ts
 src/catalog.generated.ts
 src/showcase.generated.ts
 src/toc.generated.ts
+src/api.generated.ts

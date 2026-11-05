@@ -60,6 +60,9 @@ const prototypeExports = {
   './spinner/class': exportTargets('components/spinner/class'),
   './themes/dark.css': './themes/dark.css',
   './themes/light.css': './themes/light.css',
+  './custom-elements.json': './custom-elements.json',
+  './react': { types: './dist/react/index.d.ts', import: './dist/react/index.js' },
+  './react/*': './dist/react/*',
   './package.json': './package.json',
 };
 
@@ -78,6 +81,7 @@ function checkVelcroPackage(pkg) {
     assert.deepEqual(checkExports(pkg.exports, catalog), []);
     assert.deepEqual(Object.keys(pkg.exports).filter(k => k.endsWith('/class')).every(k => catalog.some(c => k === `./${c.name}/class`)), true);
     const files = ['dist', 'themes'];
+    if (pkg.files?.includes('custom-elements.json')) files.push('custom-elements.json');
     if (pkg.files?.includes('THIRD_PARTY_NOTICES.md')) files.push('THIRD_PARTY_NOTICES.md');
     assert.deepEqual(pkg.files, files);
     assert.deepEqual(pkg.dependencies, { '@charm-ux/core': '0.5.2', lit: '3.3.3' });
@@ -101,6 +105,7 @@ test('prototype exports are supported without weakening publication locks', () =
     scripts: { build: 'tsc -p tsconfig.json' } };
   checkVelcroPackage(prototype);
   checkVelcroPackage({ ...prototype, files: [...prototype.files, 'THIRD_PARTY_NOTICES.md'] });
+  checkVelcroPackage({ ...prototype, files: [...prototype.files, 'custom-elements.json', 'THIRD_PARTY_NOTICES.md'] });
   for (const unsafe of [{ private: false }, { license: 'MIT' }, { version: '1.0.0' },
     { exports: { ...prototypeExports, './scratch': './.airig/private.txt' } },
     { files: ['.airig'] }, { scripts: { publish: 'npm publish' } }]) {

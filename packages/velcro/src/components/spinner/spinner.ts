@@ -14,10 +14,10 @@ import styles from './spinner.styles.js';
  *
  * @csspart base - The component's base wrapper.
  *
- * @cssproperty --track-width - The width of the track.
- * @cssproperty --track-color - The color of the track.
- * @cssproperty --indicator-color - The color of the spinner's indicator.
- * @cssproperty --speed - The time it takes for the spinner to complete one animation cycle.
+ * @cssproperty [--track-width=2px] - The width of the track.
+ * @cssproperty [--track-color=rgb(128 128 128 / 25%)] - The color of the track.
+ * @cssproperty [--indicator-color=var(--sl-color-primary-600)] - The color of the spinner's indicator.
+ * @cssproperty [--speed=2s] - The time it takes for the spinner to complete one animation cycle.
  */
 export class VelcroSpinner extends CoreSpinner {
   // Core's own spinner styles are dropped on purpose: they style a `.spinner` flex wrapper (display, gap, direction, and

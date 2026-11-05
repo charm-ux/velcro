@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": false,
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["dist/react/*.d.ts", "type-tests/*.tsx"]
+}

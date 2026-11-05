@@ -3,19 +3,13 @@ import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
 import { docsShell, shellStyles } from '../../src/shell.js';
 import { themeHead } from '../../src/theme.js';
+import { apiReference } from '../../src/api.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Spinner - Velcro',
   seoHead: themeHead + '<meta name="description" content="Velcro spinner (prototype).">',
 }));
-
-const cssProperties: Array<[string, string, string]> = [
-  ['--track-width', '2px', 'The width of the track.'],
-  ['--track-color', 'rgb(128 128 128 / 25%)', 'The color of the track.'],
-  ['--indicator-color', 'var(--sl-color-primary-600)', "The color of the spinner's indicator."],
-  ['--speed', '2s', 'The time it takes for the spinner to complete one animation cycle.'],
-];
 
 const gaps = [
   'The accessible name is the fixed English string "Loading". Shoelace localizes it through its localization controller; that is not implemented and localized output has not been compared.',
@@ -44,25 +38,11 @@ export class SpinnerPage extends LitElement {
       <iframe class="example" title="Spinner example" srcdoc=${exampleDocument(source)}></iframe>
       <pre><code>${source}</code></pre>
 
-      <h2 id="attributes">Attributes</h2>
-      <p>None. The spinner has no public attributes or properties in Shoelace 2.20.1.</p>
-
-      <h2 id="slots">Slots</h2>
-      <p>None.</p>
-
-      <h2 id="parts">CSS parts</h2>
-      <p><code>base</code> (the <code>svg</code> element, with <code>role="progressbar"</code> and <code>aria-label="Loading"</code>). Inside it, as in Shoelace, the shadow DOM is <code>svg.spinner</code> around <code>circle.spinner__track</code> and <code>circle.spinner__indicator</code>; only <code>base</code> is a public part, and Shoelace's own spinner test finds the indicator by that class name.</p>
-
-      <h2 id="css-properties">CSS custom properties</h2>
-      <table>
-        <thead><tr><th>Property</th><th>Default</th><th>Description</th></tr></thead>
-        <tbody>
-          ${cssProperties.map(([p, d, desc]) => html`<tr><td><code>${p}</code></td><td><code>${d}</code></td><td>${desc}</td></tr>`)}
-        </tbody>
-      </table>
-
-      <h2 id="events">Events</h2>
-      <p>None.</p>
+      ${apiReference('sl-spinner', {
+        attributes: html`<p>Shoelace 2.20.1 has no public attributes or properties on the spinner; the rows above are inherited from the core spinner.</p>`,
+        parts: html`<p><code>base</code> (the <code>svg</code> element, with <code>role="progressbar"</code> and <code>aria-label="Loading"</code>). Inside it, as in Shoelace, the shadow DOM is <code>svg.spinner</code> around <code>circle.spinner__track</code> and <code>circle.spinner__indicator</code>; only <code>base</code> is a public part, and Shoelace's own spinner test finds the indicator by that class name.</p>`,
+        events: html`<p>None from Shoelace; only the inherited core <code>ready</code> event.</p>`,
+      })}
 
       <h2 id="not-implemented">Not implemented or unverified</h2>
       <ul>

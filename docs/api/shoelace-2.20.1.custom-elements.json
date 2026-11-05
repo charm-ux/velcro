@@ -1,0 +1,2035 @@
+{
+  "schemaVersion": "1.0.0",
+  "x-provenance": {
+    "package": "@shoelace-style/shoelace",
+    "version": "2.20.1",
+    "tag": "v2.20.1",
+    "commit": "fb59fda70ed737c92611051b49bc7e3a5fed5dc5",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2020 A Beautiful Site, LLC",
+    "notice": "Subset of the Custom Elements Manifest that Shoelace 2.20.1's own analyzer configuration generates from tag v2.20.1 (commit fb59fda70ed737c92611051b49bc7e3a5fed5dc5), limited to the components Velcro implements. Copyright (c) 2020 A Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md."
+  },
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "components/badge/badge.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlBadge",
+          "tagName": "sl-badge",
+          "summary": "Badges are used to draw attention and display statuses or counts.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "'primary' | 'success' | 'neutral' | 'warning' | 'danger'"
+              },
+              "default": "'primary'",
+              "description": "The badge's theme variant.",
+              "attribute": "variant",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws a pill-style badge with rounded edges.",
+              "attribute": "pill",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pulse",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Makes the badge pulsate to draw attention.",
+              "attribute": "pulse",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "variant",
+              "type": {
+                "text": "'primary' | 'success' | 'neutral' | 'warning' | 'danger'"
+              },
+              "default": "'primary'",
+              "description": "The badge's theme variant.",
+              "fieldName": "variant"
+            },
+            {
+              "name": "pill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws a pill-style badge with rounded edges.",
+              "fieldName": "pill"
+            },
+            {
+              "name": "pulse",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Makes the badge pulsate to draw attention.",
+              "fieldName": "pulse"
+            }
+          ],
+          "slots": [
+            {
+              "description": "The badge's content.",
+              "name": ""
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "components/button/button.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlButton",
+          "tagName": "sl-button",
+          "summary": "Buttons represent actions that are available to the user.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "dependencies",
+              "static": true,
+              "type": {
+                "text": "object"
+              },
+              "default": "{ 'sl-icon': SlIcon, 'sl-spinner': SlSpinner }"
+            },
+            {
+              "kind": "field",
+              "name": "formControlController",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new FormControlController(this, { assumeInteractionOn: ['click'] })"
+            },
+            {
+              "kind": "field",
+              "name": "hasSlotController",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new HasSlotController(this, '[default]', 'prefix', 'suffix')"
+            },
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
+              "name": "button",
+              "type": {
+                "text": "HTMLButtonElement | HTMLLinkElement"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hasFocus",
+              "privacy": "private",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "invalid",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "title"
+            },
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "'default' | 'primary' | 'success' | 'neutral' | 'warning' | 'danger' | 'text'"
+              },
+              "default": "'default'",
+              "description": "The button's theme variant.",
+              "attribute": "variant",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'small' | 'medium' | 'large'"
+              },
+              "default": "'medium'",
+              "description": "The button's size.",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "caret",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws the button with a caret. Used to indicate that the button triggers a dropdown menu or similar behavior.",
+              "attribute": "caret",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Disables the button.",
+              "attribute": "disabled",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws the button in a loading state.",
+              "attribute": "loading",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "outline",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws an outlined button.",
+              "attribute": "outline",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws a pill-style button with rounded edges.",
+              "attribute": "pill",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "circle",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws a circular icon button. When this attribute is present, the button expects a single `<sl-icon>` in the\ndefault slot.",
+              "attribute": "circle",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "type",
+              "type": {
+                "text": "'button' | 'submit' | 'reset'"
+              },
+              "default": "'button'",
+              "description": "The type of button. Note that the default value is `button` instead of `submit`, which is opposite of how native\n`<button>` elements behave. When the type is `submit`, the button will submit the surrounding form.",
+              "attribute": "type"
+            },
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "The name of the button, submitted as a name/value pair with form data, but only when this button is the submitter.\nThis attribute is ignored when `href` is present.",
+              "attribute": "name"
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "The value of the button, submitted as a pair with the button's name as part of the form data, but only when this\nbutton is the submitter. This attribute is ignored when `href` is present.",
+              "attribute": "value"
+            },
+            {
+              "kind": "field",
+              "name": "href",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "When set, the underlying button will be rendered as an `<a>` with this `href` instead of a `<button>`.",
+              "attribute": "href"
+            },
+            {
+              "kind": "field",
+              "name": "target",
+              "type": {
+                "text": "'_blank' | '_parent' | '_self' | '_top'"
+              },
+              "description": "Tells the browser where to open the link. Only used when `href` is present.",
+              "attribute": "target"
+            },
+            {
+              "kind": "field",
+              "name": "rel",
+              "type": {
+                "text": "string"
+              },
+              "default": "'noreferrer noopener'",
+              "description": "When using `href`, this attribute will map to the underlying link's `rel` attribute. Unlike regular links, the\ndefault is `noreferrer noopener` to prevent security exploits. However, if you're using `target` to point to a\nspecific tab/window, this will prevent that from working correctly. You can remove or change the default value by\nsetting the attribute to an empty string or a value of your choice, respectively.",
+              "attribute": "rel"
+            },
+            {
+              "kind": "field",
+              "name": "download",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "Tells the browser to download the linked file as this filename. Only used when `href` is present.",
+              "attribute": "download"
+            },
+            {
+              "kind": "field",
+              "name": "form",
+              "type": {
+                "text": "string"
+              },
+              "description": "The \"form owner\" to associate the button with. If omitted, the closest containing form will be used instead. The\nvalue of this attribute must be an id of a form in the same document or shadow root as the button.",
+              "attribute": "form"
+            },
+            {
+              "kind": "field",
+              "name": "formAction",
+              "type": {
+                "text": "string"
+              },
+              "description": "Used to override the form owner's `action` attribute.",
+              "attribute": "formaction"
+            },
+            {
+              "kind": "field",
+              "name": "formEnctype",
+              "type": {
+                "text": "'application/x-www-form-urlencoded' | 'multipart/form-data' | 'text/plain'"
+              },
+              "description": "Used to override the form owner's `enctype` attribute.",
+              "attribute": "formenctype"
+            },
+            {
+              "kind": "field",
+              "name": "formMethod",
+              "type": {
+                "text": "'post' | 'get'"
+              },
+              "description": "Used to override the form owner's `method` attribute.",
+              "attribute": "formmethod"
+            },
+            {
+              "kind": "field",
+              "name": "formNoValidate",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Used to override the form owner's `novalidate` attribute.",
+              "attribute": "formnovalidate"
+            },
+            {
+              "kind": "field",
+              "name": "formTarget",
+              "type": {
+                "text": "'_self' | '_blank' | '_parent' | '_top' | string"
+              },
+              "description": "Used to override the form owner's `target` attribute.",
+              "attribute": "formtarget"
+            },
+            {
+              "kind": "field",
+              "name": "validity",
+              "readonly": true,
+              "description": "Gets the validity state object"
+            },
+            {
+              "kind": "field",
+              "name": "validationMessage",
+              "readonly": true,
+              "description": "Gets the validation message"
+            },
+            {
+              "kind": "method",
+              "name": "handleBlur",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "handleFocus",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "handleClick",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "handleInvalid",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "Event"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "isButton",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "isLink",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "handleDisabledChange"
+            },
+            {
+              "kind": "method",
+              "name": "click",
+              "description": "Simulates a click on the button."
+            },
+            {
+              "kind": "method",
+              "name": "focus",
+              "description": "Sets focus on the button.",
+              "parameters": [
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "FocusOptions"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "blur",
+              "description": "Removes focus from the button."
+            },
+            {
+              "kind": "method",
+              "name": "checkValidity",
+              "description": "Checks for validity but does not show a validation message. Returns `true` when valid and `false` when invalid."
+            },
+            {
+              "kind": "method",
+              "name": "getForm",
+              "description": "Gets the associated form, if one exists.",
+              "return": {
+                "type": {
+                  "text": "HTMLFormElement | null"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "reportValidity",
+              "description": "Checks for validity and shows the browser's validation message if the control is invalid."
+            },
+            {
+              "kind": "method",
+              "name": "setCustomValidity",
+              "description": "Sets a custom validation message. Pass an empty string to restore validity.",
+              "parameters": [
+                {
+                  "name": "message",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "title"
+            },
+            {
+              "name": "variant",
+              "type": {
+                "text": "'default' | 'primary' | 'success' | 'neutral' | 'warning' | 'danger' | 'text'"
+              },
+              "default": "'default'",
+              "description": "The button's theme variant.",
+              "fieldName": "variant"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'small' | 'medium' | 'large'"
+              },
+              "default": "'medium'",
+              "description": "The button's size.",
+              "fieldName": "size"
+            },
+            {
+              "name": "caret",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws the button with a caret. Used to indicate that the button triggers a dropdown menu or similar behavior.",
+              "fieldName": "caret"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Disables the button.",
+              "fieldName": "disabled"
+            },
+            {
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws the button in a loading state.",
+              "fieldName": "loading"
+            },
+            {
+              "name": "outline",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws an outlined button.",
+              "fieldName": "outline"
+            },
+            {
+              "name": "pill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws a pill-style button with rounded edges.",
+              "fieldName": "pill"
+            },
+            {
+              "name": "circle",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws a circular icon button. When this attribute is present, the button expects a single `<sl-icon>` in the\ndefault slot.",
+              "fieldName": "circle"
+            },
+            {
+              "name": "type",
+              "type": {
+                "text": "'button' | 'submit' | 'reset'"
+              },
+              "default": "'button'",
+              "description": "The type of button. Note that the default value is `button` instead of `submit`, which is opposite of how native\n`<button>` elements behave. When the type is `submit`, the button will submit the surrounding form.",
+              "fieldName": "type"
+            },
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "The name of the button, submitted as a name/value pair with form data, but only when this button is the submitter.\nThis attribute is ignored when `href` is present.",
+              "fieldName": "name"
+            },
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "The value of the button, submitted as a pair with the button's name as part of the form data, but only when this\nbutton is the submitter. This attribute is ignored when `href` is present.",
+              "fieldName": "value"
+            },
+            {
+              "name": "href",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "When set, the underlying button will be rendered as an `<a>` with this `href` instead of a `<button>`.",
+              "fieldName": "href"
+            },
+            {
+              "name": "target",
+              "type": {
+                "text": "'_blank' | '_parent' | '_self' | '_top'"
+              },
+              "description": "Tells the browser where to open the link. Only used when `href` is present.",
+              "fieldName": "target"
+            },
+            {
+              "name": "rel",
+              "type": {
+                "text": "string"
+              },
+              "default": "'noreferrer noopener'",
+              "description": "When using `href`, this attribute will map to the underlying link's `rel` attribute. Unlike regular links, the\ndefault is `noreferrer noopener` to prevent security exploits. However, if you're using `target` to point to a\nspecific tab/window, this will prevent that from working correctly. You can remove or change the default value by\nsetting the attribute to an empty string or a value of your choice, respectively.",
+              "fieldName": "rel"
+            },
+            {
+              "name": "download",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "Tells the browser to download the linked file as this filename. Only used when `href` is present.",
+              "fieldName": "download"
+            },
+            {
+              "name": "form",
+              "type": {
+                "text": "string"
+              },
+              "description": "The \"form owner\" to associate the button with. If omitted, the closest containing form will be used instead. The\nvalue of this attribute must be an id of a form in the same document or shadow root as the button.",
+              "fieldName": "form"
+            },
+            {
+              "name": "formaction",
+              "type": {
+                "text": "string"
+              },
+              "description": "Used to override the form owner's `action` attribute.",
+              "fieldName": "formAction"
+            },
+            {
+              "name": "formenctype",
+              "type": {
+                "text": "'application/x-www-form-urlencoded' | 'multipart/form-data' | 'text/plain'"
+              },
+              "description": "Used to override the form owner's `enctype` attribute.",
+              "fieldName": "formEnctype"
+            },
+            {
+              "name": "formmethod",
+              "type": {
+                "text": "'post' | 'get'"
+              },
+              "description": "Used to override the form owner's `method` attribute.",
+              "fieldName": "formMethod"
+            },
+            {
+              "name": "formnovalidate",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Used to override the form owner's `novalidate` attribute.",
+              "fieldName": "formNoValidate"
+            },
+            {
+              "name": "formtarget",
+              "type": {
+                "text": "'_self' | '_blank' | '_parent' | '_top' | string"
+              },
+              "description": "Used to override the form owner's `target` attribute.",
+              "fieldName": "formTarget"
+            }
+          ],
+          "events": [
+            {
+              "name": "sl-blur",
+              "description": "Emitted when the button loses focus."
+            },
+            {
+              "name": "sl-focus",
+              "description": "Emitted when the button gains focus."
+            },
+            {
+              "name": "sl-invalid",
+              "description": "Emitted when the form control has been checked for validity and its constraints aren't satisfied."
+            }
+          ],
+          "slots": [
+            {
+              "description": "The button's label.",
+              "name": ""
+            },
+            {
+              "description": "A presentational prefix icon or similar element.",
+              "name": "prefix"
+            },
+            {
+              "description": "A presentational suffix icon or similar element.",
+              "name": "suffix"
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            },
+            {
+              "description": "The container that wraps the prefix.",
+              "name": "prefix"
+            },
+            {
+              "description": "The button's label.",
+              "name": "label"
+            },
+            {
+              "description": "The container that wraps the suffix.",
+              "name": "suffix"
+            },
+            {
+              "description": "The button's caret icon, an `<sl-icon>` element.",
+              "name": "caret"
+            },
+            {
+              "description": "The spinner that shows when the button is in the loading state.",
+              "name": "spinner"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "components/card/card.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlCard",
+          "tagName": "sl-card",
+          "summary": "Cards can be used to group related subjects in a container.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "hasSlotController",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new HasSlotController(this, 'footer', 'header', 'image')"
+            }
+          ],
+          "slots": [
+            {
+              "description": "The card's main content.",
+              "name": ""
+            },
+            {
+              "description": "An optional header for the card.",
+              "name": "header"
+            },
+            {
+              "description": "An optional footer for the card.",
+              "name": "footer"
+            },
+            {
+              "description": "An optional image to render at the start of the card.",
+              "name": "image"
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            },
+            {
+              "description": "The container that wraps the card's image.",
+              "name": "image"
+            },
+            {
+              "description": "The container that wraps the card's header.",
+              "name": "header"
+            },
+            {
+              "description": "The container that wraps the card's main content.",
+              "name": "body"
+            },
+            {
+              "description": "The container that wraps the card's footer.",
+              "name": "footer"
+            }
+          ],
+          "cssProperties": [
+            {
+              "description": "The card's border color, including borders that occur inside the card.",
+              "name": "--border-color"
+            },
+            {
+              "description": "The border radius for the card's edges.",
+              "name": "--border-radius"
+            },
+            {
+              "description": "The width of the card's borders.",
+              "name": "--border-width"
+            },
+            {
+              "description": "The padding to use for the card's sections.",
+              "name": "--padding"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "components/divider/divider.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlDivider",
+          "tagName": "sl-divider",
+          "summary": "Dividers are used to visually separate or group elements.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "vertical",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws the divider in a vertical orientation.",
+              "attribute": "vertical",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "handleVerticalChange"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "vertical",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws the divider in a vertical orientation.",
+              "fieldName": "vertical"
+            }
+          ],
+          "cssProperties": [
+            {
+              "description": "The color of the divider.",
+              "name": "--color"
+            },
+            {
+              "description": "The width of the divider.",
+              "name": "--width"
+            },
+            {
+              "description": "The spacing of the divider.",
+              "name": "--spacing"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "components/format-bytes/format-bytes.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlFormatBytes",
+          "tagName": "sl-format-bytes",
+          "summary": "Formats a number as a human readable bytes value.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The number to format in bytes.",
+              "attribute": "value"
+            },
+            {
+              "kind": "field",
+              "name": "unit",
+              "type": {
+                "text": "'byte' | 'bit'"
+              },
+              "default": "'byte'",
+              "description": "The type of unit to display.",
+              "attribute": "unit"
+            },
+            {
+              "kind": "field",
+              "name": "display",
+              "type": {
+                "text": "'long' | 'short' | 'narrow'"
+              },
+              "default": "'short'",
+              "description": "Determines how to display the result, e.g. \"100 bytes\", \"100 b\", or \"100b\".",
+              "attribute": "display"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The number to format in bytes.",
+              "fieldName": "value"
+            },
+            {
+              "name": "unit",
+              "type": {
+                "text": "'byte' | 'bit'"
+              },
+              "default": "'byte'",
+              "description": "The type of unit to display.",
+              "fieldName": "unit"
+            },
+            {
+              "name": "display",
+              "type": {
+                "text": "'long' | 'short' | 'narrow'"
+              },
+              "default": "'short'",
+              "description": "Determines how to display the result, e.g. \"100 bytes\", \"100 b\", or \"100b\".",
+              "fieldName": "display"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "components/format-date/format-date.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlFormatDate",
+          "tagName": "sl-format-date",
+          "summary": "Formats a date/time using the specified locale and options.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
+              "name": "date",
+              "type": {
+                "text": "Date | string"
+              },
+              "default": "new Date()",
+              "description": "The date/time to format. If not set, the current date and time will be used. When passing a string, it's strongly\nrecommended to use the ISO 8601 format to ensure timezones are handled correctly. To convert a date to this format\nin JavaScript, use [`date.toISOString()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString).",
+              "attribute": "date"
+            },
+            {
+              "kind": "field",
+              "name": "weekday",
+              "type": {
+                "text": "'narrow' | 'short' | 'long'"
+              },
+              "description": "The format for displaying the weekday.",
+              "attribute": "weekday"
+            },
+            {
+              "kind": "field",
+              "name": "era",
+              "type": {
+                "text": "'narrow' | 'short' | 'long'"
+              },
+              "description": "The format for displaying the era.",
+              "attribute": "era"
+            },
+            {
+              "kind": "field",
+              "name": "year",
+              "type": {
+                "text": "'numeric' | '2-digit'"
+              },
+              "description": "The format for displaying the year.",
+              "attribute": "year"
+            },
+            {
+              "kind": "field",
+              "name": "month",
+              "type": {
+                "text": "'numeric' | '2-digit' | 'narrow' | 'short' | 'long'"
+              },
+              "description": "The format for displaying the month.",
+              "attribute": "month"
+            },
+            {
+              "kind": "field",
+              "name": "day",
+              "type": {
+                "text": "'numeric' | '2-digit'"
+              },
+              "description": "The format for displaying the day.",
+              "attribute": "day"
+            },
+            {
+              "kind": "field",
+              "name": "hour",
+              "type": {
+                "text": "'numeric' | '2-digit'"
+              },
+              "description": "The format for displaying the hour.",
+              "attribute": "hour"
+            },
+            {
+              "kind": "field",
+              "name": "minute",
+              "type": {
+                "text": "'numeric' | '2-digit'"
+              },
+              "description": "The format for displaying the minute.",
+              "attribute": "minute"
+            },
+            {
+              "kind": "field",
+              "name": "second",
+              "type": {
+                "text": "'numeric' | '2-digit'"
+              },
+              "description": "The format for displaying the second.",
+              "attribute": "second"
+            },
+            {
+              "kind": "field",
+              "name": "timeZoneName",
+              "type": {
+                "text": "'short' | 'long'"
+              },
+              "description": "The format for displaying the time.",
+              "attribute": "time-zone-name"
+            },
+            {
+              "kind": "field",
+              "name": "timeZone",
+              "type": {
+                "text": "string"
+              },
+              "description": "The time zone to express the time in.",
+              "attribute": "time-zone"
+            },
+            {
+              "kind": "field",
+              "name": "hourFormat",
+              "type": {
+                "text": "'auto' | '12' | '24'"
+              },
+              "default": "'auto'",
+              "description": "The format for displaying the hour.",
+              "attribute": "hour-format"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "date",
+              "type": {
+                "text": "Date | string"
+              },
+              "default": "new Date()",
+              "description": "The date/time to format. If not set, the current date and time will be used. When passing a string, it's strongly\nrecommended to use the ISO 8601 format to ensure timezones are handled correctly. To convert a date to this format\nin JavaScript, use [`date.toISOString()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString).",
+              "fieldName": "date"
+            },
+            {
+              "name": "weekday",
+              "type": {
+                "text": "'narrow' | 'short' | 'long'"
+              },
+              "description": "The format for displaying the weekday.",
+              "fieldName": "weekday"
+            },
+            {
+              "name": "era",
+              "type": {
+                "text": "'narrow' | 'short' | 'long'"
+              },
+              "description": "The format for displaying the era.",
+              "fieldName": "era"
+            },
+            {
+              "name": "year",
+              "type": {
+                "text": "'numeric' | '2-digit'"
+              },
+              "description": "The format for displaying the year.",
+              "fieldName": "year"
+            },
+            {
+              "name": "month",
+              "type": {
+                "text": "'numeric' | '2-digit' | 'narrow' | 'short' | 'long'"
+              },
+              "description": "The format for displaying the month.",
+              "fieldName": "month"
+            },
+            {
+              "name": "day",
+              "type": {
+                "text": "'numeric' | '2-digit'"
+              },
+              "description": "The format for displaying the day.",
+              "fieldName": "day"
+            },
+            {
+              "name": "hour",
+              "type": {
+                "text": "'numeric' | '2-digit'"
+              },
+              "description": "The format for displaying the hour.",
+              "fieldName": "hour"
+            },
+            {
+              "name": "minute",
+              "type": {
+                "text": "'numeric' | '2-digit'"
+              },
+              "description": "The format for displaying the minute.",
+              "fieldName": "minute"
+            },
+            {
+              "name": "second",
+              "type": {
+                "text": "'numeric' | '2-digit'"
+              },
+              "description": "The format for displaying the second.",
+              "fieldName": "second"
+            },
+            {
+              "name": "time-zone-name",
+              "type": {
+                "text": "'short' | 'long'"
+              },
+              "description": "The format for displaying the time.",
+              "fieldName": "timeZoneName"
+            },
+            {
+              "name": "time-zone",
+              "type": {
+                "text": "string"
+              },
+              "description": "The time zone to express the time in.",
+              "fieldName": "timeZone"
+            },
+            {
+              "name": "hour-format",
+              "type": {
+                "text": "'auto' | '12' | '24'"
+              },
+              "default": "'auto'",
+              "description": "The format for displaying the hour.",
+              "fieldName": "hourFormat"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "components/format-number/format-number.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlFormatNumber",
+          "tagName": "sl-format-number",
+          "summary": "Formats a number using the specified locale and options.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The number to format.",
+              "attribute": "value"
+            },
+            {
+              "kind": "field",
+              "name": "type",
+              "type": {
+                "text": "'currency' | 'decimal' | 'percent'"
+              },
+              "default": "'decimal'",
+              "description": "The formatting style to use.",
+              "attribute": "type"
+            },
+            {
+              "kind": "field",
+              "name": "noGrouping",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Turns off grouping separators.",
+              "attribute": "no-grouping"
+            },
+            {
+              "kind": "field",
+              "name": "currency",
+              "type": {
+                "text": "string"
+              },
+              "default": "'USD'",
+              "description": "The [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217) currency code to use when formatting.",
+              "attribute": "currency"
+            },
+            {
+              "kind": "field",
+              "name": "currencyDisplay",
+              "type": {
+                "text": "'symbol' | 'narrowSymbol' | 'code' | 'name'"
+              },
+              "default": "'symbol'",
+              "description": "How to display the currency.",
+              "attribute": "currency-display"
+            },
+            {
+              "kind": "field",
+              "name": "minimumIntegerDigits",
+              "type": {
+                "text": "number"
+              },
+              "description": "The minimum number of integer digits to use. Possible values are 1-21.",
+              "attribute": "minimum-integer-digits"
+            },
+            {
+              "kind": "field",
+              "name": "minimumFractionDigits",
+              "type": {
+                "text": "number"
+              },
+              "description": "The minimum number of fraction digits to use. Possible values are 0-20.",
+              "attribute": "minimum-fraction-digits"
+            },
+            {
+              "kind": "field",
+              "name": "maximumFractionDigits",
+              "type": {
+                "text": "number"
+              },
+              "description": "The maximum number of fraction digits to use. Possible values are 0-0.",
+              "attribute": "maximum-fraction-digits"
+            },
+            {
+              "kind": "field",
+              "name": "minimumSignificantDigits",
+              "type": {
+                "text": "number"
+              },
+              "description": "The minimum number of significant digits to use. Possible values are 1-21.",
+              "attribute": "minimum-significant-digits"
+            },
+            {
+              "kind": "field",
+              "name": "maximumSignificantDigits",
+              "type": {
+                "text": "number"
+              },
+              "description": "The maximum number of significant digits to use,. Possible values are 1-21.",
+              "attribute": "maximum-significant-digits"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The number to format.",
+              "fieldName": "value"
+            },
+            {
+              "name": "type",
+              "type": {
+                "text": "'currency' | 'decimal' | 'percent'"
+              },
+              "default": "'decimal'",
+              "description": "The formatting style to use.",
+              "fieldName": "type"
+            },
+            {
+              "name": "no-grouping",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Turns off grouping separators.",
+              "fieldName": "noGrouping"
+            },
+            {
+              "name": "currency",
+              "type": {
+                "text": "string"
+              },
+              "default": "'USD'",
+              "description": "The [ISO 4217](https://en.wikipedia.org/wiki/ISO_4217) currency code to use when formatting.",
+              "fieldName": "currency"
+            },
+            {
+              "name": "currency-display",
+              "type": {
+                "text": "'symbol' | 'narrowSymbol' | 'code' | 'name'"
+              },
+              "default": "'symbol'",
+              "description": "How to display the currency.",
+              "fieldName": "currencyDisplay"
+            },
+            {
+              "name": "minimum-integer-digits",
+              "type": {
+                "text": "number"
+              },
+              "description": "The minimum number of integer digits to use. Possible values are 1-21.",
+              "fieldName": "minimumIntegerDigits"
+            },
+            {
+              "name": "minimum-fraction-digits",
+              "type": {
+                "text": "number"
+              },
+              "description": "The minimum number of fraction digits to use. Possible values are 0-20.",
+              "fieldName": "minimumFractionDigits"
+            },
+            {
+              "name": "maximum-fraction-digits",
+              "type": {
+                "text": "number"
+              },
+              "description": "The maximum number of fraction digits to use. Possible values are 0-0.",
+              "fieldName": "maximumFractionDigits"
+            },
+            {
+              "name": "minimum-significant-digits",
+              "type": {
+                "text": "number"
+              },
+              "description": "The minimum number of significant digits to use. Possible values are 1-21.",
+              "fieldName": "minimumSignificantDigits"
+            },
+            {
+              "name": "maximum-significant-digits",
+              "type": {
+                "text": "number"
+              },
+              "description": "The maximum number of significant digits to use,. Possible values are 1-21.",
+              "fieldName": "maximumSignificantDigits"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "components/progress-bar/progress-bar.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlProgressBar",
+          "tagName": "sl-progress-bar",
+          "summary": "Progress bars are used to show the status of an ongoing operation.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The current progress as a percentage, 0 to 100.",
+              "attribute": "value",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "indeterminate",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "When true, percentage is ignored, the label is hidden, and the progress bar is drawn in an indeterminate state.",
+              "attribute": "indeterminate",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "A custom label for assistive devices.",
+              "attribute": "label"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The current progress as a percentage, 0 to 100.",
+              "fieldName": "value"
+            },
+            {
+              "name": "indeterminate",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "When true, percentage is ignored, the label is hidden, and the progress bar is drawn in an indeterminate state.",
+              "fieldName": "indeterminate"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "A custom label for assistive devices.",
+              "fieldName": "label"
+            }
+          ],
+          "slots": [
+            {
+              "description": "A label to show inside the progress indicator.",
+              "name": ""
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            },
+            {
+              "description": "The progress bar's indicator.",
+              "name": "indicator"
+            },
+            {
+              "description": "The progress bar's label.",
+              "name": "label"
+            }
+          ],
+          "cssProperties": [
+            {
+              "description": "The progress bar's height.",
+              "name": "--height"
+            },
+            {
+              "description": "The color of the track.",
+              "name": "--track-color"
+            },
+            {
+              "description": "The color of the indicator.",
+              "name": "--indicator-color"
+            },
+            {
+              "description": "The color of the label.",
+              "name": "--label-color"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "components/progress-ring/progress-ring.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlProgressRing",
+          "tagName": "sl-progress-ring",
+          "summary": "Progress rings are used to show the progress of a determinate operation in a circular fashion.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
+              "name": "indicator",
+              "type": {
+                "text": "SVGCircleElement"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "indicatorOffset",
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The current progress as a percentage, 0 to 100.",
+              "attribute": "value",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "A custom label for assistive devices.",
+              "attribute": "label"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The current progress as a percentage, 0 to 100.",
+              "fieldName": "value"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "A custom label for assistive devices.",
+              "fieldName": "label"
+            }
+          ],
+          "slots": [
+            {
+              "description": "A label to show inside the ring.",
+              "name": ""
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            },
+            {
+              "description": "The progress ring label.",
+              "name": "label"
+            }
+          ],
+          "cssProperties": [
+            {
+              "description": "The diameter of the progress ring (cannot be a percentage).",
+              "name": "--size"
+            },
+            {
+              "description": "The width of the track.",
+              "name": "--track-width"
+            },
+            {
+              "description": "The color of the track.",
+              "name": "--track-color"
+            },
+            {
+              "description": "The width of the indicator. Defaults to the track width.",
+              "name": "--indicator-width"
+            },
+            {
+              "description": "The color of the indicator.",
+              "name": "--indicator-color"
+            },
+            {
+              "description": "The duration of the indicator's transition when the value changes.",
+              "name": "--indicator-transition-duration"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "components/relative-time/relative-time.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlRelativeTime",
+          "tagName": "sl-relative-time",
+          "summary": "Outputs a localized time phrase relative to the current date and time.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
+              "name": "updateTimeout",
+              "privacy": "private",
+              "type": {
+                "text": "number"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "isoTime",
+              "privacy": "private",
+              "type": {
+                "text": "string"
+              },
+              "default": "''"
+            },
+            {
+              "kind": "field",
+              "name": "relativeTime",
+              "privacy": "private",
+              "type": {
+                "text": "string"
+              },
+              "default": "''"
+            },
+            {
+              "kind": "field",
+              "name": "date",
+              "type": {
+                "text": "Date | string"
+              },
+              "default": "new Date()",
+              "description": "The date from which to calculate time from. If not set, the current date and time will be used. When passing a\nstring, it's strongly recommended to use the ISO 8601 format to ensure timezones are handled correctly. To convert\na date to this format in JavaScript, use [`date.toISOString()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString).",
+              "attribute": "date"
+            },
+            {
+              "kind": "field",
+              "name": "format",
+              "type": {
+                "text": "'long' | 'short' | 'narrow'"
+              },
+              "default": "'long'",
+              "description": "The formatting style to use.",
+              "attribute": "format"
+            },
+            {
+              "kind": "field",
+              "name": "numeric",
+              "type": {
+                "text": "'always' | 'auto'"
+              },
+              "default": "'auto'",
+              "description": "When `auto`, values such as \"yesterday\" and \"tomorrow\" will be shown when possible. When `always`, values such as\n\"1 day ago\" and \"in 1 day\" will be shown.",
+              "attribute": "numeric"
+            },
+            {
+              "kind": "field",
+              "name": "sync",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Keep the displayed value up to date as time passes.",
+              "attribute": "sync"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "date",
+              "type": {
+                "text": "Date | string"
+              },
+              "default": "new Date()",
+              "description": "The date from which to calculate time from. If not set, the current date and time will be used. When passing a\nstring, it's strongly recommended to use the ISO 8601 format to ensure timezones are handled correctly. To convert\na date to this format in JavaScript, use [`date.toISOString()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString).",
+              "fieldName": "date"
+            },
+            {
+              "name": "format",
+              "type": {
+                "text": "'long' | 'short' | 'narrow'"
+              },
+              "default": "'long'",
+              "description": "The formatting style to use.",
+              "fieldName": "format"
+            },
+            {
+              "name": "numeric",
+              "type": {
+                "text": "'always' | 'auto'"
+              },
+              "default": "'auto'",
+              "description": "When `auto`, values such as \"yesterday\" and \"tomorrow\" will be shown when possible. When `always`, values such as\n\"1 day ago\" and \"in 1 day\" will be shown.",
+              "fieldName": "numeric"
+            },
+            {
+              "name": "sync",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Keep the displayed value up to date as time passes.",
+              "fieldName": "sync"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "components/resize-observer/resize-observer.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlResizeObserver",
+          "tagName": "sl-resize-observer",
+          "summary": "The Resize Observer component offers a thin, declarative interface to the [`ResizeObserver API`](https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver).",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "resizeObserver",
+              "privacy": "private",
+              "type": {
+                "text": "ResizeObserver"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "observedElements",
+              "privacy": "private",
+              "type": {
+                "text": "HTMLElement[]"
+              },
+              "default": "[]"
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Disables the observer.",
+              "attribute": "disabled",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "handleSlotChange",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "startObserver",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "stopObserver",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "handleDisabledChange"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Disables the observer.",
+              "fieldName": "disabled"
+            }
+          ],
+          "events": [
+            {
+              "name": "sl-resize",
+              "type": {
+                "text": "{ entries: ResizeObserverEntry[] }"
+              },
+              "description": "Emitted when the element is resized."
+            }
+          ],
+          "slots": [
+            {
+              "description": "One or more elements to watch for resizing.",
+              "name": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "components/skeleton/skeleton.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlSkeleton",
+          "tagName": "sl-skeleton",
+          "summary": "Skeletons are used to provide a visual representation of where content will eventually be drawn.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "effect",
+              "type": {
+                "text": "'pulse' | 'sheen' | 'none'"
+              },
+              "default": "'none'",
+              "description": "Determines which effect the skeleton will use.",
+              "attribute": "effect"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "effect",
+              "type": {
+                "text": "'pulse' | 'sheen' | 'none'"
+              },
+              "default": "'none'",
+              "description": "Determines which effect the skeleton will use.",
+              "fieldName": "effect"
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            },
+            {
+              "description": "The skeleton's indicator which is responsible for its color and animation.",
+              "name": "indicator"
+            }
+          ],
+          "cssProperties": [
+            {
+              "description": "The skeleton's border radius.",
+              "name": "--border-radius"
+            },
+            {
+              "description": "The color of the skeleton.",
+              "name": "--color"
+            },
+            {
+              "description": "The sheen color when the skeleton is in its loading state.",
+              "name": "--sheen-color"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "components/spinner/spinner.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlSpinner",
+          "tagName": "sl-spinner",
+          "summary": "Spinners are used to show the progress of an indeterminate operation.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            }
+          ],
+          "cssProperties": [
+            {
+              "description": "The width of the track.",
+              "name": "--track-width"
+            },
+            {
+              "description": "The color of the track.",
+              "name": "--track-color"
+            },
+            {
+              "description": "The color of the spinner's indicator.",
+              "name": "--indicator-color"
+            },
+            {
+              "description": "The time it takes for the spinner to complete one animation cycle.",
+              "name": "--speed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "components/visually-hidden/visually-hidden.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlVisuallyHidden",
+          "tagName": "sl-visually-hidden",
+          "summary": "The visually hidden utility makes content accessible to assistive devices without displaying it on the screen.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [],
+          "slots": [
+            {
+              "description": "The content to be visually hidden.",
+              "name": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

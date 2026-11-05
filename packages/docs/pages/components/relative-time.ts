@@ -3,20 +3,13 @@ import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
 import { docsShell, shellStyles } from '../../src/shell.js';
 import { themeHead } from '../../src/theme.js';
+import { apiReference } from '../../src/api.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Relative Time - Velcro',
   seoHead: themeHead + '<meta name="description" content="Velcro relative time (prototype).">',
 }));
-
-const attributes: Array<[string, string, string, string]> = [
-  ['date', 'Date | string', 'new Date()', 'The date from which to calculate time from. A string should be ISO 8601 so time zones are handled correctly. As an attribute it is a string; set a Date object by script.'],
-  ['format', 'long | short | narrow', 'long', 'The formatting style to use.'],
-  ['numeric', 'always | auto', 'auto', 'When auto, values such as "yesterday" and "tomorrow" are shown when possible. When always, values such as "1 day ago" and "in 1 day" are shown.'],
-  ['sync', 'boolean', 'false', 'Keep the displayed value up to date as time passes.'],
-  ['lang', 'string', '(none)', 'The formatting locale. Falls back to the lang of the document element, then the browser language. Undefined by default, as in Shoelace.'],
-];
 
 const gaps = [
   'There is no core relative-time: the component extends the core CharmElement base. The phrase is produced by Intl.RelativeTimeFormat through a minimal localization controller (packages/velcro/src/internal/localize.ts), reused unchanged.',
@@ -46,29 +39,11 @@ export class RelativeTimePage extends LitElement {
       <iframe class="example" title="Relative Time example" srcdoc=${exampleDocument(source)}></iframe>
       <pre><code>${source}</code></pre>
 
-      <h2 id="attributes">Attributes and properties</h2>
-      <table>
-        <thead><tr><th>Name</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
-        <tbody>
-          ${attributes.map(([n, t, d, desc]) => html`<tr><td><code>${n}</code></td><td>${t}</td><td><code>${d}</code></td><td>${desc}</td></tr>`)}
-        </tbody>
-      </table>
-      <p>As in Shoelace, none of these are reflected to attributes. Avoid ambiguous date strings such as <code>03/04/2020</code>; use an ISO 8601 string.</p>
-
-      <h2 id="slots">Slots</h2>
-      <p>None.</p>
-
-      <h2 id="parts">CSS parts</h2>
-      <p>None. The component renders a <code>time</code> element with an ISO <code>datetime</code> attribute in its shadow root and has no ARIA role. An invalid date renders nothing.</p>
-
-      <h2 id="css-properties">CSS custom properties</h2>
-      <p>None.</p>
-
-      <h2 id="events">Events</h2>
-      <p>Only the inherited <code>ready</code> event (see below); Shoelace 2.20.1 has none.</p>
-
-      <h2 id="methods">Methods</h2>
-      <p>None.</p>
+      ${apiReference('sl-relative-time', {
+        attributes: html`<p>As in Shoelace, none of these are reflected to attributes. Avoid ambiguous date strings such as <code>03/04/2020</code>; use an ISO 8601 string.</p>`,
+        parts: html`<p>The component renders a <code>time</code> element with an ISO <code>datetime</code> attribute in its shadow root and has no ARIA role. An invalid date renders nothing.</p>`,
+        events: html`<p>Only the inherited <code>ready</code> event (see below); Shoelace 2.20.1 has none.</p>`,
+      })}
 
       <h2 id="not-implemented">Not implemented or unverified</h2>
       <ul>
