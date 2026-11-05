@@ -37,7 +37,7 @@ export class BadgePage extends LitElement {
       <pre><code>${source}</code></pre>
 
       ${apiReference('sl-badge', {
-        attributes: html`<p>All three are reflected to attributes and update the rendered badge when changed.</p>`,
+        attributes: html`<p><code>variant</code>, <code>pill</code> and <code>pulse</code> are reflected to attributes and update the rendered badge when changed.</p>`,
         parts: html`<p><code>base</code> (the <code>span</code> element, with <code>role="status"</code>).</p>`,
         'css-properties': html`<p>Colors and radius come from the theme tokens.</p>`,
         events: html`<p>None from Shoelace; only the inherited core <code>ready</code> event.</p>`,

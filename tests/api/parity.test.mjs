@@ -72,7 +72,7 @@ test('the comparison detects missing and mismatched entries and reports extras w
   });
   const ours = el('sl-x', {
     members: [
-      { kind: 'field', name: 'a', attribute: 'a', type: { text: 'string' }, default: "''", reflects: false },
+      { kind: 'field', name: 'a', attribute: 'a', type: { text: 'string' }, default: "''", reflects: false, readonly: true },
       { kind: 'field', name: 'dir', attribute: 'dir', inheritedFrom: { name: 'CharmElement', package: '@charm-ux/core' } },
       { kind: 'field', name: 'own' },
     ],
@@ -84,6 +84,7 @@ test('the comparison detects missing and mismatched entries and reports extras w
   assert.deepEqual(r.gaps, [
     'sl-x css-property --c: default differs (shoelace "1px", velcro "2px")',
     'sl-x method go: missing',
+    'sl-x property a: readonly differs (shoelace "false", velcro "true")',
     'sl-x property a: reflects differs (shoelace "true", velcro "false")',
     'sl-x property b: missing',
     'sl-x slot (default): missing',

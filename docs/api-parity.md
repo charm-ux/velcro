@@ -5,17 +5,17 @@
 
 Every documented Shoelace 2.20.1 attribute/property, method, event, slot, CSS part and CSS custom property of each
 implemented component, compared with Velcro's Custom Elements Manifest (name, attribute name, type, default and
-reflection; method signatures; event detail types where Shoelace declares one; CSS property defaults where declared).
+reflection, read-only; method signatures; event detail types where Shoelace declares one; CSS property defaults where declared).
 Shoelace members count when its own docs would list them (described and not private). Type comparison ignores only
 whitespace, quote style and union order. Missing and mismatched entries form the ledger
 `docs/api/api-parity-ledger.json`, which may only shrink.
 
-Totals: 130 Shoelace entries compared, 93 matching, 21 mismatched, 16 missing; 5 Velcro-only and 57 inherited extras.
+Totals: 130 Shoelace entries compared, 93 matching, 21 mismatched, 16 missing; 5 Velcro-only and 63 inherited extras.
 
 | Component | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | `sl-badge` | 5 | 5 | 0 | 0 | 0 | 2 |
-| `sl-button` | 42 | 20 | 6 | 16 | 1 | 16 |
+| `sl-button` | 42 | 20 | 6 | 16 | 1 | 22 |
 | `sl-card` | 13 | 13 | 0 | 0 | 0 | 5 |
 | `sl-divider` | 4 | 4 | 0 | 0 | 0 | 6 |
 | `sl-format-bytes` | 3 | 3 | 0 | 0 | 1 | 2 |
@@ -104,6 +104,12 @@ Inherited extras:
 - `event change` (from @charm-ux/core CoreButton)
 - `event focus` (from @charm-ux/core CoreButton)
 - `event ready` (from @charm-ux/core CharmElement)
+- `css-property --button-bg-color` (from @charm-ux/core CoreButton)
+- `css-property --button-fg-color` (from @charm-ux/core CoreButton)
+- `css-property --button-icon-size` (from @charm-ux/core CoreButton)
+- `css-property --button-pressed-bg-color` (from @charm-ux/core CoreButton)
+- `css-property --button-pressed-border` (from @charm-ux/core CoreButton)
+- `css-property --button-pressed-fg-color` (from @charm-ux/core CoreButton)
 
 ## `sl-card`
 

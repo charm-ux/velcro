@@ -19,18 +19,19 @@ const source = (origin: string) => (origin ? `Inherited ${origin}` : 'Velcro');
 
 function table(section: ApiSection, heads: string[], rows: Array<{ name: string; cells: unknown[] }>) {
   if (!rows.length) return html`<p>None.</p>`;
-  return html`<table data-api=${section}>
+  // The tables scroll inside their own box, so a narrow screen never overflows the page horizontally.
+  return html`<div class="api-table" style="overflow-x: auto; max-width: 100%;"><table data-api=${section}>
     <thead><tr>${heads.map(h => html`<th>${h}</th>`)}</tr></thead>
     <tbody>${rows.map(r => html`<tr data-name=${r.name}>${r.cells.map(c => html`<td>${c}</td>`)}</tr>`)}</tbody>
-  </table>`;
+  </table></div>`;
 }
 
 function body(model: ApiModel, section: ApiSection) {
   switch (section) {
     case 'attributes':
-      return table(section, ['Property', 'Attribute', 'Type', 'Default', 'Reflects', 'Description', 'Source'],
+      return table(section, ['Property', 'Attribute', 'Type', 'Default', 'Reflects', 'Read-only', 'Description', 'Source'],
         model.properties.map(p => ({ name: p.name || p.attribute, cells: [code(p.name), code(p.attribute), code(p.type),
-          code(p.default), p.reflects ? 'yes' : 'no', p.description, source(p.origin)] })));
+          code(p.default), p.reflects ? 'yes' : 'no', p.readonly ? 'yes' : 'no', p.description, source(p.origin)] })));
     case 'methods':
       return table(section, ['Name', 'Signature', 'Description', 'Source'],
         model.methods.map(m => ({ name: m.name, cells: [code(m.name), code(m.signature), m.description, source(m.origin)] })));

@@ -1263,6 +1263,56 @@
           "tagName": "sl-button",
           "customElement": true,
           "status": "prototype",
+          "cssProperties": [
+            {
+              "description": "Sets the background color of the button.",
+              "name": "--button-bg-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets button's text color.",
+              "name": "--button-fg-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets the height and width of the slotted icon and svg.",
+              "name": "--button-icon-size",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets the background color of the button when toggled.",
+              "name": "--button-pressed-bg-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets the border of the button when toggled.",
+              "name": "--button-pressed-border",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Sets button's text color when toggled.",
+              "name": "--button-pressed-fg-color",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
           "modulePath": "src/components/button/button.ts"
         }
       ],

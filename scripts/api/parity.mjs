@@ -20,7 +20,7 @@ const KINDS = [
   ['cssProperties', 'css-property', p => p.name],
 ];
 const FIELDS = {
-  properties: ['attribute', 'type', 'default', 'reflects'],
+  properties: ['attribute', 'type', 'default', 'reflects', 'readonly'],
   methods: ['signature'],
   events: ['type'],
   slots: [],
@@ -99,7 +99,7 @@ export function renderReport({ gaps, extras, counts }) {
     '',
     'Every documented Shoelace 2.20.1 attribute/property, method, event, slot, CSS part and CSS custom property of each',
     'implemented component, compared with Velcro\'s Custom Elements Manifest (name, attribute name, type, default and',
-    'reflection; method signatures; event detail types where Shoelace declares one; CSS property defaults where declared).',
+    'reflection, read-only; method signatures; event detail types where Shoelace declares one; CSS property defaults where declared).',
     'Shoelace members count when its own docs would list them (described and not private). Type comparison ignores only',
     'whitespace, quote style and union order. Missing and mismatched entries form the ledger',
     '`docs/api/api-parity-ledger.json`, which may only shrink.',

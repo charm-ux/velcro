@@ -19,10 +19,18 @@ const componentDir = tagName => tagName.replace(/^sl-/, '');
 const reactDir = process.env.VELCRO_CEM_REACT_OUTDIR || path.join('dist', 'react');
 
 /**
- * Every Velcro component renders its own shadow template, so core's template-bound API (slots, parts, and the CSS custom
- * properties its component styles read) does not describe a Velcro element: only the slots, parts and properties a
- * Velcro class documents itself are kept. Inherited members, attributes and events stay, with core's package named.
+ * Every Velcro component renders its own shadow template, so most of core's template-bound API (slots, parts, and the
+ * CSS custom properties its component styles read) does not apply to a Velcro element. Only the inherited entries
+ * listed here are kept: they still take effect, because the component keeps core's styles and their selectors still
+ * match its template. tests/product/inherited-api.spec.mjs measures this in the browser for every component and fails
+ * when this list and the measured effect differ.
  */
+export const keptInherited = {
+  VelcroButton: {
+    cssProperties: ['--button-bg-color', '--button-fg-color', '--button-icon-size', '--button-pressed-bg-color',
+      '--button-pressed-border', '--button-pressed-fg-color'],
+  },
+};
 function velcroInheritance() {
   return {
     name: 'velcro-inheritance',
@@ -31,10 +39,11 @@ function velcroInheritance() {
         for (const decl of mod.declarations ?? []) {
           if (!decl.customElement) continue;
           for (const key of ['slots', 'cssParts', 'cssProperties']) {
-            if (decl[key]) decl[key] = decl[key].filter(item => !item.inheritedFrom);
+            const keep = keptInherited[decl.name]?.[key] ?? [];
+            if (decl[key]) decl[key] = decl[key].filter(item => !item.inheritedFrom || keep.includes(item.name));
             if (decl[key]?.length === 0) delete decl[key];
           }
-          for (const key of ['members', 'attributes', 'events']) {
+          for (const key of ['members', 'attributes', 'events', 'slots', 'cssParts', 'cssProperties']) {
             for (const item of decl[key] ?? []) {
               if (item.inheritedFrom && coreClasses.has(item.inheritedFrom.name) && !item.inheritedFrom.package) {
                 item.inheritedFrom.package = corePackage;
@@ -53,8 +62,7 @@ function velcroInheritance() {
 /**
  * React already types onFocus/onBlur for the native focus and blur events that core lists, so the generated wrappers
  * would declare them twice with conflicting types: they are hidden from the wrapper and JSX generators (and restored in
- * the manifest afterwards). The wrapper generator also emits a wrong type name for events with a typed detail
- * (`<C>ElementEvent<C><Event>ElementEvent`); the written declarations are corrected to the type it does declare.
+ * the manifest afterwards).
  */
 const nativeEvents = new Set(['focus', 'blur']);
 const hidden = new Map();
@@ -70,16 +78,74 @@ function hideNativeEvents() {
     },
   };
 }
+
+/**
+ * Corrects three defects of the generated React output (checked by type-tests/ and tests/product/react.spec.mjs):
+ * - The wrappers hand every property to React. React 19 assigns `undefined` to the element property when a prop is
+ *   removed, which overwrites the element's default (and can break rendering, e.g. the progress ring's label). The
+ *   element's properties are instead set by `useElementProps`: a supplied value is assigned, and an omitted or removed
+ *   one restores the value the element had before the wrapper first set it. Global attributes (exportparts, for, part,
+ *   tabindex) stay React attributes and are passed only when supplied.
+ * - Events with a typed detail get a wrong type name (`<C>ElementEvent<C><Event>ElementEvent`).
+ * - The JSX `ref` type accepts only the element or a callback; React object refs (createRef/useRef) are added.
+ */
+const globalAttributes = new Set(['exportparts', 'for', 'part', 'tabindex']);
+export function fixWrapperSource(text) {
+  const managed = [];
+  let out = text.replace(/^( {6})("?[\w-]+"?): (\w+)( \? true : undefined)?,\n/gm, (line, indent, key, name) => {
+    if (key === 'ref' || key === 'style') return line;
+    if (globalAttributes.has(key)) return `${indent}...(${name} === undefined ? {} : { ${key}: ${name} }),\n`;
+    managed.push(name);
+    return '';
+  });
+  if (!managed.length) return out;
+  out = out.replace('import { useEventListener, createForwardedRefHandler } from "./react-utils.js";',
+    'import { useEventListener, createForwardedRefHandler, useElementProps } from "./react-utils.js";');
+  return out.replace(/^(  return React\.createElement\()/m, `  useElementProps(ref, { ${managed.join(', ')} });\n\n$1`);
+}
+const useElementProps = `
+/** Sets element properties from props; an omitted or removed prop restores the element's own initial value. */
+export function useElementProps(targetElement, props) {
+  const defaults = useRef(null);
+  useLayoutEffect(() => {
+    const el = targetElement?.current;
+    if (!el) {
+      return;
+    }
+    if (!defaults.current) {
+      defaults.current = {};
+      for (const name of Object.keys(props)) {
+        defaults.current[name] = el[name];
+      }
+    }
+    for (const [name, value] of Object.entries(props)) {
+      const next = value === undefined ? defaults.current[name] : value;
+      if (el[name] !== next) {
+        el[name] = next;
+      }
+    }
+  });
+}
+`;
+export function fixDeclarations(text) {
+  return text
+    .replace(/\b(\w+)ElementEvent\1(\w+ElementEvent)\b/g, '$1$2')
+    .replace(/ref\?: T \| \(\(e: T\) => void\);/g, 'ref?: T | ((e: T | null) => void) | { current: T | null } | null;');
+}
 function restoreNativeEvents() {
   return {
     name: 'velcro-restore-native-events',
     packageLinkPhase() {
       for (const [decl, events] of hidden) decl.events = events;
       hidden.clear();
-      for (const file of readdirSync(reactDir).filter(f => f.endsWith('.d.ts'))) {
+      for (const file of readdirSync(reactDir)) {
+        const fix = file.endsWith('.d.ts') ? fixDeclarations
+          : file === 'react-utils.js' ? t => (t.includes('useElementProps') ? t : t + useElementProps)
+          : file.endsWith('.js') && file !== 'index.js' ? fixWrapperSource : null;
+        if (!fix) continue;
         const target = path.join(reactDir, file);
         const text = readFileSync(target, 'utf8');
-        const fixed = text.replace(/\b(\w+)ElementEvent\1(\w+ElementEvent)\b/g, '$1$2');
+        const fixed = fix(text);
         if (fixed !== text) writeFileSync(target, fixed);
       }
     },

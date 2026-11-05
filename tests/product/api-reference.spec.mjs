@@ -9,7 +9,7 @@ const source = origin => (origin ? `Inherited ${origin}` : 'Velcro');
 const cell = value => value || '-';
 
 const expected = model => ({
-  attributes: model.properties.map(p => [p.name || '-', cell(p.attribute), cell(p.type), cell(p.default), p.reflects ? 'yes' : 'no', p.description, source(p.origin)]),
+  attributes: model.properties.map(p => [p.name || '-', cell(p.attribute), cell(p.type), cell(p.default), p.reflects ? 'yes' : 'no', p.readonly ? 'yes' : 'no', p.description, source(p.origin)]),
   methods: model.methods.map(m => [m.name, m.signature, m.description, source(m.origin)]),
   events: model.events.map(e => [e.name, cell(e.type), e.description, source(e.origin)]),
   slots: model.slots.map(s => [s.name || '(default)', s.description, source(s.origin)]),

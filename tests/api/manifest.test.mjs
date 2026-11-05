@@ -58,12 +58,16 @@ test('inherited core members, attributes and events are present and name their c
   }
 });
 
-test('only template-independent API is inherited: slots, parts and CSS custom properties are the Velcro class\'s own', () => {
+test('inherited slots, parts and CSS custom properties are exactly the per-component kept list (measured in tests/product/inherited-api.spec.mjs)', async () => {
+  const { keptInherited } = await import('../../packages/velcro/custom-elements-manifest.config.mjs');
   for (const [tag, decl] of elements) {
     for (const key of ['slots', 'cssParts', 'cssProperties']) {
-      for (const item of decl[key] ?? []) assert.equal(item.inheritedFrom, undefined, `${tag} ${key} ${item.name}`);
+      const inherited = (decl[key] ?? []).filter(item => item.inheritedFrom);
+      assert.deepEqual(inherited.map(i => i.name).sort(), [...(keptInherited[decl.name]?.[key] ?? [])].sort(), `${tag} ${key}`);
+      for (const item of inherited) assert.equal(item.inheritedFrom.package, '@charm-ux/core', `${tag} ${key} ${item.name}`);
     }
   }
+  assert.ok(elements.get('sl-button').cssProperties.some(p => p.name === '--button-icon-size' && p.inheritedFrom?.name === 'CoreButton'));
   assert.deepEqual(elements.get('sl-button').cssParts.map(p => p.name).sort(),
     ['base', 'button-control', 'caret', 'label', 'prefix', 'spinner', 'suffix']);
 });
@@ -83,6 +87,11 @@ test('the React wrapper type test checks Shoelace props, rejects bad values and 
     assert.match(source, new RegExp(`\\b${prop}[:,]`), prop);
   }
   assert.equal(source.match(/@ts-expect-error/g)?.length, 5);
+  const jsx = readFileSync(path.join(pkgDir, 'type-tests/jsx-intrinsic.tsx'), 'utf8');
+  assert.match(jsx, /useRef<VelcroButton>\(null\)/);
+  assert.match(jsx, /<sl-button ref=\{hookRef\}/);
+  assert.match(jsx, /<sl-button ref=\{objectRef\}/);
+  assert.equal(jsx.match(/@ts-expect-error/g)?.length, 2);
   const config = JSON.parse(readFileSync(path.join(pkgDir, 'tsconfig.react.json'), 'utf8'));
   assert.deepEqual(config.include, ['dist/react/*.d.ts', 'type-tests/*.tsx']);
   assert.equal(config.compilerOptions.strict, true);
