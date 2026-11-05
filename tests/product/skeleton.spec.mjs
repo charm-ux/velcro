@@ -47,6 +47,8 @@ test('docs page is prerendered with Velcro branding, prototype status, the Shoel
   expect(html).toContain('prefers-reduced-motion');
   expect(html).toContain('no Firefox, WebKit, RTL or localization check');
   expect(html).toContain('<code>indicator</code>');
+  expect(html).toContain('inherits the core <code>ready</code> event');
+  expect(html).toContain('It does not bubble, is not composed');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
 });
@@ -230,6 +232,39 @@ test('effect property: not reflected, updates the classes, and an unknown value 
   expect(result.removed.classes).toBe('skeleton');
   expect(result.core.classes).toBe('skeleton');
   expect(result.core.parts).toEqual(['base', 'indicator']);
+});
+
+test('inherited core ready event: fires once on the element after its first update, does not bubble and is not composed', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const result = await frame.locator('body').evaluate(async () => {
+    const el = document.createElement('sl-skeleton');
+    const own = [];
+    const onParent = [];
+    el.addEventListener('ready', event => own.push({
+      type: event.type,
+      target: event.target === el,
+      bubbles: event.bubbles,
+      composed: event.composed,
+      cancelable: event.cancelable,
+      detail: event.detail,
+      rendered: Boolean(el.shadowRoot?.querySelector('[part~="base"]')),
+    }));
+    document.body.addEventListener('ready', event => onParent.push(event.target.localName));
+    document.addEventListener('ready', event => onParent.push(event.target.localName));
+    const before = own.length;
+    document.body.append(el);
+    await el.updateComplete;
+    el.effect = 'pulse';
+    await el.updateComplete;
+    el.remove();
+    document.body.append(el);
+    await el.updateComplete;
+    return { before, own, onParent, total: own.length };
+  });
+  expect(result.before).toBe(0);
+  expect(result.total).toBe(1);
+  expect(result.own).toEqual([{ type: 'ready', target: true, bubbles: false, composed: false, cancelable: false, detail: {}, rendered: true }]);
+  expect(result.onParent).toEqual([]);
 });
 
 test('paragraphs: the example widths apply to the hosts', async ({ page }) => {

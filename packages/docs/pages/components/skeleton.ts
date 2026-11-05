@@ -82,7 +82,7 @@ export class SkeletonPage extends LitElement {
       </table>
 
       <h2 id="events">Events</h2>
-      <p>None.</p>
+      <p>Shoelace 2.20.1 emits no events from the skeleton. Velcro differs: the element inherits the core <code>ready</code> event, a <code>CustomEvent</code> dispatched on the element itself after its first update. It does not bubble, is not composed, is not cancelable and has an empty <code>detail</code>, so only a listener attached directly to the skeleton receives it, and it fires once per element. It is not part of the Shoelace contract and is not named with the <code>sl-</code> prefix.</p>
 
       <h2 id="not-implemented">Not implemented or unverified</h2>
       <ul>
