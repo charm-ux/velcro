@@ -3,3 +3,4 @@
 {"name":"divider","title":"Divider","tag":"sl-divider","example":"#demo-horizontal"}
 {"name":"skeleton","title":"Skeleton","tag":"sl-skeleton","example":"#demo-avatar"}
 {"name":"spinner","title":"Spinner","tag":"sl-spinner","example":"sl-spinner"}
+{"name":"visually-hidden","title":"Visually Hidden","tag":"sl-visually-hidden","example":"#demo-skip"}
