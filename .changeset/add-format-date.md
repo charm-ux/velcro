@@ -1,0 +1,5 @@
+---
+'@charm-ux/velcro': minor
+---
+
+Add a prototype `VelcroFormatDate`, registered as `sl-format-date` on the `@charm-ux/core` base element (there is no core format-date): `date`, `weekday`, `era`, `year`, `month`, `day`, `hour`, `minute`, `second`, `time-zone-name`, `time-zone` and `hour-format` properties that format a date with `Intl.DateTimeFormat` inside a `time` element with an ISO `datetime`, and `lang` for the formatting locale, using the shared localization controller. Like Shoelace it has no slots, parts, custom properties or ARIA role, does not reflect its properties and renders nothing for an invalid date; unlike Shoelace it inherits the core `ready` event and, as a divergence (Shoelace restores only reflected properties), restores `auto` when `hour-format` is removed, the current date and time when `date` is removed, and treats removed format attributes as unset. Not implemented or unverified: translations, invalid option values (they throw from `Intl` as upstream), other browsers and RTL. Adds the `@charm-ux/velcro/format-date` and `@charm-ux/velcro/format-date/class` exports and updates the third-party notices.

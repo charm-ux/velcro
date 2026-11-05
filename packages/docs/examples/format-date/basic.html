@@ -1,0 +1,25 @@
+<div style="display: flex; flex-direction: column; gap: 1rem">
+  <div>
+    Release date:
+    <sl-format-date id="demo-default" date="2020-07-15T09:17:00-04:00" time-zone="UTC"></sl-format-date>
+  </div>
+  <div id="demo-now">
+    Current date and time, with options:
+    <sl-format-date month="long" day="numeric" year="numeric"></sl-format-date>,
+    <sl-format-date hour="numeric" minute="numeric"></sl-format-date>,
+    <sl-format-date weekday="long"></sl-format-date>,
+    <sl-format-date month="long"></sl-format-date>,
+    <sl-format-date year="numeric"></sl-format-date>,
+    <sl-format-date></sl-format-date>
+  </div>
+  <div id="demo-hours">
+    Hour format:
+    <sl-format-date date="2020-07-15T15:17:00Z" time-zone="UTC" hour="numeric" minute="numeric" hour-format="12"></sl-format-date>,
+    <sl-format-date date="2020-07-15T15:17:00Z" time-zone="UTC" hour="numeric" minute="numeric" hour-format="24"></sl-format-date>
+  </div>
+  <div id="demo-lang">
+    English: <sl-format-date lang="en"></sl-format-date>,
+    French: <sl-format-date lang="fr"></sl-format-date>,
+    Russian: <sl-format-date lang="ru"></sl-format-date>
+  </div>
+</div>
