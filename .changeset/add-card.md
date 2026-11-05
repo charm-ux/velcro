@@ -1,0 +1,5 @@
+---
+'@charm-ux/velcro': minor
+---
+
+Add a prototype `VelcroCard`, registered as `sl-card` on top of the `@charm-ux/core` card: a `base` part around `image`, `header`, `body` and `footer` parts with matching slots (the default slot is the body), the `--border-color`, `--border-radius`, `--border-width` and `--padding` custom properties, and `card--has-image`, `card--has-header` and `card--has-footer` classes that show the optional sections. It has no properties, events or methods, as in Shoelace 2.20.1. The light theme gains `--sl-border-radius-medium`, `--sl-shadow-x-small` and `--sl-panel-background-color`. Not implemented or unverified: the inherited core `heading`, `subheading` and `media-position` properties, core parts, slots and `--card-*` properties (present but with no effect), screen reader behavior, visual parity beyond computed-style checks in Chromium, other browsers, RTL, localization and a dark theme. Registration is browser-only. Adds the `@charm-ux/velcro/card` and `@charm-ux/velcro/card/class` exports (with the `SlCard` alias) and updates the third-party notices for adapted Shoelace (MIT) wording, structure and styles.
