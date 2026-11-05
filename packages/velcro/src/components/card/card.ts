@@ -26,12 +26,10 @@ import styles from './card.styles.js';
  * @csspart body - The container that wraps the card's main content.
  * @csspart footer - The container that wraps the card's footer.
  *
- * @cssproperty --border-color - The card's border color, including borders that occur inside the card.
- * @cssproperty --border-radius - The border radius for the card's edges.
- * @cssproperty --border-width - The width of the card's borders.
- * @cssproperty --padding - The padding to use for the card's sections.
- *
- * @event ready - Emitted once, without bubbling, after the first render. Inherited from the core base element; Shoelace's card emits no events.
+ * @cssproperty [--border-color=var(--sl-color-neutral-200)] - The card's border color, including borders that occur inside the card.
+ * @cssproperty [--border-radius=var(--sl-border-radius-medium)] - The border radius for the card's edges.
+ * @cssproperty [--border-width=1px] - The width of the card's borders.
+ * @cssproperty [--padding=var(--sl-spacing-large)] - The padding to use for the card's sections.
  */
 export class VelcroCard extends CoreCard {
   // Only the core base element's styles (box-sizing, `[hidden]`) are kept. The core card styles are dropped: they style

@@ -3,25 +3,13 @@ import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
 import { docsShell, shellStyles } from '../../src/shell.js';
 import { themeHead } from '../../src/theme.js';
+import { apiReference } from '../../src/api.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Progress Bar - Velcro',
   seoHead: themeHead + '<meta name="description" content="Velcro progress bar (prototype).">',
 }));
-
-const attributes: Array<[string, string, string, string]> = [
-  ['value', 'number', '0', 'The current progress as a percentage, 0 to 100.'],
-  ['indeterminate', 'boolean', 'false', 'When true, percentage is ignored, the label is hidden, and the progress bar is drawn in an indeterminate state.'],
-  ['label', 'string', "''", 'A custom label for assistive devices.'],
-];
-
-const cssProperties: Array<[string, string, string]> = [
-  ['--height', '1rem', "The progress bar's height."],
-  ['--track-color', 'var(--sl-color-neutral-200)', 'The color of the track.'],
-  ['--indicator-color', 'var(--sl-color-primary-600)', 'The color of the indicator.'],
-  ['--label-color', 'var(--sl-color-neutral-0)', 'The color of the label.'],
-];
 
 const gaps = [
   'The default accessible name is the fixed English string "Progress" (used when label is empty). Shoelace localizes it through its localization controller; that is not implemented and localized output has not been compared.',
@@ -54,34 +42,12 @@ export class ProgressBarPage extends LitElement {
       <iframe class="example" title="Progress Bar example" srcdoc=${exampleDocument(source)}></iframe>
       <pre><code>${source}</code></pre>
 
-      <h2 id="attributes">Attributes and properties</h2>
-      <table>
-        <thead><tr><th>Name</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
-        <tbody>
-          ${attributes.map(([n, t, d, desc]) => html`<tr><td><code>${n}</code></td><td>${t}</td><td><code>${d}</code></td><td>${desc}</td></tr>`)}
-        </tbody>
-      </table>
-      <p><code>value</code> and <code>indeterminate</code> are reflected to attributes; <code>label</code> is not reflected.</p>
-
-      <h2 id="slots">Slots</h2>
-      <p>The default slot holds a label to show inside the progress indicator. It is not rendered when <code>indeterminate</code> is set.</p>
-
-      <h2 id="parts">CSS parts</h2>
-      <p><code>base</code> (the <code>div</code> with <code>role="progressbar"</code>), <code>indicator</code> and <code>label</code> (the default <code>slot</code>).</p>
-
-      <h2 id="css-properties">CSS custom properties</h2>
-      <table>
-        <thead><tr><th>Property</th><th>Default</th><th>Description</th></tr></thead>
-        <tbody>
-          ${cssProperties.map(([p, d, desc]) => html`<tr><td><code>${p}</code></td><td><code>${d}</code></td><td>${desc}</td></tr>`)}
-        </tbody>
-      </table>
-
-      <h2 id="events">Events</h2>
-      <p>None of Shoelace's. One inherited divergence: the core base class dispatches a non-bubbling, non-composed <code>ready</code> event on the element after its first update, which Shoelace does not do. It is kept and checked in the browser spec.</p>
-
-      <h2 id="methods">Methods</h2>
-      <p>None.</p>
+      ${apiReference('sl-progress-bar', {
+        attributes: html`<p><code>value</code> and <code>indeterminate</code> are reflected to attributes; <code>label</code> is not reflected.</p>`,
+        slots: html`<p>The default slot holds a label to show inside the progress indicator. It is not rendered when <code>indeterminate</code> is set.</p>`,
+        parts: html`<p><code>base</code> (the <code>div</code> with <code>role="progressbar"</code>), <code>indicator</code> and <code>label</code> (the default <code>slot</code>).</p>`,
+        events: html`<p>None of Shoelace's. One inherited divergence: the core base class dispatches a non-bubbling, non-composed <code>ready</code> event on the element after its first update, which Shoelace does not do. It is kept and checked in the browser spec.</p>`,
+      })}
 
       <h2 id="not-implemented">Not implemented or unverified</h2>
       <ul>

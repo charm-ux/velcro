@@ -1,0 +1,19 @@
+{
+  "gaps": [
+    "sl-format-date property day: type differs (shoelace \"\\\"2-digit\\\" | \\\"numeric\\\"\", velcro \"\\\"2-digit\\\" | \\\"numeric\\\" | undefined\")",
+    "sl-format-date property era: type differs (shoelace \"\\\"long\\\" | \\\"narrow\\\" | \\\"short\\\"\", velcro \"\\\"long\\\" | \\\"narrow\\\" | \\\"short\\\" | undefined\")",
+    "sl-format-date property hour: type differs (shoelace \"\\\"2-digit\\\" | \\\"numeric\\\"\", velcro \"\\\"2-digit\\\" | \\\"numeric\\\" | undefined\")",
+    "sl-format-date property minute: type differs (shoelace \"\\\"2-digit\\\" | \\\"numeric\\\"\", velcro \"\\\"2-digit\\\" | \\\"numeric\\\" | undefined\")",
+    "sl-format-date property month: type differs (shoelace \"\\\"2-digit\\\" | \\\"long\\\" | \\\"narrow\\\" | \\\"numeric\\\" | \\\"short\\\"\", velcro \"\\\"2-digit\\\" | \\\"long\\\" | \\\"narrow\\\" | \\\"numeric\\\" | \\\"short\\\" | undefined\")",
+    "sl-format-date property second: type differs (shoelace \"\\\"2-digit\\\" | \\\"numeric\\\"\", velcro \"\\\"2-digit\\\" | \\\"numeric\\\" | undefined\")",
+    "sl-format-date property timeZone: type differs (shoelace \"string\", velcro \"string | undefined\")",
+    "sl-format-date property timeZoneName: type differs (shoelace \"\\\"long\\\" | \\\"short\\\"\", velcro \"\\\"long\\\" | \\\"short\\\" | undefined\")",
+    "sl-format-date property weekday: type differs (shoelace \"\\\"long\\\" | \\\"narrow\\\" | \\\"short\\\"\", velcro \"\\\"long\\\" | \\\"narrow\\\" | \\\"short\\\" | undefined\")",
+    "sl-format-date property year: type differs (shoelace \"\\\"2-digit\\\" | \\\"numeric\\\"\", velcro \"\\\"2-digit\\\" | \\\"numeric\\\" | undefined\")",
+    "sl-format-number property maximumFractionDigits: type differs (shoelace \"number\", velcro \"number | undefined\")",
+    "sl-format-number property maximumSignificantDigits: type differs (shoelace \"number\", velcro \"number | undefined\")",
+    "sl-format-number property minimumFractionDigits: type differs (shoelace \"number\", velcro \"number | undefined\")",
+    "sl-format-number property minimumIntegerDigits: type differs (shoelace \"number\", velcro \"number | undefined\")",
+    "sl-format-number property minimumSignificantDigits: type differs (shoelace \"number\", velcro \"number | undefined\")"
+  ]
+}

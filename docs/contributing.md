@@ -21,6 +21,13 @@ under `dist/components/<name>/`; `./<name>/class` is optional) to `packages/velc
   routes all derive from it.
 - `tests/product/<name>.spec.mjs`: the browser spec. The generated skeleton fails until it is replaced with real checks.
 
+The page's API tables are not hand-written: `apiReference('sl-<name>')` (`packages/docs/src/api.ts`) renders them from
+`packages/velcro/custom-elements.json`, the Custom Elements Manifest built from the component's JSDoc (`@tag`, `@status`,
+`@slot`, `@csspart`, `@cssproperty [--name=default]`, `@event`) plus the API inherited from `@charm-ux/core`. After
+changing a component's API, run `pnpm --filter @charm-ux/velcro run analyze` and commit the manifest, then
+`node scripts/api/parity.mjs report` (and `node scripts/api/parity.mjs ledger` when a Shoelace gap was closed; the
+ledger refuses new gaps). Tests fail when the manifest, a page's tables, `docs/api-parity.md` or the ledger drift.
+
 The coverage gate (`tests/bootstrap/catalog.test.mjs`, part of `verify:source`) fails when a component directory has no catalog
 entry, an entry has no component, a docs page has no entry, an example selector matches nothing, an export is stray or has
 wrong targets, or any piece above or the package/barrel export is missing. The page is published

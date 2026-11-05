@@ -35,6 +35,7 @@ import styles from './button.styles.js';
  * @slot suffix - A presentational suffix icon or similar element.
  *
  * @csspart base - The component's base wrapper.
+ * @csspart button-control - The inner native button or link (core's part name; it also carries `base`).
  * @csspart prefix - The container that wraps the prefix.
  * @csspart label - The button's label.
  * @csspart suffix - The container that wraps the suffix.
@@ -137,7 +138,7 @@ export class VelcroButton extends CoreButton {
 
   /** Tells the browser where to open the link. Only used when `href` is present. */
   @property()
-  public override target?: '_blank' | '_parent' | '_self' | '_top';
+  public override target!: '_blank' | '_parent' | '_self' | '_top';
 
   /**
    * When using `href`, this attribute will map to the underlying link's `rel` attribute. Unlike regular links, the
@@ -157,30 +158,30 @@ export class VelcroButton extends CoreButton {
    * value of this attribute must be an id of a form in the same document or shadow root as the button.
    */
   @property()
-  public form?: string;
+  public form!: string;
 
   /** Used to override the form owner's `action` attribute. */
   @property({ attribute: 'formaction' })
-  public formAction?: string;
+  public formAction!: string;
 
   /** Used to override the form owner's `enctype` attribute. */
   @property({ attribute: 'formenctype' })
-  public formEnctype?: 'application/x-www-form-urlencoded' | 'multipart/form-data' | 'text/plain';
+  public formEnctype!: 'application/x-www-form-urlencoded' | 'multipart/form-data' | 'text/plain';
 
   /** Used to override the form owner's `method` attribute. */
   @property({ attribute: 'formmethod' })
-  public formMethod?: 'post' | 'get';
+  public formMethod!: 'post' | 'get';
 
   /** Used to override the form owner's `novalidate` attribute. */
   @property({ attribute: 'formnovalidate', type: Boolean })
-  public formNoValidate?: boolean;
+  public formNoValidate!: boolean;
 
   /** Used to override the form owner's `target` attribute. */
   @property({ attribute: 'formtarget' })
-  public formTarget?: '_self' | '_blank' | '_parent' | '_top' | string;
+  public formTarget!: '_self' | '_blank' | '_parent' | '_top' | string;
 
   /** Gets the validity state object. */
-  public get validity(): ValidityState {
+  public get validity() {
     if (this.isButton() && this.button) {
       return (this.button as HTMLButtonElement).validity;
     }
@@ -188,7 +189,7 @@ export class VelcroButton extends CoreButton {
   }
 
   /** Gets the validation message. */
-  public get validationMessage(): string {
+  public get validationMessage() {
     if (this.isButton() && this.button) {
       return (this.button as HTMLButtonElement).validationMessage;
     }
@@ -351,7 +352,7 @@ export class VelcroButton extends CoreButton {
     /* eslint-disable lit/no-invalid-html, lit/binding-positions */
     return html`
       <${tag}
-        part="base"
+        part="base button-control"
         class=${classMap({
           button: true,
           'button--default': this.variant === 'default',
