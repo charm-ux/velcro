@@ -216,7 +216,9 @@ test('pulse: animates the box-shadow with the Velcro keyframes and per-variant p
     };
   });
   expect(result).toMatchObject({ count: 1, name: 'velcro-badge-pulse', state: 'running', advanced: true, duration: '1.5s', iterations: 'infinite' });
-  expect(result.keyframes).toEqual([0, 0.7, 1]);
+  // Firefox serializes the 70% offset as a float32 (0.699999988...), so compare each offset with a tight tolerance.
+  expect(result.keyframes).toHaveLength(3);
+  [0, 0.7, 1].forEach((offset, i) => expect(result.keyframes[i]).toBeCloseTo(offset, 5));
   expect(result.pulseColor).toBe('#dc2626'); // the custom property keeps the theme token's raw value
   expect(await frame.locator('#demo-default').evaluate(el => el.shadowRoot.querySelector('[part~="base"]').getAnimations().length)).toBe(0);
 });

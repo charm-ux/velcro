@@ -74,7 +74,9 @@ const script = [
   'function ok(v){return v==="light"||v==="dark"||v==="system"}',
   // mem holds a choice whose storage write failed; it is authoritative for this page until another tab writes one.
   'function g(){if(mem)return mem;try{var v=localStorage.getItem(K);if(ok(v))return v}catch(e){}return"system"}',
-  'function a(){var p=g(),k=p==="dark"||(p==="system"&&!!m&&m.matches);',
+  // A fresh query, not the long-lived m: WebKit updates an existing MediaQueryList's matches only when it next notifies listeners.
+  'function sd(){return!!window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches}',
+  'function a(){var p=g(),k=p==="dark"||(p==="system"&&sd());',
   'd.classList.toggle("sl-theme-dark",k);d.classList.toggle("sl-theme-light",!k);d.setAttribute("data-theme-preference",p);',
   // Announces every (re)application so controls can show the authoritative preference (e.g. after another tab's change).
   'try{window.dispatchEvent(new CustomEvent("velcro-docs-theme-change",{detail:p}))}catch(e){}}',
