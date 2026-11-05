@@ -46,6 +46,7 @@
   --sl-font-size-small: 0.875rem;
   --sl-font-size-medium: 1rem;
   --sl-font-size-large: 1.25rem;
+  --sl-font-weight-normal: 400;
   --sl-font-weight-semibold: 500;
   --sl-letter-spacing-normal: normal;
 
@@ -53,10 +54,13 @@
   --sl-spacing-medium: 1rem;
   --sl-spacing-large: 1.25rem;
 
+  --sl-shadow-small: 0 1px 2px hsl(240 3.8% 46.1% / 12%);
+
   --sl-border-radius-small: 0.1875rem;
   --sl-border-radius-medium: 0.25rem;
   --sl-border-radius-circle: 50%;
   --sl-border-radius-pill: 9999px;
+  --sl-shadow-x-small: 0 1px 2px hsl(240 3.8% 46.1% / 6%);
   --sl-transition-x-fast: 150ms;
 
   --sl-input-font-family: var(--sl-font-sans);
@@ -69,6 +73,7 @@
   --sl-input-border-radius-medium: 0.25rem;
   --sl-input-border-radius-large: 0.34375rem;
 
+  --sl-panel-background-color: var(--sl-color-neutral-0);
   --sl-panel-border-color: var(--sl-color-neutral-200);
   --sl-panel-border-width: 1px;
 

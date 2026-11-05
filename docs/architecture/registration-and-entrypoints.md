@@ -27,7 +27,7 @@ published bundle or application dependency graph.
 | Core | `packages/core/src/utilities/project.ts` exports a project instance. `updateProject()` sets configuration, updates icons and updates the scope. `packages/core/src/components/button/index.ts` calls `project.scope.registerComponent(button)`. |
 | FUI | `src/project-config.ts` imports `project` from `@charm-ux/core`, calls `updateProject({ prefix: 'fui', icons: ... })`, and re-exports it. `src/components/button/index.ts` imports that module and registers the class. |
 | CUI | `src/project-config.ts` imports `project` from `@charm-ux/fui`, calls `updateProject({ prefix: 'cui', icons: ... })`, and re-exports it. `src/components/button/index.ts` imports that module and registers the class. |
-| Velcro current leaf components | Button, spinner, badge and divider entries call `defineVelcroComponent` from `packages/velcro/src/utilities/registration.ts`. It derives `sl-` names from `baseName` and defines the supplied constructor without updating core's project configuration. The earlier prototype instead changed core's prefix in each entry. |
+| Velcro current leaf components | Button, spinner, badge, card and divider entries call `defineVelcroComponent` from `packages/velcro/src/utilities/registration.ts`. It derives `sl-` names from `baseName` and defines the supplied constructor without updating core's project configuration. The earlier prototype instead changed core's prefix in each entry. |
 
 FUI and CUI therefore centralize the prefix assignment; they do not have a
 separate project merely because the configuration lives in a separate file.
@@ -115,9 +115,9 @@ Keep three contracts explicit:
 The Velcro-owned `defineVelcroComponent` helper centralizes `sl-` name construction
 from `baseName`, defines the supplied constructor, accepts an identical repeat
 registration and rejects a conflicting constructor. It does not update core's
-project configuration or scope maps. Browser regressions cover the current four
+project configuration or scope maps. Browser regressions cover the current five
 leaf components, whole-root map/prefix isolation and constructor identity.
-Button and spinner also expose class-only entries and `Sl*` aliases; badge and
+Button, card and spinner also expose class-only entries and `Sl*` aliases; badge and
 divider do not yet expose equivalent class-only subpaths. The root remains a
 registering aggregate. These checks are Chromium evidence, not a general FUI/CUI,
 SSR, packed-consumer or cross-browser guarantee.

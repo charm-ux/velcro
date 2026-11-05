@@ -1,0 +1,27 @@
+<div style="display: flex; flex-direction: column; gap: 1rem">
+  <div>
+    Bytes:
+    <sl-format-bytes id="demo-default" value="12"></sl-format-bytes>,
+    <sl-format-bytes value="1200"></sl-format-bytes>,
+    <sl-format-bytes value="1200000"></sl-format-bytes>,
+    <sl-format-bytes value="1200000000"></sl-format-bytes>
+  </div>
+  <div>
+    Bits:
+    <sl-format-bytes id="demo-bits" value="12" unit="bit"></sl-format-bytes>,
+    <sl-format-bytes value="1200" unit="bit"></sl-format-bytes>,
+    <sl-format-bytes value="1200000" unit="bit"></sl-format-bytes>,
+    <sl-format-bytes value="1200000000" unit="bit"></sl-format-bytes>
+  </div>
+  <div>
+    German:
+    <sl-format-bytes id="demo-lang" value="12" lang="de"></sl-format-bytes>,
+    <sl-format-bytes value="1200" lang="de"></sl-format-bytes>,
+    <sl-format-bytes value="1200000" lang="de"></sl-format-bytes>,
+    <sl-format-bytes value="1200000000" lang="de"></sl-format-bytes>
+  </div>
+  <div>
+    Long display:
+    <sl-format-bytes id="demo-long" value="1200000" display="long"></sl-format-bytes>
+  </div>
+</div>

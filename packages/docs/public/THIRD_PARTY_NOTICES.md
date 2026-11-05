@@ -32,11 +32,34 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   `packages/velcro/src/components/divider/divider.ts` (API documentation wording and the host `role="separator"` /
   `aria-orientation` behavior, adapted from `src/components/divider/divider.component.ts`) and
   `packages/velcro/src/components/divider/divider.styles.ts` (styles adapted from
-  `src/components/divider/divider.styles.ts`, with the core host-rule resets added). The badge and divider are built
+  `src/components/divider/divider.styles.ts`, with the core host-rule resets added),
+  `packages/velcro/src/components/progress-ring/progress-ring.ts` (API documentation wording, and the rendered
+  structure: a `div` `base` part with `role="progressbar"`, an svg track and indicator circle, and a default slot with
+  the `label` part, adapted from `src/components/progress-ring/progress-ring.component.ts`) and
+  `packages/velcro/src/components/progress-ring/progress-ring.styles.ts` (styles adapted from
+  `src/components/progress-ring/progress-ring.styles.ts`, with token fallbacks and a forced-colors rule added; no
+  tokens beyond those already in the light theme are needed). The badge and divider are built
   on the `@charm-ux/core` badge and divider; no Shoelace runtime or source files are included. Source retrieved for
-  inspection: files of the `v2.20.1` tag (`src/components/{badge,divider}/*`, `src/themes/light.css`); the added light
+  inspection: files of the `v2.20.1` tag (`src/components/{badge,divider,progress-ring}/*`, `src/themes/light.css`); the added light
   theme tokens (`--sl-color-neutral-200`, `--sl-border-radius-small`, `--sl-letter-spacing-normal`,
   `--sl-panel-border-color`, `--sl-panel-border-width`) follow that file's names and values.
+- Also used in: `packages/velcro/src/components/card/card.ts` (API documentation wording, and the rendered structure:
+  a `div` with the `base` part around `image`, `header`, `body` and `footer` slots with `card` / `card--has-*` class
+  names, adapted from `src/components/card/card.component.ts`) and `packages/velcro/src/components/card/card.styles.ts`
+  (styles adapted from `src/components/card/card.styles.ts`). The card is built on the `@charm-ux/core` card; no
+  Shoelace runtime or source files are included. The added light theme tokens (`--sl-border-radius-medium`,
+  `--sl-shadow-x-small`, `--sl-panel-background-color`) follow `src/themes/light.css` names and values.
+- Also used in: `packages/velcro/src/components/progress-bar/progress-bar.ts` (API documentation wording, and the
+  rendered structure: a `base` part with `role="progressbar"` and an `indicator` part sized by a width style around
+  the default slot with the `label` part, adapted from `src/components/progress-bar/progress-bar.component.ts`),
+  `packages/velcro/src/components/progress-bar/progress-bar.styles.ts` (styles adapted from
+  `src/components/progress-bar/progress-bar.styles.ts`, with the keyframes renamed and a host width reset added) and
+  the docs example and page `packages/docs/examples/progress-bar/basic.html` and
+  `packages/docs/pages/components/progress-bar.ts` (examples and wording adapted from
+  `docs/pages/components/progress-bar.md`). The progress bar is built on the `@charm-ux/core` progress bar; no
+  Shoelace runtime or source files are included. Source retrieved for inspection: files of the `v2.20.1` tag
+  (`src/components/progress-bar/*`, `docs/pages/components/progress-bar.md`, `src/themes/light.css`); the added light
+  theme tokens (`--sl-font-weight-normal`, `--sl-shadow-small`) follow that file's names and values.
 - Also used in: `packages/velcro/src/components/resize-observer/resize-observer.ts` (API documentation wording and
   behavior: a `ResizeObserver` over the elements assigned to the default slot, started and stopped by `disabled` and
   reporting through `sl-resize`, adapted from `src/components/resize-observer/resize-observer.component.ts`) and
@@ -51,6 +74,13 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   `src/components/visually-hidden/visually-hidden.styles.ts`, declarations unchanged), plus two example snippets in the
   docs page examples adapted from `docs/pages/components/visually-hidden.md`. The component extends the `@charm-ux/core`
   base element; no Shoelace runtime or source files are included.
+- Also used in: `packages/velcro/src/components/format-bytes/format-bytes.ts` (API documentation wording and the
+  formatting algorithm, adapted from `src/components/format-bytes/format-bytes.component.ts`),
+  `packages/velcro/src/components/format-bytes/format-bytes.styles.ts` (written for Velcro; upstream has no styles file)
+  and `packages/velcro/src/internal/localize.ts` (a small original implementation of the language and direction
+  resolution and the `number`, `date` and `relativeTime` helpers of `@shoelace-style/localize` as used by
+  `src/utilities/localize.ts`; no source of that package is included). Built on the `@charm-ux/core` base element; no
+  Shoelace runtime or source files are included.
 - Also used in: `packages/velcro/src/components/skeleton/skeleton.ts` (API documentation wording, and the rendered
   structure: a `div` with the `base` part and `skeleton` / `skeleton--*` class names around a `div` with the
   `indicator` part, adapted from `src/components/skeleton/skeleton.component.ts`),
