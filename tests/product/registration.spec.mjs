@@ -234,7 +234,7 @@ test('the whole package root changes no core state: prefix, config, scope object
     return { seeded: [before.tagEntries.length, before.baseEntries.length], problems, sameConfig: before.config === after.config,
       prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-bar', 'sl-spinner'].map(t => customElements.get(t) !== undefined) };
   });
-  expect(r.defined).toEqual([true, true, true, true]);
+  expect(r.defined).toEqual([true, true, true, true, true]);
   expect(r.seeded[0]).toBeGreaterThan(0);
   expect(r.seeded[1]).toBeGreaterThan(0);
   expect(r.problems).toEqual([]);
