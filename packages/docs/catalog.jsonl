@@ -1,0 +1,4 @@
+{"name":"badge","title":"Badge","tag":"sl-badge","example":"#demo-default"}
+{"name":"button","title":"Button","tag":"sl-button","example":"#demo-primary"}
+{"name":"divider","title":"Divider","tag":"sl-divider","example":"#demo-horizontal"}
+{"name":"spinner","title":"Spinner","tag":"sl-spinner","example":"sl-spinner"}

@@ -1,5 +1,10 @@
 import { css, html, type TemplateResult } from 'lit';
 import { withBase } from './base.js';
+import { catalog } from './catalog.generated.js';
+
+// "a", "a and b", "a, b and c"
+export const listWords = (words: readonly string[]): string =>
+  words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
 
 export const shellStyles = css`
   :host {
@@ -115,20 +120,17 @@ export const shellStyles = css`
 
 export function shell(content: TemplateResult, sidebar = true): TemplateResult {
   return html`
-    <div class="banner" role="note">Velcro is an unreleased prototype. Only the badge, button, divider and spinner are implemented; it is not a drop-in Shoelace replacement yet. Light theme only.</div>
+    <div class="banner" role="note">Velcro is an unreleased prototype. Only the ${listWords(catalog.map(c => c.name))} are implemented; it is not a drop-in Shoelace replacement yet. Light theme only.</div>
     <header>
       <a class="brand" href=${withBase('/')}>Velcro</a>
-      <nav aria-label="Primary"><a href=${withBase('/')}>Home</a><a href=${withBase('/components/badge')}>Badge</a><a href=${withBase('/components/button')}>Button</a><a href=${withBase('/components/divider')}>Divider</a><a href=${withBase('/components/spinner')}>Spinner</a></nav>
+      <nav aria-label="Primary"><a href=${withBase('/')}>Home</a>${catalog.map(c => html`<a href=${withBase(`/components/${c.name}`)}>${c.title}</a>`)}</nav>
     </header>
     <div class="layout">
       ${sidebar
         ? html`<aside aria-label="Components">
             <h2>Components</h2>
             <ul>
-              <li><a href=${withBase('/components/badge')}>Badge</a></li>
-              <li><a href=${withBase('/components/button')}>Button</a></li>
-              <li><a href=${withBase('/components/divider')}>Divider</a></li>
-              <li><a href=${withBase('/components/spinner')}>Spinner</a></li>
+              ${catalog.map(c => html`<li><a href=${withBase(`/components/${c.name}`)}>${c.title}</a></li>`)}
             </ul>
           </aside>`
         : html`<div></div>`}

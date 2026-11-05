@@ -5,6 +5,7 @@ import { expect, test } from '@playwright/test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readCatalog } from '../../scripts/site/catalog.mjs';
 import { startPreview } from '../../packages/docs/scripts/preview.mjs';
 
 const dist = fileURLToPath(new URL('../../packages/docs/dist/', import.meta.url));
@@ -12,9 +13,12 @@ const layouts = [
   { name: 'root build', dir: 'static', base: '' },
   { name: 'project-site build', dir: 'static-prefixed', base: '/velcro' },
 ];
-const components = ['badge', 'button', 'divider', 'spinner'];
+// One catalog (packages/docs/catalog.jsonl) drives the routes, the example selectors and the navigation clicks.
+const catalog = readCatalog();
+const components = catalog.map(c => c.name);
 const routes = ['/', ...components.map(c => `/components/${c}`)];
-const examples = { '/components/badge': '#demo-default', '/components/button': '#demo-primary', '/components/divider': '#demo-horizontal', '/components/spinner': 'sl-spinner' };
+const examples = Object.fromEntries(catalog.map(c => [`/components/${c.name}`, c.example]));
+const tags = catalog.map(c => c.tag).join(', ');
 
 function* files(dir) {
   for (const name of readdirSync(dir)) {
@@ -57,7 +61,7 @@ for (const { name, dir, base } of layouts) {
         if (examples[route]) {
           const frame = page.frameLocator('iframe.example');
           await expect(frame.locator(examples[route]).first()).toBeVisible();
-          await frame.locator(examples[route]).first().evaluate(() => customElements.whenDefined(document.querySelector('sl-badge, sl-button, sl-divider, sl-spinner').localName));
+          await frame.locator(examples[route]).first().evaluate((_el, selector) => customElements.whenDefined(document.querySelector(selector).localName), tags);
         }
         await page.waitForLoadState('networkidle');
 
@@ -86,8 +90,8 @@ for (const { name, dir, base } of layouts) {
 
     test('navigation links reach every route and keep the prefix', async ({ page }) => {
       await page.goto(url('/'), { waitUntil: 'networkidle' });
-      for (const [label, route] of [['Badge', '/components/badge'], ['Button', '/components/button'], ['Divider', '/components/divider'], ['Spinner', '/components/spinner'], ['Home', '/']]) {
-        await page.locator('header nav').getByRole('link', { name: label }).click();
+      for (const [label, route] of [...catalog.map(c => [c.title, `/components/${c.name}`]), ['Home', '/']]) {
+        await page.locator('header nav').getByRole('link', { name: label, exact: true }).click();
         await page.waitForLoadState('networkidle');
         await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
         expect(new URL(page.url()).pathname).toBe(`${base}${route === '/' ? '/' : route}`);

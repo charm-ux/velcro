@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { readCatalog } from '../../scripts/site/catalog.mjs';
 import { LIMITS, PrepareError, aggregateHash, prepareSite } from '../../scripts/site/prepare.mjs';
 import { writeTestedEvidence } from '../../scripts/site/tested.mjs';
 
@@ -16,6 +17,7 @@ const sha = b => createHash('sha256').update(b).digest('hex');
 const MIT = 'MIT License\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY\n';
 const readLicense = (_r, name) => (name === 'a-pkg' ? MIT : null);
 let counter = 0;
+const catalog = readCatalog(repoRoot);
 const HEAD = execFileSync('git', ['-C', repoRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 
 // Build a synthetic but structurally complete site plus its closure record.
@@ -24,10 +26,7 @@ function fixture(mutate = () => {}) {
   const src = path.join(dir, 'static');
   const files = {
     'index.html': '<!doctype html><a href="/velcro/components/button">button</a>\n',
-    'components/badge/index.html': '<p>badge</p>\n',
-    'components/button/index.html': '<p>button</p>\n',
-    'components/divider/index.html': '<p>divider</p>\n',
-    'components/spinner/index.html': '<p>spinner</p>\n',
+    ...Object.fromEntries(catalog.map(c => [`components/${c.name}/index.html`, `<p>${c.name}</p>\n`])),
     '_litro/app.js': 'export const a = 1;\n',
     '_litro/velcro.js': 'export const v = 1;\n',
     '_litro/velcro.css': 'body{margin:0}\n',
@@ -71,7 +70,7 @@ test('a complete site stages with exactly the allowlisted files, notices, 404, .
   const staged = readdirSync(path.join(f.runDir, 'site'), { recursive: true, withFileTypes: true }).filter(e => e.isFile())
     .map(e => path.relative(path.join(f.runDir, 'site'), path.join(e.parentPath, e.name)).split(path.sep).join('/')).sort();
   assert.deepEqual(staged, ['.nojekyll', '404.html', 'THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_RUNTIME_NOTICES.md', '_litro/app.js',
-    '_litro/assets/chunk-abc123.js', '_litro/velcro.css', '_litro/velcro.js', 'components/badge/index.html', 'components/button/index.html', 'components/divider/index.html', 'components/spinner/index.html', 'index.html']);
+    '_litro/assets/chunk-abc123.js', '_litro/velcro.css', '_litro/velcro.js', ...catalog.map(c => `components/${c.name}/index.html`), 'index.html'].sort());
   assert.equal(readFileSync(path.join(f.runDir, 'site/.nojekyll')).length, 0);
   assert.match(readFileSync(path.join(f.runDir, 'site/404.html'), 'utf8'), /href="\/velcro\/"/);
   assert.deepEqual(m.omitted, ['_litro/THIRD_PARTY_NOTICES.md', 'nitro.json']);

@@ -1,0 +1,32 @@
+import { LitElement, html } from 'lit';
+import { customElement } from 'lit/decorators.js';
+import { definePageData } from '@beatzball/litro';
+import { shell, shellStyles } from '../../src/shell.js';
+import { examples, exampleDocument } from '../../src/example.js';
+
+export const pageData = definePageData(async () => ({
+  seoTitle: '{{titleCase name}} - Velcro',
+  seoHead: '<meta name="description" content="Velcro {{kebabCase name}} (prototype).">',
+}));
+
+@customElement('page-components-{{kebabCase name}}')
+export class {{pascalCase name}}Page extends LitElement {
+  static override styles = [shellStyles];
+
+  override render() {
+    const source = examples['{{kebabCase name}}/basic'];
+    return shell(html`
+      <h1>{{titleCase name}}</h1>
+      <p><code>&lt;sl-{{kebabCase name}}&gt;</code> is registered by <code>@charm-ux/velcro</code>. Prototype status: unreleased.</p>
+
+      <h2 id="examples">Examples</h2>
+      <iframe class="example" title="{{titleCase name}} example" srcdoc=${exampleDocument(source)}></iframe>
+      <pre><code>${source}</code></pre>
+
+      <h2 id="not-implemented">Not implemented or unverified</h2>
+      <p>This page is a generated skeleton. Attributes, slots, parts, events and known gaps are not documented yet.</p>
+    `);
+  }
+}
+
+export default {{pascalCase name}}Page;
