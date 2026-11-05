@@ -39,7 +39,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 // Everything the package root registers.
-const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-divider', 'sl-spinner'];
+const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-ring', 'sl-spinner'];
 
 const importAll = (page, ...names) => page.evaluate(async list => {
   const out = [];
@@ -89,7 +89,8 @@ for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spi
       const out = {};
       // Badge and divider have no class-only entry or Sl* alias in this batch, so their alias check is the class itself.
       for (const [tag, Cls, Alias] of [['sl-badge', m.VelcroBadge, m.VelcroBadge], ['sl-button', m.VelcroButton, m.SlButton],
-        ['sl-divider', m.VelcroDivider, m.VelcroDivider], ['sl-spinner', m.VelcroSpinner, m.SlSpinner]]) {
+        ['sl-divider', m.VelcroDivider, m.VelcroDivider], ['sl-progress-ring', m.VelcroProgressRing, m.SlProgressRing],
+        ['sl-spinner', m.VelcroSpinner, m.SlSpinner]]) {
         const el = new Cls();
         document.body.append(el);
         await el.updateComplete;
@@ -120,7 +121,7 @@ test('repeated and mixed imports define each tag exactly once with one construct
     return {
       defines: window.__defines.slice().sort(),
       sameButton: again.VelcroButton === sub.VelcroButton && customElements.get('sl-button') === sub.VelcroButton,
-      sameOthers: ['Badge', 'Divider', 'Spinner'].every(n => customElements.get(`sl-${n.toLowerCase()}`) === again[`Velcro${n}`]),
+      sameOthers: [['Badge', 'badge'], ['Divider', 'divider'], ['ProgressRing', 'progress-ring'], ['Spinner', 'spinner']].every(([n, t]) => customElements.get(`sl-${t}`) === again[`Velcro${n}`]),
     };
   });
   expect(r.defines).toEqual(ALL_TAGS);
@@ -203,7 +204,7 @@ for (const order of ['velcro first', 'core first']) {
   });
 }
 
-// Whole-root isolation: importing the package root (all four registering entries) must not change core's prefix,
+// Whole-root isolation: importing the package root (all registering entries) must not change core's prefix,
 // project config, scope object or either scope Map, compared by identity and by entry (so same-size value changes show).
 test('the whole package root changes no core state: prefix, config, scope object and both scope maps', async ({ page }) => {
   const r = await page.evaluate(async () => {
@@ -232,9 +233,9 @@ test('the whole package root changes no core state: prefix, config, scope object
       for (const [k] of after[entriesKey]) if (!before[entriesKey].some(([k2]) => k2 === k)) problems.push(`${label} key added: ${k}`);
     }
     return { seeded: [before.tagEntries.length, before.baseEntries.length], problems, sameConfig: before.config === after.config,
-      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-divider', 'sl-spinner'].map(t => customElements.get(t) !== undefined) };
+      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-ring', 'sl-spinner'].map(t => customElements.get(t) !== undefined) };
   });
-  expect(r.defined).toEqual([true, true, true, true]);
+  expect(r.defined).toEqual([true, true, true, true, true]);
   expect(r.seeded[0]).toBeGreaterThan(0);
   expect(r.seeded[1]).toBeGreaterThan(0);
   expect(r.problems).toEqual([]);
