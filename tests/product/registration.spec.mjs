@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 
-// Scope of these checks: Velcro's own badge, button, divider, skeleton and spinner (everything the package root registers) register
+// Scope of these checks: Velcro's own badge, button, divider, skeleton, spinner and visually-hidden (everything the package root registers) register
 // by defining their exported classes natively, in Chromium, alone or next to core's own button. They do NOT show that scope-dependent or nested core components work.
 // Needs the built library: `pnpm --filter @charm-ux/velcro run build` (verify:product does this first).
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -40,7 +40,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 // Everything the package root registers.
-const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-ring', 'sl-skeleton', 'sl-spinner'];
+const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-ring', 'sl-skeleton', 'sl-spinner', 'sl-visually-hidden'];
 
 const importAll = (page, ...names) => page.evaluate(async list => {
   const out = [];
@@ -91,7 +91,8 @@ for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spi
       // Badge and divider have no class-only entry or Sl* alias in this batch, so their alias check is the class itself.
       for (const [tag, Cls, Alias] of [['sl-badge', m.VelcroBadge, m.VelcroBadge], ['sl-button', m.VelcroButton, m.SlButton],
         ['sl-divider', m.VelcroDivider, m.VelcroDivider], ['sl-progress-ring', m.VelcroProgressRing, m.SlProgressRing],
-        ['sl-skeleton', m.VelcroSkeleton, m.SlSkeleton], ['sl-spinner', m.VelcroSpinner, m.SlSpinner]]) {
+        ['sl-skeleton', m.VelcroSkeleton, m.SlSkeleton], ['sl-spinner', m.VelcroSpinner, m.SlSpinner],
+        ['sl-visually-hidden', m.VelcroVisuallyHidden, m.SlVisuallyHidden]]) {
         const el = new Cls();
         document.body.append(el);
         await el.updateComplete;
@@ -102,7 +103,7 @@ for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spi
           localName: el.localName,
           viaCreate: document.createElement(tag) instanceof Cls,
           // The divider renders nothing in its shadow root; its public surface is the host separator role.
-          rendered: tag === 'sl-divider' ? el.getAttribute('role') === 'separator' : !!el.shadowRoot?.querySelector('[part~="base"]'),
+          rendered: tag === 'sl-divider' ? el.getAttribute('role') === 'separator' : tag === 'sl-visually-hidden' ? !!el.shadowRoot?.querySelector('slot') : !!el.shadowRoot?.querySelector('[part~="base"]'),
         };
       }
       return { out, defines: window.__defines.slice() };
@@ -122,7 +123,7 @@ test('repeated and mixed imports define each tag exactly once with one construct
     return {
       defines: window.__defines.slice().sort(),
       sameButton: again.VelcroButton === sub.VelcroButton && customElements.get('sl-button') === sub.VelcroButton,
-      sameOthers: [['Badge', 'badge'], ['Divider', 'divider'], ['ProgressRing', 'progress-ring'], ['Skeleton', 'skeleton'], ['Spinner', 'spinner']].every(([n, t]) => customElements.get(`sl-${t}`) === again[`Velcro${n}`]),
+      sameOthers: [['Badge', 'badge'], ['Divider', 'divider'], ['ProgressRing', 'progress-ring'], ['Skeleton', 'skeleton'], ['Spinner', 'spinner'], ['VisuallyHidden', 'visually-hidden']].every(([n, t]) => customElements.get(`sl-${t}`) === again[`Velcro${n}`]),
     };
   });
   expect(r.defines).toEqual(ALL_TAGS);
@@ -234,9 +235,9 @@ test('the whole package root changes no core state: prefix, config, scope object
       for (const [k] of after[entriesKey]) if (!before[entriesKey].some(([k2]) => k2 === k)) problems.push(`${label} key added: ${k}`);
     }
     return { seeded: [before.tagEntries.length, before.baseEntries.length], problems, sameConfig: before.config === after.config,
-      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-ring', 'sl-skeleton', 'sl-spinner'].map(t => customElements.get(t) !== undefined) };
+      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-divider', 'sl-progress-ring', 'sl-skeleton', 'sl-spinner', 'sl-visually-hidden'].map(t => customElements.get(t) !== undefined) };
   });
-  expect(r.defined).toEqual([true, true, true, true, true, true]);
+  expect(r.defined).toEqual(Array(7).fill(true));
   expect(r.seeded[0]).toBeGreaterThan(0);
   expect(r.seeded[1]).toBeGreaterThan(0);
   expect(r.problems).toEqual([]);
