@@ -31,7 +31,7 @@ const VALUES = ['37px', 'rgb(1, 2, 3)', 'dotted', '3px solid rgb(1, 2, 3)', '2px
 
 for (const [tag, decl] of elements) {
   test(`${tag}: inherited CSS custom properties, slots and parts are listed exactly when they still apply`, async ({ page }) => {
-    test.setTimeout(120000);
+    test.setTimeout(90000);
     const parent = coreDecls.get(decl.superclass.name);
     expect(parent, `${tag} superclass in core's manifest`).toBeTruthy();
     const listed = key => (decl[key] ?? []).filter(x => x.inheritedFrom).map(x => x.name).sort();
@@ -60,23 +60,39 @@ for (const [tag, decl] of elements) {
         walk(host.shadowRoot);
         return out;
       };
-      const snapshot = () => nodes().map(el => {
-        const cs = getComputedStyle(el);
-        return [...cs].filter(p => !p.startsWith('--')).map(p => `${p}:${cs.getPropertyValue(p)}`).join(';');
-      }).join('|');
+      // Every computed value of every node, as one flat array; the property list is read once per node, not per candidate.
+      const snapshot = () => {
+        const out = [];
+        for (const el of nodes()) {
+          const cs = getComputedStyle(el);
+          for (const p of cs) if (!p.startsWith('--')) out.push(cs.getPropertyValue(p));
+        }
+        return out;
+      };
+      const differs = (a, b) => a.length !== b.length || a.some((v, i) => v !== b[i]);
       // getComputedStyle recalculates synchronously, so the current state (including a held pointer) is measured as is.
+      // Group testing: a set of candidates that changes nothing when all are set to one value is skipped as a whole, and a
+      // set that changes something is bisected until single candidates are tested alone, so a candidate is listed exactly
+      // when setting it by itself changes a computed style. (Only two candidates cancelling each other out in a group, with
+      // no effect from either alone, could hide one; the custom properties are independent inputs, so that does not occur.)
       window.probeMeasure = (candidates, values) => {
         const base = snapshot();
-        const hit = [];
-        for (const name of candidates) {
-          for (const v of values) {
-            host.style.setProperty(name, v);
-            const changed = snapshot() !== base;
-            host.style.removeProperty(name);
-            if (changed) { hit.push(name); break; }
-          }
-        }
-        return hit;
+        const hit = new Set();
+        const changes = (names, v) => {
+          for (const n of names) host.style.setProperty(n, v);
+          const changed = differs(snapshot(), base);
+          for (const n of names) host.style.removeProperty(n);
+          return changed;
+        };
+        const find = (names, v) => {
+          if (!names.length || !changes(names, v)) return;
+          if (names.length === 1) { hit.add(names[0]); return; }
+          const mid = names.length >> 1;
+          find(names.slice(0, mid), v);
+          find(names.slice(mid), v);
+        };
+        for (const v of values) find(candidates.filter(c => !hit.has(c)), v);
+        return candidates.filter(c => hit.has(c));
       };
       window.probeState = async (attr, on) => { host.toggleAttribute(attr, on); await host.updateComplete; };
     }, { tag, content: CONTENT[tag] ?? '', attrs: ATTRS[tag] ?? {} });
