@@ -1,11 +1,14 @@
-# Manual GitHub Pages deployment for the documentation site. Runs only on workflow_dispatch from main: there is no
-# automatic or pull-request trigger. Everything that can fail runs in `build` with read-only permissions and uploads
+# GitHub Pages deployment for the documentation site. Runs on every push to main (so the site always reflects main) and
+# through workflow_dispatch from main as a manual fallback: there is no pull-request or other trigger. Everything that can fail runs in `build` with read-only permissions and uploads
 # the Pages artifact only after the full verification and the site preparation check passed. Preparation stages only the exact
 # output that verify:product browser-tested (its recorded evidence); the output is never rebuilt after verification. The `deploy` job holds the
 # only write/OIDC permissions and runs nothing but the pinned deployment action. The first real deployment needs
 # explicit owner approval (see docs/deployment.md).
 name: Pages
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions: {}
@@ -16,7 +19,7 @@ concurrency:
 
 jobs:
   build:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     permissions:
@@ -65,7 +68,7 @@ jobs:
 
   deploy:
     needs: build
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
