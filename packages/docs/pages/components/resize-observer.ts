@@ -16,7 +16,7 @@ const gaps = [
   'The element has no role and exposes nothing to assistive technology; no screen reader testing was done.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported. Server-side rendering is not supported.',
   'Rendering was checked by computed-style assertions in Chromium only; there is no Firefox, WebKit or RTL check.',
-  'Only the light theme exists. The component needs no theme tokens; the example uses --sl-input-border-color, which was added to the light theme.',
+  'Both the light and dark themes exist. The component needs no theme tokens; the example uses --sl-input-border-color, which is defined by both themes.',
 ];
 
 @customElement('page-components-resize-observer')

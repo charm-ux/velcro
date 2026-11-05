@@ -30,7 +30,7 @@ const gaps = [
   'sl-invalid, validity and reportValidity() are not implemented; the core button exposes no form-validity bridge.',
   'The element also carries the core attribute "focusable" (core\'s "button" base-name attribute is not set under Velcro\'s registration), and extra core properties (toggle, pressed, expanded, shows, hides, toggles).',
   'Loading-state click behavior and exact visual parity with Shoelace have not been compared.',
-  'Only the light theme exists. Dark and the full token set are not done.',
+  'Both the light and dark themes exist; dark values are token-checked against Shoelace 2.20.1, but dark rendering of this component is not screenshot-checked. The full Shoelace light tokens also changed the light button: text is now 14px (medium), 12px (small) and 16px (large), where it was 16px, 14px and 20px, and the small and large radii are 4px (were 3px and 5.5px), matching Shoelace.',
 ];
 
 @customElement('page-components-button')

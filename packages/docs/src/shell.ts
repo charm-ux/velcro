@@ -120,7 +120,7 @@ export const shellStyles = css`
 
 export function shell(content: TemplateResult, sidebar = true): TemplateResult {
   return html`
-    <div class="banner" role="note">Velcro is an unreleased prototype. Only the ${listWords(catalog.map(c => c.name))} are implemented; it is not a drop-in Shoelace replacement yet. Light theme only.</div>
+    <div class="banner" role="note">Velcro is an unreleased prototype. Only the ${listWords(catalog.map(c => c.name))} are implemented; it is not a drop-in Shoelace replacement yet. Light and dark themes (docs pages use light).</div>
     <header>
       <a class="brand" href=${withBase('/')}>Velcro</a>
       <nav aria-label="Primary"><a href=${withBase('/')}>Home</a>${catalog.map(c => html`<a href=${withBase(`/components/${c.name}`)}>${c.title}</a>`)}</nav>

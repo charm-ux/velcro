@@ -22,7 +22,7 @@ const gaps = [
   'The core badge markup (part "badge-base", the "--badge-*" custom properties and its 20px minimum size) is replaced by the Shoelace structure. The "--badge-*" properties exist on the element through core but have no effect.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix; the sl-badge entry and the package root (which the examples load) both register this way. The root import of all four components is checked in Chromium against core\'s prefix, project configuration and scope maps, with core\'s own button loaded in either order. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported: a Velcro component that needs them fails when it is created, even when it is the only Charm library on the page. Server-side rendering is not supported. There is no class-only entry (no @charm-ux/velcro/badge/class subpath or Sl alias) for this component yet.',
   'Rendering was checked by computed-style assertions in Chromium only; there is no pixel comparison against Shoelace, and no Firefox, WebKit, RTL or localization check.',
-  'Only the light theme exists, and the theme must be loaded: the badge reads --sl-color-*, --sl-border-radius-* and --sl-font-weight-semibold. Dark and the full token set are not done.',
+  'Both the light and dark themes exist (dark values are token-checked against Shoelace 2.20.1; dark rendering of this component is not screenshot-checked), and the theme must be loaded: the badge reads --sl-color-*, --sl-border-radius-* and --sl-font-weight-semibold.',
 ];
 
 @customElement('page-components-badge')

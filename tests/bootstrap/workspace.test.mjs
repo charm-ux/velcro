@@ -58,6 +58,7 @@ const prototypeExports = {
   './resize-observer/class': exportTargets('components/resize-observer/class'),
   './skeleton/class': exportTargets('components/skeleton/class'),
   './spinner/class': exportTargets('components/spinner/class'),
+  './themes/dark.css': './themes/dark.css',
   './themes/light.css': './themes/light.css',
   './package.json': './package.json',
 };

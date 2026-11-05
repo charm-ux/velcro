@@ -15,7 +15,7 @@ const gaps = [
   'The component extends the core base element, so it also dispatches core\'s non-bubbling "ready" event on first update, which Shoelace does not. Core also keeps its "dir" property and its base styles (including a hidden-attribute rule that hides the element, with no focus exception).',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported. Server-side rendering is not supported.',
   'Rendering was checked by computed-style assertions in Chromium only; there is no pixel comparison against Shoelace, and no Firefox, WebKit, RTL or localization check.',
-  'Only the light theme exists. The component needs no theme tokens.',
+  'Both the light and dark themes exist. The component needs no theme tokens.',
 ];
 
 @customElement('page-components-visually-hidden')
