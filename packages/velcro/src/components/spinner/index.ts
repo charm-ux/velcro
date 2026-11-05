@@ -1,8 +1,7 @@
-import { project } from '@charm-ux/core/dist/utilities/project.js';
-import VelcroSpinner from './spinner.js';
+import { defineVelcroComponent } from '../../utilities/registration.js';
+import { VelcroSpinner } from './class.js';
 
-export * from './spinner.js';
+export * from './class.js';
 
-// Shoelace-compatible tag names: the core scope builds `${prefix}-${baseName}`.
-project.updateProject({ prefix: 'sl' });
-project.scope.registerComponent(VelcroSpinner);
+// Registers the exported class itself as <sl-spinner> through the native registry. Core's shared prefix and scope are not touched.
+defineVelcroComponent(VelcroSpinner);

@@ -40,7 +40,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).toContain('Not implemented or unverified');
   expect(html).toContain('localizes it through its localization controller');
   expect(html).toContain('prefers-reduced-motion');
-  expect(html).toContain('cannot share a page with other Charm');
+  expect(html).toContain('fails when it is created, even when it is the only Charm library on the page');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
   const home = await (await request.get('/')).text();

@@ -25,10 +25,10 @@ const attributes: Array<[string, string, string, string]> = [
 const gaps = [
   'download is not supported: the core button declares the property but never puts it on the link, so it has no effect. It is not covered by a test.',
   'Inherited submit/reset call form.submit()/form.reset() directly: no submit event, no validation, and no submitter name/value is sent. name and value are only set on the inner control. Treat type="submit"/"reset" as unverified.',
-  'Registration is browser-only and Velcro-only: importing @charm-ux/velcro sets the shared core prefix to "sl" for the whole page, so it cannot share a page with other Charm (ch-, fui-, cui-) components.',
+  'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. The package root, which registers all four components, is checked in Chromium against core\'s prefix, project configuration and scope maps, with core\'s own button loaded in either order. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported: a Velcro component that needs them fails when it is created, even when it is the only Charm library on the page. Server-side rendering is not supported.',
   'Form attributes (form, formaction, formenctype, formmethod, formnovalidate, formtarget) and rel are not implemented.',
   'sl-invalid, validity and reportValidity() are not implemented; the core button exposes no form-validity bridge.',
-  'The element also carries core attributes such as "button" and "focusable", and extra core properties (toggle, pressed, expanded, shows, hides, toggles).',
+  'The element also carries the core attribute "focusable" (core\'s "button" base-name attribute is not set under Velcro\'s registration), and extra core properties (toggle, pressed, expanded, shows, hides, toggles).',
   'Loading-state click behavior and exact visual parity with Shoelace have not been compared.',
   'Only the light theme exists. Dark and the full token set are not done.',
 ];

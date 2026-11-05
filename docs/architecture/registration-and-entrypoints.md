@@ -1,6 +1,7 @@
 # Registration, shared project state, and barrel entry points
 
-Status: documented design concern; not a completed registration redesign.
+Status: native registration implemented for the current four leaf components;
+scope-dependent components remain a documented design concern.
 Related: [Velcro architecture and registration gate](../specs/velcro.md#53-registration-is-an-early-gate).
 
 ## Why this note exists
@@ -26,7 +27,7 @@ published bundle or application dependency graph.
 | Core | `packages/core/src/utilities/project.ts` exports a project instance. `updateProject()` sets configuration, updates icons and updates the scope. `packages/core/src/components/button/index.ts` calls `project.scope.registerComponent(button)`. |
 | FUI | `src/project-config.ts` imports `project` from `@charm-ux/core`, calls `updateProject({ prefix: 'fui', icons: ... })`, and re-exports it. `src/components/button/index.ts` imports that module and registers the class. |
 | CUI | `src/project-config.ts` imports `project` from `@charm-ux/fui`, calls `updateProject({ prefix: 'cui', icons: ... })`, and re-exports it. `src/components/button/index.ts` imports that module and registers the class. |
-| Velcro prototype | `packages/velcro/src/components/button/index.ts` imports core's project directly, sets `prefix: 'sl'`, and registers the class. This currently repeats configuration in the component entry rather than centralizing it. |
+| Velcro current leaf components | Button, spinner, badge and divider entries call `defineVelcroComponent` from `packages/velcro/src/utilities/registration.ts`. It derives `sl-` names from `baseName` and defines the supplied constructor without updating core's project configuration. The earlier prototype instead changed core's prefix in each entry. |
 
 FUI and CUI therefore centralize the prefix assignment; they do not have a
 separate project merely because the configuration lives in a separate file.
@@ -37,8 +38,8 @@ In core's `packages/core/src/utilities/scope.ts`:
 
 - Project configuration is module-level mutable state.
 - `CharmScope` uses a singleton within that module instance.
-- Scope lookup reads the current prefix; `baseNameMap` is keyed by base name,
-  not by library namespace.
+- The scope uses the most recently applied project prefix; `baseNameMap` is keyed
+  by base name, not by library namespace.
 - The maps on `window.CharmComponents` are shared in the document, including
   across separately loaded copies that use those globals.
 - Registration defines an anonymous subclass rather than the supplied class itself.
@@ -100,7 +101,7 @@ single-design-system usage of FUI or CUI is universally broken. Local runtime
 probes covered core 0.5.2 with Velcro; real FUI/CUI mixed-package scenarios still
 need their own tests before asserting exact failures for those distributions.
 
-## Direction for Velcro — proposed, not implemented
+## Current Velcro implementation and remaining scope work
 
 Keep three contracts explicit:
 
@@ -111,12 +112,17 @@ Keep three contracts explicit:
 - **Aggregate registering entry:** a clearly documented convenience that registers
   the supported set. Do not silently change the current root's registering contract.
 
-A small Velcro-owned registration helper can centralize `sl-` name construction
-from `baseName`, preserve the supplied constructor, and check collisions without
-calling `project.updateProject()` on import. Native `customElements.define()`
-trials demonstrated the basic button identity and prefix-isolation path.
+The Velcro-owned `defineVelcroComponent` helper centralizes `sl-` name construction
+from `baseName`, defines the supplied constructor, accepts an identical repeat
+registration and rejects a conflicting constructor. It does not update core's
+project configuration or scope maps. Browser regressions cover the current four
+leaf components, whole-root map/prefix isolation and constructor identity.
+Button and spinner also expose class-only entries and `Sl*` aliases; badge and
+divider do not yet expose equivalent class-only subpaths. The root remains a
+registering aggregate. These checks are Chromium evidence, not a general FUI/CUI,
+SSR, packed-consumer or cross-browser guarantee.
 
-That trial is not a complete replacement for core's scope machinery. Core classes
+This implementation is not a complete replacement for core's scope machinery. Core classes
 with dependencies or templates using `this.scope` can fail when registered outside
 core's scope maps. Nested dependencies, icons and base-name attributes must be
 resolved explicitly before extending that approach across the catalog. Any actual

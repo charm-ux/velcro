@@ -45,8 +45,12 @@ test('workspace file lists packages', () => {
 
 const prototypeExports = {
   '.': { types: './dist/index.d.ts', import: './dist/index.js' },
+  './badge': { types: './dist/components/badge/index.d.ts', import: './dist/components/badge/index.js' },
   './button': { types: './dist/components/button/index.d.ts', import: './dist/components/button/index.js' },
+  './button/class': { types: './dist/components/button/class.d.ts', import: './dist/components/button/class.js' },
+  './divider': { types: './dist/components/divider/index.d.ts', import: './dist/components/divider/index.js' },
   './spinner': { types: './dist/components/spinner/index.d.ts', import: './dist/components/spinner/index.js' },
+  './spinner/class': { types: './dist/components/spinner/class.d.ts', import: './dist/components/spinner/class.js' },
   './themes/light.css': './themes/light.css',
   './package.json': './package.json',
 };
@@ -93,6 +97,12 @@ test('prototype exports are supported without weakening publication locks', () =
     { files: ['.airig'] }, { scripts: { publish: 'npm publish' } }]) {
     assert.throws(() => checkVelcroPackage({ ...prototype, ...unsafe }));
   }
+});
+
+test('only the registering entries have side effects; class-only entries and the helper stay pure', () => {
+  const { sideEffects } = json('packages/velcro/package.json');
+  assert.deepEqual(sideEffects, ['./dist/index.js', './dist/components/*/index.js', '*.css']);
+  assert.ok(!sideEffects.some(pattern => /class|registration|utilities/.test(pattern)));
 });
 
 test('changelog is heading-only', () => {
