@@ -72,6 +72,9 @@ test('docs page is prerendered with Velcro branding, prototype status, the ready
   expect(html).toContain('<code>ready</code>');
   expect(html).toContain('Emitted once, without bubbling, after the first render');
   expect(html).toContain('which emits no events');
+  // The host hidden and box-sizing differences from Shoelace's shared base styles are listed as gaps.
+  expect(html).toContain('The host hidden attribute hides the card');
+  expect(html).toContain('box-sizing: border-box on the host and on every element in the shadow tree');
   expect(html).toContain('no Firefox, WebKit, RTL or localization check');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
@@ -363,7 +366,7 @@ test('inherited core card properties have no effect, core slots render nothing a
   expect(result.coreRules).toBe(false);
 });
 
-test('hidden attribute hides the host', async ({ page }) => {
+test('the hidden attribute hides the host through the core base style (documented divergence from Shoelace)', async ({ page }) => {
   const { frame } = await openExample(page);
   const display = await frame.locator('body').evaluate(async () => {
     const el = document.createElement('sl-card');
@@ -376,6 +379,41 @@ test('hidden attribute hides the host', async ({ page }) => {
     return { shown, hidden };
   });
   expect(display).toEqual({ shown: 'inline-block', hidden: 'none' });
+});
+
+test('the core base reset keeps shadow elements border-box when the host sets another box-sizing (documented divergence from Shoelace)', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const result = await frame.locator('body').evaluate(async () => {
+    const style = document.createElement('style');
+    style.textContent = 'sl-card.box-test::part(body) { width: 100px; }';
+    document.head.append(style);
+    const el = document.createElement('sl-card');
+    el.className = 'box-test';
+    el.textContent = 'Body';
+    document.body.append(el);
+    await el.updateComplete;
+    const read = () => {
+      const base = el.shadowRoot.querySelector('[part~="base"]');
+      const body = el.shadowRoot.querySelector('[part~="body"]');
+      return {
+        host: getComputedStyle(el).boxSizing,
+        base: getComputedStyle(base).boxSizing,
+        body: getComputedStyle(body).boxSizing,
+        bodyPadding: getComputedStyle(body).paddingLeft,
+        bodyWidth: body.getBoundingClientRect().width,
+      };
+    };
+    const normal = read();
+    el.style.boxSizing = 'content-box';
+    const overridden = read();
+    el.remove();
+    style.remove();
+    return { normal, overridden };
+  });
+  // By default the host and everything inside it are border-box, so the explicit part width includes the 20px padding.
+  expect(result.normal).toEqual({ host: 'border-box', base: 'border-box', body: 'border-box', bodyPadding: '20px', bodyWidth: 100 });
+  // content-box set on the host does not reach the shadow elements, so the padded part keeps its 100px border box.
+  expect(result.overridden).toEqual({ host: 'content-box', base: 'border-box', body: 'border-box', bodyPadding: '20px', bodyWidth: 100 });
 });
 
 test('an sl-button inside the footer slot is assigned to the footer, and no upstream Shoelace runtime is requested', async ({ page }) => {
