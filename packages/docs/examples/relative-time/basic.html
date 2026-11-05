@@ -1,0 +1,24 @@
+<div style="display: flex; flex-direction: column; gap: 1rem">
+  <div>
+    Release date: <sl-relative-time id="demo-default" date="2020-07-15T09:17:00-04:00"></sl-relative-time>
+  </div>
+  <div id="demo-sync">
+    Synced: <sl-relative-time sync></sl-relative-time>
+  </div>
+  <div id="demo-formats">
+    <sl-relative-time date="2020-07-15T09:17:00-04:00" format="narrow"></sl-relative-time><br />
+    <sl-relative-time date="2020-07-15T09:17:00-04:00" format="short"></sl-relative-time><br />
+    <sl-relative-time date="2020-07-15T09:17:00-04:00" format="long"></sl-relative-time>
+  </div>
+  <div id="demo-lang">
+    English: <sl-relative-time date="2020-07-15T09:17:00-04:00" lang="en-US"></sl-relative-time><br />
+    Chinese: <sl-relative-time date="2020-07-15T09:17:00-04:00" lang="zh-CN"></sl-relative-time><br />
+    German: <sl-relative-time date="2020-07-15T09:17:00-04:00" lang="de"></sl-relative-time><br />
+    Greek: <sl-relative-time date="2020-07-15T09:17:00-04:00" lang="el"></sl-relative-time><br />
+    Russian: <sl-relative-time date="2020-07-15T09:17:00-04:00" lang="ru"></sl-relative-time>
+  </div>
+</div>
+
+<script>
+  document.querySelector('#demo-sync sl-relative-time').date = new Date(new Date().getTime() - 60000);
+</script>
