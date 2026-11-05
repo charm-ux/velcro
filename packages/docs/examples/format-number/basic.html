@@ -1,0 +1,25 @@
+<div style="display: flex; flex-direction: column; gap: 1rem">
+  <div>
+    Default: <sl-format-number id="demo-default" value="1000"></sl-format-number>
+  </div>
+  <div id="demo-percent">
+    Percentages:
+    <sl-format-number type="percent" value="0"></sl-format-number>,
+    <sl-format-number type="percent" value="0.25"></sl-format-number>,
+    <sl-format-number type="percent" value="0.50"></sl-format-number>,
+    <sl-format-number type="percent" value="0.75"></sl-format-number>,
+    <sl-format-number type="percent" value="1"></sl-format-number>
+  </div>
+  <div id="demo-lang">
+    English: <sl-format-number value="2000" lang="en" minimum-fraction-digits="2"></sl-format-number><br />
+    German: <sl-format-number value="2000" lang="de" minimum-fraction-digits="2"></sl-format-number><br />
+    Russian: <sl-format-number value="2000" lang="ru" minimum-fraction-digits="2"></sl-format-number>
+  </div>
+  <div id="demo-currency">
+    <sl-format-number type="currency" currency="USD" value="2000" lang="en-US"></sl-format-number><br />
+    <sl-format-number type="currency" currency="GBP" value="2000" lang="en-GB"></sl-format-number><br />
+    <sl-format-number type="currency" currency="EUR" value="2000" lang="de"></sl-format-number><br />
+    <sl-format-number type="currency" currency="RUB" value="2000" lang="ru"></sl-format-number><br />
+    <sl-format-number type="currency" currency="CNY" value="2000" lang="zh-cn"></sl-format-number>
+  </div>
+</div>
