@@ -34,8 +34,8 @@ const gaps = [
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported: a Velcro component that needs them fails when it is created, even when it is the only Charm library on the page. Server-side rendering is not supported.',
   'Rendering was checked by computed-style assertions in Chromium only; there is no pixel comparison against Shoelace, and no Firefox, WebKit or localization check.',
   'Removing the label attribute restores an empty label (and the default accessible name). This is a deliberate divergence: in Shoelace 2.20.1 only reflected properties are restored, label is not reflected, so removing it leaves label null and the next render throws. Removing the value attribute restores 0, as in Shoelace.',
-  'The label font uses --sl-font-sans, whose Velcro light-theme value is a shorter system font stack than Shoelace\'s (no BlinkMacSystemFont, Helvetica, Arial or emoji fonts); label glyphs can differ from Shoelace and no font-family assertion covers it.',
-  'Only the light theme exists, and the theme must be loaded: the progress bar reads --sl-color-*, --sl-border-radius-pill, --sl-shadow-small, --sl-font-sans and --sl-font-weight-normal. Dark and the full token set are not done.',
+  'The label font uses --sl-font-sans, which both Velcro themes now define exactly as Shoelace 2.20.1 does.',
+  'Both the light and dark themes exist (dark values are token-checked against Shoelace 2.20.1; dark rendering of this component is not screenshot-checked), and the theme must be loaded: the progress bar reads --sl-color-*, --sl-border-radius-pill, --sl-shadow-small, --sl-font-sans and --sl-font-weight-normal.',
 ];
 
 @customElement('page-components-progress-bar')

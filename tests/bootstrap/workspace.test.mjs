@@ -54,9 +54,11 @@ const prototypeExports = {
   './card/class': exportTargets('components/card/class'),
   './progress-bar/class': exportTargets('components/progress-bar/class'),
   './progress-ring/class': exportTargets('components/progress-ring/class'),
+  './relative-time/class': exportTargets('components/relative-time/class'),
   './resize-observer/class': exportTargets('components/resize-observer/class'),
   './skeleton/class': exportTargets('components/skeleton/class'),
   './spinner/class': exportTargets('components/spinner/class'),
+  './themes/dark.css': './themes/dark.css',
   './themes/light.css': './themes/light.css',
   './package.json': './package.json',
 };

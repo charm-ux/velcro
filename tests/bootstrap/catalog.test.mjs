@@ -24,6 +24,7 @@ const tgt = f => ({ types: `./dist/${f}.d.ts`, import: `./dist/${f}.js` });
 const baseExports = names => ({
   '.': tgt('index'),
   ...Object.fromEntries(names.map(x => [`./${x}`, tgt(`components/${x}/index`)])),
+  './themes/dark.css': './themes/dark.css',
   './themes/light.css': './themes/light.css',
   './package.json': './package.json',
 });

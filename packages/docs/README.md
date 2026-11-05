@@ -9,7 +9,8 @@ The layout and landing page are adapted from Litro's Starlight and Supernova rec
 - Theme: `src/theme.ts` puts the docs palette (`--velcro-docs-*`) and a synchronous script into every page's `<head>`.
   The script sets `sl-theme-dark` or `sl-theme-light` on `<html>` before first paint from the stored choice
   (`localStorage`, key `velcro-docs-theme`) or the system preference, and keeps following the system in "system" mode.
-  Without JavaScript the palette follows `prefers-color-scheme` through CSS. Example iframes mirror the page's class.
+  Without JavaScript the palette follows `prefers-color-scheme` through CSS. Example iframes mirror the page's class, and Velcro's
+  light and dark theme tokens (`themes/light.css`, `themes/dark.css`, dark under `.sl-theme-dark`) load in both.
 - Showcase: `showcase/<name>.html` holds one snippet per catalog entry; the build and `tests/bootstrap/showcase.test.mjs`
   fail when one is missing, stray or does not use the component's tag.
 - Velcro in the pages: the pages prerender Velcro elements as plain markup; `app-main.ts` loads the browser-only

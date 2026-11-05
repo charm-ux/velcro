@@ -305,7 +305,7 @@ function siteHeader(current: string): TemplateResult {
   const preference = themePreference();
   const first = catalog[0];
   return html`
-    <div class="banner" role="note">Velcro is an unreleased prototype. Only the ${listWords(catalog.map(c => c.name))} are implemented; it is not a drop-in Shoelace replacement yet. The site follows your light or dark preference; Velcro's component dark tokens are not available yet.</div>
+    <div class="banner" role="note">Velcro is an unreleased prototype. Only the ${listWords(catalog.map(c => c.name))} are implemented; it is not a drop-in Shoelace replacement yet. The site and the components follow your light or dark preference.</div>
     <header class="site">
       <a class="brand" href=${withBase('/')}>Velcro <sl-badge variant="neutral" pill>prototype</sl-badge></a>
       <nav aria-label="Primary">
