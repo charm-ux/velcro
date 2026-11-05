@@ -1,6 +1,6 @@
 # Velcro docs (private prototype)
 
-A Litro static site that documents and runs Velcro's `sl-badge`, `sl-button`, `sl-divider` and `sl-spinner`. Light theme only; one page per component.
+A Litro static site that documents and runs every Velcro component listed in `catalog.jsonl`. Light theme only; one page per component.
 
 ```sh
 pnpm install
@@ -16,6 +16,12 @@ pnpm --filter @velcro/docs run build:prefixed   # first: leaves dist/static-pref
 pnpm --filter @velcro/docs run build            # then: the root site in dist/static
 pnpm exec playwright test -c tests/product/playwright.config.mjs
 ```
+
+The product tests serve the preview on port 4321; set `VELCRO_PRODUCT_PORT` (an integer from 1024 to 65535) to use another port,
+so separate worktrees can verify in parallel.
+
+`catalog.jsonl` is the single component list (one JSON object per line, sorted by `name`: `name`, `title`, `tag` and the `example`
+selector the browser tests wait for). It drives the navigation, the home page, the required site pages and the browser routes.
 
 ## Base path (project-site hosting)
 

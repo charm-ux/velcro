@@ -2,6 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
 import { withBase } from '../src/base.js';
+import { catalog } from '../src/catalog.generated.js';
 import { shell, shellStyles } from '../src/shell.js';
 
 export const pageData = definePageData(async () => ({
@@ -18,7 +19,7 @@ export class HomePage extends LitElement {
       html`
         <h1>Velcro</h1>
         <p>Shoelace-style web components built on <code>@charm-ux/core</code> and Lit. This site is a private prototype.</p>
-        <p>Implemented so far: <a href=${withBase('/components/badge')}><code>&lt;sl-badge&gt;</code></a>, <a href=${withBase('/components/button')}><code>&lt;sl-button&gt;</code></a>, <a href=${withBase('/components/divider')}><code>&lt;sl-divider&gt;</code></a>, <a href=${withBase('/components/spinner')}><code>&lt;sl-spinner&gt;</code></a>.</p>
+        <p>Implemented so far: ${catalog.map((c, i) => html`${i > 0 ? ', ' : ''}<a href=${withBase(`/components/${c.name}`)}><code>&lt;${c.tag}&gt;</code></a>`)}.</p>
       `,
       false
     );

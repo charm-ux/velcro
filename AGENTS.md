@@ -31,6 +31,8 @@ repository (branch name with `/` replaced by `-`). Run Git with `git -C <worktre
 and verify the top-level and branch before each commit. Never use `git stash`.
 Stage explicit paths only, never `git add -A`.
 
+A component needs its Litro docs page, example, product spec and `packages/docs/catalog.jsonl` entry, enforced by `verify:source` (`docs/contributing.md`, "Adding a component").
+
 ## Security checks
 
 Run these explicitly and keep the evidence tied to the exact content/head:
