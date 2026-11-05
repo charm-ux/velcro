@@ -131,7 +131,7 @@ const landingStyles = css`
     padding: 4rem 1.5rem 1rem;
   }
   .section > h2 {
-    font-size: 1.875rem;
+    font-size: clamp(1.375rem, 7vw, 1.875rem);
     margin: 0 0 0.5rem;
   }
   .section > p {
@@ -232,7 +232,7 @@ const landingStyles = css`
     padding: 4rem 1.5rem;
   }
   .closing h2 {
-    font-size: 1.875rem;
+    font-size: clamp(1.375rem, 7vw, 1.875rem);
     margin: 0 0 1rem;
   }
   .closing .cta {

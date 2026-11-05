@@ -24,6 +24,8 @@ export const shellStyles = css`
     background: var(--velcro-docs-bg);
     min-height: 100vh;
     line-height: 1.6;
+    /* Long unbreakable words (package paths, token names) break instead of widening narrow screens; fonts differ. */
+    overflow-wrap: break-word;
   }
   * {
     box-sizing: border-box;
@@ -153,7 +155,6 @@ export const shellStyles = css`
   }
   .content {
     min-width: 0;
-    overflow-wrap: break-word;
     padding: 2rem 2.5rem 3rem;
   }
   .content > * {
