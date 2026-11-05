@@ -54,7 +54,7 @@ export class LocalizeController implements ReactiveController {
     return (this.host.lang || documentLang).toLowerCase();
   }
 
-  /** The resolved direction: the host's `dir` attribute or property, else the document's, else `ltr`. */
+  /** The resolved direction: the host's `dir` ATTRIBUTE only (not the `dir` property, which core's getter resolves through computed style), else the document's, else `ltr`. */
   public dir(): string {
     const hostDir = this.host.getAttribute('dir') || '';
     return (hostDir || document.documentElement.dir || 'ltr').toLowerCase();

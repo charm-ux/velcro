@@ -43,6 +43,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).toContain('Not implemented or unverified');
   expect(html).toContain('translation registry');
   expect(html).toContain('A negative value is not guarded');
+  expect(html).toContain('Divergence: removing');
   expect(html).toContain('<code>ready</code>');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
@@ -131,13 +132,26 @@ test('unit and prefix selection: thresholds, three significant digits, and the b
   });
 });
 
-test('non-numeric value renders nothing', async ({ page }) => {
+test('non-numeric and negative values render nothing and do not throw', async ({ page }) => {
   const { frame } = await openExample(page);
-  const out = await withElement(frame, { value: 'abc' }, `return el.shadowRoot.textContent;`);
-  expect(out).toBe('');
+  const out = await withElement(frame, { value: 'abc' }, `
+    const errors = [];
+    const onError = e => errors.push(e.message);
+    window.addEventListener('error', onError);
+    const empty = el.shadowRoot.textContent;
+    const results = {};
+    for (const value of [-1, -1500, -0.5]) {
+      el.value = value;
+      await el.updateComplete;
+      results[value] = el.shadowRoot.textContent;
+    }
+    window.removeEventListener('error', onError);
+    return { empty, results, errors };
+  `);
+  expect(out).toEqual({ empty: '', results: { '-1': '', '-1500': '', '-0.5': '' }, errors: [] });
 });
 
-test('attribute changes update the output; removing an attribute restores the initial value', async ({ page }) => {
+test('attribute changes update the output; removing an attribute restores the default (a documented divergence from Shoelace, which restores only reflected properties)', async ({ page }) => {
   const { frame } = await openExample(page);
   const out = await withElement(frame, { value: '1200', unit: 'bit', display: 'long' }, `
     const text = async () => { await el.updateComplete; return el.shadowRoot.textContent; };
@@ -170,8 +184,12 @@ test('localization: lang attribute and property, document lang and dir changes r
     el.removeAttribute('lang'); await new Promise(r => setTimeout(r, 50));
     steps.removed = await text();
     root.lang = 'en';
+    let updates = 0;
+    const original = el.requestUpdate.bind(el);
+    el.requestUpdate = (...args) => { updates++; return original(...args); };
     root.dir = 'rtl'; await new Promise(r => setTimeout(r, 50));
-    steps.dirChange = el.shadowRoot.textContent;
+    steps.dirChange = [el.shadowRoot.textContent, updates > 0];
+    steps.dirResolved = [el.localize.dir(), (el.setAttribute('dir', 'LTR'), el.localize.dir())];
     root.removeAttribute('dir');
     return steps;
   `);
@@ -180,7 +198,8 @@ test('localization: lang attribute and property, document lang and dir changes r
   expect(out.hostFr.replace(/\s/g, ' ')).toBe('1,2 ko'); // French uses "octet"
   expect(out.hostProperty[0]).toBe('1.2 kB');
   expect(out.removed).toBe('1,2 kB');
-  expect(out.dirChange).toBe('1.2 kB');
+  expect(out.dirChange).toEqual(['1.2 kB', true]);
+  expect(out.dirResolved).toEqual(['rtl', 'ltr']);
 });
 
 test('document observer follows connection: a disconnected element is not re-rendered, a reconnected one is', async ({ page }) => {

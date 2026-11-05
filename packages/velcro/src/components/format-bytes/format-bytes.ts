@@ -33,7 +33,8 @@ export class VelcroFormatBytes extends CharmElement {
   @property()
   public display: 'long' | 'short' | 'narrow' = 'short';
 
-  // Like Shoelace's base element, a removed attribute (the property becomes null) restores the initial value.
+  // Documented divergence: Shoelace's base element only restores the initial value of REFLECTED properties, and these three
+  // are not reflected there. Here a removed attribute (the property becomes null) restores the default instead of leaving null.
   protected override willUpdate(changed: Map<PropertyKey, unknown>): void {
     super.willUpdate(changed);
     if (changed.has('value') && this.value == null) this.value = 0;
