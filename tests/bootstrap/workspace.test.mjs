@@ -49,6 +49,8 @@ const prototypeExports = {
   './button': { types: './dist/components/button/index.d.ts', import: './dist/components/button/index.js' },
   './button/class': { types: './dist/components/button/class.d.ts', import: './dist/components/button/class.js' },
   './divider': { types: './dist/components/divider/index.d.ts', import: './dist/components/divider/index.js' },
+  './skeleton': { types: './dist/components/skeleton/index.d.ts', import: './dist/components/skeleton/index.js' },
+  './skeleton/class': { types: './dist/components/skeleton/class.d.ts', import: './dist/components/skeleton/class.js' },
   './spinner': { types: './dist/components/spinner/index.d.ts', import: './dist/components/spinner/index.js' },
   './spinner/class': { types: './dist/components/spinner/class.d.ts', import: './dist/components/spinner/class.js' },
   './themes/light.css': './themes/light.css',
