@@ -3,28 +3,13 @@ import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
 import { docsShell, shellStyles } from '../../src/shell.js';
 import { themeHead } from '../../src/theme.js';
+import { apiReference } from '../../src/api.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Format Date - Velcro',
   seoHead: themeHead + '<meta name="description" content="Velcro format date (prototype).">',
 }));
-
-const attributes: Array<[string, string, string, string]> = [
-  ['date', 'Date | string', 'the current date and time (when the element is created)', 'The date/time to format. A string should be ISO 8601 so time zones are handled correctly; avoid ambiguous strings such as 03/04/2020. An invalid date renders nothing.'],
-  ['weekday', 'narrow | short | long', '(none)', 'The format for displaying the weekday.'],
-  ['era', 'narrow | short | long', '(none)', 'The format for displaying the era.'],
-  ['year', 'numeric | 2-digit', '(none)', 'The format for displaying the year.'],
-  ['month', 'numeric | 2-digit | narrow | short | long', '(none)', 'The format for displaying the month.'],
-  ['day', 'numeric | 2-digit', '(none)', 'The format for displaying the day.'],
-  ['hour', 'numeric | 2-digit', '(none)', 'The format for displaying the hour.'],
-  ['minute', 'numeric | 2-digit', '(none)', 'The format for displaying the minute.'],
-  ['second', 'numeric | 2-digit', '(none)', 'The format for displaying the second.'],
-  ['time-zone-name (timeZoneName)', 'short | long', '(none)', 'The format for displaying the time zone name.'],
-  ['time-zone (timeZone)', 'string', '(none)', 'The time zone to express the time in.'],
-  ['hour-format (hourFormat)', 'auto | 12 | 24', 'auto', 'Forces 12-hour or 24-hour time; auto leaves the choice to the locale.'],
-  ['lang', 'string', '(none)', 'The formatting locale. Falls back to the lang of the document element, then the browser language.'],
-];
 
 const gaps = [
   'There is no core format-date: the component extends the core CharmElement base and renders a time element in its shadow root. The text is produced by Intl.DateTimeFormat through a minimal localization controller (packages/velcro/src/internal/localize.ts).',
@@ -53,26 +38,11 @@ export class FormatDatePage extends LitElement {
       <iframe class="example" title="Format Date example" srcdoc=${exampleDocument(source)}></iframe>
       <pre><code>${source}</code></pre>
 
-      <h2 id="attributes">Attributes and properties</h2>
-      <table>
-        <thead><tr><th>Name</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
-        <tbody>
-          ${attributes.map(([n, t, d, desc]) => html`<tr><td><code>${n}</code></td><td>${t}</td><td><code>${d}</code></td><td>${desc}</td></tr>`)}
-        </tbody>
-      </table>
-      <p>As in Shoelace, none of these are reflected to attributes. The attribute names are the property names, except the kebab-case ones shown in the table.</p>
-
-      <h2 id="slots">Slots</h2>
-      <p>None.</p>
-
-      <h2 id="parts">CSS parts</h2>
-      <p>None. The shadow root contains a <code>time</code> element whose <code>datetime</code> attribute is the ISO 8601 date; it has no ARIA role.</p>
-
-      <h2 id="css-properties">CSS custom properties</h2>
-      <p>None.</p>
-
-      <h2 id="events">Events</h2>
-      <p>Only the inherited <code>ready</code> event (see below); Shoelace 2.20.1 has none.</p>
+      ${apiReference('sl-format-date', {
+        attributes: html`<p>As in Shoelace, none of these are reflected to attributes. The attribute names are the property names, except the kebab-case ones shown in the table.</p>`,
+        parts: html`<p>The shadow root contains a <code>time</code> element whose <code>datetime</code> attribute is the ISO 8601 date; it has no ARIA role.</p>`,
+        events: html`<p>Only the inherited <code>ready</code> event (see below); Shoelace 2.20.1 has none.</p>`,
+      })}
 
       <h2 id="not-implemented">Not implemented or unverified</h2>
       <ul>

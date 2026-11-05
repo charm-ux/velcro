@@ -18,9 +18,9 @@ import styles from './skeleton.styles.js';
  * @csspart base - The component's base wrapper.
  * @csspart indicator - The skeleton's indicator which is responsible for its color and animation.
  *
- * @cssproperty --border-radius - The skeleton's border radius.
- * @cssproperty --color - The color of the skeleton.
- * @cssproperty --sheen-color - The sheen color when the skeleton is in its loading state.
+ * @cssproperty [--border-radius=var(--sl-border-radius-pill)] - The skeleton's border radius.
+ * @cssproperty [--color=var(--sl-color-neutral-200)] - The color of the skeleton.
+ * @cssproperty [--sheen-color=var(--sl-color-neutral-300)] - The sheen color when the skeleton is in its loading state.
  */
 export class VelcroSkeleton extends CoreSkeleton {
   // Core's own skeleton styles (a bordered, hidden-overflow host and `.skeleton` rules that would collide with the

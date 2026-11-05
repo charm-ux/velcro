@@ -20,6 +20,7 @@ import styles from './button.styles.js';
  * @slot suffix - A presentational suffix icon or similar element.
  *
  * @csspart base - The component's base wrapper.
+ * @csspart button-control - The inner native button or link (core's part name; it also carries `base`).
  * @csspart prefix - The container that wraps the prefix.
  * @csspart label - The button's label.
  * @csspart suffix - The container that wraps the suffix.

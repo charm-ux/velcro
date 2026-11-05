@@ -22,10 +22,10 @@ import styles from './progress-bar.styles.js';
  * @csspart indicator - The progress bar's indicator.
  * @csspart label - The progress bar's label.
  *
- * @cssproperty --height - The progress bar's height.
- * @cssproperty --track-color - The color of the track.
- * @cssproperty --indicator-color - The color of the indicator.
- * @cssproperty --label-color - The color of the label.
+ * @cssproperty [--height=1rem] - The progress bar's height.
+ * @cssproperty [--track-color=var(--sl-color-neutral-200)] - The color of the track.
+ * @cssproperty [--indicator-color=var(--sl-color-primary-600)] - The color of the indicator.
+ * @cssproperty [--label-color=var(--sl-color-neutral-0)] - The color of the label.
  */
 export class VelcroProgressBar extends CoreProgressBar {
   public static override styles = [...super.styles, styles];
