@@ -3,18 +3,13 @@ import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
 import { docsShell, shellStyles } from '../../src/shell.js';
 import { themeHead } from '../../src/theme.js';
+import { apiReference } from '../../src/api.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Divider - Velcro',
   seoHead: themeHead + '<meta name="description" content="Velcro divider (prototype).">',
 }));
-
-const cssProperties: Array<[string, string, string]> = [
-  ['--color', 'var(--sl-panel-border-color)', 'The color of the divider.'],
-  ['--width', 'var(--sl-panel-border-width)', 'The width of the divider.'],
-  ['--spacing', 'var(--sl-spacing-medium)', 'The spacing of the divider.'],
-];
 
 const gaps = [
   'The element itself is the line: role="separator" is set on the host when it connects (replacing any role you set), and aria-orientation follows vertical. Screen reader behavior was not tested.',
@@ -40,30 +35,9 @@ export class DividerPage extends LitElement {
       <iframe class="example" title="Divider example" srcdoc=${exampleDocument(source)}></iframe>
       <pre><code>${source}</code></pre>
 
-      <h2 id="attributes">Attributes and properties</h2>
-      <table>
-        <thead><tr><th>Name</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
-        <tbody>
-          <tr><td><code>vertical</code></td><td>boolean</td><td><code>false</code></td><td>Draws the divider in a vertical orientation. Reflected; updates <code>aria-orientation</code> when changed.</td></tr>
-        </tbody>
-      </table>
-
-      <h2 id="slots">Slots</h2>
-      <p>None.</p>
-
-      <h2 id="parts">CSS parts</h2>
-      <p>None.</p>
-
-      <h2 id="css-properties">CSS custom properties</h2>
-      <table>
-        <thead><tr><th>Property</th><th>Default</th><th>Description</th></tr></thead>
-        <tbody>
-          ${cssProperties.map(([p, d, desc]) => html`<tr><td><code>${p}</code></td><td><code>${d}</code></td><td>${desc}</td></tr>`)}
-        </tbody>
-      </table>
-
-      <h2 id="events">Events</h2>
-      <p>None.</p>
+      ${apiReference('sl-divider', {
+        events: html`<p>None from Shoelace; only the inherited core <code>ready</code> event.</p>`,
+      })}
 
       <h2 id="not-implemented">Not implemented or unverified</h2>
       <ul>

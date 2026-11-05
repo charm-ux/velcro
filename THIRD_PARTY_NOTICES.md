@@ -16,6 +16,11 @@ shipped with it. This file alone never certifies an artifact: where a built arti
 ## Shoelace v2.20.1 (MIT)
 
 - Source: the `@shoelace-style/shoelace` 2.20.1 release (https://github.com/shoelace-style/shoelace).
+- Also used in: `docs/api/shoelace-2.20.1.custom-elements.json`, a subset of the Custom Elements Manifest that Shoelace's
+  own analyzer configuration (`custom-elements-manifest.config.js`, without its IDE-integration output plugins) generates
+  from the `v2.20.1` tag, commit `fb59fda70ed737c92611051b49bc7e3a5fed5dc5`: API names, types, defaults and descriptions
+  of the components Velcro implements, read by the API parity check (`scripts/api/parity.mjs`) and summarized in
+  `docs/api-parity.md`. No Shoelace runtime or source files are included.
 - Used in: `packages/velcro/src/components/button/button.ts` (API documentation wording: class, property, event,
   slot and part descriptions adapted from `src/components/button/button.component.ts`),
   `packages/velcro/src/components/spinner/spinner.ts` (API documentation wording, and the rendered structure: an svg

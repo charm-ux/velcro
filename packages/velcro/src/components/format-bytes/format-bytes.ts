@@ -12,8 +12,6 @@ import styles from './format-bytes.styles.js';
  *
  * @tag sl-format-bytes
  * @status prototype
- *
- * @event ready - Inherited from the core base: emitted (non-bubbling, non-composed) after the first update. Shoelace has no such event.
  */
 export class VelcroFormatBytes extends CharmElement {
   public static override baseName = 'format-bytes';

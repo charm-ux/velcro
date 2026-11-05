@@ -11,8 +11,6 @@ import styles from './format-number.styles.js';
  *
  * @tag sl-format-number
  * @status prototype
- *
- * @event ready - Inherited from the core base: emitted (non-bubbling, non-composed) after the first update. Shoelace has no such event.
  */
 export class VelcroFormatNumber extends CharmElement {
   public static override baseName = 'format-number';

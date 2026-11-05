@@ -13,8 +13,6 @@ import styles from './format-date.styles.js';
  *
  * @tag sl-format-date
  * @status prototype
- *
- * @event ready - Inherited from the core base: emitted (non-bubbling, non-composed) after the first update. Shoelace has no such event.
  */
 export class VelcroFormatDate extends CharmElement {
   public static override baseName = 'format-date';

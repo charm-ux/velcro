@@ -13,9 +13,9 @@ import styles from './divider.styles.js';
  * @tag sl-divider
  * @status prototype
  *
- * @cssproperty --color - The color of the divider.
- * @cssproperty --width - The width of the divider.
- * @cssproperty --spacing - The spacing of the divider.
+ * @cssproperty [--color=var(--sl-panel-border-color)] - The color of the divider.
+ * @cssproperty [--width=var(--sl-panel-border-width)] - The width of the divider.
+ * @cssproperty [--spacing=var(--sl-spacing-medium)] - The spacing of the divider.
  */
 export class VelcroDivider extends CoreDivider {
   public static override styles = [...super.styles, styles];
