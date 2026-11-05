@@ -19,7 +19,8 @@ const expected = model => ({
 
 for (const { name, tag } of readCatalog()) {
   test(`${tag}: the API tables on /components/${name} match the Custom Elements Manifest`, async ({ page }) => {
-    await page.goto(`/components/${name}`);
+    // Litro's client router remounts the page component once after load; let it settle, and retry reads below.
+    await page.goto(`/components/${name}`, { waitUntil: 'networkidle' });
     const want = expected(apiModel(elements.get(tag)));
     for (const [section, rows] of Object.entries(want)) {
       const heading = page.locator(`h2#${section}`);
@@ -30,15 +31,16 @@ for (const { name, tag } of readCatalog()) {
         await expect(page.locator(`h2#${section} + p`)).toHaveText('None.');
         continue;
       }
-      const got = await table.locator('tbody tr').evaluateAll(trs =>
-        trs.map(tr => [...tr.querySelectorAll('td')].map(td => td.textContent.replace(/\s+/g, ' ').trim())));
-      expect(got, `${tag} ${section}`).toEqual(rows.map(r => r.map(c => String(c).replace(/\s+/g, ' ').trim())));
+      await expect(table).toHaveCount(1);
+      await expect.poll(() => table.locator('tbody tr').evaluateAll(trs =>
+        trs.map(tr => [...tr.querySelectorAll('td')].map(td => td.textContent.replace(/\s+/g, ' ').trim()))), { message: `${tag} ${section}` })
+        .toEqual(rows.map(r => r.map(c => String(c).replace(/\s+/g, ' ').trim())));
     }
   });
 }
 
 test('inherited members name their core origin on the page', async ({ page }) => {
-  await page.goto('/components/button');
+  await page.goto('/components/button', { waitUntil: 'networkidle' });
   const disabled = page.locator('table[data-api="attributes"] tr[data-name="disabled"] td').last();
   await expect(disabled).toHaveText('Inherited from @charm-ux/core CoreButton');
   const variant = page.locator('table[data-api="attributes"] tr[data-name="variant"] td').last();
