@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 import { startPreview } from '../../packages/docs/scripts/preview.mjs';
+import { collectRequestFailures } from './request-failures.mjs';
 
 const dist = fileURLToPath(new URL('../../packages/docs/dist/', import.meta.url));
 const layouts = [
@@ -43,13 +44,9 @@ for (const { name, dir, base } of layouts) {
     for (const route of routes) {
       test(`${route}: renders on the client route and loads only prefixed assets`, async ({ page }) => {
         const seen = [];
-        const failures = [];
+        const failures = collectRequestFailures(page);
         const errors = [];
         page.on('request', request => seen.push(new URL(request.url())));
-        page.on('response', response => {
-          if (response.status() >= 400) failures.push(`${response.status()} ${new URL(response.url()).pathname}`);
-        });
-        page.on('requestfailed', request => failures.push(`failed ${new URL(request.url()).pathname}`));
         page.on('pageerror', error => errors.push(error.message));
         page.on('console', message => message.type() === 'error' && errors.push(message.text()));
 
@@ -69,7 +66,7 @@ for (const { name, dir, base } of layouts) {
         expect(own.length).toBeGreaterThan(2);
         expect(own.filter(u => !u.pathname.startsWith(`${base}/`)).map(u => u.pathname)).toEqual([]);
         expect(own.some(u => u.pathname === `${base}/_litro/app.js`)).toBe(true);
-        expect(failures).toEqual([]);
+        expect(failures()).toEqual([]);
         expect(errors).toEqual([]);
         // The page the client router rendered (it swaps in a client-rendered element; it does not hydrate the prerendered
         // one) carries the same prefixed links as the prerendered HTML.
@@ -109,6 +106,20 @@ for (const { name, dir, base } of layouts) {
       const html = readFileSync(join(root, 'components/button/index.html'), 'utf8');
       expect(html).toContain(`${base}/_litro/velcro.js`);
       expect(html).toContain(`${base}/_litro/velcro.css`);
+    });
+
+    test('negative control: genuine failed requests are still reported', async ({ page }) => {
+      const failures = collectRequestFailures(page);
+      await page.route('**/_litro/refused.js', route => route.abort('connectionrefused'));
+      await page.route('**/_litro/app.js', route => route.abort('aborted'));
+      await page.route('**/_litro/missing.js', route => route.fulfill({ status: 500, body: '' }));
+      await page.goto(url('/'), { waitUntil: 'load' }).catch(() => {});
+      await page.evaluate(path => fetch(path), `${base}/_litro/missing.js`);
+      await page.evaluate(path => fetch(path).catch(() => {}), `${base}/_litro/refused.js`);
+      const reported = failures();
+      expect(reported).toContain(`500 ${base}/_litro/missing.js`);
+      expect(reported).toContain(`failed ${base}/_litro/refused.js`);
+      expect(reported).toContain(`failed ${base}/_litro/app.js`);
     });
 
     test('paths outside the prefix are not served', async ({ request }) => {

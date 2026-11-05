@@ -2,7 +2,7 @@
   "name": "@charm-ux/velcro",
   "version": "0.1.0",
   "private": true,
-  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, card, divider, format-bytes, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner and visually-hidden only).",
+  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, card, divider, format-bytes, format-date, format-number, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner and visually-hidden only).",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
@@ -43,6 +43,22 @@
     "./format-bytes/class": {
       "types": "./dist/components/format-bytes/class.d.ts",
       "import": "./dist/components/format-bytes/class.js"
+    },
+    "./format-date": {
+      "types": "./dist/components/format-date/index.d.ts",
+      "import": "./dist/components/format-date/index.js"
+    },
+    "./format-date/class": {
+      "types": "./dist/components/format-date/class.d.ts",
+      "import": "./dist/components/format-date/class.js"
+    },
+    "./format-number": {
+      "types": "./dist/components/format-number/index.d.ts",
+      "import": "./dist/components/format-number/index.js"
+    },
+    "./format-number/class": {
+      "types": "./dist/components/format-number/class.d.ts",
+      "import": "./dist/components/format-number/class.js"
     },
     "./progress-bar": {
       "types": "./dist/components/progress-bar/index.d.ts",
