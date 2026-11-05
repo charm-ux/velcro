@@ -90,12 +90,12 @@ test('structure and accessibility: text only in the shadow root, no parts, slots
 test('defaults, and properties are not reflected to attributes', async ({ page }) => {
   const { frame } = await openExample(page);
   const result = await withElement(frame, {}, `
-    const defaults = { value: el.value, unit: el.unit, display: el.display, text: el.shadowRoot.textContent };
+    const defaults = { value: el.value, unit: el.unit, display: el.display, lang: el.lang, text: el.shadowRoot.textContent };
     el.value = 1500; el.unit = 'bit'; el.display = 'long';
     await el.updateComplete;
     return { defaults, attrs: el.getAttributeNames().filter(n => ['value', 'unit', 'display'].includes(n)), text: el.shadowRoot.textContent };
   `);
-  expect(result.defaults).toEqual({ value: 0, unit: 'byte', display: 'short', text: '0 byte' });
+  expect(result.defaults).toEqual({ value: 0, unit: 'byte', display: 'short', lang: undefined, text: '0 byte' }); // lang starts undefined, as in Shoelace
   expect(result.attrs).toEqual([]);
   expect(result.text).toBe('1.5 kilobits');
 });
@@ -184,6 +184,7 @@ test('localization: lang attribute and property, document lang and dir changes r
     el.lang = 'en'; steps.hostProperty = [await text(), el.getAttribute('lang')];
     el.removeAttribute('lang'); await new Promise(r => setTimeout(r, 50));
     steps.removed = await text();
+    steps.removedLang = el.lang;
     root.lang = 'en';
     let updates = 0;
     const original = el.requestUpdate.bind(el);
@@ -199,6 +200,7 @@ test('localization: lang attribute and property, document lang and dir changes r
   expect(out.hostFr.replace(/\s/g, ' ')).toBe('1,2 ko'); // French uses "octet"
   expect(out.hostProperty[0]).toBe('1.2 kB');
   expect(out.removed).toBe('1,2 kB');
+  expect(out.removedLang).toBeNull(); // a removed attribute leaves null, as in Shoelace
   expect(out.dirChange).toEqual(['1.2 kB', true]);
   expect(out.dirResolved).toEqual(['rtl', 'ltr']);
 });

@@ -42,9 +42,9 @@ export class VelcroFormatBytes extends CharmElement {
     if (changed.has('display') && this.display == null) this.display = 'short';
   }
 
-  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the number.
+  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the number. Like Shoelace it has no initial value (undefined).
   @property()
-  public override lang = '';
+  public override lang!: string;
 
   protected override render() {
     if (isNaN(this.value)) return '';

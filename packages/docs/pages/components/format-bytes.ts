@@ -14,7 +14,7 @@ const attributes: Array<[string, string, string, string]> = [
   ['value', 'number', '0', 'The number to format in bytes.'],
   ['unit', 'byte | bit', 'byte', 'The type of unit to display.'],
   ['display', 'long | short | narrow', 'short', 'Determines how to display the result, e.g. "100 bytes", "100 b", or "100b".'],
-  ['lang', 'string', '(none)', 'The number formatting locale. Falls back to the lang of the document element, then the browser language.'],
+  ['lang', 'string', '(none)', 'The number formatting locale. Falls back to the lang of the document element, then the browser language. Undefined by default, as in Shoelace.'],
 ];
 
 const gaps = [

@@ -288,23 +288,5 @@
       "title": "<sl-button> > Form validity base test for sl-button (href=\"xyz\") > Should find the correct form when given a form attribute",
       "reason": "Velcro button has no getForm()"
     }
-  ],
-  "format-bytes": [
-    {
-      "title": "<sl-format-bytes> > defaults  > default properties",
-      "reason": "lang defaults to an empty string instead of undefined"
-    }
-  ],
-  "format-date": [
-    {
-      "title": "<sl-format-date> > defaults  > default properties",
-      "reason": "lang defaults to an empty string instead of undefined"
-    }
-  ],
-  "spinner": [
-    {
-      "title": "<sl-spinner> > when provided no parameters > should use \"transform: rotate(x)\" instead of \"rotate: x\" when animating",
-      "reason": "shadow DOM uses different class names (no .spinner__indicator)"
-    }
   ]
 }

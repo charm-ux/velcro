@@ -73,9 +73,9 @@ export class VelcroFormatDate extends CharmElement {
   @property({ attribute: 'hour-format' })
   public hourFormat: 'auto' | '12' | '24' = 'auto';
 
-  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the date.
+  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the date. Like Shoelace it has no initial value (undefined).
   @property()
-  public override lang = '';
+  public override lang!: string;
 
   // Documented divergence: Shoelace's base element only restores the initial value of REFLECTED properties, and none of these
   // are reflected there. Here a removed `hour-format` attribute restores 'auto' (upstream it becomes null, which renders

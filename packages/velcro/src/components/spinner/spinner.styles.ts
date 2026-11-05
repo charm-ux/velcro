@@ -1,6 +1,6 @@
 // Adapted from Shoelace v2.20.1 (src/components/spinner/spinner.styles.ts), Copyright (c) 2020 A Beautiful Site, LLC,
-// MIT License. See THIRD_PARTY_NOTICES.md. Changes: class names, a fallback for the primary token, a Velcro
-// keyframes name (so it cannot collide with core's spinner keyframes) and a forced-colors rule.
+// MIT License. See THIRD_PARTY_NOTICES.md. Changes: a fallback for the primary token and a forced-colors rule.
+// Class names and the `spin` keyframes name are Shoelace's.
 import { css } from 'lit';
 
 // Resizing a spinner element using anything but font-size will break the animation because the animation uses em
@@ -18,14 +18,14 @@ export default css`
     flex: none;
   }
 
-  .ring {
+  .spinner {
     flex: 1 1 auto;
     height: 100%;
     width: 100%;
   }
 
-  .track,
-  .indicator {
+  .spinner__track,
+  .spinner__indicator {
     fill: none;
     stroke-width: var(--track-width);
     r: calc(0.5em - var(--track-width) / 2);
@@ -34,19 +34,19 @@ export default css`
     transform-origin: 50% 50%;
   }
 
-  .track {
+  .spinner__track {
     stroke: var(--track-color);
     transform-origin: 0% 0%;
   }
 
-  .indicator {
+  .spinner__indicator {
     stroke: var(--indicator-color);
     stroke-linecap: round;
     stroke-dasharray: 150% 75%;
-    animation: velcro-spinner-spin var(--speed) linear infinite;
+    animation: spin var(--speed) linear infinite;
   }
 
-  @keyframes velcro-spinner-spin {
+  @keyframes spin {
     0% {
       transform: rotate(0deg);
       stroke-dasharray: 0.05em, 3em;
@@ -64,11 +64,11 @@ export default css`
   }
 
   @media screen and (forced-colors: active) {
-    .track {
+    .spinner__track {
       stroke: GrayText;
     }
 
-    .indicator {
+    .spinner__indicator {
       stroke: Highlight;
     }
   }
