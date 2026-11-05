@@ -1,0 +1,5 @@
+---
+'@charm-ux/velcro': minor
+---
+
+Add a prototype `VelcroFormatBytes`, registered as `sl-format-bytes` on the `@charm-ux/core` base element (there is no core format-bytes): `value`, `unit` (`byte`, `bit`) and `display` (`long`, `short`, `narrow`) properties that format a byte count with `Intl.NumberFormat`, and `lang` for the formatting locale. Like Shoelace it has no slots, parts, custom properties or ARIA role, does not reflect its properties and restores defaults when `value`, `unit` or `display` is removed; unlike Shoelace it inherits the core `ready` event. Adds a minimal reusable localization controller (`src/internal/localize.ts`: lang and dir resolution from the element and document element, re-render when the document `lang` or `dir` changes, and `number`, `date` and `relativeTime` helpers) that has no translation registry. Not implemented or unverified: translations, negative values (not guarded, as in Shoelace), the Shoelace overview example (needs `sl-input`), binary units, other browsers and RTL. Adds the `@charm-ux/velcro/format-bytes` and `@charm-ux/velcro/format-bytes/class` exports and updates the third-party notices.

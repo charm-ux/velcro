@@ -37,6 +37,13 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   inspection: files of the `v2.20.1` tag (`src/components/{badge,divider}/*`, `src/themes/light.css`); the added light
   theme tokens (`--sl-color-neutral-200`, `--sl-border-radius-small`, `--sl-letter-spacing-normal`,
   `--sl-panel-border-color`, `--sl-panel-border-width`) follow that file's names and values.
+- Also used in: `packages/velcro/src/components/format-bytes/format-bytes.ts` (API documentation wording and the
+  formatting algorithm, adapted from `src/components/format-bytes/format-bytes.component.ts`),
+  `packages/velcro/src/components/format-bytes/format-bytes.styles.ts` (written for Velcro; upstream has no styles file)
+  and `packages/velcro/src/internal/localize.ts` (a small original implementation of the language and direction
+  resolution and the `number`, `date` and `relativeTime` helpers of `@shoelace-style/localize` as used by
+  `src/utilities/localize.ts`; no source of that package is included). Built on the `@charm-ux/core` base element; no
+  Shoelace runtime or source files are included.
 - Also used in: `packages/velcro/src/components/skeleton/skeleton.ts` (API documentation wording, and the rendered
   structure: a `div` with the `base` part and `skeleton` / `skeleton--*` class names around a `div` with the
   `indicator` part, adapted from `src/components/skeleton/skeleton.component.ts`),

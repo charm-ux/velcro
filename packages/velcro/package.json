@@ -2,7 +2,7 @@
   "name": "@charm-ux/velcro",
   "version": "0.1.0",
   "private": true,
-  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, divider, skeleton and spinner only).",
+  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, divider, format-bytes, skeleton and spinner only).",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
@@ -27,6 +27,14 @@
     "./divider": {
       "types": "./dist/components/divider/index.d.ts",
       "import": "./dist/components/divider/index.js"
+    },
+    "./format-bytes": {
+      "types": "./dist/components/format-bytes/index.d.ts",
+      "import": "./dist/components/format-bytes/index.js"
+    },
+    "./format-bytes/class": {
+      "types": "./dist/components/format-bytes/class.d.ts",
+      "import": "./dist/components/format-bytes/class.js"
     },
     "./spinner": {
       "types": "./dist/components/spinner/index.d.ts",
