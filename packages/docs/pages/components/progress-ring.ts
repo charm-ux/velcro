@@ -57,7 +57,7 @@ export class ProgressRingPage extends LitElement {
           ${attributes.map(([n, t, d, desc]) => html`<tr><td><code>${n}</code></td><td>${t}</td><td><code>${d}</code></td><td>${desc}</td></tr>`)}
         </tbody>
       </table>
-      <p><code>value</code> is reflected to an attribute; <code>label</code> is not.</p>
+      <p><code>value</code> is reflected to an attribute, and removing the attribute restores the default <code>0</code>, as in Shoelace. <code>label</code> is not reflected and, as in Shoelace, is not reset when its attribute is removed.</p>
 
       <h2 id="slots">Slots</h2>
       <p>The default slot holds a label shown inside the ring.</p>
@@ -74,7 +74,7 @@ export class ProgressRingPage extends LitElement {
       </table>
 
       <h2 id="events">Events</h2>
-      <p>None.</p>
+      <p>The component declares no events of its own. It inherits the core base element's <code>ready</code> event, dispatched on the host after the first update; it does not bubble and is not composed. Shoelace's progress ring does not emit it, so this is a divergence.</p>
 
       <h2 id="methods">Methods</h2>
       <p>None.</p>

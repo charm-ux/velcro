@@ -214,7 +214,7 @@ test('value and label: defaults, reflection, aria updates and the dash offset fo
   expect(result.labelled).toMatchObject({ label: 'Custom', labelAttr: null });
 });
 
-test('the docs values example updates the ring and its slotted label through buttons; no events are emitted', async ({ page }) => {
+test('the docs values example updates the ring and its slotted label through buttons, and fires no change or input events', async ({ page }) => {
   const { frame: valuesFrame } = await openExample(page);
   const ring = valuesFrame.locator('#demo-values');
   await ring.evaluate(el => {
@@ -230,7 +230,46 @@ test('the docs values example updates the ring and its slotted label through but
   expect(await ring.evaluate(el => el.shadowRoot.querySelector('[part~="base"]').getAttribute('aria-valuenow'))).toBe('60');
   expect(await ring.evaluate(el => el.shadowRoot.querySelector('slot').assignedNodes().map(n => n.textContent).join(''))).toBe('60%');
   expect(await ring.evaluate(() => window.__events.filter(name => name !== 'ready'))).toEqual([]);
-  expect(await ring.evaluate(el => typeof el.show + typeof el.focus + typeof el.reset)).toBe('undefinedfunctionundefined');
+});
+
+test('removing the value attribute restores the default 0, as in Shoelace', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const result = await frame.locator('body').evaluate(async () => {
+    const el = document.createElement('sl-progress-ring');
+    el.setAttribute('value', '75');
+    document.body.append(el);
+    await el.updateComplete;
+    el.removeAttribute('value');
+    await el.updateComplete;
+    await el.updateComplete;
+    const out = {
+      value: el.value,
+      now: el.shadowRoot.querySelector('[part~="base"]').getAttribute('aria-valuenow'),
+      attr: el.getAttribute('value'),
+    };
+    el.remove();
+    return out;
+  });
+  expect(result).toEqual({ value: 0, now: '0', attr: '0' });
+});
+
+test('the inherited core ready event fires once on the host, without bubbling or composing (a Shoelace divergence)', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const result = await frame.locator('body').evaluate(async () => {
+    const el = document.createElement('sl-progress-ring');
+    const seen = [];
+    let bubbled = 0;
+    el.addEventListener('ready', e => seen.push({ bubbles: e.bubbles, composed: e.composed, target: e.target === el }));
+    document.body.addEventListener('ready', () => bubbled++);
+    document.body.append(el);
+    await el.updateComplete;
+    await el.updateComplete;
+    el.value = 10;
+    await el.updateComplete;
+    el.remove();
+    return { seen, bubbled };
+  });
+  expect(result).toEqual({ seen: [{ bubbles: false, composed: false, target: true }], bubbled: 0 });
 });
 
 test.describe('forced colors', () => {

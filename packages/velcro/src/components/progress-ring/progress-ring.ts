@@ -45,6 +45,15 @@ export class VelcroProgressRing extends CharmElement {
   @property()
   public label = '';
 
+  protected override willUpdate(changedProps: Map<PropertyKey, unknown>) {
+    super.willUpdate?.(changedProps);
+
+    // Shoelace's base restores a reflected property's initial value when its attribute is removed.
+    if (changedProps.has('value') && (this.value as unknown) == null) {
+      this.value = 0;
+    }
+  }
+
   protected override updated(changedProps: Map<PropertyKey, unknown>) {
     super.updated?.(changedProps);
 
