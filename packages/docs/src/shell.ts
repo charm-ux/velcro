@@ -49,10 +49,11 @@ export const shellStyles = css`
     top: 0;
     z-index: 10;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 1rem;
-    height: 3.5rem;
-    padding: 0 1.5rem;
+    gap: 0.5rem 1rem;
+    min-height: 3.5rem;
+    padding: 0.5rem 1.5rem;
     background: var(--velcro-docs-bg);
     border-bottom: 1px solid var(--velcro-docs-border);
   }
@@ -152,6 +153,7 @@ export const shellStyles = css`
   }
   .content {
     min-width: 0;
+    overflow-wrap: break-word;
     padding: 2rem 2.5rem 3rem;
   }
   .content > * {
@@ -221,6 +223,21 @@ export const shellStyles = css`
       display: none;
     }
   }
+  @media (max-width: 40rem) {
+    header.site {
+      padding: 0.5rem 1rem;
+    }
+    /* The links move to their own full-width row under the brand and the theme control. */
+    header.site nav {
+      order: 3;
+      flex: 1 1 100%;
+      flex-wrap: wrap;
+      overflow-x: visible;
+    }
+    .theme {
+      max-width: 100%;
+    }
+  }
   @media (max-width: 48rem) {
     .docs {
       grid-template-columns: 1fr;
@@ -252,6 +269,7 @@ export const shellStyles = css`
     border-radius: 0.25rem;
     padding: 0.1em 0.3em;
     font-size: 0.9em;
+    overflow-wrap: anywhere;
   }
   pre {
     background: var(--velcro-docs-code-bg);
@@ -272,6 +290,8 @@ export const shellStyles = css`
     padding: 0.5rem;
     border-bottom: 1px solid var(--velcro-docs-border);
     vertical-align: top;
+    /* Long token names and type unions break rather than widen the table past a narrow screen. */
+    overflow-wrap: anywhere;
   }
   iframe.example {
     display: block;

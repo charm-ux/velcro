@@ -193,7 +193,7 @@ test('a failed storage write keeps the new choice for the page, over an older st
   await context.close();
 });
 
-test('a choice made in another tab is followed, including going back to system', async ({ browser }) => {
+test('a choice made in another tab is followed, and the receiving tab\'s control shows it and stays usable', async ({ browser }) => {
   const context = await browser.newContext({ colorScheme: 'light' });
   const a = await context.newPage();
   const b = await context.newPage();
@@ -203,9 +203,21 @@ test('a choice made in another tab is followed, including going back to system',
   }
   await themeSelect(a).selectOption('dark');
   await expect.poll(() => rootClass(b)).toBe('sl-theme-dark');
+  await expect(themeSelect(b)).toHaveValue('dark');
   await themeSelect(b).selectOption('system');
   await expect.poll(() => rootClass(a)).toBe('sl-theme-light');
+  await expect(themeSelect(a)).toHaveValue('system');
   expect(await a.evaluate(() => window.__velcroDocsTheme.get())).toBe('system');
+  // A genuinely different value chosen through the synchronized control in the receiving tab takes effect everywhere.
+  await themeSelect(a).selectOption('light');
+  await expect(themeSelect(b)).toHaveValue('light');
+  await a.emulateMedia({ colorScheme: 'dark' });
+  await b.emulateMedia({ colorScheme: 'dark' });
+  expect(await rootClass(a)).toBe('sl-theme-light');
+  await expect.poll(() => rootClass(b)).toBe('sl-theme-light');
+  await themeSelect(b).selectOption('dark');
+  await expect(themeSelect(a)).toHaveValue('dark');
+  await expect.poll(() => rootClass(a)).toBe('sl-theme-dark');
   await context.close();
 });
 

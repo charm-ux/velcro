@@ -66,3 +66,13 @@ if (outlet) {
   reveal();
 }
 window.addEventListener('hashchange', revealFragment);
+
+// Keep every theme control showing the head script's preference (the single source of truth), including after a
+// change made in another tab. The controls live in page shadow roots.
+function syncThemeControls(root: Document | ShadowRoot, value: string) {
+  for (const el of root.querySelectorAll('*')) {
+    if (el instanceof HTMLSelectElement && el.classList.contains('theme') && el.value !== value) el.value = value;
+    if (el.shadowRoot) syncThemeControls(el.shadowRoot, value);
+  }
+}
+window.addEventListener('velcro-docs-theme-change', event => syncThemeControls(document, String((event as CustomEvent).detail)));

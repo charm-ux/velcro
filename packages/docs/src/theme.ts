@@ -75,7 +75,9 @@ const script = [
   // mem holds a choice whose storage write failed; it is authoritative for this page until another tab writes one.
   'function g(){if(mem)return mem;try{var v=localStorage.getItem(K);if(ok(v))return v}catch(e){}return"system"}',
   'function a(){var p=g(),k=p==="dark"||(p==="system"&&!!m&&m.matches);',
-  'd.classList.toggle("sl-theme-dark",k);d.classList.toggle("sl-theme-light",!k);d.setAttribute("data-theme-preference",p)}',
+  'd.classList.toggle("sl-theme-dark",k);d.classList.toggle("sl-theme-light",!k);d.setAttribute("data-theme-preference",p);',
+  // Announces every (re)application so controls can show the authoritative preference (e.g. after another tab's change).
+  'try{window.dispatchEvent(new CustomEvent("velcro-docs-theme-change",{detail:p}))}catch(e){}}',
   'a();',
   // The header control is useless without this script, so it is shown only once the script has run.
   'd.style.setProperty("--velcro-docs-theme-control","inline-block");',
@@ -99,6 +101,9 @@ const api = (): ThemeApi | undefined =>
 
 /** The stored preference in the browser; 'system' on the server (the prerendered toggle shows the default). */
 export const themePreference = (): ThemePreference => api()?.get() ?? 'system';
+
+/** Event dispatched on window by the head script whenever it applies a preference; `detail` is the preference. */
+export const THEME_CHANGE_EVENT = 'velcro-docs-theme-change';
 
 export function setThemePreference(preference: ThemePreference): void {
   api()?.set(preference);

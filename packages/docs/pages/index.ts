@@ -77,8 +77,11 @@ const landingStyles = css`
     border-radius: 0.5rem;
     background: var(--velcro-docs-surface);
     max-width: 100%;
+    flex-wrap: wrap;
   }
   .install pre {
+    min-width: 0;
+    overflow-x: auto;
     margin: 0;
     padding: 0;
     border: 0;
@@ -174,7 +177,7 @@ const landingStyles = css`
   }
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(16rem, 100%), 1fr));
     gap: 1rem;
   }
   .tile {

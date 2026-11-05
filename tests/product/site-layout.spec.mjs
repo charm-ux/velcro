@@ -72,3 +72,57 @@ test('example iframes follow content size changes', async ({ page }) => {
   });
   await expect.poll(async () => (await iframe.boundingBox()).height).toBeGreaterThan(before + 350);
 });
+
+for (const fontSize of ['16px', '24px']) {
+  for (const route of ['/', '/components/button']) {
+    test(`${route} at 320px (root font ${fontSize}): no horizontal overflow; brand, primary nav and theme control are usable`, async ({ browser }) => {
+      const context = await browser.newContext({ viewport: { width: 320, height: 640 } });
+      const page = await context.newPage();
+      await page.goto(route, { waitUntil: 'networkidle' });
+      await settle(page);
+      await page.addStyleTag({ content: `html { font-size: ${fontSize} !important; }` });
+      const viewport = await page.evaluate(() => document.documentElement.clientWidth);
+      expect(viewport).toBe(320);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport);
+      const inside = async locator => {
+        const box = await locator.boundingBox();
+        expect(box, 'rendered').not.toBeNull();
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(viewport);
+      };
+      const brand = page.locator('header.site .brand');
+      const select = page.getByRole('combobox', { name: 'Color theme' });
+      const nav = page.locator('header nav');
+      for (const l of [brand, select, nav, nav.getByRole('link', { name: 'Home' }), nav.getByRole('link', { name: 'Components' })]) {
+        await expect(l).toBeVisible();
+        await inside(l);
+      }
+      await select.selectOption('dark');
+      expect(await page.evaluate(() => document.documentElement.className)).toBe('sl-theme-dark');
+      if (route === '/') {
+        const tiles = page.locator('#showcase [data-component]');
+        for (const tile of await tiles.all()) await inside(tile);
+        await inside(page.locator('.install'));
+        await nav.getByRole('link', { name: 'Components' }).click();
+        await expect(page).toHaveURL(/\/components\//);
+      } else {
+        await nav.getByRole('link', { name: 'Home' }).click();
+        await expect(page).toHaveURL(/\/$/);
+      }
+      await context.close();
+    });
+  }
+}
+
+test('no page overflows a 320px viewport horizontally at a 24px root font', async ({ browser }) => {
+  const { readCatalog } = await import('../../scripts/site/catalog.mjs');
+  const context = await browser.newContext({ viewport: { width: 320, height: 640 } });
+  const page = await context.newPage();
+  for (const route of ['/', ...readCatalog().map(c => `/components/${c.name}`)]) {
+    await page.goto(route, { waitUntil: 'networkidle' });
+    await settle(page);
+    await page.addStyleTag({ content: 'html { font-size: 24px !important; }' });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), route).toBeLessThanOrEqual(320);
+  }
+  await context.close();
+});
