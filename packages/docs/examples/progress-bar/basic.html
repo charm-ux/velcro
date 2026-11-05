@@ -1,0 +1,30 @@
+<div style="display: flex; flex-direction: column; gap: 1.5rem">
+  <sl-progress-bar id="demo-default" value="50"></sl-progress-bar>
+  <sl-progress-bar id="demo-label" value="50" label="Upload progress"></sl-progress-bar>
+  <sl-progress-bar id="demo-height" value="50" style="--height: 6px"></sl-progress-bar>
+  <sl-progress-bar
+    id="demo-colors"
+    value="75"
+    style="--track-color: #fde68a; --indicator-color: #d97706; --label-color: #fff"
+    >75%</sl-progress-bar
+  >
+  <div>
+    <sl-progress-bar id="demo-values" value="50">50%</sl-progress-bar>
+    <p>
+      <sl-button id="demo-decrease">-10</sl-button>
+      <sl-button id="demo-increase">+10</sl-button>
+    </p>
+  </div>
+  <sl-progress-bar id="demo-indeterminate" indeterminate></sl-progress-bar>
+</div>
+
+<script>
+  const progressBar = document.querySelector('#demo-values');
+  function adjust(amount) {
+    const value = Math.min(100, Math.max(0, progressBar.value + amount));
+    progressBar.value = value;
+    progressBar.textContent = `${value}%`;
+  }
+  document.querySelector('#demo-increase').addEventListener('click', () => adjust(10));
+  document.querySelector('#demo-decrease').addEventListener('click', () => adjust(-10));
+</script>

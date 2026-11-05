@@ -1,12 +1,14 @@
 # Deploying the documentation site to GitHub Pages
 
-Status: prepared, **never deployed**. The first real deployment needs explicit owner approval, and Pages must be
+Status: automatic on push to `main`; manual dispatch is the fallback. Pages must be
 enabled with the `github-pages` environment restricted to `main` (repository settings, not part of this change).
 
 ## Workflow
 
-`.github/workflows/pages.yml` runs only through a manual `workflow_dispatch` on `main`: there is no push, pull-request or
-schedule trigger and no input. The `build` job (read-only permissions) checks out the dispatched SHA, installs with the
+`.github/workflows/pages.yml` deploys automatically on every push to `main` (no path filter, so the site always reflects
+`main` and a newly added component page appears at https://charm-ux.github.io/velcro/), with a manual `workflow_dispatch`
+on `main` as a fallback. There is no pull-request, schedule, tag or other-branch trigger and no input; both jobs also
+refuse any ref other than `main`, and the `github-pages` environment is restricted to `main`. The `build` job (read-only permissions) checks out the exact pushed or dispatched SHA, installs with the
 frozen lockfile from the public registry, runs the history scan, `verify:source`, `verify:product` (which builds and
 browser-tests the project-site output, `LITRO_BASE_PATH=/velcro`) and runs the site preparation on that same output. Only then does it upload the Pages
 artifact. The `deploy` job is the only one with `pages: write` and `id-token: write`; it runs just the pinned

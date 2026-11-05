@@ -1,0 +1,68 @@
+<style>
+  sl-card {
+    max-width: 300px;
+  }
+
+  #demo-overview small {
+    color: var(--sl-color-neutral-500);
+  }
+
+  #demo-overview [slot='footer'] {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  #demo-header [slot='header'] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  #demo-footer [slot='footer'] {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+</style>
+<div style="display: flex; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap">
+  <sl-card id="demo-basic">
+    This is just a basic card. No image, no header, and no footer. Just your content.
+  </sl-card>
+
+  <sl-card id="demo-header">
+    <div slot="header">Header Title <small>Settings</small></div>
+    This card has a header. You can put all sorts of things in it!
+  </sl-card>
+
+  <sl-card id="demo-footer">
+    This card has a footer. You can put all sorts of things in it!
+    <div slot="footer">
+      <small>Footer note</small>
+      <sl-button variant="primary">Preview</sl-button>
+    </div>
+  </sl-card>
+
+  <sl-card id="demo-image">
+    <img
+      slot="image"
+      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='150'%3E%3Crect width='300' height='150' fill='%2338bdf8'/%3E%3C/svg%3E"
+      alt="A plain blue rectangle."
+    />
+    This card has an image that stretches to fit the width of the card.
+  </sl-card>
+
+  <sl-card id="demo-overview">
+    <img
+      slot="image"
+      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='150'%3E%3Crect width='300' height='150' fill='%23a1a1aa'/%3E%3C/svg%3E"
+      alt="A plain gray rectangle."
+    />
+    <strong>Mittens</strong><br />
+    This kitten is as cute as he is playful. Bring him home today!<br />
+    <small>6 weeks old</small>
+    <div slot="footer">
+      <sl-button variant="primary" pill>More Info</sl-button>
+    </div>
+  </sl-card>
+</div>
