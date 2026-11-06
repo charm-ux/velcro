@@ -37,7 +37,7 @@ const inventory = JSON.parse(readFileSync(new URL(`../../${INVENTORY}`, import.m
 
 test('the pinned inventory covers every vendored component, is unique, and contains every ledgered title', () => {
   assert.deepEqual(Object.keys(inventory).sort(), components);
-  assert.equal(Object.values(inventory).flat().length, 322);
+  assert.equal(Object.values(inventory).flat().length, 339);
   for (const [c, titles] of Object.entries(inventory)) {
     assert.equal(new Set(titles).size, titles.length, c);
     for (const e of ledger[c] ?? []) assert.ok(titles.includes(e.title), `${c}: ${e.title}`);

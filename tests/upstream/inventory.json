@@ -305,6 +305,25 @@
     "<sl-spinner> > when provided no parameters > should use \"transform: rotate(x)\" instead of \"rotate: x\" when animating",
     "<sl-spinner> > when provided no parameters > should have flex:none to prevent flex re-sizing"
   ],
+  "split-panel": [
+    "<sl-split-panel> > should render a component",
+    "<sl-split-panel> > should be accessible",
+    "<sl-split-panel> > should show both panels",
+    "<sl-split-panel> > panel sizing horizontal > has two evenly sized panels by default",
+    "<sl-split-panel> > panel sizing horizontal > changes the sizing of the panels based on the position attribute",
+    "<sl-split-panel> > panel sizing horizontal > updates the position in pixels to the correct result",
+    "<sl-split-panel> > panel sizing horizontal > emits the sl-reposition\tevent on position change",
+    "<sl-split-panel> > panel sizing horizontal > can be resized using the mouse",
+    "<sl-split-panel> > panel sizing horizontal > cannot be resized if disabled",
+    "<sl-split-panel> > panel sizing horizontal > snaps to predefined positions",
+    "<sl-split-panel> > panel sizing vertical > has two evenly sized panels by default",
+    "<sl-split-panel> > panel sizing vertical > changes the sizing of the panels based on the position attribute",
+    "<sl-split-panel> > panel sizing vertical > updates the position in pixels to the correct result",
+    "<sl-split-panel> > panel sizing vertical > emits the sl-reposition\tevent on position change ",
+    "<sl-split-panel> > panel sizing vertical > can be resized using the mouse ",
+    "<sl-split-panel> > panel sizing vertical > cannot be resized if disabled",
+    "<sl-split-panel> > panel sizing vertical > snaps to predefined positions"
+  ],
   "switch": [
     "should make sure that `.validity.valid` is `false` in custom error case",
     "should make sure that calling `.checkValidity()` will return `false` in custom error case",

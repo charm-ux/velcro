@@ -2920,6 +2920,394 @@
     },
     {
       "kind": "javascript-module",
+      "path": "components/split-panel/split-panel.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlSplitPanel",
+          "tagName": "sl-split-panel",
+          "summary": "Split panels display two adjacent panels, allowing the user to reposition them.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "cachedPositionInPixels",
+              "privacy": "private",
+              "type": {
+                "text": "number"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "isCollapsed",
+              "privacy": "private",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
+              "name": "positionBeforeCollapsing",
+              "privacy": "private",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "resizeObserver",
+              "privacy": "private",
+              "type": {
+                "text": "ResizeObserver"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "privacy": "private",
+              "type": {
+                "text": "number"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "divider",
+              "type": {
+                "text": "HTMLElement"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "position",
+              "type": {
+                "text": "number"
+              },
+              "default": "50",
+              "description": "The current position of the divider from the primary panel's edge as a percentage 0-100. Defaults to 50% of the\ncontainer's initial size.",
+              "attribute": "position",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "positionInPixels",
+              "type": {
+                "text": "number"
+              },
+              "description": "The current position of the divider from the primary panel's edge in pixels.",
+              "attribute": "position-in-pixels"
+            },
+            {
+              "kind": "field",
+              "name": "vertical",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws the split panel in a vertical orientation with the start and end panels stacked.",
+              "attribute": "vertical",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Disables resizing. Note that the position may still change as a result of resizing the host element.",
+              "attribute": "disabled",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "primary",
+              "type": {
+                "text": "'start' | 'end' | undefined"
+              },
+              "description": "If no primary panel is designated, both panels will resize proportionally when the host element is resized. If a\nprimary panel is designated, it will maintain its size and the other panel will grow or shrink as needed when the\nhost element is resized.",
+              "attribute": "primary"
+            },
+            {
+              "kind": "field",
+              "name": "snapValue",
+              "privacy": "private",
+              "type": {
+                "text": "string | SnapFunction"
+              },
+              "default": "''"
+            },
+            {
+              "kind": "field",
+              "name": "snapFunction",
+              "privacy": "private",
+              "type": {
+                "text": "SnapFunction"
+              },
+              "default": "SNAP_NONE"
+            },
+            {
+              "kind": "method",
+              "name": "toSnapFunction",
+              "privacy": "private",
+              "description": "Converts a string containing either a series of fixed/repeated snap points (e.g. \"repeat(20%)\", \"100px 200px 800px\", or \"10% 50% repeat(10px)\") into a SnapFunction. `SnapFunction`s take in a `SnapFunctionOpts` and return the position that the split panel should snap to.",
+              "parameters": [
+                {
+                  "name": "snap",
+                  "type": {
+                    "text": "string"
+                  },
+                  "description": "The snap string."
+                }
+              ],
+              "return": {
+                "type": {
+                  "text": ""
+                }
+              }
+            },
+            {
+              "kind": "field",
+              "name": "snap",
+              "type": {
+                "text": "string | SnapFunction"
+              },
+              "description": "Either one or more space-separated values at which the divider should snap, in pixels, percentages, or repeat expressions e.g. `'100px 50% 500px' or `repeat(50%) 10px`,\nor a function which takes in a `SnapFunctionParams`, and returns a position to snap to, e.g. `({ pos }) => Math.round(pos / 8) * 8`.",
+              "attribute": "snap",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "snapThreshold",
+              "type": {
+                "text": "number"
+              },
+              "default": "12",
+              "description": "How close the divider must be to a snap point until snapping occurs.",
+              "attribute": "snap-threshold"
+            },
+            {
+              "kind": "method",
+              "name": "detectSize",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "percentageToPixels",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "pixelsToPercentage",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "handleDrag",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "PointerEvent"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "handleKeyDown",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "KeyboardEvent"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "handleResize",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "entries",
+                  "type": {
+                    "text": "ResizeObserverEntry[]"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "handlePositionChange"
+            },
+            {
+              "kind": "method",
+              "name": "handlePositionInPixelsChange"
+            },
+            {
+              "kind": "method",
+              "name": "handleVerticalChange"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "position",
+              "type": {
+                "text": "number"
+              },
+              "default": "50",
+              "description": "The current position of the divider from the primary panel's edge as a percentage 0-100. Defaults to 50% of the\ncontainer's initial size.",
+              "fieldName": "position"
+            },
+            {
+              "name": "position-in-pixels",
+              "type": {
+                "text": "number"
+              },
+              "description": "The current position of the divider from the primary panel's edge in pixels.",
+              "fieldName": "positionInPixels"
+            },
+            {
+              "name": "vertical",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Draws the split panel in a vertical orientation with the start and end panels stacked.",
+              "fieldName": "vertical"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Disables resizing. Note that the position may still change as a result of resizing the host element.",
+              "fieldName": "disabled"
+            },
+            {
+              "name": "primary",
+              "type": {
+                "text": "'start' | 'end' | undefined"
+              },
+              "description": "If no primary panel is designated, both panels will resize proportionally when the host element is resized. If a\nprimary panel is designated, it will maintain its size and the other panel will grow or shrink as needed when the\nhost element is resized.",
+              "fieldName": "primary"
+            },
+            {
+              "name": "snap",
+              "description": "Either one or more space-separated values at which the divider should snap, in pixels, percentages, or repeat expressions e.g. `'100px 50% 500px' or `repeat(50%) 10px`,\nor a function which takes in a `SnapFunctionParams`, and returns a position to snap to, e.g. `({ pos }) => Math.round(pos / 8) * 8`.",
+              "type": {
+                "text": "string | SnapFunction"
+              },
+              "fieldName": "snap"
+            },
+            {
+              "name": "snap-threshold",
+              "type": {
+                "text": "number"
+              },
+              "default": "12",
+              "description": "How close the divider must be to a snap point until snapping occurs.",
+              "fieldName": "snapThreshold"
+            }
+          ],
+          "events": [
+            {
+              "name": "sl-reposition",
+              "description": "Emitted when the divider's position changes."
+            }
+          ],
+          "slots": [
+            {
+              "description": "Content to place in the start panel.",
+              "name": "start"
+            },
+            {
+              "description": "Content to place in the end panel.",
+              "name": "end"
+            },
+            {
+              "description": "The divider. Useful for slotting in a custom icon that renders as a handle.",
+              "name": "divider"
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The start panel.",
+              "name": "start"
+            },
+            {
+              "description": "The end panel.",
+              "name": "end"
+            },
+            {
+              "description": "Targets both the start and end panels.",
+              "name": "panel"
+            },
+            {
+              "description": "The divider that separates the start and end panels.",
+              "name": "divider"
+            }
+          ],
+          "cssProperties": [
+            {
+              "description": "The width of the visible divider.",
+              "name": "--divider-width",
+              "default": "4px"
+            },
+            {
+              "description": "The invisible region around the divider where dragging can occur. This is usually wider than the divider to facilitate easier dragging.",
+              "name": "--divider-hit-area",
+              "default": "12px"
+            },
+            {
+              "description": "The minimum allowed size of the primary panel.",
+              "name": "--min",
+              "default": "0"
+            },
+            {
+              "description": "The maximum allowed size of the primary panel.",
+              "name": "--max",
+              "default": "100%"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "components/switch/switch.js",
       "declarations": [
         {

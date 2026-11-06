@@ -9,10 +9,10 @@ Charm users can adopt without rewriting application markup or event handlers. Th
 Velcro is an **unreleased early prototype**; its packages are marked `private: true` and are not released. It is not a drop-in replacement for Shoelace and not a
 completed 58-component library. The current implementation is a partial slice:
 
-- nineteen components, `sl-badge`, `sl-button`, `sl-card`, `sl-divider`, `sl-format-bytes`, `sl-format-date`, `sl-format-number`, `sl-icon`, `sl-mutation-observer`, `sl-popup`, `sl-progress-bar`, `sl-progress-ring`, `sl-relative-time`, `sl-resize-observer`, `sl-skeleton`, `sl-spinner`, `sl-switch`, `sl-tab-panel` and `sl-visually-hidden` (`packages/velcro`, package `@charm-ux/velcro`), built on `@charm-ux/core`;
+- twenty components, `sl-badge`, `sl-button`, `sl-card`, `sl-divider`, `sl-format-bytes`, `sl-format-date`, `sl-format-number`, `sl-icon`, `sl-mutation-observer`, `sl-popup`, `sl-progress-bar`, `sl-progress-ring`, `sl-relative-time`, `sl-resize-observer`, `sl-skeleton`, `sl-spinner`, `sl-split-panel`, `sl-switch`, `sl-tab-panel` and `sl-visually-hidden` (`packages/velcro`, package `@charm-ux/velcro`), built on `@charm-ux/core`;
 - the Shoelace light and dark themes (`packages/velcro/themes/light.css` and `dark.css`, copied from Shoelace 2.20.1 and token-checked against it);
 - a Litro static documentation site (`packages/docs`, package `@velcro/docs`) with the home page and one route per
-  component (`/components/<name>` for each of the nineteen, as listed in `packages/docs/catalog.jsonl`).
+  component (`/components/<name>` for each of the twenty, as listed in `packages/docs/catalog.jsonl`).
 
 Nothing is published or deployed, and the validation described here is local; this README reports no hosted CI or
 publication result. This slice has no upstream Shoelace runtime dependency: no Shoelace runtime is loaded or included.
