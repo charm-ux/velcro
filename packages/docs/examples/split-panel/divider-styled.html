@@ -1,0 +1,44 @@
+<div class="split-panel-divider">
+  <sl-split-panel>
+    <svg slot="divider" class="grip" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="5" cy="3" r="1.25"/><circle cx="11" cy="3" r="1.25"/><circle cx="5" cy="8" r="1.25"/><circle cx="11" cy="8" r="1.25"/><circle cx="5" cy="13" r="1.25"/><circle cx="11" cy="13" r="1.25"/></svg>
+    <div
+      slot="start"
+      style="height: 200px; background: var(--sl-color-neutral-50); display: flex; align-items: center; justify-content: center; overflow: hidden;"
+    >
+      Start
+    </div>
+    <div
+      slot="end"
+      style="height: 200px; background: var(--sl-color-neutral-50); display: flex; align-items: center; justify-content: center; overflow: hidden;"
+    >
+      End
+    </div>
+  </sl-split-panel>
+</div>
+
+<style>
+  .split-panel-divider sl-split-panel {
+    --divider-width: 2px;
+  }
+
+  .split-panel-divider sl-split-panel::part(divider) {
+    background-color: var(--sl-color-pink-600);
+  }
+
+  .split-panel-divider .grip {
+    position: absolute;
+    border-radius: var(--sl-border-radius-small);
+    background: var(--sl-color-pink-600);
+    color: var(--sl-color-neutral-0);
+    padding: 0.5rem 0.125rem;
+  }
+
+  .split-panel-divider sl-split-panel::part(divider):focus-visible {
+    background-color: var(--sl-color-primary-600);
+  }
+
+  .split-panel-divider sl-split-panel:focus-within .grip {
+    background-color: var(--sl-color-primary-600);
+    color: var(--sl-color-neutral-0);
+  }
+</style>
