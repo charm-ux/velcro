@@ -1,5 +1,5 @@
-// Adapted from Shoelace v2.20.1 (src/components/include/include.component.ts and the reflected-property restore in
-// src/internal/shoelace-element.ts), Copyright (c) 2020 A Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md.
+// Adapted from Shoelace v2.20.1 (src/components/include/include.component.ts and the `@watch` timing of
+// src/internal/watch.ts), Copyright (c) 2020 A Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md.
 // The API documentation wording, the request and cache (see request.ts), the replacement of the element's content, the
 // re-creation of scripts and the `sl-load` and `sl-error` events follow Shoelace. Velcro changes: built on the
 // @charm-ux/core base element (there is no core include). Shoelace's behavior is matched exactly, including its quirks;
@@ -95,9 +95,12 @@ export class VelcroInclude extends CharmElement {
   }
 
   // Upstream quirks: only `src` triggers a request. Changing `mode` or `allow-scripts` later does nothing until the
-  // next `src` change, and `allow-scripts` only applies to the scripts of content loaded after it was set. A request
-  // that is superseded by a newer `src` emits nothing (neither `sl-load` nor `sl-error`). Any exception, including one
-  // thrown after the content was replaced (a script that cannot be re-created, for example), emits `sl-error` with
+  // next `src` change, and `allow-scripts` only applies to the scripts of content loaded after it was set. The stale-src
+  // check below runs only when the request settles with a response: a response (ok or not) for a superseded `src` emits
+  // nothing, but a superseded request that rejects skips the check and reaches the catch, so it still emits `sl-error`
+  // with status -1 after the newer content has loaded. With `src` A, then B, then A again the first request is not
+  // stale (`src` is A again), so A is inserted, and `sl-load` is emitted, once per request. Any exception, including
+  // one thrown after the content was replaced (a script that cannot be re-created, for example), emits `sl-error` with
   // status -1, and a response that is not ok leaves the previous content in place.
   public async handleSrcChange(): Promise<void> {
     try {

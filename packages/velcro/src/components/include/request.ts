@@ -4,7 +4,7 @@
 // Velcro publishes it at the `@charm-ux/velcro/include/request` entry point.
 
 /** The outcome of an include request: the response's `ok` and `status`, and its body as text. */
-export interface IncludeFile {
+interface IncludeFile {
   ok: boolean;
   status: number;
   html: string;

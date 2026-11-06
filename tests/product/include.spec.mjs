@@ -38,7 +38,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the quirk
   // The fixture the examples include is served by the site itself.
   const fixture = await request.get('/include-fixtures/hello/');
   expect(fixture.ok()).toBe(true);
-  expect(await fixture.text()).toContain('included from a separate file');
+  expect(await fixture.text()).toContain('comes from another HTML document');
 });
 
 test('sl-include registers as the exported class with no core marker attribute, one slot and no ch-* definition', async ({ page }) => {
@@ -71,7 +71,7 @@ test('sl-include registers as the exported class with no core marker attribute, 
 test('overview: the fixture is requested once from the site, inserted into the light DOM, and its script stays inert', async ({ page }) => {
   const { frame, requests } = await openExample(page);
   const include = frame.locator('#demo-default');
-  await expect(include).toContainText('included from a separate file');
+  await expect(include).toContainText('comes from another HTML document');
   // The fixture is requested from the site itself (a router remount reloads the iframe, so it may be requested again).
   const fixtureRequests = requests.filter(url => url.includes('/include-fixtures/'));
   expect(fixtureRequests.length).toBeGreaterThan(0);
@@ -154,6 +154,7 @@ async function prepare(page) {
     };
     window.quiet = () => new Promise(resolve => setTimeout(resolve, 150));
   });
+  await page.evaluate(origin => { window.otherOrigin = origin; }, other);
 }
 
 const events = page => page.evaluate(() => window.last.events);
@@ -268,16 +269,25 @@ test.describe('behavior in a blank page', () => {
     const server = await serve(page, { '/fx/k': route => route.fulfill({ status: 200, contentType: 'text/html', body: 'k', headers: { 'access-control-allow-origin': '*' } }) });
     await page.evaluate(() => mk({ src: '/fx/k', mode: 'same-origin' }));
     await waitForEvents(page, 1);
-    // A no-cors request for the same src would end in sl-error status 0 if it were made; it gets the cached success instead.
+    // A second request for the same src with another mode is never made: the request log shows one request, and the second include
+    // gets the cached success.
     await page.evaluate(() => mk({ src: '/fx/k', mode: 'no-cors' }));
     await waitForEvents(page, 1);
     expect((await events(page))[0].type).toBe('sl-load');
     expect(server.log).toEqual(['/fx/k']);
+    // Across origins the difference would show: a fresh no-cors request to the other origin ends in sl-error 0 (see the modes test),
+    // but after a cors success for that src the no-cors include loads from the cache and the other server sees one request.
+    await page.evaluate(() => mk({ src: window.otherOrigin + '/fx/cache-open', mode: 'cors' }));
+    await waitForEvents(page, 1);
+    await page.evaluate(() => mk({ src: window.otherOrigin + '/fx/cache-open', mode: 'no-cors' }));
+    await waitForEvents(page, 1);
+    expect(await events(page)).toMatchObject([{ type: 'sl-load' }]);
+    expect(otherLog).toEqual(['/fx/cache-open cors']);
   });
 
-  test('modes: cors needs the other server to allow it, no-cors always ends in sl-error 0, same-origin refuses another origin', async ({ page }) => {
+  test('modes: cors needs the other server to allow it, no-cors is opaque across origins (sl-error 0) but readable on the same origin, same-origin refuses another origin', async ({ page }) => {
     // A real second origin (a loopback server on its own port): the browser enforces CORS on it, which it does not do for responses a test fulfills itself.
-    await serve(page, { '/fx/same': { body: 'same' } });
+    await serve(page, { '/fx/same': { body: 'same' }, '/fx/same-no-cors': { body: 'readable' } });
     const outcome = async attrs => {
       await page.evaluate(attrs => mk(attrs), attrs);
       await waitForEvents(page, 1);
@@ -287,6 +297,8 @@ test.describe('behavior in a blank page', () => {
     expect(plain(await outcome({ src: `${other}/fx/open` }))).toEqual(['sl-load', null, 'open']);
     expect(plain(await outcome({ src: `${other}/fx/closed` }))).toEqual(['sl-error', -1, '']); // no CORS header: the browser refuses it
     expect(plain(await outcome({ src: `${other}/fx/opaque`, mode: 'no-cors' }))).toEqual(['sl-error', 0, '']);
+    // The opaque response is what ends in status 0, not the mode: a fresh (uncached) same-origin no-cors request is a basic response.
+    expect(plain(await outcome({ src: '/fx/same-no-cors', mode: 'no-cors' }))).toEqual(['sl-load', null, 'readable']);
     expect(plain(await outcome({ src: '/fx/same', mode: 'same-origin' }))).toEqual(['sl-load', null, 'same']);
     expect(plain(await outcome({ src: `${other}/fx/cross-same`, mode: 'same-origin' }))).toEqual(['sl-error', -1, '']);
     // The default mode is cors and the mode property is what the request is made with; the same-origin request to the other origin was refused before it was sent.
@@ -326,7 +338,7 @@ test.describe('behavior in a blank page', () => {
     expect(r.scripts).toEqual([['first', '1', null, '', 'sl-include', 'window.order = [1]'], ['', null, '2', 'text/javascript', 'div', 'window.order.push(2)']]);
   });
 
-  test('upstream quirk: a request superseded by a newer src is dropped without sl-load or sl-error', async ({ page }) => {
+  test('upstream quirk: a response for a superseded src is dropped without sl-load or sl-error, whether it is ok or not', async ({ page }) => {
     let release;
     const held = new Promise(resolve => { release = resolve; });
     const server = await serve(page, {
@@ -346,6 +358,60 @@ test.describe('behavior in a blank page', () => {
     await page.evaluate(() => mk({ src: '/fx/slow' }));
     await waitForEvents(page, 1);
     expect(server.log).toEqual(['/fx/slow', '/fx/fast']);
+  });
+
+  // The stale-src check runs after the request settles with a response; a request that rejects goes straight to the catch.
+  test('upstream quirk: a superseded request that is rejected still emits sl-error -1 after the newer content loaded, a stale error response does not', async ({ page }) => {
+    let releaseDoomed;
+    let releaseBad;
+    const doomed = new Promise(resolve => { releaseDoomed = resolve; });
+    const bad = new Promise(resolve => { releaseBad = resolve; });
+    const server = await serve(page, {
+      '/fx/doomed': async route => { await doomed; await route.abort('connectionreset'); },
+      '/fx/bad': async route => { await bad; await route.fulfill({ status: 500, contentType: 'text/html', body: 'bad' }); },
+      '/fx/fast': { body: '<p>fast</p>' },
+    });
+    // A request that is rejected after src moved on: the newer file loads (sl-load), and then sl-error -1 follows for the old src.
+    await page.evaluate(() => mk({ src: '/fx/doomed' }));
+    await expect.poll(() => server.log.length).toBe(1);
+    await page.evaluate(() => { window.last.src = '/fx/fast'; });
+    await waitForEvents(page, 1);
+    expect((await events(page)).map(e => e.type)).toEqual(['sl-load']);
+    releaseDoomed();
+    await waitForEvents(page, 2);
+    expect((await events(page)).map(e => [e.type, e.detail])).toEqual([['sl-load', {}], ['sl-error', { status: -1 }]]);
+    expect(await page.evaluate(() => [window.last.src, window.last.innerHTML])).toEqual(['/fx/fast', '<p>fast</p>']);
+    // An error response for a superseded src is silent (the stale-src check comes before the ok check), and keeps the content.
+    await page.evaluate(() => mk({ src: '/fx/bad' }));
+    await expect.poll(() => server.log.length).toBe(3);
+    await page.evaluate(() => { window.last.src = '/fx/fast'; });
+    await waitForEvents(page, 1);
+    releaseBad();
+    await quiet(page);
+    await quiet(page);
+    expect((await events(page)).map(e => e.type)).toEqual(['sl-load']);
+    expect(await page.evaluate(() => window.last.innerHTML)).toBe('<p>fast</p>');
+  });
+
+  test('upstream quirk: src A, then B, then A again is not stale: the first request for A completes it, so A is inserted and sl-load is emitted once per request', async ({ page }) => {
+    let release;
+    const held = new Promise(resolve => { release = resolve; });
+    const server = await serve(page, {
+      '/fx/a': async route => { await held; await route.fulfill({ status: 200, contentType: 'text/html', body: '<p>a</p>' }); },
+      '/fx/b': { body: '<p>b</p>' },
+    });
+    await page.evaluate(() => mk({ src: '/fx/a' }));
+    await expect.poll(() => server.log.length).toBe(1);
+    await page.evaluate(() => { window.last.src = '/fx/b'; });
+    await waitForEvents(page, 1);
+    // The second request for a joins the cached, still pending request, so the server sees no new request.
+    await page.evaluate(async () => { window.last.src = '/fx/a'; await window.last.updateComplete; });
+    release();
+    await waitForEvents(page, 3);
+    await quiet(page);
+    expect((await events(page)).map(e => e.type)).toEqual(['sl-load', 'sl-load', 'sl-load']);
+    expect(await page.evaluate(() => [window.last.src, window.last.innerHTML])).toEqual(['/fx/a', '<p>a</p>']);
+    expect(server.log).toEqual(['/fx/a', '/fx/b']);
   });
 
   test('upstream quirk: removing src requests "null", removing mode breaks the next request with sl-error -1, removing allow-scripts sets false', async ({ page }) => {

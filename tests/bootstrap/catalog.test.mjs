@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { CATALOG_LIMITS, CatalogError, checkCoverage, checkExports, parseCatalog, readCatalog } from '../../scripts/site/catalog.mjs';
+import { CATALOG_LIMITS, CatalogError, MODULE_EXPORTS, checkCoverage, checkExports, parseCatalog, readCatalog } from '../../scripts/site/catalog.mjs';
 import { requiredFiles } from '../../scripts/site/prepare.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -79,18 +79,39 @@ for (const [label, mutate, expected] of negatives) {
   });
 }
 
-// Shoelace helper modules published inside a component directory are exported next to the component (UTILITY_EXPORTS).
+// Non-registering modules Shoelace publishes are exported by exact key (MODULE_EXPORTS): required while their component
+// is in the catalog, with exact targets, and never admitted by the ./<name>/class pattern.
 const includeCatalog = [{ name: 'include' }];
 const includeExports = { ...baseExports(['include']), './include/request': tgt('components/include/request') };
-test('the include utility export is required, exact and allowed only for include', () => {
+test('the module export table lists exactly the include helper, by full key', () => {
+  assert.deepEqual(Object.entries(MODULE_EXPORTS), [['./include/request', ['include', 'components/include/request']]]);
+  assert.equal(Object.isFrozen(MODULE_EXPORTS), true);
+});
+test('a module export is required, exact, and allowed only by its full key and only with its component', () => {
   assert.deepEqual(checkExports(includeExports, includeCatalog), []);
   const { './include/request': _omitted, ...without } = includeExports;
-  assert.deepEqual(checkExports(without, includeCatalog), ['include: missing request utility export']);
-  assert.deepEqual(checkExports({ ...includeExports, './include/request': tgt('components/include/index') }, includeCatalog), ['include: wrong request utility export targets']);
-  assert.deepEqual(checkExports({ ...includeExports, './include/other': tgt('components/include/other') }, includeCatalog), ['package.json: unexpected export ./include/other']);
-  // A utility subpath is not available to other components, or without its component in the catalog.
+  assert.deepEqual(checkExports(without, includeCatalog), ['include: missing module export ./include/request']);
+  assert.deepEqual(checkExports({ ...includeExports, './include/request': tgt('components/include/index') }, includeCatalog), ['include: wrong module export targets for ./include/request']);
+  assert.deepEqual(checkExports({ ...includeExports, './include/request': './dist/components/include/request.js' }, includeCatalog), ['include: wrong module export targets for ./include/request']);
+  assert.deepEqual(checkExports({ ...includeExports, './include/request': { import: './dist/components/include/request.js', types: './dist/components/include/request.d.ts', default: './x.js' } }, includeCatalog), ['include: wrong module export targets for ./include/request']);
+  // Other subpaths of the owner, deeper paths and other components' look-alikes are unexpected.
+  for (const key of ['./include/other', './include/request/extra', './include/request.js', './include/Request', './include/class/request']) {
+    assert.deepEqual(checkExports({ ...includeExports, [key]: tgt('components/include/other') }, includeCatalog), [`package.json: unexpected export ${key}`], key);
+  }
   assert.deepEqual(checkExports({ ...baseExports(['alpha']), './alpha/request': tgt('components/alpha/request') }, [{ name: 'alpha' }]), ['package.json: unexpected export ./alpha/request']);
+  // Without its component in the catalog the entry is neither required nor allowed.
+  assert.deepEqual(checkExports(baseExports(['alpha']), [{ name: 'alpha' }]), []);
+  assert.deepEqual(checkExports({ ...baseExports(['alpha']), './include/request': tgt('components/include/request') }, [{ name: 'alpha' }]), ['package.json: unexpected export ./include/request']);
   assert.deepEqual(checkExports(includeExports, [{ name: 'alpha' }]), ['alpha: missing package export', 'package.json: unexpected export ./include', 'package.json: unexpected export ./include/request']);
+});
+test('object prototype names are not export keys or components: nothing is admitted, nothing throws', () => {
+  // A catalog entry whose name is an Object.prototype property still needs its own export, and gains no module export.
+  assert.deepEqual(checkExports(baseExports([]), [{ name: 'constructor' }]), ['constructor: missing package export']);
+  assert.deepEqual(checkExports({ ...baseExports(['constructor']), './constructor/request': tgt('components/constructor/request') }, [{ name: 'constructor' }]), ['package.json: unexpected export ./constructor/request']);
+  // JSON.parse keeps __proto__ as an own key; it is no allowed export either.
+  const polluted = JSON.parse('{"./__proto__": {}, "./constructor": {}, "./toString/class": {}}');
+  assert.deepEqual(checkExports({ ...baseExports([]), ...polluted }, []).sort(),
+    ['package.json: unexpected export ./__proto__', 'package.json: unexpected export ./constructor', 'package.json: unexpected export ./toString/class']);
 });
 
 test('a complete additional component passes the combined source contracts', () => {

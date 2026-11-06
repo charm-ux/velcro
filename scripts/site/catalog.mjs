@@ -81,16 +81,20 @@ const listFiles = dir => {
 const target = file => ({ types: `./dist/${file}.d.ts`, import: `./dist/${file}.js` });
 
 /**
- * Helper modules that Shoelace publishes inside a component's directory (dist/components/<name>/<util>.js) and that
- * Velcro exports at the matching entry point ./<name>/<util>. Each is required once its component is in the catalog;
- * no other ./<name>/<something> subpath is allowed.
+ * Non-registering modules a component exposes as counterparts of Shoelace's public module paths:
+ * export key -> [owning component, dist file]. While its component is in the catalog each entry is required, with exactly
+ * this target; without the component the key is an unexpected export. Every key is listed in full: the subpath pattern
+ * below stays ./<name> and ./<name>/class.
  */
-export const UTILITY_EXPORTS = Object.freeze({ include: Object.freeze(['request']) });
+export const MODULE_EXPORTS = Object.freeze({
+  // Shoelace's dist/components/include/request.js (requestInclude).
+  './include/request': ['include', 'components/include/request'],
+});
 
 /**
  * Export contract of packages/velcro: the fixed entries, ./<name> with exact targets for every catalog entry,
- * ./<name>/class (exact targets) only for a catalog component, and the utility modules of UTILITY_EXPORTS (exact
- * targets, required) for their catalog component. Any other key or target is a problem.
+ * ./<name>/class (exact targets) only for a catalog component, and the MODULE_EXPORTS entries (exact targets, required)
+ * of catalog components. Any other key or target is a problem.
  */
 export function checkExports(exportsMap, catalog) {
   const problems = [];
@@ -106,16 +110,16 @@ export function checkExports(exportsMap, catalog) {
     else if (!same(exportsMap[`./${name}`], target(`components/${name}/index`))) problems.push(`${name}: wrong package export targets`);
     const cls = `./${name}/class`;
     if (Object.hasOwn(exportsMap, cls) && !same(exportsMap[cls], target(`components/${name}/class`))) problems.push(`${name}: wrong class export targets`);
-    for (const util of UTILITY_EXPORTS[name] ?? []) {
-      const key = `./${name}/${util}`;
-      if (!Object.hasOwn(exportsMap, key)) problems.push(`${name}: missing ${util} utility export`);
-      else if (!same(exportsMap[key], target(`components/${name}/${util}`))) problems.push(`${name}: wrong ${util} utility export targets`);
-    }
+  }
+  for (const [key, [owner, file]] of Object.entries(MODULE_EXPORTS)) {
+    if (!names.has(owner)) continue;
+    if (!Object.hasOwn(exportsMap, key)) problems.push(`${owner}: missing module export ${key}`);
+    else if (!same(exportsMap[key], target(file))) problems.push(`${owner}: wrong module export targets for ${key}`);
   }
   for (const key of Object.keys(exportsMap)) {
-    const m = /^\.\/([a-z0-9-]+)(?:\/(class|[a-z0-9-]+))?$/.exec(key);
-    const allowed = m && names.has(m[1]) && (m[2] === undefined || m[2] === 'class' || (UTILITY_EXPORTS[m[1]] ?? []).includes(m[2]));
-    if (Object.hasOwn(fixed, key) || allowed) continue;
+    const m = /^\.\/([a-z0-9-]+)(\/class)?$/.exec(key);
+    if (Object.hasOwn(fixed, key) || (m && names.has(m[1]))) continue;
+    if (Object.hasOwn(MODULE_EXPORTS, key) && names.has(MODULE_EXPORTS[key][0])) continue;
     problems.push(`package.json: unexpected export ${key}`);
   }
   return problems;
