@@ -32,9 +32,13 @@ export const keptInherited = {};
 /**
  * Inherited core events a Velcro element does not emit. sl-switch emits Shoelace's sl-change and sl-input instead of
  * core's `change` and `input` events (as in Shoelace, the host still receives the platform's composed `input` event
- * from its inner checkbox on a click).
+ * from its inner checkbox on a click). sl-tab-panel never emits core's tab-show, tab-hide, tab-after-show and
+ * tab-after-hide: they come from core's internal `visible` property, which belongs to core's own tabs and is inert here.
  */
-export const droppedInheritedEvents = { VelcroSwitch: ['change', 'input'] };
+export const droppedInheritedEvents = {
+  VelcroSwitch: ['change', 'input'],
+  VelcroTabPanel: ['tab-show', 'tab-hide', 'tab-after-show', 'tab-after-hide'],
+};
 
 function velcroInheritance() {
   return {

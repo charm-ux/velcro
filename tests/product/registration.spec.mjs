@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 
-// Scope of these checks: Velcro's own badge, button, card, divider, format-bytes, format-date, format-number, mutation-observer, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, split-panel, switch and visually-hidden (everything the package root registers) register
+// Scope of these checks: Velcro's own badge, button, card, divider, format-bytes, format-date, format-number, mutation-observer, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, split-panel, switch, tab-panel and visually-hidden (everything the package root registers) register
 // by defining their exported classes natively, in Chromium, alone or next to core's own button. The switch is the one scope-dependent core
 // component: it runs on Velcro's local scope resolver (its generic checks are in registration-helper.spec.mjs); nested core components are not shown to work.
 // Needs the built library: `pnpm --filter @charm-ux/velcro run build` (verify:product does this first).
@@ -46,7 +46,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 // Everything the package root registers.
-const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-mutation-observer', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-split-panel', 'sl-switch', 'sl-visually-hidden'];
+const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-mutation-observer', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-split-panel', 'sl-switch', 'sl-tab-panel', 'sl-visually-hidden'];
 
 const importAll = (page, ...names) => page.evaluate(async list => {
   const out = [];
@@ -116,6 +116,7 @@ for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spi
         ['sl-spinner', m.VelcroSpinner, m.SlSpinner],
         ['sl-split-panel', m.VelcroSplitPanel, m.SlSplitPanel],
         ['sl-switch', m.VelcroSwitch, m.SlSwitch],
+        ['sl-tab-panel', m.VelcroTabPanel, m.SlTabPanel],
         ['sl-visually-hidden', m.VelcroVisuallyHidden, m.SlVisuallyHidden]]) {
         const el = new Cls();
         document.body.append(el);
@@ -266,7 +267,7 @@ test('the whole package root changes no core state: prefix, config, scope object
       for (const [k] of after[entriesKey]) if (!before[entriesKey].some(([k2]) => k2 === k)) problems.push(`${label} key added: ${k}`);
     }
     return { seeded: [before.tagEntries.length, before.baseEntries.length], problems, sameConfig: before.config === after.config,
-      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-mutation-observer', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-split-panel', 'sl-switch', 'sl-visually-hidden'].map(t => customElements.get(t) !== undefined),
+      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-mutation-observer', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-split-panel', 'sl-switch', 'sl-tab-panel', 'sl-visually-hidden'].map(t => customElements.get(t) !== undefined),
       // The switch is the scope-dependent component: creating and connecting one must not touch core's scope either.
       switchMarker: await (async () => {
         const el = document.createElement('sl-switch');
@@ -277,7 +278,7 @@ test('the whole package root changes no core state: prefix, config, scope object
         return found;
       })() };
   });
-  expect(r.defined).toEqual(Array(17).fill(true));
+  expect(r.defined).toEqual(Array(18).fill(true));
   expect(r.switchMarker).toBe(false);
   expect(r.seeded[0]).toBeGreaterThan(0);
   expect(r.seeded[1]).toBeGreaterThan(0);

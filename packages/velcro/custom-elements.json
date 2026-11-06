@@ -6550,6 +6550,271 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/components/tab-panel/tab-panel.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Tab panels are used inside tab groups to display tabbed content. API modelled on Shoelace's `sl-tab-panel`.\n\nVelcro extensions inherited from the core tab panel and kept working: the core `ready` event only. The rest of core's\ntab panel belongs to core's own tabs and conflicts with Shoelace's model (default slot, `active`, `display`), so it is\nswitched off: core's `slot=\"tabpanel\"`, `hidden` and `transitionend` handling do not run, its internal `visible` and\n`tab` properties have no effect (`visible` has no attribute either), the `tab-show`, `tab-hide`, `tab-after-show` and\n`tab-after-hide` events are never emitted, and core's `--tab-panel-*` custom properties and `tab-panel-base` part do\nnot exist.",
+          "name": "VelcroTabPanel",
+          "cssProperties": [
+            {
+              "description": "The tab panel's padding.",
+              "name": "--padding",
+              "default": "0"
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            }
+          ],
+          "slots": [
+            {
+              "description": "The tab panel's content.",
+              "name": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "When true, the tab panel will be shown.",
+              "attribute": "active",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "attrId",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "readonly": true,
+              "default": "++id"
+            },
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'tab-panel'",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "componentId",
+              "privacy": "private",
+              "readonly": true,
+              "default": "`sl-tab-panel-${this.attrId}`"
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any\nstring can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.",
+              "attribute": "dir"
+            },
+            {
+              "kind": "method",
+              "name": "handleActiveChange",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "handleTransitionEnd",
+              "privacy": "protected",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "TransitionEvent"
+                  }
+                }
+              ],
+              "description": "Handles the `transitionend` event.",
+              "inheritedFrom": {
+                "name": "CoreTabPanel",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hasRecordedInitialProperties",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "method",
+              "name": "hidePanel",
+              "privacy": "protected",
+              "description": "Emits event after the `transitionend` event.",
+              "inheritedFrom": {
+                "name": "CoreTabPanel",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "initialReflectedProperties",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new Map<string, unknown>()"
+            },
+            {
+              "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "''",
+              "description": "The tab panel's name.",
+              "attribute": "name",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "tabPanelTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the tab panel",
+              "inheritedFrom": {
+                "name": "CoreTabPanel",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "velcroDir",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "When true, the tab panel will be shown.",
+              "fieldName": "active",
+              "propName": "active"
+            },
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any\nstring can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.",
+              "fieldName": "dir",
+              "propName": "dir"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "fieldName": "lang",
+              "propName": "lang"
+            },
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "The tab panel's name.",
+              "fieldName": "name",
+              "propName": "name"
+            }
+          ],
+          "superclass": {
+            "name": "CoreTabPanel",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-tab-panel",
+          "customElement": true,
+          "status": "prototype",
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/tab-panel/tab-panel.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroTabPanel",
+            "module": "src/components/tab-panel/tab-panel.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroTabPanel",
+          "declaration": {
+            "name": "VelcroTabPanel",
+            "module": "src/components/tab-panel/tab-panel.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/components/visually-hidden/visually-hidden.ts",
       "declarations": [
         {
