@@ -3067,6 +3067,7 @@
                 "text": "'ltr' | 'rtl' | 'auto'"
               },
               "privacy": "public",
+              "description": "The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any\nstring can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.",
               "attribute": "dir"
             },
             {
@@ -3155,6 +3156,7 @@
                 "text": "string"
               },
               "privacy": "public",
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
               "attribute": "lang"
             },
             {
@@ -3323,6 +3325,7 @@
               "type": {
                 "text": "'ltr' | 'rtl' | 'auto'"
               },
+              "description": "The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any\nstring can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.",
               "fieldName": "dir",
               "propName": "dir"
             },
@@ -3341,6 +3344,7 @@
               "type": {
                 "text": "string"
               },
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
               "fieldName": "lang",
               "propName": "lang"
             },

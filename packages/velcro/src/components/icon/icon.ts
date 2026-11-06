@@ -67,11 +67,16 @@ export class VelcroIcon extends CoreIcon {
   // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep core's
   // declared type, because TypeScript does not let a subclass widen an inherited property's read type; at runtime it
   // returns whatever was set.
+  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
   @property()
   public override lang!: string;
 
   private shoelaceDir?: string;
 
+  /**
+   * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
+   * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
+   */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
     return this.shoelaceDir as 'ltr' | 'rtl' | 'auto';

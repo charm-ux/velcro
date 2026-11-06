@@ -33,6 +33,11 @@ test('docs page is prerendered with every Shoelace example section, the icon sea
   expect(html).toContain('<title>Icon - Velcro</title>');
   expect(html).toContain('Not implemented or unverified');
   expect(html).toContain('Upstream quirks matched');
+  // The remaining dir type gap is disclosed: runtime and setter match Shoelace, the read and generated types do not.
+  expect(html).toContain('TypeScript types for dir are narrower than Shoelace');
+  expect(html).toContain('the React wrapper');
+  expect(html).toContain('the JSX dir and prop:dir types');
+  expect(html).toContain('needs a change in @charm-ux/core and is deferred');
   for (const id of ['default-icons', 'colors', 'sizing', 'labels', 'custom-icons', 'icon-libraries', 'boxicons', 'lucide',
     'font-awesome', 'heroicons', 'iconoir', 'ionicons', 'jam', 'material', 'remix', 'tabler', 'unicons',
     'customizing-the-default-library', 'sprite', 'customizing-the-system-library']) {
