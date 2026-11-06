@@ -4727,6 +4727,1291 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/components/switch/switch.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Switches allow the user to toggle an option on or off.\n\nVelcro extensions inherited from the core switch and kept working: `readonly` (the switch keeps its state on click and\narrow keys), `label` (label text shown when the default slot is empty), `hide-label` (visually hides the label and\nhelp text, which stay accessible) and `error-message` (sets a custom validity message, like `setCustomValidity()`; it\nis not rendered). The core `invalid`, `label-position` and `autofocus` properties are accepted but have no effect\n(use `data-invalid`, as in Shoelace). As with every Velcro form control the host carries core's `focusable`\nattribute.",
+          "name": "VelcroSwitch",
+          "cssProperties": [
+            {
+              "description": "The width of the switch.",
+              "name": "--width"
+            },
+            {
+              "description": "The height of the switch.",
+              "name": "--height"
+            },
+            {
+              "description": "The size of the thumb.",
+              "name": "--thumb-size"
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            },
+            {
+              "description": "The control that houses the switch's thumb.",
+              "name": "control"
+            },
+            {
+              "description": "The help text's wrapper.",
+              "name": "form-control-help-text"
+            },
+            {
+              "description": "The switch's label.",
+              "name": "label"
+            },
+            {
+              "description": "The switch's thumb.",
+              "name": "thumb"
+            }
+          ],
+          "slots": [
+            {
+              "description": "The switch's label.",
+              "name": ""
+            },
+            {
+              "description": "Text that describes how to use the switch. Alternatively, you can use the `help-text` attribute.",
+              "name": "help-text"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "_checked",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "false",
+              "inheritedFrom": {
+                "name": "CoreSwitch",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "_disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "false",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "_errorMessage",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "protected",
+              "default": "''",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "_readonly",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "false",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "_value",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "protected",
+              "default": "''",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "autofocus",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, without effect. As\nin Shoelace, the switch is not focused on page load.",
+              "attribute": "autofocus",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "autofocusinvalid",
+              "type": {
+                "text": "boolean | undefined"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              },
+              "default": "'switch'"
+            },
+            {
+              "kind": "method",
+              "name": "baseTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the base.",
+              "inheritedFrom": {
+                "name": "CoreSwitch",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "blur",
+              "privacy": "public",
+              "description": "Removes focus from the switch.",
+              "type": {
+                "text": "blur() => void"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "checked",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "description": "Draws the switch in a checked state.",
+              "default": "false",
+              "attribute": "checked",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "checkedMessageTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the checked message.",
+              "inheritedFrom": {
+                "name": "CoreSwitch",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "checkValidity",
+              "privacy": "public",
+              "description": "Checks for validity but does not show a validation message. Returns `true` when valid and `false` when invalid.",
+              "type": {
+                "text": "checkValidity() => void"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "click",
+              "privacy": "public",
+              "description": "Simulates a click on the switch.",
+              "type": {
+                "text": "click() => void"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "controlTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the control.",
+              "inheritedFrom": {
+                "name": "CoreSwitch",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "controlWrapperTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the control wrapper.",
+              "inheritedFrom": {
+                "name": "CoreSwitch",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "customErrorMessage",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "protected",
+              "default": "''",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "defaultChecked",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "The default value of the form control. Primarily used for resetting the form control."
+            },
+            {
+              "kind": "field",
+              "name": "dependencies",
+              "privacy": "public",
+              "static": true,
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The element's text direction, as set by the `dir` attribute or property. Not reflected.",
+              "attribute": "dir"
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "description": "Disables the switch.",
+              "default": "false",
+              "attribute": "disabled",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "emitChange",
+              "privacy": "protected",
+              "parameters": [
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "CustomEventInit"
+                  }
+                }
+              ],
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "emitInput",
+              "privacy": "protected",
+              "parameters": [
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "CustomEventInit"
+                  }
+                }
+              ],
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "errorMessage",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "description": "Velcro extension (core): a custom validity message, applied with `setCustomValidity()` after the next update. It\nis not rendered. An empty string restores validity.",
+              "default": "''",
+              "attribute": "error-message"
+            },
+            {
+              "kind": "method",
+              "name": "errorMessageTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for form control error message",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "focus",
+              "privacy": "public",
+              "parameters": [
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "FocusOptions"
+                  }
+                }
+              ],
+              "description": "Sets focus on the switch.",
+              "type": {
+                "text": "focus(options?: FocusOptions) => void"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "focusableEventOptions",
+              "type": {
+                "text": "CustomEventInit"
+              },
+              "privacy": "protected",
+              "default": "{}",
+              "inheritedFrom": {
+                "name": "CharmFocusableElement",
+                "module": "src/base/focusable-element/charm-focusable-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "form",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "''",
+              "description": "By default, form controls are associated with the nearest containing `<form>` element. This attribute allows you\nto place the form control outside of a form and associate it with the form that has this `id`. The form must be in\nthe same document or shadow root for this to work.",
+              "attribute": "form",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "formAssociated",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "static": true,
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "formControlController",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new FormControlController(this, { value: control => ((control as VelcroSwitch).checked ? control.value || 'on' : undefined), defaultValue: control => (control as VelcroSwitch).defaultChecked, setValue: (control, checked) => { (control as VelcroSwitch).checked = checked as boolean; }, })"
+            },
+            {
+              "kind": "method",
+              "name": "formResetCallback",
+              "privacy": "public",
+              "description": "Velcro extension (core): restores `checked` to `defaultChecked`, as a form reset does.",
+              "type": {
+                "text": "formResetCallback() => void"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "getForm",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "HTMLFormElement | null"
+                }
+              },
+              "description": "Gets the associated form, if one exists.",
+              "type": {
+                "text": "getForm() => HTMLFormElement | null"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hadFocus",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "false",
+              "inheritedFrom": {
+                "name": "CharmFocusableElement",
+                "module": "src/base/focusable-element/charm-focusable-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "handleArrowLeftKey",
+              "privacy": "public",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "KeyboardEvent"
+                  }
+                }
+              ],
+              "description": "Turns the switch off and emits `sl-change` and `sl-input`.",
+              "type": {
+                "text": "handleArrowLeftKey(event: KeyboardEvent) => void"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "handleArrowRightKey",
+              "privacy": "public",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "KeyboardEvent"
+                  }
+                }
+              ],
+              "description": "Turns the switch on and emits `sl-change` and `sl-input`.",
+              "type": {
+                "text": "handleArrowRightKey(event: KeyboardEvent) => void"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "handleBlur",
+              "privacy": "protected"
+            },
+            {
+              "kind": "method",
+              "name": "handleCheckedChange",
+              "privacy": "public",
+              "type": {
+                "text": "handleCheckedChange() => void"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "handleClick",
+              "privacy": "public",
+              "parameters": [
+                {
+                  "name": "event",
+                  "optional": true,
+                  "type": {
+                    "text": "Event"
+                  }
+                }
+              ],
+              "description": "Toggles the switch from a click on the inner checkbox. A `readonly` switch keeps its state.",
+              "type": {
+                "text": "handleClick(event?: Event) => void"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "handleDisabledChange",
+              "privacy": "public",
+              "type": {
+                "text": "handleDisabledChange() => void"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "handleFocus",
+              "privacy": "protected"
+            },
+            {
+              "kind": "method",
+              "name": "handleInput",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "handleInvalid",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "Event"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "handleKeyDown",
+              "privacy": "public",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "KeyboardEvent"
+                  }
+                }
+              ],
+              "description": "ArrowLeft turns the switch off and ArrowRight turns it on; a `readonly` switch ignores both.",
+              "type": {
+                "text": "handleKeyDown(event: KeyboardEvent) => void"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hasFocus",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "false",
+              "inheritedFrom": {
+                "name": "CharmFocusableElement",
+                "module": "src/base/focusable-element/charm-focusable-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hasHelpText",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "false",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hasLabel",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "false",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hasRecordedInitialProperties",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "hasSlotController",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new HasSlotController(this, 'help-text')"
+            },
+            {
+              "kind": "field",
+              "name": "helpText",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "''",
+              "description": "The switch's help text. If you need to display HTML, use the `help-text` slot instead.",
+              "attribute": "help-text"
+            },
+            {
+              "kind": "method",
+              "name": "helpTextTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for form control help text",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hideLabel",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Velcro extension (core): visually hides the label and help text, which stay accessible.",
+              "attribute": "hide-label",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "initialReflectedProperties",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new Map<string, unknown>()"
+            },
+            {
+              "kind": "field",
+              "name": "initialValue",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "protected",
+              "default": "''",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "input",
+              "type": {
+                "text": "HTMLInputElement"
+              },
+              "privacy": "public"
+            },
+            {
+              "kind": "method",
+              "name": "inputTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the input element.",
+              "inheritedFrom": {
+                "name": "CoreSwitch",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "internals",
+              "type": {
+                "text": "ElementInternals"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "invalid",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, but not maintained\nand without effect. Use `validity` or the `data-invalid` attribute, as in Shoelace.",
+              "attribute": "invalid",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "Velcro extension (core): label text rendered as the default slot's fallback content when the slot is empty.",
+              "attribute": "label",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "labelContentTemplate",
+              "privacy": "protected",
+              "parameters": [
+                {
+                  "name": "labelSlot",
+                  "default": "true"
+                }
+              ],
+              "description": "Generates the template for form control labels",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "labelPosition",
+              "type": {
+                "text": "'end' | 'start' | 'top' | undefined"
+              },
+              "privacy": "public",
+              "description": "Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, without effect.",
+              "attribute": "label-position",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "labelTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the label.",
+              "inheritedFrom": {
+                "name": "CoreSwitch",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "''",
+              "description": "The name of the switch, submitted as a name/value pair with form data.",
+              "attribute": "name"
+            },
+            {
+              "kind": "field",
+              "name": "readonly",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "description": "Velcro extension (core): keeps the switch's state on clicks and arrow keys.",
+              "default": "false",
+              "attribute": "readonly",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "reportValidity",
+              "privacy": "public",
+              "description": "Checks for validity and shows the browser's validation message if the control is invalid.",
+              "type": {
+                "text": "reportValidity() => void"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "required",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Makes the switch a required field.",
+              "attribute": "required",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "requiredTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the required asterisk",
+              "inheritedFrom": {
+                "name": "CharmFormControlElement",
+                "module": "src/base/form-control-element/charm-form-control-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "setCustomValidity",
+              "privacy": "public",
+              "parameters": [
+                {
+                  "name": "message",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Sets a custom validation message. Pass an empty string to restore validity.",
+              "type": {
+                "text": "setCustomValidity(message: string) => void"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "shadowRootOptions",
+              "privacy": "public",
+              "static": true,
+              "default": "{ ...LitElement.shadowRootOptions }"
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'small' | 'medium' | 'large'"
+              },
+              "privacy": "public",
+              "default": "'medium'",
+              "description": "The switch's size.",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "switchTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the switch.",
+              "inheritedFrom": {
+                "name": "CoreSwitch",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "''",
+              "attribute": "title"
+            },
+            {
+              "kind": "method",
+              "name": "unCheckedMessageTemplate",
+              "privacy": "protected",
+              "description": "Generates the template for the unchecked message.",
+              "inheritedFrom": {
+                "name": "CoreSwitch",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "updateValidity",
+              "privacy": "public",
+              "description": "Velcro extension (core): updates the validity data attributes from the inner checkbox, once rendered.",
+              "type": {
+                "text": "updateValidity() => void"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "useBlurHandler",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "useFocusHandler",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "usesArrowKeys",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "protected",
+              "default": "true",
+              "inheritedFrom": {
+                "name": "CoreSwitch",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "validationMessage",
+              "privacy": "public",
+              "description": "Gets the validation message",
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "validity",
+              "privacy": "public",
+              "description": "Gets the validity state object",
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "description": "The current value of the switch, submitted as a name/value pair with form data.",
+              "attribute": "value"
+            },
+            {
+              "kind": "field",
+              "name": "velcroChecked",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "velcroDir",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "velcroDisabled",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "velcroErrorMessage",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''"
+            },
+            {
+              "kind": "field",
+              "name": "velcroReadonly",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "velcroValue",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "private"
+            }
+          ],
+          "events": [
+            {
+              "description": "Emitted when the control loses focus.",
+              "name": "blur",
+              "inheritedFrom": {
+                "name": "CoreSwitch",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Emitted when the control gains focus.",
+              "name": "focus",
+              "inheritedFrom": {
+                "name": "CoreSwitch",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Emitted when the component has completed its initial render.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Emitted when the control loses focus.",
+              "name": "sl-blur"
+            },
+            {
+              "description": "Emitted when the control's checked state changes.",
+              "name": "sl-change"
+            },
+            {
+              "description": "Emitted when the control gains focus.",
+              "name": "sl-focus"
+            },
+            {
+              "description": "Emitted when the control receives input.",
+              "name": "sl-input"
+            },
+            {
+              "description": "Emitted when the form control has been checked for validity and its constraints aren't satisfied.",
+              "name": "sl-invalid"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "autofocus",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, without effect. As\nin Shoelace, the switch is not focused on page load.",
+              "fieldName": "autofocus",
+              "propName": "autofocus"
+            },
+            {
+              "name": "checked",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Draws the switch in a checked state.",
+              "default": "false",
+              "fieldName": "checked",
+              "propName": "checked"
+            },
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The element's text direction, as set by the `dir` attribute or property. Not reflected.",
+              "fieldName": "dir",
+              "propName": "dir"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Disables the switch.",
+              "default": "false",
+              "fieldName": "disabled",
+              "propName": "disabled"
+            },
+            {
+              "name": "error-message",
+              "type": {
+                "text": "string"
+              },
+              "description": "Velcro extension (core): a custom validity message, applied with `setCustomValidity()` after the next update. It\nis not rendered. An empty string restores validity.",
+              "default": "''",
+              "fieldName": "errorMessage",
+              "propName": "errorMessage"
+            },
+            {
+              "name": "form",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "By default, form controls are associated with the nearest containing `<form>` element. This attribute allows you\nto place the form control outside of a form and associate it with the form that has this `id`. The form must be in\nthe same document or shadow root for this to work.",
+              "fieldName": "form",
+              "propName": "form"
+            },
+            {
+              "name": "help-text",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "The switch's help text. If you need to display HTML, use the `help-text` slot instead.",
+              "fieldName": "helpText",
+              "propName": "helpText"
+            },
+            {
+              "name": "hide-label",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Velcro extension (core): visually hides the label and help text, which stay accessible.",
+              "fieldName": "hideLabel",
+              "propName": "hideLabel"
+            },
+            {
+              "name": "invalid",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, but not maintained\nand without effect. Use `validity` or the `data-invalid` attribute, as in Shoelace.",
+              "fieldName": "invalid",
+              "propName": "invalid"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "Velcro extension (core): label text rendered as the default slot's fallback content when the slot is empty.",
+              "fieldName": "label",
+              "propName": "label"
+            },
+            {
+              "name": "label-position",
+              "type": {
+                "text": "'end' | 'start' | 'top' | undefined"
+              },
+              "description": "Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, without effect.",
+              "fieldName": "labelPosition",
+              "propName": "labelPosition"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "fieldName": "lang",
+              "propName": "lang"
+            },
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "The name of the switch, submitted as a name/value pair with form data.",
+              "fieldName": "name",
+              "propName": "name"
+            },
+            {
+              "name": "readonly",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Velcro extension (core): keeps the switch's state on clicks and arrow keys.",
+              "default": "false",
+              "fieldName": "readonly",
+              "propName": "readonly"
+            },
+            {
+              "name": "required",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Makes the switch a required field.",
+              "fieldName": "required",
+              "propName": "required"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'small' | 'medium' | 'large'"
+              },
+              "default": "'medium'",
+              "description": "The switch's size.",
+              "fieldName": "size",
+              "propName": "size"
+            },
+            {
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "title",
+              "propName": "title"
+            },
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "description": "The current value of the switch, submitted as a name/value pair with form data.",
+              "fieldName": "value",
+              "propName": "value"
+            }
+          ],
+          "superclass": {
+            "name": "CoreSwitch",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-switch",
+          "customElement": true,
+          "status": "prototype",
+          "modulePath": "src/components/switch/switch.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroSwitch",
+            "module": "src/components/switch/switch.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroSwitch",
+          "declaration": {
+            "name": "VelcroSwitch",
+            "module": "src/components/switch/switch.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/components/visually-hidden/visually-hidden.ts",
       "declarations": [
         {

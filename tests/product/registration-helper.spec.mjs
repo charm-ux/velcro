@@ -8,6 +8,9 @@ test.beforeAll(async () => {
     helper: "export * from 'velcro-internal:utilities/registration';",
     coreProject: "export { project } from 'core-internal:utilities/project';",
     coreButton: "export * from 'core-internal:components/button/index';",
+    scope: "export * from 'velcro-internal:internal/scope';",
+    coreSwitchClass: "export { CoreSwitch } from 'core-internal:components/switch/switch';",
+    coreIconClass: "export { CoreIcon } from 'core-internal:components/icon/icon';",
   });
 });
 
@@ -233,4 +236,170 @@ test('the scope oracle detects replaced objects, added keys and same-size value 
     return results;
   });
   for (const [name, detected] of Object.entries(r)) expect(detected, name).toBe(true);
+});
+
+// Velcro's local scope resolver (internal/scope.ts), checked on core's own switch, whose constructor registers its
+// declared CoreIcon dependency through `this.scope` and whose template renders `<${this.scope.tag('icon')}>`.
+const loadScoped = page => page.evaluate(async () => {
+  const { useVelcroScope, velcroScope } = await import('/scope.js');
+  const { CoreSwitch } = await import('/coreSwitchClass.js');
+  const { CoreIcon } = await import('/coreIconClass.js');
+  Object.assign(window, { useVelcroScope, velcroScope, CoreSwitch, CoreIcon });
+});
+
+test('scope resolver: without it, a scope-dependent core subclass registered as sl-* cannot be constructed', async ({ page }) => {
+  await load(page);
+  await loadScoped(page);
+  const r = await page.evaluate(() => {
+    const Plain = class extends CoreSwitch {};
+    Plain.baseName = 'plain-switch';
+    define(Plain);
+    try {
+      new Plain();
+      return 'constructed';
+    } catch (e) {
+      return e.name;
+    }
+  });
+  expect(r).toBe('TypeError');
+});
+
+test('scope resolver: core lookups resolve to sl-* tags, a registered Velcro dependency renders, core state is unchanged', async ({ page }) => {
+  await load(page);
+  await installScopeOracle(page);
+  await loadScoped(page);
+  const r = await page.evaluate(async () => {
+    await import('/coreButton.js'); // seeds core's scope maps so a change would show
+    const { project } = await import('/coreProject.js');
+    const before = captureScope();
+    const config = JSON.stringify(project.getProject());
+    const Icon = class extends CoreIcon {};
+    Icon.baseName = 'icon';
+    define(Icon); // the Velcro counterpart of core's declared dependency, registered first
+    const Sw = class extends CoreSwitch {};
+    Sw.baseName = 'switch';
+    useVelcroScope(Sw);
+    useVelcroScope(Sw); // repeated installs are no-ops
+    define(Sw);
+    const el = new Sw();
+    document.body.append(el);
+    await el.updateComplete;
+    const icon = el.shadowRoot.querySelector('[part="form-control-error-text-icon"]');
+    return {
+      icon: icon?.localName, iconIsVelcro: icon instanceof Icon,
+      scope: [el.scope === velcroScope, velcroScope.prefix, velcroScope.suffix, velcroScope.tagName('icon'), velcroScope.getBaseName(el),
+        velcroScope.getBaseName('sl-icon'), velcroScope.getComponent('icon') === Icon],
+      // core's base element adds its base-name marker from the scope while connecting; Velcro hosts carry none
+      marker: el.hasAttribute('switch'),
+      sub: (() => { const Sub = class extends Sw {}; Sub.baseName = 'sub-switch'; define(Sub); const s = new Sub(); document.body.append(s); return [s.scope === velcroScope, s.hasAttribute('sub-switch')]; })(),
+      changes: scopeChanges(before, captureScope()),
+      sameConfig: JSON.stringify(project.getProject()) === config,
+      prefix: project.scope.tagName('button'),
+    };
+  });
+  expect(r).toEqual({
+    icon: 'sl-icon', iconIsVelcro: true,
+    scope: [true, 'sl', '', 'sl-icon', 'switch', 'icon', true],
+    marker: false,
+    sub: [true, false],
+    changes: [], sameConfig: true, prefix: 'ch-button',
+  });
+});
+
+test('scope resolver: the scope stays available while connecting and reconnecting; only core\'s marker write is skipped', async ({ page }) => {
+  await load(page);
+  await loadScoped(page);
+  const r = await page.evaluate(async () => {
+    const Icon = class extends CoreIcon {};
+    Icon.baseName = 'icon';
+    define(Icon);
+    const seen = [];
+    const Sw = class extends CoreSwitch {
+      static get dependencies() {
+        return [];
+      }
+      connectedCallback() {
+        super.connectedCallback();
+        // connection-time lookups by a subclass, after core's own connectedCallback ran
+        const baseName = this.scope.getBaseName(this);
+        seen.push(['connected', this.scope.tagName('icon'), baseName]);
+        this.setAttribute('data-connected', baseName); // an ordinary write after getBaseName passes through
+      }
+    };
+    Sw.baseName = 'switch';
+    useVelcroScope(Sw); // wraps the subclass's own connectedCallback, so its lookups run while connecting
+    define(Sw);
+    const el = new Sw();
+    el.addController({ hostConnected: () => seen.push(['controller', el.scope?.tagName('icon')]) });
+    const states = [];
+    const snapshot = () => ({
+      marker: el.hasAttribute('switch'), connected: el.getAttribute('data-connected'),
+      ownSetAttribute: Object.prototype.hasOwnProperty.call(el, 'setAttribute'), scope: el.scope === velcroScope,
+    });
+    document.body.append(el);
+    await el.updateComplete;
+    states.push(snapshot());
+    el.remove();
+    el.removeAttribute('data-connected');
+    document.body.append(el); // reconnection
+    states.push(snapshot());
+    el.setAttribute('switch', ''); // the same write by user code outside connectedCallback is not filtered
+    const userMarker = el.hasAttribute('switch');
+    let late;
+    try {
+      const Late = class extends CoreSwitch {
+        static get dependencies() {
+          return [];
+        }
+      };
+      Late.baseName = 'late-switch';
+      define(Late);
+      useVelcroScope(Late);
+      late = 'no error';
+    } catch (e) {
+      late = e.message;
+    }
+    return { seen, states, userMarker, late, getName: typeof customElements.getName === 'function' };
+  });
+  expect(r.seen).toEqual([
+    ['controller', 'sl-icon'], ['connected', 'sl-icon', 'switch'],
+    ['controller', 'sl-icon'], ['connected', 'sl-icon', 'switch'],
+  ]);
+  const state = { marker: false, connected: 'switch', ownSetAttribute: false, scope: true };
+  expect(r.states).toEqual([state, state]);
+  expect(r.userMarker).toBe(true);
+  // The guard needs customElements.getName (every current engine); without it the late call cannot be detected.
+  if (r.getName) expect(r.late).toContain('before the class is defined');
+});
+
+test('scope resolver: a missing or foreign dependency is a clear construction error, never a silent gap', async ({ page }) => {
+  await load(page);
+  await loadScoped(page);
+  const r = await page.evaluate(() => {
+    const attempt = () => {
+      const Sw = class extends CoreSwitch {};
+      Sw.baseName = `switch-${Math.random().toString(36).slice(2, 8)}`;
+      useVelcroScope(Sw);
+      define(Sw);
+      try {
+        new Sw();
+        return 'constructed';
+      } catch (e) {
+        return e.message;
+      }
+    };
+    const missing = attempt();
+    customElements.define('sl-icon', class extends HTMLElement {});
+    const foreign = attempt();
+    let badName;
+    try {
+      velcroScope.tag('Not A Name');
+    } catch (e) {
+      badName = e.name;
+    }
+    return { missing, foreign, badName };
+  });
+  expect(r.missing).toContain('the dependency <sl-icon> is not registered');
+  expect(r.foreign).toContain('<sl-icon> is defined by a constructor that does not extend the declared dependency');
+  expect(r.badName).toBe('TypeError');
 });
