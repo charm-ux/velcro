@@ -44,6 +44,8 @@ jobs:
           pnpm install --frozen-lockfile --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
           echo 'install: passed'
       - run: node scripts/security/gitleaks.mjs install
+      # Full-history mode: every commit's metadata and every file a commit changed, across all of main's ancestry,
+      # under the scanner's hard caps (no 1,000-file approval cap: this is not a newly published range).
       - name: History privacy and secret scan
         run: node scripts/security/git-privacy.mjs history HEAD
       - name: Source verification with private raw output
