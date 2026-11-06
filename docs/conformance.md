@@ -19,7 +19,7 @@ later Firefox and WebKit lane can reuse it.
 
 Shoelace 2.20.1 ships no test file for resize-observer, so it has no row here.
 
-Totals: 302 tests, 302 passed, 0 failed.
+Totals: 307 tests, 307 passed, 0 failed.
 
 | Component | Tests | Passed | Failed |
 | --- | ---: | ---: | ---: |
@@ -38,6 +38,7 @@ Totals: 302 tests, 302 passed, 0 failed.
 | skeleton | 3 | 3 | 0 |
 | spinner | 4 | 4 | 0 |
 | switch | 39 | 39 | 0 |
+| tab-panel | 5 | 5 | 0 |
 | visually-hidden | 2 | 2 | 0 |
 
 ## Failing tests
