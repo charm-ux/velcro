@@ -20,6 +20,8 @@
     display: flex; align-items: center; justify-content: center; aspect-ratio: 1; font-size: 24px;
     border: none; border-radius: 4px; background: none; color: inherit; cursor: copy;
   }
+  /* The display above would otherwise beat the hidden attribute, and filtered-out icons would stay on screen. */
+  .icon-list button[hidden] { display: none; }
   .icon-list button:hover, .icon-list button:focus-visible { background: var(--sl-color-primary-50); color: var(--sl-color-primary-600); }
   .icon-list svg { width: 1em; height: 1em; fill: currentColor; }
 </style>
@@ -42,7 +44,12 @@
     button.dataset.name = icon.name;
     button.dataset.terms = [icon.name, icon.title, ...icon.tags, ...icon.categories].join(' ').toLowerCase();
     button.setAttribute('aria-label', icon.name);
-    button.innerHTML = `<svg aria-hidden="true"><use href="${sprite}#${icon.name}"></use></svg>`;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    svg.setAttribute('aria-hidden', 'true');
+    use.setAttribute('href', `${sprite}#${icon.name}`);
+    svg.append(use);
+    button.append(svg);
     button.addEventListener('click', async () => {
       await navigator.clipboard?.writeText(icon.name).catch(() => {});
       status.textContent = `Copied "${icon.name}"`;

@@ -3067,13 +3067,7 @@
                 "text": "'ltr' | 'rtl' | 'auto'"
               },
               "privacy": "public",
-              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
-              "attribute": "dir",
-              "inheritedFrom": {
-                "name": "CharmElement",
-                "module": "src/base/charm-element/charm-element.ts",
-                "package": "@charm-ux/core"
-              }
+              "attribute": "dir"
             },
             {
               "kind": "method",
@@ -3153,6 +3147,15 @@
               "default": "''",
               "description": "An alternate description to use for assistive devices. If omitted, the icon will be considered presentational and\nignored by assistive devices.",
               "attribute": "label"
+            },
+            {
+              "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "attribute": "lang"
             },
             {
               "kind": "field",
@@ -3244,6 +3247,14 @@
             },
             {
               "kind": "field",
+              "name": "shoelaceDir",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
               "name": "src",
               "type": {
                 "text": "string | undefined"
@@ -3272,7 +3283,7 @@
                 "text": "string | undefined"
               },
               "privacy": "public",
-              "description": "Velcro extension (from the core icon): an external URL of an SVG file, used only when `src` is not set and no\nlibrary icon applies. Prefer `src`.",
+              "description": "Velcro extension (from the core icon): an external URL of an SVG file, used only when `src` is null or undefined\n(never set, or its attribute removed) and no library icon applies. Prefer `src`.",
               "attribute": "url"
             }
           ],
@@ -3312,13 +3323,7 @@
               "type": {
                 "text": "'ltr' | 'rtl' | 'auto'"
               },
-              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
               "fieldName": "dir",
-              "inheritedFrom": {
-                "name": "CharmElement",
-                "module": "src/base/charm-element/charm-element.ts",
-                "package": "@charm-ux/core"
-              },
               "propName": "dir"
             },
             {
@@ -3330,6 +3335,14 @@
               "description": "An alternate description to use for assistive devices. If omitted, the icon will be considered presentational and\nignored by assistive devices.",
               "fieldName": "label",
               "propName": "label"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "fieldName": "lang",
+              "propName": "lang"
             },
             {
               "name": "library",
@@ -3364,7 +3377,7 @@
               "type": {
                 "text": "string | undefined"
               },
-              "description": "Velcro extension (from the core icon): an external URL of an SVG file, used only when `src` is not set and no\nlibrary icon applies. Prefer `src`.",
+              "description": "Velcro extension (from the core icon): an external URL of an SVG file, used only when `src` is null or undefined\n(never set, or its attribute removed) and no library icon applies. Prefer `src`.",
               "fieldName": "url",
               "propName": "url"
             }
@@ -3433,7 +3446,7 @@
           "type": {
             "text": "IconLibrary"
           },
-          "default": "{ name: 'system', resolver: (name: string) => { if (Object.hasOwn(icons, name)) { return `data:image/svg+xml,${encodeURIComponent(icons[name as keyof typeof icons])}`; } return ''; } }"
+          "default": "{ name: 'system', // Upstream quirk: `in` also matches inherited keys, so names such as `toString` or `constructor` resolve to a data URL // of the function's source (or `[object Object]`), which is not an SVG, so the icon emits `sl-error`. resolver: (name: string) => { if (name in icons) { return `data:image/svg+xml,${encodeURIComponent(icons[name as keyof typeof icons])}`; } return ''; } }"
         }
       ],
       "exports": [

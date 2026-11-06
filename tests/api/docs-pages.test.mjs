@@ -31,6 +31,8 @@ test('the docs API data generator emits the manifest model of every catalog comp
   assert.ok(button.methods.some(m => m.name === 'click'));
   for (const { tag } of catalog) {
     const model = apiModel(elements.get(tag));
-    assert.ok(model.properties.some(p => p.name === 'dir' && p.origin.startsWith('from @charm-ux/core')), `${tag}: inherited dir`);
+    // sl-icon declares its own `dir` (Shoelace's plain reactive property, replacing core's computed getter).
+    const origin = tag === 'sl-icon' ? (o => o === '') : (o => o.startsWith('from @charm-ux/core'));
+    assert.ok(model.properties.some(p => p.name === 'dir' && origin(p.origin)), `${tag}: dir`);
   }
 });

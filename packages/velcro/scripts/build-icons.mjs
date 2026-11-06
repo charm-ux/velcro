@@ -1,14 +1,18 @@
 // Generates the default icon library's files (dist/assets/icons/<name>.svg, icons.json, LICENSE) from the pinned
 // Bootstrap Icons 1.11.3 sprite in assets/bootstrap-icons. The source keeps one sprite instead of 2,050 files.
-// Every input and output is checked: the sprite must match its pinned SHA-256, and each generated icon must match
-// the SHA-256 that SHA256SUMS records for the icon file in the upstream 1.11.3 release, so the output is
-// byte-identical to the upstream files. Any mismatch, missing or extra icon fails the build and writes nothing.
+// Every input and output is checked: the sprite, LICENSE and icons.json must match their pinned SHA-256, and each
+// generated icon must match the SHA-256 that SHA256SUMS records for the icon file in the upstream 1.11.3 release, so
+// the output is byte-identical to the upstream files. Any mismatch, missing or extra icon fails the build and writes
+// nothing.
 import { createHash } from 'node:crypto';
 import { copyFileSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const SPRITE_SHA256 = 'b000f622cba471181e4aa9b83e4ea38a069d0e0674cdc817148b21ef3dcd704b';
+// The release's LICENSE, unmodified, and the generated icons.json index (see THIRD_PARTY_NOTICES.md).
+export const LICENSE_SHA256 = '0fb3e11bd57e896c5a512afd64864d28a37de45d19835016c87ca1ad19ead969';
+export const ICONS_JSON_SHA256 = '51f9cd91084b132871b7f10316644949e7a2c47bfab1cb1d1275bea890d3accf';
 const NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 
@@ -67,6 +71,9 @@ export function verifyIcons(icons, sums) {
 export function buildIcons({ source, target }) {
   const icons = iconsFromSprite(readFileSync(path.join(source, 'bootstrap-icons.svg')));
   verifyIcons(icons, readFileSync(path.join(source, 'SHA256SUMS'), 'utf8'));
+  for (const [file, pinned] of [['icons.json', ICONS_JSON_SHA256], ['LICENSE', LICENSE_SHA256]]) {
+    if (sha256(readFileSync(path.join(source, file))) !== pinned) throw new Error(`build-icons: ${file} does not match its pinned SHA-256`);
+  }
   // Write into a sibling directory first, then swap, so a failure never leaves a partial icon set.
   const staging = `${target}.tmp`;
   rmSync(staging, { recursive: true, force: true });

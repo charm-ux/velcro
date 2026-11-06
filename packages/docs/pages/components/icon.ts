@@ -1,7 +1,7 @@
 // Example sections and explanatory text adapted from Shoelace v2.20.1 (docs/pages/components/icon.md), Copyright (c)
 // 2020 A Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md.
 import { LitElement, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
 import { docsShell, shellStyles } from '../../src/shell.js';
 import { themeHead } from '../../src/theme.js';
@@ -22,7 +22,7 @@ const sections: Section[] = [
   ['custom-icons', 'Custom icons', 'icon/custom', 'Custom icons can be loaded individually with the src attribute. Only SVGs on a local or CORS-enabled endpoint are supported. If you\'re using more than one custom icon, it might make sense to register a custom icon library. In an application you would usually set the src attribute to the icon\'s URL directly; this example sets src from a script only because this site\'s address depends on where it is deployed.'],
 ];
 
-const cdn = ' The icons load from the CDN in your browser; Velcro ships none of them.';
+const cdn = ' The icons load from the CDN in your browser, and only after you choose to load the example; Velcro ships none of them.';
 const libraries: Section[] = [
   ['boxicons', 'Boxicons', 'icon/boxicons', 'This will register the Boxicons library using the jsDelivr CDN. This library has three variations: regular (bx-*), solid (bxs-*), and logos (bxl-*). A mutator function is required to set the SVG\'s fill to currentColor. Icons in this library are licensed under the Creative Commons 4.0 License.' + cdn],
   ['lucide', 'Lucide', 'icon/lucide', 'This will register the Lucide icon library using the jsDelivr CDN. This project is a community-maintained fork of the popular Feather icon library. Icons in this library are licensed under the MIT License.' + cdn],
@@ -37,7 +37,7 @@ const libraries: Section[] = [
   ['unicons', 'Unicons', 'icon/unicons', 'This will register the Unicons library using the jsDelivr CDN. This library has two variations: line (default) and solid (*-s). A mutator function is required to set the SVG\'s fill to currentColor. Icons in this library are licensed under the Apache 2.0 License. Some of the icons that appear on the Unicons website, particularly many of the solid variations, require a license and are therefore not available in the CDN.' + cdn],
 ];
 
-const basePathExample = `<!-- Point Velcro at a copy of its dist folder (it holds assets/icons) -->
+const basePathExample = `<!-- Point Velcro at its dist folder, or a copy of it (it holds assets/icons) -->
 <script type="module" src="app.js" data-shoelace="/path/to/velcro/dist"></script>
 
 <!-- or set it from a script that runs before any icon is drawn -->
@@ -76,13 +76,23 @@ const systemLibraryExample = `<script type="module">
 </script>`;
 
 const gaps = [
-  'Velcro builds on the @charm-ux/core icon but replaces how it resolves and draws icons: core\'s own icon set, its fallback icon, its visually hidden label and its icon-base part are not used, and core\'s icon styles (inline-flex, contain: strict, vertical-align: middle, fill: currentColor) are replaced by Shoelace\'s. Velcro extensions kept from core: the url attribute, used like src but only when src is not set, and the icon-load and icon-error events, which fire together with sl-load and sl-error (icon-error carries the HTTP status in detail.status, or -1 when there is none). The element also emits the core ready event.',
-  'The default library resolves to assets/icons/<name>.svg under the base path. The package ships Bootstrap Icons 1.11.3 (2,050 icons, MIT, with their license and an icons.json index) in dist/assets/icons. Base path detection differs from Shoelace: a data-shoelace attribute on any script wins, as in Shoelace; otherwise Velcro uses its own dist directory, found from its module URL, where Shoelace looks for a script named shoelace.js or shoelace-autoloader.js and otherwise uses the site root. A bundler that moves Velcro\'s modules away from its assets needs setBasePath() or data-shoelace.',
+  'Velcro builds on the @charm-ux/core icon but replaces how it resolves and draws icons: core\'s own icon set, its fallback icon, its visually hidden label and its icon-base part are not used, and core\'s styles (its base styles and its icon styles: inline-flex, contain: strict, vertical-align: middle, fill: currentColor) are replaced by Shoelace\'s. Velcro extensions kept from core: the url attribute, used like src but only when src is null (never set, or its attribute removed) and no library icon applies, and the icon-load and icon-error events, which fire together with sl-load and sl-error (icon-error carries the HTTP status in detail.status, or -1 when there is none). Changing url redraws only when url is the source in effect and no Shoelace property changed with it. The element also emits the core ready event.',
+  'The default library resolves to assets/icons/<name>.svg under the base path, found as in Shoelace: a data-shoelace attribute on any script, else the folder of a script named shoelace.js or shoelace-autoloader.js (or their .min versions), else the site root, re-checked on each call while it is empty. Velcro has no script with those names, so in practice set the base path with setBasePath() or data-shoelace. The package ships Bootstrap Icons 1.11.3 (2,050 icons, MIT, with their license and an icons.json index) in dist/assets/icons, so the base path to use is the package\'s dist folder or a copy of it.',
   'registerIconLibrary, unregisterIconLibrary, getBasePath and setBasePath are exported from @charm-ux/velcro, @charm-ux/velcro/icon and @charm-ux/velcro/icon/class. There are no utilities/icon-library or utilities/base-path entry points.',
   'The icon search on this page is Velcro\'s own: Shoelace\'s uses sl-input, sl-select and sl-tooltip, which Velcro does not have. It matches icon names, titles, tags and categories, and clicking an icon copies its name.',
-  'The CDN icon library examples load third-party icons from jsDelivr in your browser. Velcro\'s tests answer those requests locally, so they check the URLs each resolver builds and that the mutators run, not the CDN content.',
+  'The CDN icon library examples load third-party icons from jsDelivr only when you choose to load them, so this page contacts no third party until then. The examples run in same-origin frames, and the icon parses each fetched file as HTML (see the quirks above), so only load examples whose source you trust. The Iconoir example is pinned to version 5.5.2 where Shoelace\'s docs use @latest (for the six icons shown, the same files). Velcro\'s tests answer the CDN requests locally, so they check the URLs each resolver builds and what each mutator sets, not the CDN content.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Server-side rendering is not supported.',
   'Shoelace\'s own icon tests run against Velcro and all pass; one (an error for a missing sprite sheet icon) is skipped by Shoelace itself. Rendering is checked by computed-style assertions in Chromium; there is no pixel comparison against Shoelace, and no Firefox or WebKit run.',
+];
+
+const quirks = [
+  'When name, src and library change in the same update, the icon is drawn once per changed property: changing name and library together on a drawn icon fetches once (the cache is shared) but runs the mutator twice and emits sl-load (or sl-error) twice. The draw starts before the label is applied.',
+  'An icon with the hidden attribute stays visible: the icon\'s display: inline-block beats the browser\'s [hidden] rule.',
+  'The system library looks names up with the in operator, so inherited names such as toString or constructor resolve to a file that is not an SVG, and the icon emits sl-error instead of drawing nothing.',
+  'The fetched file is parsed as HTML and not sanitized, so an event handler attribute in it (for example on an img next to the svg) runs in the page. Only use src and library URLs you trust.',
+  'Responses are cached by URL for the page\'s lifetime and shared by every icon and library: a 410 or a file that is not an SVG stays cached as an error and is never requested again, other failures are requested again next time, and a URL first drawn by a sprite sheet library is drawn as a sprite reference for every icon that uses it, src included.',
+  'A response that arrives after the icon\'s source changed is ignored, so only the latest source is drawn and only it emits an event.',
+  'Sprite sheet icons never emit sl-load or sl-error, even when the sprite or the symbol does not exist.',
 ];
 
 const example = ([id, title, key, text]: Section) => html`
@@ -102,6 +112,18 @@ const spriteSection: Section = [
 @customElement('page-components-icon')
 export class IconPage extends LitElement {
   static override styles = [shellStyles];
+
+  // The CDN examples contact jsDelivr, so their frames are created only when the reader asks for them.
+  @state() private loadedCdnExamples = new Set<string>();
+
+  private cdnExample = ([id, title, key, text]: Section) => this.loadedCdnExamples.has(id)
+    ? example([id, title, key, text])
+    : html`
+      <h3 id=${id}>${title}</h3>
+      <p>${text}</p>
+      <p><button type="button" class="load-cdn-example" @click=${() => { this.loadedCdnExamples = new Set([...this.loadedCdnExamples, id]); }}>Load ${title} example from jsDelivr</button></p>
+      <pre><code>${examples[key as keyof typeof examples]}</code></pre>
+    `;
 
   override render() {
     return docsShell('icon', html`
@@ -132,7 +154,7 @@ export class IconPage extends LitElement {
       <pre><code>${useExample}</code></pre>
       <p>If an icon is used before registration occurs, it will be empty initially but shown when registered.</p>
       <p>The following examples demonstrate how to register a number of popular, open source icon libraries via CDN. Feel free to adapt the code as you see fit to use your own origin or naming conventions.</p>
-      ${libraries.map(example)}
+      ${libraries.map(this.cdnExample)}
 
       <h3 id="customizing-the-default-library">Customizing the default library</h3>
       <p>The default icon library contains over 2,000 icons courtesy of the Bootstrap Icons project. These are the icons that display when you use <code>&lt;sl-icon&gt;</code> without the <code>library</code> attribute. If you prefer to have these icons resolve elsewhere or to a different icon library, register an icon library using the <code>default</code> name and a custom resolver.</p>
@@ -149,6 +171,12 @@ export class IconPage extends LitElement {
         attributes: html`<p>Removing a reflected attribute (<code>name</code>, <code>library</code>) restores the property's initial value, as in Shoelace. With no label the host gets <code>aria-hidden="true"</code>; with one it gets <code>role="img"</code> and <code>aria-label</code>.</p>`,
         events: html`<p><code>sl-load</code> and <code>sl-error</code> bubble and are composed, and do not fire for sprite sheets. Velcro extensions, not in Shoelace: the core <code>icon-load</code> and <code>icon-error</code> events, which fire together with them, and the core <code>ready</code> event, dispatched once on the element after its first update (it does not bubble and is not composed).</p>`,
       })}
+
+      <h2 id="upstream-quirks">Upstream quirks matched</h2>
+      <p>Shoelace 2.20.1 behaviors that Velcro reproduces on purpose, including bugs; each is a candidate for a later opt-in fix.</p>
+      <ul>
+        ${quirks.map(q => html`<li>${q}</li>`)}
+      </ul>
 
       <h2 id="not-implemented">Not implemented or unverified</h2>
       <p>Differences from Shoelace 2.20.1 and limits of what has been checked.</p>

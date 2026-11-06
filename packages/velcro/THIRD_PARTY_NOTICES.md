@@ -160,8 +160,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## Bootstrap Icons v1.11.3 (MIT)
 
-- Source: the `v1.11.3` release of Bootstrap Icons (https://github.com/twbs/icons); file contents identical to the
-  `bootstrap-icons` 1.11.3 npm package that Shoelace 2.20.1's default icon library is built from.
+- Source: the GitHub `v1.11.3` release archive of Bootstrap Icons (https://github.com/twbs/icons), the source Shoelace
+  2.20.1's `scripts/make-icons.js` downloads for its default icon library. Its 2,050 icon files, sprite sheet and
+  LICENSE also have the same SHA-256 hashes as those jsDelivr's file index lists for the `bootstrap-icons` 1.11.3 npm
+  package.
 - Used in: `packages/velcro/assets/bootstrap-icons/bootstrap-icons.svg` and
   `packages/docs/public/assets/images/sprite.svg` (the release's sprite, copied unmodified; the package build generates
   the 2,050 icon files in `dist/assets/icons/` from it for the default icon library and checks each against the

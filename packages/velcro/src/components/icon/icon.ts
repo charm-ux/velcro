@@ -3,10 +3,11 @@
 // `<svg part="svg"><use part="use">`, library mutators, `sl-load` / `sl-error`, and the label-driven `role="img"` /
 // `aria-hidden` on the host) are adapted from Shoelace v2.20.1 (src/components/icon/icon.component.ts), Copyright (c)
 // 2020 A Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md. No Shoelace source file or runtime is included.
-import { html, type HTMLTemplateResult, type PropertyValues } from 'lit';
+// Shoelace's behavior is matched exactly, including its quirks; each one is marked "Upstream quirk" below and listed on
+// the docs page.
+import { html, type HTMLTemplateResult, type PropertyValues, type TemplateResult } from 'lit';
 import { isTemplateResult } from 'lit/directive-helpers.js';
 import { property, state } from 'lit/decorators.js';
-import { CharmElement } from '@charm-ux/core/dist/base/index.js';
 import { CoreIcon } from '@charm-ux/core/dist/components/icon/icon.js';
 import { getIconLibrary, type IconLibrary, unwatchIcon, watchIcon } from './library.js';
 import styles from './icon.styles.js';
@@ -47,15 +48,35 @@ interface IconSource {
  * @csspart use - The <use> element generated when using `spriteSheet: true`
  */
 export class VelcroIcon extends CoreIcon {
-  // Core's icon styles are dropped on purpose: they make the host an inline-flex box with `contain: strict`,
-  // `vertical-align: middle` and a forced `fill: currentColor`, which Shoelace's icon does not have. Only the styles
-  // shared by every Charm element (box-sizing, `[hidden]`) are kept.
-  public static override styles = [...CharmElement.styles, styles];
+  // Core's styles are replaced by Shoelace's own (see the styles file): core's icon styles make the host an inline-flex
+  // box with `contain: strict`, `vertical-align: middle` and a forced `fill: currentColor`, and core's base styles add
+  // `:host([hidden]) { display: none !important }`, `box-sizing: border-box` on every shadow descendant and focus and
+  // form-control resets. Shoelace's icon has none of these.
+  public static override styles = [styles];
 
   private initialRender = false;
 
   // Shoelace's private `svg` state. Core's own `svg` state (a markup string) stays declared by the base class but unused.
   @state() private icon: SVGElement | HTMLTemplateResult | null = null;
+
+  // Shoelace's base element declares `lang` and `dir` as reactive properties with no initial value and no reflection,
+  // which also makes them observed attributes. Without the `lang` declaration, `lang` would be the native one, which
+  // reflects: assigning it would change the attribute and reading it would give '' instead of undefined. Core declares
+  // `dir` as a reactive property whose getter computes the direction (`ltr` or `rtl`) when it is unset or `auto`;
+  // Shoelace's returns the value as set (undefined when unset), so the accessor is replaced.
+  @property()
+  public override lang!: string;
+
+  private shoelaceDir?: string;
+
+  @property()
+  public override get dir(): 'ltr' | 'rtl' | 'auto' {
+    return this.shoelaceDir as 'ltr' | 'rtl' | 'auto';
+  }
+
+  public override set dir(value: 'ltr' | 'rtl' | 'auto') {
+    this.shoelaceDir = value;
+  }
 
   /** The name of the icon to draw. Available names depend on the icon library being used. */
   @property({ reflect: true }) public override name?: string;
@@ -76,8 +97,8 @@ export class VelcroIcon extends CoreIcon {
   @property({ reflect: true }) public library = 'default';
 
   /**
-   * Velcro extension (from the core icon): an external URL of an SVG file, used only when `src` is not set and no
-   * library icon applies. Prefer `src`.
+   * Velcro extension (from the core icon): an external URL of an SVG file, used only when `src` is null or undefined
+   * (never set, or its attribute removed) and no library icon applies. Prefer `src`.
    */
   @property() public override url?: string;
 
@@ -101,9 +122,12 @@ export class VelcroIcon extends CoreIcon {
   public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
     if (!this.hasRecordedInitialProperties) {
       (this.constructor as typeof VelcroIcon).elementProperties.forEach((options, prop) => {
-        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-        if (options.reflect && current != null) {
-          this.initialReflectedProperties.set(prop as string, current);
+        // Reflection is checked first, as upstream does, so that a non-reflected property's getter is not read here.
+        if (options.reflect) {
+          const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
+          if (current != null) {
+            this.initialReflectedProperties.set(prop as string, current);
+          }
         }
       });
       this.hasRecordedInitialProperties = true;
@@ -122,14 +146,21 @@ export class VelcroIcon extends CoreIcon {
     });
   }
 
-  // Shoelace's `@watch('label')` and `@watch(['name', 'src', 'library'])`: they run before render, on the first update too.
+  // Shoelace's `@watch(['name', 'src', 'library'])` and `@watch('label')`, in the order Shoelace's decorators wrap
+  // `update`: they run before render, on the first update too. Upstream quirk: `setIcon` runs once for EACH watched
+  // property that changed, so changing `name` and `library` together on a drawn icon fetches once (shared cache) but
+  // draws twice, runs the library's mutator twice and emits `sl-load` (or `sl-error`) twice.
   protected override update(changed: PropertyValues<this>) {
     const differs = (prop: keyof VelcroIcon) => changed.has(prop) && changed.get(prop) !== this[prop];
+    const watched = (['name', 'src', 'library'] as const).filter(differs);
+    watched.forEach(() => void this.setIcon());
+    // Velcro extension: `url` redraws only when it is the source in effect and no Shoelace property changed with it,
+    // so it never adds a load or an event to what Shoelace does.
+    if (!watched.length && differs('url') && this.src == null && !(this.name && getIconLibrary(this.library))) {
+      void this.setIcon();
+    }
     if (differs('label')) {
       this.handleLabelChange();
-    }
-    if (differs('name') || differs('src') || differs('library') || differs('url')) {
-      void this.setIcon();
     }
     super.update(changed);
   }
@@ -161,6 +192,8 @@ export class VelcroIcon extends CoreIcon {
 
     const notSvg: IconError = { retry: false, status: fileData.status };
     try {
+      // Upstream quirk: the fetched text is parsed with innerHTML and not sanitized, so markup such as an event handler
+      // attribute on an element in the response (from `src` or a library's URL) runs in the page.
       const div = document.createElement('div');
       div.innerHTML = await fileData.text();
 
@@ -273,8 +306,9 @@ export class VelcroIcon extends CoreIcon {
   }
 
   // Renders the resolved SVG (or the sprite sheet template) directly in the shadow root, with no wrapper, as in Shoelace.
+  // The value is returned as is (not inside a template), as Shoelace does; core's signature declares a template result.
   protected override render() {
-    return html`${this.icon}`;
+    return this.icon as unknown as TemplateResult;
   }
 }
 

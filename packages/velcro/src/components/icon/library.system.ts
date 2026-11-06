@@ -1,6 +1,7 @@
 // The system icon set (SVG markup, names and the data-URI resolver) is copied from Shoelace v2.20.1
-// (src/components/icon/library.system.ts), Copyright (c) 2020 A Beautiful Site, LLC, MIT License. The icons themselves are
-// a subset of Bootstrap Icons (Copyright (c) 2019-2024 The Bootstrap Authors, MIT License). See THIRD_PARTY_NOTICES.md.
+// (src/components/icon/library.system.ts; only the resolver's parameter type differs), Copyright (c) 2020 A Beautiful
+// Site, LLC, MIT License. The icons themselves are a subset of Bootstrap Icons (Copyright (c) 2019-2024 The Bootstrap
+// Authors, MIT License). See THIRD_PARTY_NOTICES.md.
 import type { IconLibrary } from './library.js';
 
 //
@@ -122,8 +123,10 @@ const icons = {
 
 const systemLibrary: IconLibrary = {
   name: 'system',
+  // Upstream quirk: `in` also matches inherited keys, so names such as `toString` or `constructor` resolve to a data URL
+  // of the function's source (or `[object Object]`), which is not an SVG, so the icon emits `sl-error`.
   resolver: (name: string) => {
-    if (Object.hasOwn(icons, name)) {
+    if (name in icons) {
       return `data:image/svg+xml,${encodeURIComponent(icons[name as keyof typeof icons])}`;
     }
     return '';

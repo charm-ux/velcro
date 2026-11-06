@@ -61,16 +61,91 @@ export function scoreboard(results) {
   return Object.fromEntries(Object.keys(board).sort().map(k => [k, board[k]]));
 }
 
-// Titles of the tests that upstream itself marks `it.skip(...)` in a vendored (hash-pinned) test file, per component.
-// Only these may be reported as skipped: Velcro never skips a test, and editing a vendored file breaks its pinned hash.
+// Reads a string literal starting at `i`. Returns { value, end }; value is null for a template literal with `${`.
+function readString(src, i) {
+  const quote = src[i];
+  let value = '';
+  let dynamic = false;
+  for (let j = i + 1; j < src.length; j++) {
+    const ch = src[j];
+    if (ch === '\\') { value += src[j + 1]; j++; continue; }
+    if (ch === quote) return { value: dynamic ? null : value, end: j + 1 };
+    if (quote === '`' && ch === '$' && src[j + 1] === '{') {
+      dynamic = true;
+      let depth = 0;
+      for (j += 1; j < src.length; j++) {
+        if (src[j] === '{') depth++;
+        else if (src[j] === '}' && --depth === 0) break;
+      }
+      continue;
+    }
+    value += ch;
+  }
+  throw new Error('upstream-conformance: unterminated string in a vendored test file');
+}
+
+// Every `it(...)` / `it.skip(...)` in a test file, in declaration order, with its full title (the enclosing describe
+// titles and its own, joined with ' > ' as the runner reports them; null when any of them is not a plain literal) and
+// whether it is skipped. A small scanner, not a parser: callers must check the result against the inventory.
+export function declaredTests(src) {
+  const tests = [];
+  const stack = [];
+  let depth = 0;
+  let pending;
+  let i = 0;
+  while (i < src.length) {
+    const ch = src[i];
+    if (ch === '/' && src[i + 1] === '/') { const n = src.indexOf('\n', i); i = n < 0 ? src.length : n; continue; }
+    if (ch === '/' && src[i + 1] === '*') { const n = src.indexOf('*/', i + 2); i = n < 0 ? src.length : n + 2; continue; }
+    if (ch === '"' || ch === "'" || ch === '`') { i = readString(src, i).end; continue; }
+    if (ch === '{') {
+      depth++;
+      if (pending !== undefined) { stack.push({ title: pending, depth }); pending = undefined; }
+      i++;
+      continue;
+    }
+    if (ch === '}') {
+      if (stack.length && stack.at(-1).depth === depth) stack.pop();
+      depth--;
+      i++;
+      continue;
+    }
+    const call = /^(describe|it)(\.skip|\.only)?\s*\(\s*/.exec(src.slice(i, i + 64));
+    if (call && !/[\w$.]/.test(src[i - 1] ?? '')) {
+      const at = i + call[0].length;
+      const literal = /['"`]/.test(src[at]) ? readString(src, at) : { value: null, end: at };
+      if (call[1] === 'describe') pending = literal.value;
+      else {
+        const parts = [...stack.map(s => s.title), literal.value];
+        tests.push({ title: parts.includes(null) ? null : parts.join(' > '), skip: call[2] === '.skip' });
+      }
+      i = literal.end;
+      continue;
+    }
+    i++;
+  }
+  return tests;
+}
+
+// The tests that upstream itself marks `it.skip(...)` in a vendored (hash-pinned) test file, per component, as full
+// runner identities (suite path, and the [#n] suffix of a repeated title), with every declared identity so the caller
+// can check the scan against the inventory. Only these may be reported as skipped: Velcro never skips a test, and
+// editing a vendored file breaks its pinned hash.
 export function upstreamSkips(root, components) {
   const skips = {};
   for (const name of components) {
     const file = path.join(root, VENDOR, 'src/components', name, `${name}.test.ts`);
     if (!existsSync(file)) continue;
-    const titles = [...readFileSync(file, 'utf8').matchAll(/\bit\.skip\(\s*(['"])((?:\\.|(?!\1)[^\\])*)\1/g)]
-      .map(m => m[2].replace(/\\(.)/g, '$1'));
-    if (titles.length) skips[name] = titles;
+    const seen = new Map();
+    const declared = declaredTests(readFileSync(file, 'utf8')).map(t => {
+      if (t.title === null) return t;
+      const n = (seen.get(t.title) ?? 0) + 1;
+      seen.set(t.title, n);
+      return { ...t, title: n === 1 ? t.title : `${t.title} [#${n}]` };
+    });
+    if (declared.some(t => t.skip)) {
+      skips[name] = { skipped: declared.filter(t => t.skip).map(t => t.title), declared: declared.map(t => t.title) };
+    }
   }
   return skips;
 }
@@ -81,8 +156,9 @@ const malformedList = (value, ok) => !value || typeof value !== 'object' || Arra
 // Compares a run with the pinned inventory and the ledger. Returns { ok, unexpected, fixed, problems }.
 // The inventory lists every expected test title per component (repeated titles carry their [#n] suffix): any missing or
 // extra outcome fails, infrastructure (load/session) failures always fail and can never be ledgered, and only assertion
-// failures of inventoried tests may be ledgered. A skipped outcome fails unless upstream itself skips that test
-// (`skips`, from upstreamSkips: the last title segment must be one upstream marks `it.skip`).
+// failures of inventoried tests may be ledgered. A skipped outcome fails unless upstream itself skips that exact test
+// (`skips`, from upstreamSkips: full identity, suite path and occurrence included), and only when the scan of that
+// vendored file declares exactly the inventoried tests, so the skip is bound to the right one.
 export function evaluate(board, ledger, inventory, components, skips = {}) {
   const problems = [];
   const unexpected = [];
@@ -100,9 +176,13 @@ export function evaluate(board, ledger, inventory, components, skips = {}) {
     const result = board[component];
     if (!result) { problems.push(`no results for ${component}`); continue; }
     for (const reason of result.infrastructure) problems.push(`infrastructure failure in ${component}: ${reason}`);
-    const allowed = new Set(skips[component] ?? []);
+    const bound = skips[component];
+    const boundOk = bound && bound.declared.length === expected.length && !bound.declared.includes(null)
+      && [...bound.declared].sort().every((t, n) => t === [...expected].sort()[n]);
+    if (bound && !boundOk) problems.push(`upstream skips in ${component} cannot be bound to the inventory`);
+    const allowed = new Set(boundOk ? bound.skipped : []);
     for (const t of result.skips ?? []) {
-      if (!allowed.has(t.split(' > ').at(-1).replace(/ \[#\d+\]$/, ''))) problems.push(`skipped test in ${component}: ${t}`);
+      if (!allowed.has(t)) problems.push(`skipped test in ${component}: ${t}`);
     }
     if (result.skipped !== (result.skips?.length ?? 0)) problems.push(`skipped tests in ${component}`);
     const want = new Set(expected);
