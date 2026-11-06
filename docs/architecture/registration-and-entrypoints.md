@@ -123,9 +123,22 @@ registering aggregate. These checks run in Chromium, Firefox and WebKit; they ar
 SSR or packed-consumer guarantee.
 
 This implementation is not a complete replacement for core's scope machinery. Core classes
-with dependencies or templates using `this.scope` can fail when registered outside
-core's scope maps. Nested dependencies, icons and base-name attributes must be
-resolved explicitly before extending that approach across the catalog. Any actual
+with dependencies or templates using `this.scope` fail when registered outside
+core's scope maps: core's constructor calls `this.scope.registerComponent(...)` on an
+undefined scope. A Velcro class built on such a component opts in to the Velcro-local
+scope resolver (`packages/velcro/src/internal/scope.ts`, `useVelcroScope(Class)`, first used
+by `sl-switch`). It gives that class a fixed scope that maps core base names to `sl-*` tags
+for templates, checks each declared dependency against the registry instead of defining
+it (the tag must be defined by the dependency class or a subclass, otherwise construction
+fails with a clear error), skips only core's base-name marker attribute write (the scope
+itself stays available while the element connects and reconnects, including in subclass
+`connectedCallback` code and controllers' `hostConnected`), and never reads or writes core's
+shared scope, prefix or project configuration. It must be installed before the class is
+defined as a custom element. A class whose template renders no dependency overrides
+`static dependencies`. Browser regressions in `tests/product/registration-helper.spec.mjs`
+cover it on core's own switch. Nested dependency closures and icons still need a Velcro
+counterpart registered first, and core logic that finds elements by marker attributes (such
+as `[accordion-item]` or `closest('[menu]')`) has to be replaced in the Velcro subclass. Any actual
 core change still needs a failing reproduction and separate approval.
 
 Do not treat these as solutions by themselves:

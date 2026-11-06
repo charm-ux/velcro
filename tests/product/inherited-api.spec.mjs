@@ -25,6 +25,7 @@ const CONTENT = {
   'sl-mutation-observer': '<div>x</div>',
   'sl-resize-observer': '<div>x</div>',
   'sl-visually-hidden': 'Hidden',
+  'sl-switch': 'Label<span slot="help-text">Help</span>',
 };
 const ATTRS = { 'sl-progress-bar': { value: '40' }, 'sl-progress-ring': { value: '40' }, 'sl-format-bytes': { value: '1000' }, 'sl-format-number': { value: '1000' } };
 // One valid value of each kind a core custom property takes: length, color, border style, border shorthand, a visible
@@ -33,8 +34,9 @@ const VALUES = ['37px', 'rgb(1, 2, 3)', 'dotted', '3px solid rgb(1, 2, 3)', '2px
 
 for (const [tag, decl] of elements) {
   test(`${tag}: inherited CSS custom properties, slots and parts are listed exactly when they still apply`, async ({ page }) => {
-    // Every candidate is measured on its own in every state, which is slow for sl-button (about a minute in Chromium, about
-    // two in WebKit on a fast machine); the margin covers slower CI runners.
+    // Every candidate is measured on its own with every value in every state, which is slow: sl-button takes about a minute
+    // in Chromium and about two in WebKit on a fast machine, and sl-switch (55 core candidates, 7 boolean states) about one on
+    // a fast workstation and about two at half that CPU speed. The margin covers slower CI runners.
     test.setTimeout(300000);
     const parent = coreDecls.get(decl.superclass.name);
     expect(parent, `${tag} superclass in core's manifest`).toBeTruthy();

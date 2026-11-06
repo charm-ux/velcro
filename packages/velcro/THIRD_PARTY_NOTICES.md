@@ -101,6 +101,17 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   `src/components/visually-hidden/visually-hidden.styles.ts`, declarations unchanged), plus two example snippets in the
   docs page examples adapted from `docs/pages/components/visually-hidden.md`. The component extends the `@charm-ux/core`
   base element; no Shoelace runtime or source files are included.
+- Also used in: `packages/velcro/src/components/switch/switch.ts` (API documentation wording, the rendered structure: a
+  `base` `<label>` around a hidden checkbox with `role="switch"`, the `control` / `thumb` track, the `label` part with
+  the default slot and the `form-control-help-text` part, and the click, keyboard, focus, validation and form behavior,
+  adapted from `src/components/switch/switch.component.ts`, with the `defaultValue('checked')` rule from
+  `src/internal/default-value.ts` and the restore of reflected properties' initial values from
+  `src/internal/shoelace-element.ts`), `packages/velcro/src/components/switch/switch.styles.ts` (styles concatenated
+  from `src/styles/component.styles.ts`, `src/styles/form-control.styles.ts` and
+  `src/components/switch/switch.styles.ts`, rules unchanged) and the docs page and examples
+  `packages/docs/pages/components/switch.ts` and `packages/docs/examples/switch/*.html` (examples and wording adapted
+  from `docs/pages/components/switch.md`). The switch is built on the `@charm-ux/core` switch; no Shoelace runtime or
+  source files are included.
 - Also used in: `packages/velcro/src/components/format-bytes/format-bytes.ts` (API documentation wording and the
   formatting algorithm, adapted from `src/components/format-bytes/format-bytes.component.ts`),
   `packages/velcro/src/components/format-bytes/format-bytes.styles.ts` (written for Velcro; upstream has no styles file)
