@@ -1,293 +1,617 @@
+// Adapted from Shoelace v2.20.1 (src/components/button/button.styles.ts), Copyright (c) 2020 A Beautiful Site, LLC,
+// MIT License. See THIRD_PARTY_NOTICES.md. Changes: the caret is an inline svg in a span (Velcro has no sl-icon), so the
+// sizing rules of Shoelace's sl-icon host (src/components/icon/icon.styles.ts) are added at the end for `.button__caret`.
+// Everything else, including the button-group host attributes, is unchanged.
 import { css } from 'lit';
 
 export default css`
   :host {
     display: inline-block;
-    width: auto;
     position: relative;
+    width: auto;
     cursor: pointer;
   }
 
-  .control {
-    --velcro-height: var(--sl-input-height-medium, 2.5rem);
-    --velcro-font-size: var(--sl-button-font-size-medium, var(--sl-font-size-medium, 1rem));
-    --velcro-padding-x: var(--sl-spacing-medium, 1rem);
-    --velcro-radius: var(--sl-input-border-radius-medium, 0.25rem);
-    --velcro-bg: var(--sl-color-neutral-0, #fff);
-    --velcro-border: var(--sl-color-neutral-300, #d4d4d8);
-    --velcro-fg: var(--sl-color-neutral-700, #3f3f46);
-    --velcro-hover-bg: var(--sl-color-primary-50, #f0f9ff);
-    --velcro-hover-border: var(--sl-color-primary-300, #7dd3fc);
-    --velcro-hover-fg: var(--sl-color-primary-700, #0369a1);
-    --velcro-active-bg: var(--sl-color-primary-100, #e0f2fe);
-    --velcro-active-border: var(--sl-color-primary-400, #38bdf8);
-    --velcro-active-fg: var(--sl-color-primary-700, #0369a1);
-
-    position: relative;
+  .button {
     display: inline-flex;
     align-items: stretch;
     justify-content: center;
     width: 100%;
-    min-height: var(--velcro-height);
-    height: var(--velcro-height);
-    padding: 0 var(--velcro-padding-x);
-    border: var(--sl-input-border-width, 1px) solid var(--velcro-border);
-    border-radius: var(--velcro-radius);
-    background-color: var(--velcro-bg);
-    color: var(--velcro-fg);
-    font-family: var(--sl-input-font-family, inherit);
-    font-size: var(--velcro-font-size);
-    font-weight: var(--sl-font-weight-semibold, 500);
-    line-height: calc(var(--velcro-height) - var(--sl-input-border-width, 1px) * 2);
-    letter-spacing: var(--sl-input-letter-spacing, normal);
+    border-style: solid;
+    border-width: var(--sl-input-border-width);
+    font-family: var(--sl-input-font-family);
+    font-weight: var(--sl-font-weight-semibold);
     text-decoration: none;
-    white-space: nowrap;
     user-select: none;
-    cursor: inherit;
-    box-shadow: none;
+    -webkit-user-select: none;
+    white-space: nowrap;
+    vertical-align: middle;
+    padding: 0;
     transition:
-      background-color var(--sl-transition-x-fast, 150ms) ease,
-      border-color var(--sl-transition-x-fast, 150ms) ease,
-      color var(--sl-transition-x-fast, 150ms) ease;
+      var(--sl-transition-x-fast) background-color,
+      var(--sl-transition-x-fast) color,
+      var(--sl-transition-x-fast) border,
+      var(--sl-transition-x-fast) box-shadow;
+    cursor: inherit;
   }
 
-  .control:hover:not([disabled]),
-  .control:focus:not([disabled]) {
-    background-color: var(--velcro-hover-bg);
-    border-color: var(--velcro-hover-border);
-    color: var(--velcro-hover-fg);
-    box-shadow: none;
+  .button::-moz-focus-inner {
+    border: 0;
   }
 
-  .control:focus-visible {
-    outline: var(--sl-focus-ring, solid 3px #38bdf866);
-    outline-offset: var(--sl-focus-ring-offset, 1px);
-    z-index: 1;
+  .button:focus {
+    outline: none;
   }
 
-  .control:active:not([disabled]) {
-    background-color: var(--velcro-active-bg);
-    border-color: var(--velcro-active-border);
-    color: var(--velcro-active-fg);
-    box-shadow: none;
+  .button:focus-visible {
+    outline: var(--sl-focus-ring);
+    outline-offset: var(--sl-focus-ring-offset);
   }
 
-  :host([disabled]),
-  :host([disabled]) .control {
+  .button--disabled {
+    opacity: 0.5;
     cursor: not-allowed;
   }
 
-  :host([disabled]) .control {
-    opacity: 0.5;
-    background-color: var(--velcro-bg);
-    border-color: var(--velcro-border);
-    color: var(--velcro-fg);
-  }
-
-  .prefix,
-  .suffix,
-  .label,
-  .caret {
-    display: inline-flex;
-    align-items: center;
-    flex: 0 0 auto;
-  }
-
-  .label {
-    padding: 0 0.125em;
-  }
-
-  .prefix ::slotted(*),
-  .suffix ::slotted(*) {
+  /* When disabled, prevent mouse events from bubbling up from children */
+  .button--disabled * {
     pointer-events: none;
   }
 
-  slot[name='prefix']::slotted(*) {
-    margin-inline-end: 0.5em;
+  .button__prefix,
+  .button__suffix {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
   }
 
-  slot[name='suffix']::slotted(*) {
-    margin-inline-start: 0.5em;
+  .button__label {
+    display: inline-block;
   }
 
-  .caret svg {
-    width: 1em;
-    height: 1em;
-    margin-inline-start: 0.5em;
+  .button__label::slotted(sl-icon) {
+    vertical-align: -2px;
   }
 
-  /* Sizes */
-  :host([size='small']) .control {
-    --velcro-height: var(--sl-input-height-small, 1.875rem);
-    --velcro-font-size: var(--sl-button-font-size-small, var(--sl-font-size-small, 0.875rem));
-    --velcro-padding-x: var(--sl-spacing-small, 0.75rem);
-    --velcro-radius: var(--sl-input-border-radius-small, 0.1875rem);
+  /*
+   * Standard buttons
+   */
+
+  /* Default */
+  .button--standard.button--default {
+    background-color: var(--sl-color-neutral-0);
+    border-color: var(--sl-input-border-color);
+    color: var(--sl-color-neutral-700);
   }
 
-  :host([size='large']) .control {
-    --velcro-height: var(--sl-input-height-large, 3.125rem);
-    --velcro-font-size: var(--sl-button-font-size-large, var(--sl-font-size-large, 1.25rem));
-    --velcro-padding-x: var(--sl-spacing-large, 1.25rem);
-    --velcro-radius: var(--sl-input-border-radius-large, 0.34375rem);
+  .button--standard.button--default:hover:not(.button--disabled) {
+    background-color: var(--sl-color-primary-50);
+    border-color: var(--sl-color-primary-300);
+    color: var(--sl-color-primary-700);
   }
 
-  :host([pill]) .control {
-    --velcro-radius: var(--sl-border-radius-pill, 9999px);
+  .button--standard.button--default:active:not(.button--disabled) {
+    background-color: var(--sl-color-primary-100);
+    border-color: var(--sl-color-primary-400);
+    color: var(--sl-color-primary-700);
   }
 
-  :host([circle]) .control {
-    --velcro-radius: 50%;
-    width: var(--velcro-height);
-    padding: 0;
+  /* Primary */
+  .button--standard.button--primary {
+    background-color: var(--sl-color-primary-600);
+    border-color: var(--sl-color-primary-600);
+    color: var(--sl-color-neutral-0);
   }
 
-  :host([circle]) .label {
-    padding: 0;
+  .button--standard.button--primary:hover:not(.button--disabled) {
+    background-color: var(--sl-color-primary-500);
+    border-color: var(--sl-color-primary-500);
+    color: var(--sl-color-neutral-0);
   }
 
-  /* Solid variants */
-  :host([variant='primary']) .control {
-    --velcro-bg: var(--sl-color-primary-600, #0284c7);
-    --velcro-border: var(--sl-color-primary-600, #0284c7);
-    --velcro-fg: var(--sl-color-neutral-0, #fff);
-    --velcro-hover-bg: var(--sl-color-primary-500, #0ea5e9);
-    --velcro-hover-border: var(--sl-color-primary-500, #0ea5e9);
-    --velcro-hover-fg: var(--sl-color-neutral-0, #fff);
-    --velcro-active-bg: var(--sl-color-primary-600, #0284c7);
-    --velcro-active-border: var(--sl-color-primary-600, #0284c7);
-    --velcro-active-fg: var(--sl-color-neutral-0, #fff);
+  .button--standard.button--primary:active:not(.button--disabled) {
+    background-color: var(--sl-color-primary-600);
+    border-color: var(--sl-color-primary-600);
+    color: var(--sl-color-neutral-0);
   }
 
-  :host([variant='success']) .control {
-    --velcro-bg: var(--sl-color-success-600, #16a34a);
-    --velcro-border: var(--sl-color-success-600, #16a34a);
-    --velcro-fg: var(--sl-color-neutral-0, #fff);
-    --velcro-hover-bg: var(--sl-color-success-500, #22c55e);
-    --velcro-hover-border: var(--sl-color-success-500, #22c55e);
-    --velcro-hover-fg: var(--sl-color-neutral-0, #fff);
-    --velcro-active-bg: var(--sl-color-success-600, #16a34a);
-    --velcro-active-border: var(--sl-color-success-600, #16a34a);
-    --velcro-active-fg: var(--sl-color-neutral-0, #fff);
+  /* Success */
+  .button--standard.button--success {
+    background-color: var(--sl-color-success-600);
+    border-color: var(--sl-color-success-600);
+    color: var(--sl-color-neutral-0);
   }
 
-  :host([variant='neutral']) .control {
-    --velcro-bg: var(--sl-color-neutral-600, #52525b);
-    --velcro-border: var(--sl-color-neutral-600, #52525b);
-    --velcro-fg: var(--sl-color-neutral-0, #fff);
-    --velcro-hover-bg: var(--sl-color-neutral-500, #71717a);
-    --velcro-hover-border: var(--sl-color-neutral-500, #71717a);
-    --velcro-hover-fg: var(--sl-color-neutral-0, #fff);
-    --velcro-active-bg: var(--sl-color-neutral-600, #52525b);
-    --velcro-active-border: var(--sl-color-neutral-600, #52525b);
-    --velcro-active-fg: var(--sl-color-neutral-0, #fff);
+  .button--standard.button--success:hover:not(.button--disabled) {
+    background-color: var(--sl-color-success-500);
+    border-color: var(--sl-color-success-500);
+    color: var(--sl-color-neutral-0);
   }
 
-  :host([variant='warning']) .control {
-    --velcro-bg: var(--sl-color-warning-600, #d97706);
-    --velcro-border: var(--sl-color-warning-600, #d97706);
-    --velcro-fg: var(--sl-color-neutral-0, #fff);
-    --velcro-hover-bg: var(--sl-color-warning-500, #f59e0b);
-    --velcro-hover-border: var(--sl-color-warning-500, #f59e0b);
-    --velcro-hover-fg: var(--sl-color-neutral-0, #fff);
-    --velcro-active-bg: var(--sl-color-warning-600, #d97706);
-    --velcro-active-border: var(--sl-color-warning-600, #d97706);
-    --velcro-active-fg: var(--sl-color-neutral-0, #fff);
+  .button--standard.button--success:active:not(.button--disabled) {
+    background-color: var(--sl-color-success-600);
+    border-color: var(--sl-color-success-600);
+    color: var(--sl-color-neutral-0);
   }
 
-  :host([variant='danger']) .control {
-    --velcro-bg: var(--sl-color-danger-600, #dc2626);
-    --velcro-border: var(--sl-color-danger-600, #dc2626);
-    --velcro-fg: var(--sl-color-neutral-0, #fff);
-    --velcro-hover-bg: var(--sl-color-danger-500, #ef4444);
-    --velcro-hover-border: var(--sl-color-danger-500, #ef4444);
-    --velcro-hover-fg: var(--sl-color-neutral-0, #fff);
-    --velcro-active-bg: var(--sl-color-danger-600, #dc2626);
-    --velcro-active-border: var(--sl-color-danger-600, #dc2626);
-    --velcro-active-fg: var(--sl-color-neutral-0, #fff);
+  /* Neutral */
+  .button--standard.button--neutral {
+    background-color: var(--sl-color-neutral-600);
+    border-color: var(--sl-color-neutral-600);
+    color: var(--sl-color-neutral-0);
   }
 
-  /* Outline variants */
-  :host([outline]) .control {
-    --velcro-bg: transparent;
+  .button--standard.button--neutral:hover:not(.button--disabled) {
+    background-color: var(--sl-color-neutral-500);
+    border-color: var(--sl-color-neutral-500);
+    color: var(--sl-color-neutral-0);
   }
 
-  :host([variant='primary'][outline]) .control {
-    --velcro-fg: var(--sl-color-primary-600, #0284c7);
-    --velcro-hover-bg: var(--sl-color-primary-600, #0284c7);
-    --velcro-active-bg: var(--sl-color-primary-700, #0369a1);
-    --velcro-active-border: var(--sl-color-primary-700, #0369a1);
+  .button--standard.button--neutral:active:not(.button--disabled) {
+    background-color: var(--sl-color-neutral-600);
+    border-color: var(--sl-color-neutral-600);
+    color: var(--sl-color-neutral-0);
   }
 
-  :host([variant='success'][outline]) .control {
-    --velcro-fg: var(--sl-color-success-600, #16a34a);
-    --velcro-hover-bg: var(--sl-color-success-600, #16a34a);
-    --velcro-active-bg: var(--sl-color-success-700, #15803d);
-    --velcro-active-border: var(--sl-color-success-700, #15803d);
+  /* Warning */
+  .button--standard.button--warning {
+    background-color: var(--sl-color-warning-600);
+    border-color: var(--sl-color-warning-600);
+    color: var(--sl-color-neutral-0);
+  }
+  .button--standard.button--warning:hover:not(.button--disabled) {
+    background-color: var(--sl-color-warning-500);
+    border-color: var(--sl-color-warning-500);
+    color: var(--sl-color-neutral-0);
   }
 
-  :host([variant='neutral'][outline]) .control {
-    --velcro-fg: var(--sl-color-neutral-600, #52525b);
-    --velcro-hover-bg: var(--sl-color-neutral-600, #52525b);
-    --velcro-active-bg: var(--sl-color-neutral-700, #3f3f46);
-    --velcro-active-border: var(--sl-color-neutral-700, #3f3f46);
+  .button--standard.button--warning:active:not(.button--disabled) {
+    background-color: var(--sl-color-warning-600);
+    border-color: var(--sl-color-warning-600);
+    color: var(--sl-color-neutral-0);
   }
 
-  :host([variant='warning'][outline]) .control {
-    --velcro-fg: var(--sl-color-warning-600, #d97706);
-    --velcro-hover-bg: var(--sl-color-warning-600, #d97706);
-    --velcro-active-bg: var(--sl-color-warning-700, #b45309);
-    --velcro-active-border: var(--sl-color-warning-700, #b45309);
+  /* Danger */
+  .button--standard.button--danger {
+    background-color: var(--sl-color-danger-600);
+    border-color: var(--sl-color-danger-600);
+    color: var(--sl-color-neutral-0);
   }
 
-  :host([variant='danger'][outline]) .control {
-    --velcro-fg: var(--sl-color-danger-600, #dc2626);
-    --velcro-hover-bg: var(--sl-color-danger-600, #dc2626);
-    --velcro-active-bg: var(--sl-color-danger-700, #b91c1c);
-    --velcro-active-border: var(--sl-color-danger-700, #b91c1c);
+  .button--standard.button--danger:hover:not(.button--disabled) {
+    background-color: var(--sl-color-danger-500);
+    border-color: var(--sl-color-danger-500);
+    color: var(--sl-color-neutral-0);
   }
 
-  :host([variant][outline]:not([variant='default']):not([variant='text'])) .control:hover:not([disabled]),
-  :host([variant][outline]:not([variant='default']):not([variant='text'])) .control:active:not([disabled]) {
-    color: var(--sl-color-neutral-0, #fff);
+  .button--standard.button--danger:active:not(.button--disabled) {
+    background-color: var(--sl-color-danger-600);
+    border-color: var(--sl-color-danger-600);
+    color: var(--sl-color-neutral-0);
   }
 
-  /* Text variant */
-  :host([variant='text']) .control {
-    --velcro-bg: transparent;
-    --velcro-border: transparent;
-    --velcro-fg: var(--sl-color-primary-600, #0284c7);
-    --velcro-hover-bg: transparent;
-    --velcro-hover-border: transparent;
-    --velcro-hover-fg: var(--sl-color-primary-500, #0ea5e9);
-    --velcro-active-bg: transparent;
-    --velcro-active-border: transparent;
-    --velcro-active-fg: var(--sl-color-primary-700, #0369a1);
+  /*
+   * Outline buttons
+   */
+
+  .button--outline {
+    background: none;
+    border: solid 1px;
   }
 
-  /* Loading */
-  :host([loading]) .control > .prefix,
-  :host([loading]) .control > .label,
-  :host([loading]) .control > .suffix,
-  :host([loading]) .control > .caret {
+  /* Default */
+  .button--outline.button--default {
+    border-color: var(--sl-input-border-color);
+    color: var(--sl-color-neutral-700);
+  }
+
+  .button--outline.button--default:hover:not(.button--disabled),
+  .button--outline.button--default.button--checked:not(.button--disabled) {
+    border-color: var(--sl-color-primary-600);
+    background-color: var(--sl-color-primary-600);
+    color: var(--sl-color-neutral-0);
+  }
+
+  .button--outline.button--default:active:not(.button--disabled) {
+    border-color: var(--sl-color-primary-700);
+    background-color: var(--sl-color-primary-700);
+    color: var(--sl-color-neutral-0);
+  }
+
+  /* Primary */
+  .button--outline.button--primary {
+    border-color: var(--sl-color-primary-600);
+    color: var(--sl-color-primary-600);
+  }
+
+  .button--outline.button--primary:hover:not(.button--disabled),
+  .button--outline.button--primary.button--checked:not(.button--disabled) {
+    background-color: var(--sl-color-primary-600);
+    color: var(--sl-color-neutral-0);
+  }
+
+  .button--outline.button--primary:active:not(.button--disabled) {
+    border-color: var(--sl-color-primary-700);
+    background-color: var(--sl-color-primary-700);
+    color: var(--sl-color-neutral-0);
+  }
+
+  /* Success */
+  .button--outline.button--success {
+    border-color: var(--sl-color-success-600);
+    color: var(--sl-color-success-600);
+  }
+
+  .button--outline.button--success:hover:not(.button--disabled),
+  .button--outline.button--success.button--checked:not(.button--disabled) {
+    background-color: var(--sl-color-success-600);
+    color: var(--sl-color-neutral-0);
+  }
+
+  .button--outline.button--success:active:not(.button--disabled) {
+    border-color: var(--sl-color-success-700);
+    background-color: var(--sl-color-success-700);
+    color: var(--sl-color-neutral-0);
+  }
+
+  /* Neutral */
+  .button--outline.button--neutral {
+    border-color: var(--sl-color-neutral-600);
+    color: var(--sl-color-neutral-600);
+  }
+
+  .button--outline.button--neutral:hover:not(.button--disabled),
+  .button--outline.button--neutral.button--checked:not(.button--disabled) {
+    background-color: var(--sl-color-neutral-600);
+    color: var(--sl-color-neutral-0);
+  }
+
+  .button--outline.button--neutral:active:not(.button--disabled) {
+    border-color: var(--sl-color-neutral-700);
+    background-color: var(--sl-color-neutral-700);
+    color: var(--sl-color-neutral-0);
+  }
+
+  /* Warning */
+  .button--outline.button--warning {
+    border-color: var(--sl-color-warning-600);
+    color: var(--sl-color-warning-600);
+  }
+
+  .button--outline.button--warning:hover:not(.button--disabled),
+  .button--outline.button--warning.button--checked:not(.button--disabled) {
+    background-color: var(--sl-color-warning-600);
+    color: var(--sl-color-neutral-0);
+  }
+
+  .button--outline.button--warning:active:not(.button--disabled) {
+    border-color: var(--sl-color-warning-700);
+    background-color: var(--sl-color-warning-700);
+    color: var(--sl-color-neutral-0);
+  }
+
+  /* Danger */
+  .button--outline.button--danger {
+    border-color: var(--sl-color-danger-600);
+    color: var(--sl-color-danger-600);
+  }
+
+  .button--outline.button--danger:hover:not(.button--disabled),
+  .button--outline.button--danger.button--checked:not(.button--disabled) {
+    background-color: var(--sl-color-danger-600);
+    color: var(--sl-color-neutral-0);
+  }
+
+  .button--outline.button--danger:active:not(.button--disabled) {
+    border-color: var(--sl-color-danger-700);
+    background-color: var(--sl-color-danger-700);
+    color: var(--sl-color-neutral-0);
+  }
+
+  @media (forced-colors: active) {
+    .button.button--outline.button--checked:not(.button--disabled) {
+      outline: solid 2px transparent;
+    }
+  }
+
+  /*
+   * Text buttons
+   */
+
+  .button--text {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--sl-color-primary-600);
+  }
+
+  .button--text:hover:not(.button--disabled) {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--sl-color-primary-500);
+  }
+
+  .button--text:focus-visible:not(.button--disabled) {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--sl-color-primary-500);
+  }
+
+  .button--text:active:not(.button--disabled) {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--sl-color-primary-700);
+  }
+
+  /*
+   * Size modifiers
+   */
+
+  .button--small {
+    height: auto;
+    min-height: var(--sl-input-height-small);
+    font-size: var(--sl-button-font-size-small);
+    line-height: calc(var(--sl-input-height-small) - var(--sl-input-border-width) * 2);
+    border-radius: var(--sl-input-border-radius-small);
+  }
+
+  .button--medium {
+    height: auto;
+    min-height: var(--sl-input-height-medium);
+    font-size: var(--sl-button-font-size-medium);
+    line-height: calc(var(--sl-input-height-medium) - var(--sl-input-border-width) * 2);
+    border-radius: var(--sl-input-border-radius-medium);
+  }
+
+  .button--large {
+    height: auto;
+    min-height: var(--sl-input-height-large);
+    font-size: var(--sl-button-font-size-large);
+    line-height: calc(var(--sl-input-height-large) - var(--sl-input-border-width) * 2);
+    border-radius: var(--sl-input-border-radius-large);
+  }
+
+  /*
+   * Pill modifier
+   */
+
+  .button--pill.button--small {
+    border-radius: var(--sl-input-height-small);
+  }
+
+  .button--pill.button--medium {
+    border-radius: var(--sl-input-height-medium);
+  }
+
+  .button--pill.button--large {
+    border-radius: var(--sl-input-height-large);
+  }
+
+  /*
+   * Circle modifier
+   */
+
+  .button--circle {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .button--circle.button--small {
+    width: var(--sl-input-height-small);
+    border-radius: 50%;
+  }
+
+  .button--circle.button--medium {
+    width: var(--sl-input-height-medium);
+    border-radius: 50%;
+  }
+
+  .button--circle.button--large {
+    width: var(--sl-input-height-large);
+    border-radius: 50%;
+  }
+
+  .button--circle .button__prefix,
+  .button--circle .button__suffix,
+  .button--circle .button__caret {
+    display: none;
+  }
+
+  /*
+   * Caret modifier
+   */
+
+  .button--caret .button__suffix {
+    display: none;
+  }
+
+  .button--caret .button__caret {
+    height: auto;
+  }
+
+  /*
+   * Loading modifier
+   */
+
+  .button--loading {
+    position: relative;
+    cursor: wait;
+  }
+
+  .button--loading .button__prefix,
+  .button--loading .button__label,
+  .button--loading .button__suffix,
+  .button--loading .button__caret {
     visibility: hidden;
   }
 
-  .spinner {
+  .button--loading sl-spinner {
+    --indicator-color: currentColor;
     position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 1em;
+    font-size: 1em;
     height: 1em;
-    margin: -0.5em 0 0 -0.5em;
-    border: 0.125em solid currentColor;
-    border-right-color: transparent;
-    border-radius: 50%;
-    animation: velcro-spin 1s linear infinite;
+    width: 1em;
+    top: calc(50% - 0.5em);
+    left: calc(50% - 0.5em);
   }
 
-  @keyframes velcro-spin {
-    to {
-      transform: rotate(360deg);
-    }
+  /*
+   * Badges
+   */
+
+  .button ::slotted(sl-badge) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    translate: 50% -50%;
+    pointer-events: none;
+  }
+
+  .button--rtl ::slotted(sl-badge) {
+    right: auto;
+    left: 0;
+    translate: -50% -50%;
+  }
+
+  /*
+   * Button spacing
+   */
+
+  .button--has-label.button--small .button__label {
+    padding: 0 var(--sl-spacing-small);
+  }
+
+  .button--has-label.button--medium .button__label {
+    padding: 0 var(--sl-spacing-medium);
+  }
+
+  .button--has-label.button--large .button__label {
+    padding: 0 var(--sl-spacing-large);
+  }
+
+  .button--has-prefix.button--small {
+    padding-inline-start: var(--sl-spacing-x-small);
+  }
+
+  .button--has-prefix.button--small .button__label {
+    padding-inline-start: var(--sl-spacing-x-small);
+  }
+
+  .button--has-prefix.button--medium {
+    padding-inline-start: var(--sl-spacing-small);
+  }
+
+  .button--has-prefix.button--medium .button__label {
+    padding-inline-start: var(--sl-spacing-small);
+  }
+
+  .button--has-prefix.button--large {
+    padding-inline-start: var(--sl-spacing-small);
+  }
+
+  .button--has-prefix.button--large .button__label {
+    padding-inline-start: var(--sl-spacing-small);
+  }
+
+  .button--has-suffix.button--small,
+  .button--caret.button--small {
+    padding-inline-end: var(--sl-spacing-x-small);
+  }
+
+  .button--has-suffix.button--small .button__label,
+  .button--caret.button--small .button__label {
+    padding-inline-end: var(--sl-spacing-x-small);
+  }
+
+  .button--has-suffix.button--medium,
+  .button--caret.button--medium {
+    padding-inline-end: var(--sl-spacing-small);
+  }
+
+  .button--has-suffix.button--medium .button__label,
+  .button--caret.button--medium .button__label {
+    padding-inline-end: var(--sl-spacing-small);
+  }
+
+  .button--has-suffix.button--large,
+  .button--caret.button--large {
+    padding-inline-end: var(--sl-spacing-small);
+  }
+
+  .button--has-suffix.button--large .button__label,
+  .button--caret.button--large .button__label {
+    padding-inline-end: var(--sl-spacing-small);
+  }
+
+  /*
+   * Button groups support a variety of button types (e.g. buttons with tooltips, buttons as dropdown triggers, etc.).
+   * This means buttons aren't always direct descendants of the button group, thus we can't target them with the
+   * ::slotted selector. To work around this, the button group component does some magic to add these special classes to
+   * buttons and we style them here instead.
+   */
+
+  :host([data-sl-button-group__button--first]:not([data-sl-button-group__button--last])) .button {
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+  }
+
+  :host([data-sl-button-group__button--inner]) .button {
+    border-radius: 0;
+  }
+
+  :host([data-sl-button-group__button--last]:not([data-sl-button-group__button--first])) .button {
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+  }
+
+  /* All except the first */
+  :host([data-sl-button-group__button]:not([data-sl-button-group__button--first])) {
+    margin-inline-start: calc(-1 * var(--sl-input-border-width));
+  }
+
+  /* Add a visual separator between solid buttons */
+  :host(
+      [data-sl-button-group__button]:not(
+          [data-sl-button-group__button--first],
+          [data-sl-button-group__button--radio],
+          [variant='default']
+        ):not(:hover)
+    )
+    .button:after {
+    content: '';
+    position: absolute;
+    top: 0;
+    inset-inline-start: 0;
+    bottom: 0;
+    border-left: solid 1px rgb(128 128 128 / 33%);
+    mix-blend-mode: multiply;
+  }
+
+  /* Bump hovered, focused, and checked buttons up so their focus ring isn't clipped */
+  :host([data-sl-button-group__button--hover]) {
+    z-index: 1;
+  }
+
+  /* Focus and checked are always on top */
+  :host([data-sl-button-group__button--focus]),
+  :host([data-sl-button-group__button][checked]) {
+    z-index: 2;
+  }
+
+  /*
+   * Caret icon (Velcro): the sizing Shoelace's sl-icon host and its svg get from icon.styles.ts.
+   */
+
+  .button__caret {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    box-sizing: content-box !important;
+  }
+
+  .button__caret svg {
+    display: block;
+    height: 100%;
+    width: 100%;
   }
 `;

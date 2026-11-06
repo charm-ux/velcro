@@ -1,0 +1,16 @@
+<form id="demo-form" action="about:blank">
+  <label>Name <input name="who" required /></label>
+  <sl-button type="submit" variant="primary" name="action" value="save">Save</sl-button>
+  <sl-button type="submit" name="action" value="draft" formnovalidate>Save draft</sl-button>
+  <sl-button type="reset">Reset</sl-button>
+</form>
+<p>Last submit: <output id="demo-form-result">none</output></p>
+<script type="module">
+  const form = document.querySelector('#demo-form');
+  const result = document.querySelector('#demo-form-result');
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    const data = new FormData(form, event.submitter);
+    result.textContent = new URLSearchParams(data).toString();
+  });
+</script>
