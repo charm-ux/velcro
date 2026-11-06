@@ -77,3 +77,33 @@ test('product step keeps all command output private and still blocks on failure'
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }
 });
+
+test('security scans the published range and only an owner label approves its exact head', () => {
+  const job = /\n  security:\n([\s\S]*?)\n  product:/.exec(workflow)?.[1] ?? '';
+  const step = /- name: Trusted source and history scan\n([\s\S]*?)(?=\n {6}(?:#|- ))/.exec(job)?.[1] ?? '';
+  assert.match(step, /BASE_OID: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.before \}\}/);
+  assert.match(step, /HEAD_OID: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
+  const approval = /VELCRO_HISTORY_APPROVED: \$\{\{ (.*) \}\}/.exec(step)?.[1] ?? '';
+  for (const condition of ["github.event_name == 'pull_request'", "github.event.action == 'labeled'",
+    "github.event.label.name == 'history-scan-approved'", 'github.event.sender.login == github.repository_owner']) {
+    assert.ok(approval.includes(`${condition} &&`), `approval requires ${condition}`);
+  }
+  assert.ok(approval.endsWith("&& github.event.pull_request.head.sha || ''"), 'approval names only the labeled head');
+  assert.match(workflow, /\n {2}pull_request:\n(?: {4}#.*\n)? {4}types: \[opened, synchronize, reopened, labeled\]\n/);
+  assert.doesNotMatch(workflow, /git-privacy\.mjs history HEAD/);
+  const script = /\n {8}run: \|\n((?: {10}.*\n?)+)/.exec(step)?.[1];
+  assert.ok(script, 'actual history step must be testable');
+  const dir = mkdtempSync(path.join(tmpdir(), 'velcro-ci-'));
+  try {
+    mkdirSync(path.join(dir, 'bin'));
+    writeFileSync(path.join(dir, 'bin/node'), '#!/bin/sh\nprintf "%s\\n" "$*"\n', { mode: 0o755 });
+    const head = 'b'.repeat(40);
+    const invoke = base => spawnSync('sh', ['-e', '-c', script], { cwd: dir, encoding: 'utf8', env: { ...process.env,
+      BASE_OID: base, HEAD_OID: head, PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } }).stdout.trim();
+    const trusted = '.airig/trusted/scripts/security/git-privacy.mjs history';
+    assert.equal(invoke('a'.repeat(40)), `${trusted} ${'a'.repeat(40)}..${head}`);
+    // No usable base (new branch, first push): full-history mode under the hard caps.
+    assert.equal(invoke('0'.repeat(40)), `${trusted} ${head}`);
+    assert.equal(invoke(''), `${trusted} ${head}`);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

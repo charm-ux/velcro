@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
   pull_request:
+    # labeled: the owner's history-scan-approved label re-runs the checks for the exact head it was applied to.
+    types: [opened, synchronize, reopened, labeled]
 
 permissions:
   contents: read
@@ -57,8 +59,19 @@ jobs:
         with:
           node-version: 24.22.1
       - run: node .airig/trusted/scripts/security/gitleaks.mjs install
+      # Content of commits new to the PR base (on main: since the previous main tip) is scanned file by changed
+      # file; metadata of the full ancestry always is. A range over 1,000 changed files needs owner approval: the
+      # history-scan-approved label applied by the repository owner, which approves only the head it was applied
+      # to (this labeled run). Later pushes run as synchronize events and stay blocked until the label is re-applied.
+      # Without a usable base (first push, new branch) the full history is scanned under the hard caps.
       - name: Trusted source and history scan
-        run: node .airig/trusted/scripts/security/git-privacy.mjs history HEAD
+        env:
+          BASE_OID: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_OID: ${{ github.event.pull_request.head.sha || github.sha }}
+          VELCRO_HISTORY_APPROVED: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'history-scan-approved' && github.event.sender.login == github.repository_owner && github.event.pull_request.head.sha || '' }}
+        run: |
+          if [ -n "$(printf '%s' "$BASE_OID" | tr -d 0)" ]; then scope="$BASE_OID..$HEAD_OID"; else scope="$HEAD_OID"; fi
+          node .airig/trusted/scripts/security/git-privacy.mjs history "$scope"
       # Detection is not approval: protected changes require a separate human
       # merge/publication gate, not a false secret finding or a blocked PR push.
       - name: Report protected changes requiring independent human review
