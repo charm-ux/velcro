@@ -50,7 +50,7 @@ test('workflow is pinned, read-only, full-history and has an always-running aggr
   assert.equal([...job.matchAll(/timeout-minutes: 12/g)].length, 2, 'each browser install step is bounded');
   assert.match(job, /Acquire::Retries "5"[\s\S]*Acquire::http::Timeout "30"[\s\S]*Acquire::https::Timeout "30"/);
   assert.match(job, /80-velcro-ci/);
-  assert.match(job, /for attempt in 1 2; do\n\s+if timeout -k 10 360 pnpm exec playwright install-deps chromium firefox webkit/);
+  assert.match(job, /for attempt in 1 2; do\n\s+code=0\n\s+timeout -k 10 330 pnpm exec playwright install-deps chromium firefox webkit/);
   assert.equal([...job.matchAll(/timeout -k 10 480 pnpm exec playwright install chromium/g)].length, 1);
   assert.match(job, /--frozen-lockfile/);
   assert.match(job, /pnpm verify:product/);
@@ -83,3 +83,48 @@ test('product step keeps all command output private and still blocks on failure'
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }
 });
+
+// The install steps of both workflows, run for real against stand-in commands. Raw installer output (which can carry runner
+// paths, URLs and package-manager stacks) must stay in the private log; only fixed status lines may be printed.
+for (const file of ['ci.yml', 'pages.yml']) {
+  const text = readFileSync(new URL(`../../.github/workflows/${file}`, import.meta.url), 'utf8');
+  const stepScript = name => {
+    const at = text.indexOf(`- name: ${name}`);
+    assert.ok(at > 0, `${file}: ${name}`);
+    return /\brun: \|\n((?:\s{10}.*\n?)+)/.exec(text.slice(at))?.[1];
+  };
+  const deps = stepScript('Install system dependencies for Chromium, Firefox and WebKit (disposable runner)');
+  const browsers = stepScript('Install Chromium, Firefox and WebKit (disposable runner)');
+  // Stand-ins: sudo swallows its input, apt-config names a directory, timeout passes the command through, and pnpm prints
+  // runtime-generated sensitive-looking text to both streams, then behaves as scripted (exit codes per call in $PNPM_CODES).
+  const run = (script, codes) => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'velcro-install-'));
+    try {
+      mkdirSync(path.join(dir, 'bin'));
+      const secret = ['', 'home', 'u' + 'ser', 'work'].join('/') + '/' + ['tok', Math.random().toString(36).slice(2, 10)].join('-');
+      const put = (name, body) => writeFileSync(path.join(dir, 'bin', name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
+      put('sudo', 'cat > sink');
+      put('apt-config', `echo "d='${dir}/apt/'"`);
+      put('timeout', 'if [ "$1" = "-k" ]; then shift 2; fi; shift; "$@"');
+      writeFileSync(path.join(dir, 'codes'), codes.join('\n') + '\n');
+      put('pnpm', ['n=$([ -f count ] && cat count || echo 0); n=$((n+1)); echo $n > count', `echo "raw ${secret}"`, `echo "stack ${secret}" >&2`, 'code=$(sed -n "${n}p" codes)', 'exit ${code:-0}'].join('\n'));
+      const r = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', script], { cwd: dir, encoding: 'utf8',
+        env: { ...process.env, PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } });
+      const out = `${r.stdout}${r.stderr}`;
+      assert.doesNotMatch(out, new RegExp(secret.replaceAll(/[.*+?^${}()|[\]\\/]/g, '\\$&')), 'raw installer output leaked');
+      assert.doesNotMatch(out, /\braw\b|\bstack\b/);
+      return { status: r.status, out: out.trim() };
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  };
+  test(`${file}: dependency install prints only fixed status lines (success, retry, exit code, timeout)`, () => {
+    assert.deepEqual(run(deps, [0]), { status: 0, out: 'browser system dependencies: passed' });
+    assert.deepEqual(run(deps, [1, 0]), { status: 0, out: 'browser system dependencies: attempt 1 failed (exit code 1)\nbrowser system dependencies: passed' });
+    assert.deepEqual(run(deps, [1, 100]), { status: 1, out: 'browser system dependencies: attempt 1 failed (exit code 1)\nbrowser system dependencies: attempt 2 failed (exit code 100)\nbrowser system dependencies: blocked; private evidence retained' });
+    assert.deepEqual(run(deps, [124, 137]), { status: 1, out: 'browser system dependencies: attempt 1 timed out\nbrowser system dependencies: attempt 2 timed out\nbrowser system dependencies: blocked; private evidence retained' });
+  });
+  test(`${file}: browser install prints only fixed status lines (success, exit code, timeout)`, () => {
+    assert.deepEqual(run(browsers, [0]), { status: 0, out: 'browser setup: passed' });
+    assert.deepEqual(run(browsers, [2]), { status: 1, out: 'browser setup: failed (exit code 2)\nbrowser setup: blocked; private evidence retained' });
+    assert.deepEqual(run(browsers, [124]), { status: 1, out: 'browser setup: timed out\nbrowser setup: blocked; private evidence retained' });
+  });
+}

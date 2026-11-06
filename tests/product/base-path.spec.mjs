@@ -42,15 +42,17 @@ for (const { name, dir, base } of layouts) {
     const url = route => `${origin}${base}${route}`;
 
     for (const route of routes) {
-      test(`${route}: renders on the client route and loads only prefixed assets`, async ({ page }) => {
+      test(`${route}: renders on the client route and loads only prefixed assets`, async ({ page, browserName }) => {
         const seen = [];
         const failures = collectRequestFailures(page);
         const errors = [];
         page.on('request', request => seen.push(new URL(request.url())));
-        // WebKit reports a ResizeObserver delivery that was deferred to the next frame as a window error; the resize-observer
-        // example's sl-resize handler rewrites text beside the observed box, so it triggers this by design (as in Shoelace).
-        // It is the browser's defined, non-actionable notice, not a script failure; every other error still fails the test.
-        const benign = message => message === 'ResizeObserver loop completed with undelivered notifications.';
+        // WebKit reports a ResizeObserver delivery that was deferred to the next frame as a window error. Velcro's resize-observer
+        // example (not Shoelace's, which only logs) rewrites the count and size text from its sl-resize handler, which changes
+        // the layout around the observed box and triggers it. It is the browser's defined, non-actionable notice, so only that
+        // exact message is ignored, only in WebKit and only on that component's route; every other error still fails the test.
+        const benign = message => browserName === 'webkit' && route === '/components/resize-observer'
+          && message === 'ResizeObserver loop completed with undelivered notifications.';
         page.on('pageerror', error => benign(error.message) || errors.push(error.message));
         page.on('console', message => message.type() === 'error' && !benign(message.text()) && errors.push(message.text()));
 

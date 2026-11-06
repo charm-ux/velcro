@@ -1,9 +1,9 @@
-// Bounded, redacted public summary of a failed Playwright JSON report. The full log stays private.
+// Bounded, redacted public summary of a failed Playwright JSON report: engine counts and, per failing test, the engine, spec
+// file and line, title and the failure category only. Error messages and their values never leave the private log.
 import { scanText } from './security/privacy.mjs';
 
 export const MAX_FAILURES = 40;
-export const MAX_LINE = 400;
-const MAX_DETAIL_LINES = 12;
+export const MAX_LINE = 200;
 const ENGINES = ['chromium', 'firefox', 'webkit'];
 const ANSI = /\u001b\[[0-9;?]*[ -/]*[@-~]/g;
 // Absolute filesystem paths (POSIX and Windows); web routes such as /components/button are left alone.
@@ -23,31 +23,28 @@ export function redactLine(text, root) {
   return s;
 }
 
-// The first message line plus the Expected/Received values and diff lines (not the code frame or call log), joined on one line.
-function detail(message) {
-  const lines = message.replace(ANSI, '').split('\n').map(l => l.trim());
-  const out = [];
-  let started = false;
-  for (const line of lines) {
-    if (!line) continue;
-    if (!started) { out.push(line); started = true; continue; }
-    if (/^(>?\s*\d+\s*\|)|^Call log|^at /.test(line)) break;
-    if (/^(Expected|Received|Locator|[-+] )/.test(line)) out.push(line);
-    if (out.length >= MAX_DETAIL_LINES) break;
-  }
-  return out.join(' ; ');
+// Safe assertion metadata only: the matcher name or the error class, never a message, value, diff, locator or page content.
+const MATCHER = /^Error: expect\((?:received|locator|page|response)\)\.((?:not\.)?[A-Za-z]+)\(/;
+const NAMED = /^([A-Z][A-Za-z]*(?:Error|Exception))\b/;
+function category(message) {
+  const text = message.replace(ANSI, '').split('\n').map(l => l.trim()).find(Boolean) ?? '';
+  const matcher = MATCHER.exec(text);
+  if (matcher) return `matcher ${matcher[1]}`;
+  if (/^Test timeout of \d+ms exceeded/.test(text)) return 'test timeout';
+  if (/^(?:Error: )?expect\(/.test(text)) return 'assertion';
+  const named = NAMED.exec(text.replace(/^Error: /, '')) ?? NAMED.exec(text);
+  if (named) return `error ${named[1]}`;
+  if (/^Error\b/.test(text)) return 'error Error';
+  return 'failure';
 }
 
 const firstLine = t => {
   const results = Array.isArray(t.results) ? t.results : [];
   for (const r of [...results].reverse()) {
     const message = r?.error?.message ?? r?.errors?.[0]?.message;
-    if (typeof message === 'string') {
-      const d = detail(message);
-      if (d) return d;
-    }
+    if (typeof message === 'string') return category(message);
   }
-  return 'no error message';
+  return 'no error recorded';
 };
 
 // Returns the summary lines (without the "verify:product:" prefix handling; the caller adds it).

@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { expect, test } from '@playwright/test';
+import { makeProbe } from './support/probe.mjs';
 import { customElements, readJson, velcroManifestPath } from '../../scripts/api/model.mjs';
 
 const require = createRequire(new URL('../../packages/velcro/package.json', import.meta.url));
@@ -31,7 +32,9 @@ const VALUES = ['37px', 'rgb(1, 2, 3)', 'dotted', '3px solid rgb(1, 2, 3)', '2px
 
 for (const [tag, decl] of elements) {
   test(`${tag}: inherited CSS custom properties, slots and parts are listed exactly when they still apply`, async ({ page }) => {
-    test.setTimeout(90000);
+    // Every candidate is measured on its own in every state, which is slow for sl-button (about a minute in Chromium, about
+    // two in WebKit on a fast machine); the margin covers slower CI runners.
+    test.setTimeout(300000);
     const parent = coreDecls.get(decl.superclass.name);
     expect(parent, `${tag} superclass in core's manifest`).toBeTruthy();
     const listed = key => (decl[key] ?? []).filter(x => x.inheritedFrom).map(x => x.name).sort();
@@ -41,6 +44,7 @@ for (const [tag, decl] of elements) {
     await page.goto('/components/button', { waitUntil: 'networkidle' });
     await page.evaluate(t => customElements.whenDefined(t), tag);
     const candidates = (parent.cssProperties ?? []).map(p => p.name).filter(n => !own('cssProperties').has(n));
+    await page.evaluate(`window.makeProbe = ${makeProbe}`);
     await page.evaluate(async ({ tag, content, attrs }) => {
       const host = document.createElement(tag);
       host.id = 'probe';
@@ -54,46 +58,7 @@ for (const [tag, decl] of elements) {
       const freeze = new CSSStyleSheet();
       freeze.replaceSync('*, :host { animation-play-state: paused !important; animation-delay: 0s !important; transition: none !important; }');
       host.shadowRoot.adoptedStyleSheets = [...host.shadowRoot.adoptedStyleSheets, freeze];
-      const nodes = () => {
-        const out = [host, ...host.children];
-        const walk = root => { for (const el of root.querySelectorAll('*')) { out.push(el); if (el.shadowRoot) walk(el.shadowRoot); } };
-        walk(host.shadowRoot);
-        return out;
-      };
-      // Every computed value of every node, as one flat array; the property list is read once per node, not per candidate.
-      const snapshot = () => {
-        const out = [];
-        for (const el of nodes()) {
-          const cs = getComputedStyle(el);
-          for (const p of cs) if (!p.startsWith('--')) out.push(cs.getPropertyValue(p));
-        }
-        return out;
-      };
-      const differs = (a, b) => a.length !== b.length || a.some((v, i) => v !== b[i]);
-      // getComputedStyle recalculates synchronously, so the current state (including a held pointer) is measured as is.
-      // Group testing: a set of candidates that changes nothing when all are set to one value is skipped as a whole, and a
-      // set that changes something is bisected until single candidates are tested alone, so a candidate is listed exactly
-      // when setting it by itself changes a computed style. (Only two candidates cancelling each other out in a group, with
-      // no effect from either alone, could hide one; the custom properties are independent inputs, so that does not occur.)
-      window.probeMeasure = (candidates, values) => {
-        const base = snapshot();
-        const hit = new Set();
-        const changes = (names, v) => {
-          for (const n of names) host.style.setProperty(n, v);
-          const changed = differs(snapshot(), base);
-          for (const n of names) host.style.removeProperty(n);
-          return changed;
-        };
-        const find = (names, v) => {
-          if (!names.length || !changes(names, v)) return;
-          if (names.length === 1) { hit.add(names[0]); return; }
-          const mid = names.length >> 1;
-          find(names.slice(0, mid), v);
-          find(names.slice(mid), v);
-        };
-        for (const v of values) find(candidates.filter(c => !hit.has(c)), v);
-        return candidates.filter(c => hit.has(c));
-      };
+      window.probeMeasure = window.makeProbe(host).measure;
       window.probeState = async (attr, on) => { host.toggleAttribute(attr, on); await host.updateComplete; };
     }, { tag, content: CONTENT[tag] ?? '', attrs: ATTRS[tag] ?? {} });
 

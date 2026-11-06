@@ -1,4 +1,5 @@
-// Raw build/browser output stays private in a fresh ignored folder; only counts and status are printed.
+// Raw build/browser output stays private in a fresh ignored folder; only counts, status and (on browser failures) the bounded,
+// redacted metadata lines of scripts/product-summary.mjs are printed.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -61,9 +62,9 @@ function main() {
   mkdirSync(path.join(root, '.airig/product'), { recursive: true, mode: 0o700 });
   const scratch = mkdtempSync(path.join(root, '.airig/product/run-'));
   const startedAt = Date.now();
-  const step = (label, args, env = {}) => {
+  const step = (label, args, env = {}, timeout = 900000) => {
     const r = spawnSync('pnpm', args, { cwd: root, env: { ...process.env, ...env }, encoding: 'utf8',
-      timeout: 900000, maxBuffer: 64 * 1024 * 1024, shell: false });
+      timeout, maxBuffer: 64 * 1024 * 1024, shell: false });
     writeFileSync(path.join(scratch, `${label}.log`), `${r.stdout ?? ''}${r.stderr ?? ''}`, { mode: 0o600 });
     const good = !r.error && !r.signal && r.status === 0;
     process.stdout.write(`verify:product: ${label} ${good ? 'passed' : 'failed; evidence retained in ignored scratch'}\n`);
@@ -101,7 +102,7 @@ function main() {
   const reportFile = path.join(scratch, 'report.json');
   const ok = step('browser-tests', ['exec', 'playwright', 'test', '-c', 'tests/product/playwright.config.mjs',
     ...ENGINES.map(e => `--project=${e}`), '--reporter=json', '--output', path.join(scratch, 'artifacts')],
-  { PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile, VELCRO_PRODUCT_OUT: scratch });
+  { PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile, VELCRO_PRODUCT_OUT: scratch }, 16 * 60 * 1000);
   // Public, bounded and redacted; the raw log stays in ignored scratch.
   const publish = () => {
     try {

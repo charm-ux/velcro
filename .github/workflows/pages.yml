@@ -62,17 +62,24 @@ jobs:
           printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' | sudo tee "$(apt-config shell d Dir::Etc::parts/d | sed "s/^d='//; s/'$//")80-velcro-ci" > .airig/ci/apt-config.log
           ok=0
           for attempt in 1 2; do
-            if timeout -k 10 360 pnpm exec playwright install-deps chromium firefox webkit > .airig/ci/browser-deps-$attempt.log 2>&1; then ok=1; break; fi
-            echo "browser system dependencies: attempt $attempt failed"
-            tail -n 40 .airig/ci/browser-deps-$attempt.log | cut -c1-300
+            code=0
+            timeout -k 10 330 pnpm exec playwright install-deps chromium firefox webkit > .airig/ci/browser-deps-$attempt.log 2>&1 || code=$?
+            if [ "$code" = 0 ]; then ok=1; break; fi
+            if [ "$code" = 124 ] || [ "$code" = 137 ]; then echo "browser system dependencies: attempt $attempt timed out"; else echo "browser system dependencies: attempt $attempt failed (exit code $code)"; fi
           done
-          [ "$ok" = 1 ] || { echo 'browser system dependencies: blocked'; exit 1; }
+          [ "$ok" = 1 ] || { echo 'browser system dependencies: blocked; private evidence retained'; exit 1; }
           echo 'browser system dependencies: passed'
       - name: Install Chromium, Firefox and WebKit (disposable runner)
         timeout-minutes: 12
         run: |
           mkdir -p .airig/ci
-          timeout -k 10 480 pnpm exec playwright install chromium firefox webkit > .airig/ci/browser.log 2>&1 || { tail -n 40 .airig/ci/browser.log | cut -c1-300; echo 'browser setup: blocked'; exit 1; }
+          code=0
+          timeout -k 10 480 pnpm exec playwright install chromium firefox webkit > .airig/ci/browser.log 2>&1 || code=$?
+          if [ "$code" != 0 ]; then
+            if [ "$code" = 124 ] || [ "$code" = 137 ]; then echo 'browser setup: timed out'; else echo "browser setup: failed (exit code $code)"; fi
+            echo 'browser setup: blocked; private evidence retained'
+            exit 1
+          fi
           echo 'browser setup: passed'
       - name: Product verification (Chromium, Firefox and WebKit)
         run: |

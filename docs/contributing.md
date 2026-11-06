@@ -42,7 +42,10 @@ verify in parallel.
   type-checks the docs, then runs the
   Playwright suite in Chromium, Firefox and WebKit (at least eight tests in each
   engine, the same number per engine, no failures, flakes or skips, fresh report
-  required). Raw output stays in ignored `.airig/product/`.
+  required). Raw output stays in ignored `.airig/product/`; on a browser failure only
+  engine counts and, per failing test, the engine, spec file and line, title and
+  failure category (matcher name or error class) are printed, never messages,
+  values or page content.
   Install the browsers once with `pnpm exec playwright install chromium firefox
   webkit` (add `--with-deps` on Linux); they are never installed automatically.
   Tests must not rely on Chromium-only behavior (computed-style serialization,

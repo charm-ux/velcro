@@ -276,12 +276,12 @@ test('summary: per engine counts, then one line per failing test with the first 
     'chromium passed 1, failed 0, flaky 0, skipped 0',
     'firefox passed 0, failed 1, flaky 0, skipped 0',
     'webkit passed 0, failed 0, flaky 0, skipped 1',
-    'firefox x.spec.mjs:7 title 7 | Error: boom',
+    'firefox x.spec.mjs:7 title 7 | error Error',
   ]);
   assert.deepEqual(failingEngines, ['firefox']);
 });
 
-test('summary: is bounded to 40 failures and 400 characters per line', () => {
+test('summary: is bounded to 40 failures and 200 characters per line', () => {
   const specs = Array.from({ length: 100 }, (_, i) => fake('firefox', 'unexpected', 'x'.repeat(5000), i + 1));
   const { lines } = summarizeReport(rep(specs));
   assert.equal(MAX_FAILURES, 40);
@@ -290,10 +290,25 @@ test('summary: is bounded to 40 failures and 400 characters per line', () => {
   for (const l of lines) assert.ok(l.length <= MAX_LINE, l.length);
 });
 
-test('summary: includes the Expected and Received values and diff lines but not the code frame', () => {
-  const message = 'Error: expect(received).toEqual(expected) // deep equality\n\n- Expected  - 1\n+ Received  + 1\n\n  Array [\n-   32,\n+   31,\n  ]\n\n  > 12 |   expect(x)\n     |          ^\n    at foo.mjs:3:4';
-  const { lines } = summarizeReport(rep([fake('firefox', 'unexpected', message)]));
-  assert.equal(lines.at(-1), 'firefox x.spec.mjs:1 title 1 | Error: expect(received).toEqual(expected) // deep equality ; - Expected - 1 ; + Received + 1 ; - 32, ; + 31,');
+test('summary: publishes only the matcher or error class, never Expected/Received/diff/Locator payloads or page content', () => {
+  const html = '<!DOCTYPE html><html><head><title>Docs page</title></head><body>page-dump-marker</body></html>';
+  const secret = ['sk', 'live', Math.random().toString(36).slice(2, 10)].join('_');
+  const message = (head, ...rest) => [head, '', ...rest, '', '  > 12 |   expect(x)', '    at foo.mjs:3:4'].join('\n');
+  const cases = [
+    [message('Error: expect(received).toContain(expected) // indexOf', `Expected substring: "${secret}"`, `Received string:    "${html}"`), 'matcher toContain'],
+    [message('Error: expect(received).toEqual(expected) // deep equality', '- Expected  - 1', '+ Received  + 1', `-   "${secret}",`, '+   "x",'), 'matcher toEqual'],
+    [message('Error: expect(locator).toHaveText(expected) failed', `Locator: locator('#a')`, `Expected: "${secret}"`, `Received: "${html}"`), 'matcher toHaveText'],
+    [message('Error: expect(received).not.toBe(expected) // Object.is equality', `Received: "${secret}"`), 'matcher not.toBe'],
+    ['Test timeout of 45000ms exceeded.', 'test timeout'],
+    [`TypeError: cannot read ${secret}`, 'error TypeError'],
+    [`Error: browserType.launch: Failed ${secret}`, 'error Error'],
+    [`something odd ${secret}`, 'failure'],
+  ];
+  for (const [text, expected] of cases) {
+    const { lines } = summarizeReport(rep([fake('firefox', 'unexpected', text, 4)]));
+    assert.equal(lines.at(-1), `firefox x.spec.mjs:4 title 4 | ${expected}`, expected);
+    assert.doesNotMatch(lines.join('\n'), new RegExp(`${secret}|page-dump-marker|Docs page|Received|Expected|Locator`));
+  }
 });
 
 test('summary: redacts absolute paths, the repo root, escape codes and anything the privacy scanner flags', () => {
@@ -321,7 +336,7 @@ test('CLI prints the bounded summary when the browser tests fail, and nothing pr
     const out = runCli(dir, true, {}, false);
     assert.doesNotMatch(out, new RegExp(['Us', 'ers'].join('') + '|someone'));
     assert.match(out, /verify:product: firefox passed 0, failed 1, flaky 0, skipped 0\n/);
-    assert.match(out, /verify:product: firefox a\.spec\.mjs:3 t \| Error: no profile at <path>\n/);
+    assert.match(out, /verify:product: firefox a\.spec\.mjs:3 t \| error Error\n/);
     assert.doesNotMatch(out, /second/);
   } finally { cleanup(dir); }
 });
