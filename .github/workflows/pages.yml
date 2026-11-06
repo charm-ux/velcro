@@ -50,9 +50,21 @@ jobs:
         run: |
           pnpm verify:source > .airig/ci/verify.log 2>&1 || { echo 'verify: blocked; private evidence retained'; exit 1; }
           echo 'verify: passed'
-      - name: Install Chromium, Firefox and WebKit with system dependencies (disposable runner)
+      - name: Install system dependencies for Chromium, Firefox and WebKit (disposable runner)
+        timeout-minutes: 12
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          NEEDRESTART_MODE: a
         run: |
-          pnpm exec playwright install --with-deps chromium firefox webkit > .airig/ci/browser.log 2>&1 || { echo 'browser setup: blocked; private evidence retained'; exit 1; }
+          mkdir -p .airig/ci
+          echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
+          timeout -k 10 480 pnpm exec playwright install-deps chromium firefox webkit > .airig/ci/browser-deps.log 2>&1 || { tail -n 40 .airig/ci/browser-deps.log | cut -c1-300; echo 'browser system dependencies: blocked'; exit 1; }
+          echo 'browser system dependencies: passed'
+      - name: Install Chromium, Firefox and WebKit (disposable runner)
+        timeout-minutes: 12
+        run: |
+          mkdir -p .airig/ci
+          timeout -k 10 480 pnpm exec playwright install chromium firefox webkit > .airig/ci/browser.log 2>&1 || { tail -n 40 .airig/ci/browser.log | cut -c1-300; echo 'browser setup: blocked'; exit 1; }
           echo 'browser setup: passed'
       - name: Product verification (Chromium, Firefox and WebKit)
         run: |

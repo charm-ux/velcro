@@ -44,7 +44,11 @@ test('workflow is pinned, read-only, full-history and has an always-running aggr
   assert.match(text, /--frozen-lockfile/);
   assert.match(text, /registry\.npmjs\.org/);
   const job = /\n  product:\n([\s\S]*?)\n  required:/.exec(text)?.[1] ?? '';
-  assert.match(job, /playwright install --with-deps chromium firefox webkit/);
+  assert.match(job, /playwright install-deps chromium firefox webkit/);
+  assert.match(job, /playwright install chromium firefox webkit/);
+  assert.match(job, /DEBIAN_FRONTEND: noninteractive/);
+  assert.equal([...job.matchAll(/timeout-minutes: 12/g)].length, 2, 'each browser install step is bounded');
+  assert.equal([...job.matchAll(/timeout -k 10 480 pnpm exec playwright/g)].length, 2);
   assert.match(job, /--frozen-lockfile/);
   assert.match(job, /pnpm verify:product/);
   assert.doesNotMatch(text, /\bpaths(-ignore)?:|\n {2}product:\n {4}if:/);
