@@ -1,0 +1,17 @@
+<form id="demo-form" action="about:blank">
+  <sl-switch id="demo-form-switch" name="notifications" value="email">Email notifications</sl-switch>
+  <br />
+  <sl-switch id="demo-form-required" name="terms" required>I accept the terms</sl-switch>
+  <br />
+  <sl-button type="submit" variant="primary">Submit</sl-button>
+  <sl-button type="reset">Reset</sl-button>
+</form>
+<p>Last submit: <output id="demo-form-result">none</output></p>
+<script type="module">
+  const form = document.querySelector('#demo-form');
+  const result = document.querySelector('#demo-form-result');
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    result.textContent = new URLSearchParams(new FormData(form)).toString() || '(empty)';
+  });
+</script>

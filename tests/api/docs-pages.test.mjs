@@ -31,6 +31,8 @@ test('the docs API data generator emits the manifest model of every catalog comp
   assert.ok(button.methods.some(m => m.name === 'click'));
   for (const { tag } of catalog) {
     const model = apiModel(elements.get(tag));
-    assert.ok(model.properties.some(p => p.name === 'dir' && p.origin.startsWith('from @charm-ux/core')), `${tag}: inherited dir`);
+    // sl-switch declares dir itself, as Shoelace's base element does (not core's computed direction).
+    const dirOrigin = tag === 'sl-switch' ? (o => o === '') : (o => o.startsWith('from @charm-ux/core'));
+    assert.ok(model.properties.some(p => p.name === 'dir' && dirOrigin(p.origin)), `${tag}: dir origin`);
   }
 });

@@ -13,4 +13,5 @@
 {"name":"resize-observer","title":"Resize Observer","tag":"sl-resize-observer","example":"#demo-observer"}
 {"name":"skeleton","title":"Skeleton","tag":"sl-skeleton","example":"#demo-avatar"}
 {"name":"spinner","title":"Spinner","tag":"sl-spinner","example":"sl-spinner"}
+{"name":"switch","title":"Switch","tag":"sl-switch","example":"#demo-default"}
 {"name":"visually-hidden","title":"Visually Hidden","tag":"sl-visually-hidden","example":"#demo-skip"}

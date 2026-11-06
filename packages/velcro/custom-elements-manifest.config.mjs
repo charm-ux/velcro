@@ -29,6 +29,13 @@ const reactDir = process.env.VELCRO_CEM_REACT_OUTDIR || path.join('dist', 'react
 // sl-button renders Shoelace's styles instead of core's button styles, so none of core's --button-* properties apply.
 export const keptInherited = {};
 
+/**
+ * Inherited core events a Velcro element does not emit. sl-switch emits Shoelace's sl-change and sl-input instead of
+ * core's `change` and `input` events (as in Shoelace, the host still receives the platform's composed `input` event
+ * from its inner checkbox on a click).
+ */
+export const droppedInheritedEvents = { VelcroSwitch: ['change', 'input'] };
+
 function velcroInheritance() {
   return {
     name: 'velcro-inheritance',
@@ -41,6 +48,8 @@ function velcroInheritance() {
             if (decl[key]) decl[key] = decl[key].filter(item => !item.inheritedFrom || keep.includes(item.name));
             if (decl[key]?.length === 0) delete decl[key];
           }
+          const dropped = droppedInheritedEvents[decl.name] ?? [];
+          if (decl.events) decl.events = decl.events.filter(e => !e.inheritedFrom || !dropped.includes(e.name));
           for (const key of ['members', 'attributes', 'events', 'slots', 'cssParts', 'cssProperties']) {
             for (const item of decl[key] ?? []) {
               if (item.inheritedFrom && coreClasses.has(item.inheritedFrom.name) && !item.inheritedFrom.package) {
