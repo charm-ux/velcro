@@ -1,0 +1,84 @@
+<div class="popup-arrow">
+  <sl-popup id="demo-arrows" placement="top" arrow arrow-placement="anchor" distance="8" active>
+    <span slot="anchor"></span>
+    <div class="box"></div>
+  </sl-popup>
+
+  <div class="popup-arrow-options">
+    <label>
+      Placement
+      <select name="placement">
+      <option value="top" selected>top</option>
+      <option value="top-start">top-start</option>
+      <option value="top-end">top-end</option>
+      <option value="bottom">bottom</option>
+      <option value="bottom-start">bottom-start</option>
+      <option value="bottom-end">bottom-end</option>
+      <option value="right">right</option>
+      <option value="right-start">right-start</option>
+      <option value="right-end">right-end</option>
+      <option value="left">left</option>
+      <option value="left-start">left-start</option>
+      <option value="left-end">left-end</option>
+      </select>
+    </label>
+
+    <label>
+      Arrow Placement
+      <select name="arrow-placement">
+        <option value="anchor" selected>anchor</option>
+        <option value="start">start</option>
+        <option value="end">end</option>
+        <option value="center">center</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="popup-arrow-options">
+    <sl-switch name="arrow" checked>Arrow</sl-switch>
+  </div>
+
+  <style>
+    .popup-arrow sl-popup {
+      --arrow-color: var(--sl-color-primary-600);
+    }
+
+    .popup-arrow span[slot='anchor'] {
+      display: inline-block;
+      width: 150px;
+      height: 150px;
+      border: dashed 2px var(--sl-color-neutral-600);
+      margin: 50px;
+    }
+
+    .popup-arrow .box {
+      width: 100px;
+      height: 50px;
+      background: var(--sl-color-primary-600);
+      border-radius: var(--sl-border-radius-medium);
+    }
+
+    .popup-arrow-options {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 1rem;
+    }
+
+    .popup-arrow-options + .popup-arrow-options {
+      margin-top: 1rem;
+    }
+  </style>
+
+  <script>
+    const container = document.querySelector('.popup-arrow');
+    const popup = container.querySelector('sl-popup');
+    const placement = container.querySelector('[name="placement"]');
+    const arrowPlacement = container.querySelector('[name="arrow-placement"]');
+    const arrow = container.querySelector('[name="arrow"]');
+
+    placement.addEventListener('change', () => (popup.placement = placement.value));
+    arrowPlacement.addEventListener('change', () => (popup.arrowPlacement = arrowPlacement.value));
+    arrow.addEventListener('sl-change', () => (popup.arrow = arrow.checked));
+  </script>
+</div>

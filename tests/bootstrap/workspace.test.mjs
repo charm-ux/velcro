@@ -56,6 +56,7 @@ const prototypeExports = {
   './button/class': exportTargets('components/button/class'),
   './card/class': exportTargets('components/card/class'),
   './mutation-observer/class': exportTargets('components/mutation-observer/class'),
+  './popup/class': exportTargets('components/popup/class'),
   './progress-bar/class': exportTargets('components/progress-bar/class'),
   './progress-ring/class': exportTargets('components/progress-ring/class'),
   './relative-time/class': exportTargets('components/relative-time/class'),

@@ -23,6 +23,7 @@ const CONTENT = {
   'sl-progress-ring': 'Label',
   'sl-mutation-observer': '<div>x</div>',
   'sl-animation': '<div>x</div>',
+  'sl-popup': '<span slot="anchor">a</span><div>x</div>',
   'sl-resize-observer': '<div>x</div>',
   'sl-visually-hidden': 'Hidden',
   'sl-switch': 'Label<span slot="help-text">Help</span>',

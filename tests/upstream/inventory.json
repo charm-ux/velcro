@@ -237,6 +237,10 @@
   "mutation-observer": [
     "<sl-mutation-observer> > should render a component"
   ],
+  "popup": [
+    "<sl-popup> > should render a component",
+    "<sl-popup> > should properly handle positioning when active changes"
+  ],
   "progress-bar": [
     "<sl-progress-bar> > when provided just a value parameter > should pass accessibility tests",
     "<sl-progress-bar> > when provided a title, and value parameter > should pass accessibility tests",
