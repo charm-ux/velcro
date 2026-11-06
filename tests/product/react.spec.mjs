@@ -24,6 +24,7 @@ test.beforeAll(async () => {
       import { flushSync } from 'react-dom';
       import { createRoot } from 'react-dom/client';
       import { VelcroBadge, VelcroButton, VelcroMutationObserver, VelcroPopup, VelcroProgressRing } from 'velcro-react';
+      import * as wrappers from 'velcro-react';
       window.errors = [];
       addEventListener('error', e => window.errors.push(String(e.message)));
       addEventListener('unhandledrejection', e => window.errors.push(String(e.reason)));
@@ -43,8 +44,10 @@ test.beforeAll(async () => {
       const popupRoot = createRoot(document.getElementById('popup-root'));
       window.renderPopup = p => flushSync(() => popupRoot.render(React.createElement(VelcroPopup,
         { id: 'popup', active: true, ...p, onSlReposition: () => { window.repositions++; } },
-        React.createElement('span', { slot: 'anchor', style: { display: 'inline-block', width: '100px', height: '40px' } }),
+        React.createElement('span', { slot: 'anchor', style: { display: 'inline-block', width: '100px', height: '40px', margin: '10px 0 0 150px' } }),
         React.createElement('div', { style: { width: '80px', height: '20px' } }))));
+      const wrapperRoot = createRoot(document.getElementById('wrapper-root'));
+      window.renderWrapper = (name, p) => flushSync(() => wrapperRoot.render(name ? React.createElement(wrappers[name], { id: 'wrapped', ...p }) : null));
     `);
     const out = await build({
       configFile: false, logLevel: 'silent', root: dir,
@@ -61,7 +64,7 @@ test.beforeAll(async () => {
 async function mount(page) {
   const pageErrors = [];
   page.on('pageerror', e => pageErrors.push(e.message));
-  await page.setContent('<!DOCTYPE html><html><body><div id="root"></div><div id="observer-root"></div><div id="popup-root"></div></body></html>');
+  await page.setContent('<!DOCTYPE html><html><body><div id="root"></div><div id="observer-root"></div><div id="popup-root" style="position: relative; width: 400px; height: 60px; overflow: hidden"></div><div id="wrapper-root"></div></body></html>');
   await page.addScriptTag({ type: 'module', content: bundle });
   await page.waitForFunction(() => typeof window.renderScenario === 'function');
   return pageErrors;
@@ -196,6 +199,119 @@ test('React 19 wrapper for the popup sets camelCase props whose attribute is hyp
   // A hyphenated spelling is still passed through as an attribute.
   await page.evaluate(() => window.renderPopup({ 'arrow-padding': '7' }));
   expect((await read()).props.arrowPadding).toBe(7);
+  expect(await page.evaluate(() => window.errors)).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+test('React 19 wrapper for the popup: flip with fallback placements given as the prop, as the hyphenated attribute and directly', async ({ page }) => {
+  const pageErrors = await mount(page);
+  // The 60px-high, clipping popup root leaves no room above the anchor, so flip uses the fallbacks.
+  const placement = () => page.evaluate(async () => {
+    const el = document.getElementById('popup');
+    await el.updateComplete;
+    await new Promise(resolve => setTimeout(resolve, 50));
+    return el.getAttribute('data-current-placement');
+  });
+  await page.evaluate(() => window.renderPopup({ flip: true, flipFallbackPlacements: 'right' }));
+  const viaProp = await placement();
+  // The same string assigned to the element property directly, outside React.
+  const direct = await page.evaluate(async () => {
+    const el = document.getElementById('popup');
+    window.renderPopup({ flip: true });
+    el.flipFallbackPlacements = 'right';
+    await el.updateComplete;
+    el.reposition();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    return el.getAttribute('data-current-placement');
+  });
+  await page.evaluate(() => window.renderPopup({}));
+  await page.evaluate(() => window.renderPopup({ flip: true, 'flip-fallback-placements': 'right' }));
+  const viaAttribute = await placement();
+  // As with Shoelace's wrapper, the prop sets the property, whose string is not split (the documented quirk); the
+  // attribute is split into placements and its fallback is used.
+  expect({ viaProp, direct, viaAttribute }).toEqual({ viaProp: direct, direct, viaAttribute: 'right' });
+  expect(viaProp).not.toBe('right');
+  expect(await page.evaluate(() => window.errors)).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+// Each camelCase prop whose attribute is hyphenated, in the existing wrappers the generator change also affects:
+// [wrapper, tag, prop, attribute, supplied, updated, attribute text, property from that attribute].
+const HYPHENATED = [
+  ['VelcroCard', 'sl-card', 'mediaPosition', 'media-position', 'bottom', 'end', 'start', 'start'],
+  ['VelcroDivider', 'sl-divider', 'alignContent', 'align-content', 'start', 'end', 'center', 'center'],
+  ['VelcroFormatDate', 'sl-format-date', 'hourFormat', 'hour-format', '12', '24', '12', '12'],
+  ['VelcroFormatDate', 'sl-format-date', 'timeZone', 'time-zone', 'UTC', 'Asia/Tokyo', 'UTC', 'UTC'],
+  ['VelcroFormatDate', 'sl-format-date', 'timeZoneName', 'time-zone-name', 'short', 'long', 'long', 'long'],
+  ['VelcroFormatNumber', 'sl-format-number', 'currencyDisplay', 'currency-display', 'code', 'name', 'narrowSymbol', 'narrowSymbol'],
+  ['VelcroFormatNumber', 'sl-format-number', 'maximumFractionDigits', 'maximum-fraction-digits', 2, 4, '3', 3],
+  ['VelcroFormatNumber', 'sl-format-number', 'maximumSignificantDigits', 'maximum-significant-digits', 3, 5, '2', 2],
+  ['VelcroFormatNumber', 'sl-format-number', 'minimumFractionDigits', 'minimum-fraction-digits', 1, 2, '1', 1],
+  ['VelcroFormatNumber', 'sl-format-number', 'minimumIntegerDigits', 'minimum-integer-digits', 2, 3, '4', 4],
+  ['VelcroFormatNumber', 'sl-format-number', 'minimumSignificantDigits', 'minimum-significant-digits', 1, 2, '3', 3],
+  ['VelcroProgressBar', 'sl-progress-bar', 'helpText', 'help-text', 'first', 'second', 'third', 'third'],
+  ['VelcroSpinner', 'sl-spinner', 'labelPosition', 'label-position', 'before', 'after', 'above', 'above'],
+  ['VelcroSwitch', 'sl-switch', 'errorMessage', 'error-message', 'first', 'second', 'third', 'third'],
+  ['VelcroSwitch', 'sl-switch', 'helpText', 'help-text', 'first', 'second', 'third', 'third'],
+  ['VelcroSwitch', 'sl-switch', 'labelPosition', 'label-position', 'start', 'top', 'start', 'start'],
+];
+
+test('React 19 wrappers set camelCase props with hyphenated attributes as properties: supplied, updated, removed, and the attribute spelling', async ({ page }) => {
+  const pageErrors = await mount(page);
+  const results = await page.evaluate(async table => {
+    const read = async (tag, prop, attribute) => {
+      const el = document.getElementById('wrapped');
+      await el.updateComplete;
+      return { value: el[prop] ?? null, attribute: el.getAttribute(attribute) };
+    };
+    const out = [];
+    for (const [wrapper, tag, prop, attribute, supplied, updated, text] of table) {
+      // The element's own value once connected without the prop (some elements settle a default on connection).
+      window.renderWrapper(wrapper, {});
+      const row = { key: `${wrapper}.${prop}`, initial: await read(tag, prop, attribute) };
+      window.renderWrapper(null);
+      window.renderWrapper(wrapper, { [prop]: supplied });
+      row.supplied = await read(tag, prop, attribute);
+      window.renderWrapper(wrapper, { [prop]: updated });
+      row.updated = await read(tag, prop, attribute);
+      window.renderWrapper(wrapper, {});
+      row.removed = await read(tag, prop, attribute);
+      // The same property sequence on an element outside React, ending with the value the element started with.
+      const control = document.createElement(tag);
+      document.body.append(control);
+      const steps = [];
+      for (const value of [supplied, updated, row.initial.value ?? undefined]) {
+        control[prop] = value;
+        await control.updateComplete;
+        steps.push(control.getAttribute(attribute));
+      }
+      row.controlAttributes = steps;
+      row.control = { value: control[prop] ?? null, attribute: control.getAttribute(attribute) };
+      control.remove();
+      window.renderWrapper(null);
+      window.renderWrapper(wrapper, { [attribute]: text });
+      row.viaAttribute = await read(tag, prop, attribute);
+      window.renderWrapper(null);
+      out.push(row);
+    }
+    return out;
+  }, HYPHENATED);
+  expect(results.map(r => r.key)).toEqual(HYPHENATED.map(([wrapper, , prop]) => `${wrapper}.${prop}`));
+  for (const [i, [, , , , supplied, updated, text, fromAttribute]] of HYPHENATED.entries()) {
+    const r = results[i];
+    // Set as the property: the hyphenated attribute appears only when the element reflects it, as with a direct assignment
+    // (passed as an attribute, it would always appear).
+    expect.soft([r.supplied.attribute, r.updated.attribute], r.key).toEqual(r.controlAttributes.slice(0, 2));
+    expect.soft(r.supplied.value, r.key).toBe(supplied);
+    expect.soft(r.updated.value, r.key).toBe(updated);
+    // Removal assigns the element's earlier value back, so it ends as the same assignments made directly do. That is
+    // the initial value, except where an element restores a reflected property's recorded value when its attribute is
+    // removed (the switch's labelPosition, recorded when its own reflection first changed an attribute).
+    expect.soft(r.removed, r.key).toEqual(r.control);
+    if (r.key !== 'VelcroSwitch.labelPosition') expect.soft(r.removed.value, r.key).toEqual(r.initial.value);
+    // The hyphenated spelling reaches the element as the attribute, and the element converts it.
+    expect.soft(r.viaAttribute, r.key).toEqual({ value: fromAttribute, attribute: text });
+  }
   expect(await page.evaluate(() => window.errors)).toEqual([]);
   expect(pageErrors).toEqual([]);
 });

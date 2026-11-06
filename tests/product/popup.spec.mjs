@@ -780,3 +780,38 @@ test('ported examples: activating, placement, distance, skidding, arrows, sync, 
   await frame.locator('.popup-flip-fallbacks .overflow').evaluate(el => (el.scrollTop = 220));
   await expect.poll(placement).toBe('right');
 });
+
+test('overlapping computations from a reentrant sl-reposition listener leave the popup\'s own inline direction as it was', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const r = await run(frame, `
+    const out = {};
+    for (const [label, value, priority] of [['none', '', ''], ['inherit important', 'inherit', 'important']]) {
+      const { el, anchor } = await make({ active: '', placement: 'top-start' });
+      if (value) el.popup.style.setProperty('direction', value, priority);
+      // The outer computation samples ltr; its listener makes the host rtl and starts an inner one, which samples rtl.
+      el.addEventListener('sl-reposition', () => {
+        el.style.direction = 'rtl';
+        el.reposition();
+      }, { once: true });
+      el.reposition();
+      await settle();
+      const left = () => Math.round(el.popup.getBoundingClientRect().left - anchor.getBoundingClientRect().left);
+      const settled = { value: el.popup.style.getPropertyValue('direction'), priority: el.popup.style.getPropertyPriority('direction'),
+        direction: getComputedStyle(el.popup).direction };
+      el.reposition();
+      await settle();
+      const start = left();
+      el.placement = 'top-end';
+      await el.updateComplete;
+      await settle();
+      out[label] = { settled, start, end: left() };
+      el.remove();
+    }
+    return out;
+  `);
+  // In rtl, top-start aligns the 80px box with the anchor's right edge (100 - 80) and top-end with its left edge.
+  expect(r).toEqual({
+    none: { settled: { value: '', priority: '', direction: 'rtl' }, start: 20, end: 0 },
+    'inherit important': { settled: { value: 'inherit', priority: 'important', direction: 'rtl' }, start: 20, end: 0 },
+  });
+});

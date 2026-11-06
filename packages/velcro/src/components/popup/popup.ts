@@ -148,12 +148,30 @@ function useComposedOffsetParent(elements: HTMLElement[]): () => void {
 }
 
 // Pins the popup's direction to `direction` until the current synchronous run ends (see "Floating UI through core").
+// Computations can overlap (an `sl-reposition` listener may start another), so pins on one element share a record: the
+// first saves the element's own inline value and priority, later ones only override, and the last release restores
+// the saved value. A computation whose direction already matches (possibly through another pin) pins nothing.
+const directionPins = new Map<HTMLElement, { value: string; priority: string; count: number }>();
+
 function pinDirection(floating: HTMLElement, direction: string) {
   if (getComputedStyle(floating).direction === direction) return;
-  const value = floating.style.getPropertyValue('direction');
-  const priority = floating.style.getPropertyPriority('direction');
+  let pin = directionPins.get(floating);
+  if (!pin) {
+    pin = {
+      value: floating.style.getPropertyValue('direction'),
+      priority: floating.style.getPropertyPriority('direction'),
+      count: 0,
+    };
+    directionPins.set(floating, pin);
+  }
+  const record = pin;
+  record.count++;
   floating.style.setProperty('direction', direction, 'important');
-  queueMicrotask(() => floating.style.setProperty('direction', value, priority));
+  queueMicrotask(() => {
+    if (--record.count) return;
+    directionPins.delete(floating);
+    floating.style.setProperty('direction', record.value, record.priority);
+  });
 }
 
 function computePosition(

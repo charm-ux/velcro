@@ -2,7 +2,7 @@
   "name": "@charm-ux/velcro",
   "version": "0.1.0",
   "private": true,
-  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, card, divider, format-bytes, format-date, format-number, mutation-observer, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, switch and visually-hidden only).",
+  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, card, divider, format-bytes, format-date, format-number, mutation-observer, popup, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, switch and visually-hidden only).",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
