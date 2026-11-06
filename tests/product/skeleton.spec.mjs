@@ -7,6 +7,8 @@ async function openExample(page, name = 'Overview', readyId = '#demo-avatar') {
   page.on('request', request => requests.push(request.url()));
   // Litro's client router remounts the page component once after load, which reloads the iframes; wait for it to settle.
   await page.goto(PAGE, { waitUntil: 'networkidle' });
+  // The client router replaces the prerendered page once; until it has settled there can be two copies of each example iframe.
+  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
   const frame = page.frameLocator(`iframe.example[title="Skeleton example: ${name}"]`);
   await expect(frame.locator(readyId)).toBeAttached();
   await frame.locator(readyId).evaluate(() => customElements.whenDefined('sl-skeleton'));

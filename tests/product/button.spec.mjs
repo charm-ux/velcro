@@ -7,6 +7,8 @@ async function openExample(page, name = 'Overview') {
   page.on('request', request => requests.push(request.url()));
   // Litro's client router remounts the page component once after load, which reloads the iframe; wait for it to settle.
   await page.goto(PAGE, { waitUntil: 'networkidle' });
+  // The client router replaces the prerendered page once; until it has settled there can be two copies of each example iframe.
+  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
   const frame = page.frameLocator(`iframe.example[title="Button example: ${name}"]`);
   await expect(frame.locator('sl-button').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-button'));
@@ -523,6 +525,8 @@ test('rendering: caret, spinner, rel default, reflected-attribute restore and th
 
 test('every docs example renders in its own document', async ({ page }) => {
   await page.goto(PAGE, { waitUntil: 'networkidle' });
+  // The client router replaces the prerendered page once; until it has settled there can be two copies of each example iframe.
+  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles.length).toBeGreaterThanOrEqual(15);
   for (const title of titles) {
