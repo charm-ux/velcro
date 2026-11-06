@@ -48,7 +48,10 @@ test('workflow is pinned, read-only, full-history and has an always-running aggr
   assert.match(job, /playwright install chromium firefox webkit/);
   assert.match(job, /DEBIAN_FRONTEND: noninteractive/);
   assert.equal([...job.matchAll(/timeout-minutes: 12/g)].length, 2, 'each browser install step is bounded');
-  assert.equal([...job.matchAll(/timeout -k 10 480 pnpm exec playwright/g)].length, 2);
+  assert.match(job, /Acquire::Retries "5"[\s\S]*Acquire::http::Timeout "30"[\s\S]*Acquire::https::Timeout "30"/);
+  assert.match(job, /80-velcro-ci/);
+  assert.match(job, /for attempt in 1 2; do\n\s+if timeout -k 10 360 pnpm exec playwright install-deps chromium firefox webkit/);
+  assert.equal([...job.matchAll(/timeout -k 10 480 pnpm exec playwright install chromium/g)].length, 1);
   assert.match(job, /--frozen-lockfile/);
   assert.match(job, /pnpm verify:product/);
   assert.doesNotMatch(text, /\bpaths(-ignore)?:|\n {2}product:\n {4}if:/);

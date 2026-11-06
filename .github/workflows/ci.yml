@@ -98,7 +98,15 @@ jobs:
         run: |
           mkdir -p .airig/ci
           echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
-          timeout -k 10 480 pnpm exec playwright install-deps chromium firefox webkit > .airig/ci/browser-deps.log 2>&1 || { tail -n 40 .airig/ci/browser-deps.log | cut -c1-300; echo 'browser system dependencies: blocked'; exit 1; }
+          # A stalled mirror connection must time out and retry instead of hanging the download.
+          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' | sudo tee "$(apt-config shell d Dir::Etc::parts/d | sed "s/^d='//; s/'$//")80-velcro-ci" > .airig/ci/apt-config.log
+          ok=0
+          for attempt in 1 2; do
+            if timeout -k 10 360 pnpm exec playwright install-deps chromium firefox webkit > .airig/ci/browser-deps-$attempt.log 2>&1; then ok=1; break; fi
+            echo "browser system dependencies: attempt $attempt failed"
+            tail -n 40 .airig/ci/browser-deps-$attempt.log | cut -c1-300
+          done
+          [ "$ok" = 1 ] || { echo 'browser system dependencies: blocked'; exit 1; }
           echo 'browser system dependencies: passed'
       - name: Install Chromium, Firefox and WebKit (disposable runner)
         timeout-minutes: 12
