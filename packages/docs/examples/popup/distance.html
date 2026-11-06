@@ -1,0 +1,33 @@
+<div class="popup-distance">
+  <sl-popup id="demo-distance" placement="top" distance="0" active>
+    <span slot="anchor"></span>
+    <div class="box"></div>
+  </sl-popup>
+
+  <label>Distance <input type="range" min="-50" max="50" step="1" value="0"></label>
+</div>
+
+<style>
+  .popup-distance span[slot='anchor'] {
+    display: inline-block;
+    width: 150px;
+    height: 150px;
+    border: dashed 2px var(--sl-color-neutral-600);
+    margin: 50px;
+  }
+
+  .popup-distance .box {
+    width: 100px;
+    height: 50px;
+    background: var(--sl-color-primary-600);
+    border-radius: var(--sl-border-radius-medium);
+  }
+</style>
+
+<script>
+  const container = document.querySelector('.popup-distance');
+  const popup = container.querySelector('sl-popup');
+  const distance = container.querySelector('input[type="range"]');
+
+  distance.addEventListener('input', () => (popup.distance = distance.value));
+</script>
