@@ -3131,9 +3131,25 @@
             },
             {
               "kind": "field",
+              "name": "hasRecordedInitialProperties",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "initialReflectedProperties",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new Map<string, unknown>()"
+            },
+            {
+              "kind": "field",
               "name": "mutationObserver",
               "type": {
-                "text": "MutationObserver | undefined"
+                "text": "MutationObserver"
               },
               "privacy": "private"
             },

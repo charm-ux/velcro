@@ -60,7 +60,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).toContain('char-data-old-value');
   expect(html).toContain('without changing the shared core prefix');
   expect(html).toContain('Shoelace React examples are not ported');
-  expect(html).toContain('deliberately differs from Shoelace 2.20.1');
+  expect(html).toContain('Upstream quirks matched');
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
   const home = await (await request.get('/')).text();
   expect(home).toContain('/components/mutation-observer');
@@ -97,18 +97,60 @@ test('host is display: contents, so the slotted content lays out as if the host 
   // No box of its own: the slotted button is a direct layout child of the example container.
   expect(await frame.locator('#demo-observer').evaluate(el => el.getClientRects().length)).toBe(0);
   expect(await frame.locator('#demo-button').evaluate(el => el.getClientRects().length)).toBe(1);
-  // [hidden] hides it (core base rule; Shoelace has no such rule on the host).
-  const hidden = await frame.locator('body').evaluate(async () => {
-    const el = document.createElement('sl-mutation-observer');
-    document.body.append(el);
-    await el.updateComplete;
-    el.hidden = true;
-    await el.updateComplete;
-    const out = getComputedStyle(el).display;
-    el.remove();
+});
+
+// Shoelace 2.20.1's shadow styles for this host, verbatim: the shared component stylesheet followed by the component's own.
+const SHOELACE_HOST_CSS = `
+  :host { box-sizing: border-box; }
+  :host *, :host *::before, :host *::after { box-sizing: inherit; }
+  [hidden] { display: none !important; }
+  :host { display: contents; }
+`;
+
+test('the hidden attribute renders exactly as with Shoelace\'s styles, alone and next to document rules that target [hidden]', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const r = await frame.locator('body').evaluate(async (_, css) => {
+    // A stand-in element carrying Shoelace's stylesheet (the real Shoelace is not loaded), to compare against.
+    customElements.define(
+      'shoelace-style-standin',
+      class extends HTMLElement {
+        constructor() {
+          super();
+          const root = this.attachShadow({ mode: 'open' });
+          const sheet = new CSSStyleSheet();
+          sheet.replaceSync(css);
+          root.adoptedStyleSheets = [sheet];
+          root.append(document.createElement('slot'));
+        }
+      }
+    );
+    await customElements.whenDefined('sl-mutation-observer');
+    const out = {};
+    for (const [label, rule] of [['alone', ''], ['document [hidden]', '[hidden] { display: none; }'], ['document [hidden] !important', '[hidden] { display: none !important; }']]) {
+      const style = document.createElement('style');
+      style.textContent = rule;
+      document.head.append(style);
+      const measure = async tag => {
+        const el = document.createElement(tag);
+        el.innerHTML = '<span>content</span>';
+        el.hidden = true;
+        document.body.append(el);
+        await el.updateComplete; // the slot exists once Velcro's element has rendered (the stand-in has no update cycle)
+        const result = { display: getComputedStyle(el).display, contentBoxes: el.firstElementChild.getClientRects().length };
+        el.remove();
+        return result;
+      };
+      out[label] = { velcro: await measure('sl-mutation-observer'), shoelace: await measure('shoelace-style-standin') };
+      style.remove();
+    }
     return out;
+  }, SHOELACE_HOST_CSS);
+  // Alone, `hidden` loses to the host's display: contents (the content stays visible); a document rule for [hidden] wins.
+  expect(r).toEqual({
+    alone: { velcro: { display: 'contents', contentBoxes: 1 }, shoelace: { display: 'contents', contentBoxes: 1 } },
+    'document [hidden]': { velcro: { display: 'none', contentBoxes: 0 }, shoelace: { display: 'none', contentBoxes: 0 } },
+    'document [hidden] !important': { velcro: { display: 'none', contentBoxes: 0 }, shoelace: { display: 'none', contentBoxes: 0 } },
   });
-  expect(hidden).toBe('none');
 });
 
 test('boolean options: reflected properties, default false, removing the attribute restores false', async ({ page }) => {
@@ -155,7 +197,7 @@ test('boolean options: reflected properties, default false, removing the attribu
   });
 });
 
-test('attr: string property with no default, reflected, null when the attribute is removed', async ({ page }) => {
+test('attr: string property with no default, reflected in both directions', async ({ page }) => {
   const { frame } = await openExample(page);
   const r = await run(
     frame,
@@ -170,19 +212,42 @@ test('attr: string property with no default, reflected, null when the attribute 
     el.setAttribute('attr', 'title');
     await el.updateComplete;
     out.afterAttr = el.attr;
-    el.removeAttribute('attr');
-    await el.updateComplete;
-    out.afterRemove = [el.attr, el.hasAttribute('attr')];
     el.remove();
     return out;
   `
   );
-  expect(r).toEqual({
-    initial: ['undefined', false],
-    afterProp: ['class id', 'class id'],
-    afterAttr: 'title',
-    afterRemove: [null, false],
-  });
+  expect(r).toEqual({ initial: ['undefined', false], afterProp: ['class id', 'class id'], afterAttr: 'title' });
+});
+
+test('upstream quirk: removing the attr attribute restores a value recorded at the first attribute change, otherwise leaves null', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const r = await run(
+    frame,
+    `
+    const out = {};
+    // Set as an attribute first: attr was still undefined when the first attribute change recorded the reflected
+    // properties, so nothing is recorded for it and removal leaves null.
+    const fromAttribute = await make({ attr: 'title' });
+    fromAttribute.el.removeAttribute('attr');
+    await fromAttribute.el.updateComplete;
+    out.fromAttribute = [fromAttribute.el.attr, fromAttribute.el.hasAttribute('attr')];
+    fromAttribute.el.remove();
+
+    // Assigned as a property first: reflecting it is the first attribute change, so 'class' is recorded, and removing
+    // the attribute sets the property back to 'class', which reflects again.
+    const fromProperty = await make({});
+    fromProperty.el.attr = 'class';
+    await fromProperty.el.updateComplete;
+    fromProperty.el.setAttribute('attr', 'title');
+    await fromProperty.el.updateComplete;
+    fromProperty.el.removeAttribute('attr');
+    await fromProperty.el.updateComplete;
+    out.fromProperty = [fromProperty.el.attr, fromProperty.el.getAttribute('attr')];
+    fromProperty.el.remove();
+    return out;
+  `
+  );
+  expect(r).toEqual({ fromAttribute: [null, false], fromProperty: ['class', 'class'] });
 });
 
 test('attr="name": reports that attribute on descendants, with sl-mutation carrying a MutationRecord list, and nothing else', async ({ page }) => {
@@ -457,7 +522,7 @@ test('options assigned right after the element is connected, before its first up
   expect(r).toBe(1);
 });
 
-test('changing any option after the first update restarts the observer (documented divergence from Shoelace 2.20.1, whose watchers for three of them never fire)', async ({ page }) => {
+test('upstream quirk: only attr and child-list restart the observer after the first update; the other options apply at the next restart', async ({ page }) => {
   const { frame } = await openExample(page);
   const r = await run(
     frame,
@@ -465,6 +530,7 @@ test('changing any option after the first update restarts the observer (document
     const out = {};
     const settle = async el => { await el.updateComplete; await tick(); };
 
+    // attr and child-list restart the observer.
     const attr = await make({ 'child-list': '' });
     attr.el.attr = 'title';
     await settle(attr.el);
@@ -481,14 +547,24 @@ test('changing any option after the first update restarts the observer (document
     out.childList = childList.events.flat().map(r => r.type);
     childList.el.remove();
 
+    // char-data does not: nothing is reported until the observer is restarted (here by disabling and re-enabling).
     const charData = await make({ attr: 'title' });
     charData.el.charData = true;
     await settle(charData.el);
-    charData.el.querySelector('p').firstChild.data = 'changed';
+    const text = charData.el.querySelector('p').firstChild;
+    text.data = 'changed';
     await tick();
-    out.charData = charData.events.flat().map(r => r.type);
+    out.charDataBefore = charData.events.length;
+    charData.el.disabled = true;
+    await settle(charData.el);
+    charData.el.disabled = false;
+    await settle(charData.el);
+    text.data = 'again';
+    await tick();
+    out.charDataAfter = charData.events.flat().map(r => r.type);
     charData.el.remove();
 
+    // attr-old-value does not: old values start being recorded only after a child-list change restarts the observer.
     const attrOld = await make({ attr: 'title' });
     const p = attrOld.el.querySelector('p');
     p.setAttribute('title', 'one');
@@ -497,22 +573,29 @@ test('changing any option after the first update restarts the observer (document
     await settle(attrOld.el);
     p.setAttribute('title', 'two');
     await tick();
+    attrOld.el.childList = true;
+    await settle(attrOld.el);
+    p.setAttribute('title', 'three');
+    await tick();
     out.attrOldValue = attrOld.events.flat().map(r => r.old);
     attrOld.el.remove();
 
+    // char-data-old-value does not either.
     const charDataOld = await make({ 'char-data': '' });
     const t = charDataOld.el.querySelector('p').firstChild;
+    charDataOld.el.charDataOldValue = true;
+    await settle(charDataOld.el);
     t.data = 'one';
     await tick();
-    charDataOld.el.charDataOldValue = true;
+    charDataOld.el.childList = true;
     await settle(charDataOld.el);
     t.data = 'two';
     await tick();
     out.charDataOldValue = charDataOld.events.flat().map(r => r.old);
     charDataOld.el.remove();
 
-    // Turning an option off stops reporting it.
-    const off = await make({ 'child-list': '', 'char-data': '' });
+    // Turning char-data off after the first update does not stop the reporting either.
+    const off = await make({ 'char-data': '' });
     off.el.charData = false;
     await settle(off.el);
     off.el.querySelector('p').firstChild.data = 'changed';
@@ -525,82 +608,108 @@ test('changing any option after the first update restarts the observer (document
   expect(r).toEqual({
     attr: 1,
     childList: ['childList'],
-    charData: ['characterData'],
-    attrOldValue: [null, 'one'],
+    charDataBefore: 0,
+    charDataAfter: ['characterData'],
+    attrOldValue: [null, null, 'two'],
     charDataOldValue: [null, 'one'],
-    off: 0,
+    off: 1,
   });
 });
 
-test('a disabled observer stays stopped when an option changes (documented divergence: Shoelace 2.20.1 restarts it)', async ({ page }) => {
-  const { frame } = await openExample(page);
-  const r = await run(
-    frame,
-    `
-    const { el, events } = await make({ 'child-list': '', disabled: '' });
-    el.attr = 'title';
-    el.charData = true;
-    await el.updateComplete;
-    el.childList = false;
-    el.childList = true;
-    await el.updateComplete;
-    const p = el.querySelector('p');
-    p.setAttribute('title', 'x');
-    p.firstChild.data = 'changed';
-    el.append(document.createElement('i'));
-    await tick();
-    const out = { whileDisabled: events.length };
-    el.disabled = false;
-    await el.updateComplete;
-    p.setAttribute('title', 'y');
-    el.append(document.createElement('i'));
-    await tick();
-    out.afterEnable = events.flat().map(r => r.type).sort();
-    el.remove();
-    return out;
-  `
-  );
-  expect(r).toEqual({ whileDisabled: 0, afterEnable: ['attributes', 'childList'] });
-});
-
-test('nothing is observed while disconnected, and reconnecting reports each mutation once (documented divergence from Shoelace 2.20.1)', async ({ page }) => {
+test('upstream quirk: a change to attr or child-list starts a disabled observer', async ({ page }) => {
   const { frame } = await openExample(page);
   const r = await run(
     frame,
     `
     const out = {};
-    const { el, events } = await make({ 'child-list': '' });
-    const add = () => el.append(document.createElement('i'));
-    el.remove();
-    add();
+    const byAttr = await make({ 'child-list': '', disabled: '' });
+    byAttr.el.append(document.createElement('i'));
     await tick();
-    out.detached = events.length;
-    // A property change while disconnected must not restart observation.
-    el.childList = false;
-    el.childList = true;
-    await el.updateComplete;
-    add();
+    out.stillDisabled = byAttr.events.length;
+    byAttr.el.attr = 'title';
+    await byAttr.el.updateComplete;
+    byAttr.el.append(document.createElement('i'));
+    byAttr.el.querySelector('p').setAttribute('title', 'x');
     await tick();
-    out.detachedAfterChange = events.length;
-    document.body.append(el);
-    await el.updateComplete;
-    add();
+    out.byAttr = [byAttr.el.disabled, byAttr.events.flat().map(r => r.type).sort()];
+    // Disabling again stops it.
+    byAttr.el.disabled = false;
+    await byAttr.el.updateComplete;
+    byAttr.el.disabled = true;
+    await byAttr.el.updateComplete;
+    byAttr.el.append(document.createElement('i'));
     await tick();
-    out.reconnected = events.length;
-    // Reconnecting repeatedly never stacks observers.
-    el.remove();
-    document.body.append(el);
-    el.remove();
-    document.body.append(el);
-    await el.updateComplete;
-    add();
+    out.disabledAgain = byAttr.events.length;
+    byAttr.el.remove();
+
+    const byChildList = await make({ attr: 'title', disabled: '' });
+    byChildList.el.childList = true;
+    await byChildList.el.updateComplete;
+    byChildList.el.append(document.createElement('i'));
     await tick();
-    out.reconnectedAgain = events.length;
-    el.remove();
+    out.byChildList = [byChildList.el.disabled, byChildList.events.flat().map(r => r.type)];
+    byChildList.el.remove();
+
+    // The other options are not watched, so they do not start it.
+    const byCharData = await make({ 'child-list': '', disabled: '' });
+    byCharData.el.charData = true;
+    byCharData.el.attrOldValue = true;
+    await byCharData.el.updateComplete;
+    byCharData.el.append(document.createElement('i'));
+    await tick();
+    out.byCharData = byCharData.events.length;
+    byCharData.el.remove();
     return out;
   `
   );
-  expect(r).toEqual({ detached: 0, detachedAfterChange: 0, reconnected: 1, reconnectedAgain: 2 });
+  expect(r).toEqual({
+    stillDisabled: 0,
+    byAttr: [true, ['attributes', 'childList']],
+    disabledAgain: 1,
+    byChildList: [true, ['childList']],
+    byCharData: 0,
+  });
+});
+
+test('upstream quirk: a restart while disconnected observes the detached subtree, and reconnecting then reports every mutation twice', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const r = await run(
+    frame,
+    `
+    const out = {};
+    const add = el => el.append(document.createElement('i'));
+
+    // Plain disconnect and reconnect: stopped while detached, one report per mutation afterwards.
+    const plain = await make({ 'child-list': '' });
+    plain.el.remove();
+    add(plain.el);
+    await tick();
+    out.detached = plain.events.length;
+    document.body.append(plain.el);
+    await plain.el.updateComplete;
+    add(plain.el);
+    await tick();
+    out.reconnected = plain.events.length;
+    plain.el.remove();
+
+    // A change to attr while detached restarts the old observer, which then keeps observing next to the new one.
+    const stacked = await make({ 'child-list': '' });
+    stacked.el.remove();
+    stacked.el.attr = 'title';
+    await stacked.el.updateComplete;
+    add(stacked.el);
+    await tick();
+    out.restartedWhileDetached = stacked.events.length;
+    document.body.append(stacked.el);
+    await stacked.el.updateComplete;
+    add(stacked.el);
+    await tick();
+    out.afterReconnect = stacked.events.length - out.restartedWhileDetached;
+    stacked.el.remove();
+    return out;
+  `
+  );
+  expect(r).toEqual({ detached: 0, reconnected: 1, restartedWhileDetached: 1, afterReconnect: 2 });
 });
 
 test('core ready event: dispatched once after the first update, not bubbling', async ({ page }) => {

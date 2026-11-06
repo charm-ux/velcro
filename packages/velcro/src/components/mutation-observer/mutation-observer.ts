@@ -1,15 +1,14 @@
 // Portions of the API documentation wording and the behavior in this file (a MutationObserver over the element and its
 // subtree, configured by `attr`, `attr-old-value`, `char-data`, `char-data-old-value` and `child-list`, started and stopped
-// by `disabled`, reporting through `sl-mutation`) are adapted from Shoelace v2.20.1
-// (src/components/mutation-observer/mutation-observer.component.ts), Copyright (c) 2020 A Beautiful Site, LLC, MIT
-// License. See THIRD_PARTY_NOTICES.md. No Shoelace source file or runtime is included.
+// by `disabled`, reporting through `sl-mutation`, and the restore of reflected properties' initial values) are adapted
+// from Shoelace v2.20.1 (src/components/mutation-observer/mutation-observer.component.ts and src/internal/
+// shoelace-element.ts), Copyright (c) 2020 A Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md. No Shoelace
+// source file or runtime is included. Shoelace's behavior is matched exactly, including its quirks; each one is marked
+// "Upstream quirk" below and listed on the docs page.
 import { html, type PropertyValues } from 'lit';
 import { property } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/index.js';
 import styles from './mutation-observer.styles.js';
-
-/** The properties that configure what the observer watches. `disabled` is handled separately. */
-const OBSERVER_OPTIONS = ['attr', 'attrOldValue', 'charData', 'charDataOldValue', 'childList'] as const;
 
 /**
  * The Mutation Observer component offers a thin, declarative interface to the MutationObserver API.
@@ -25,9 +24,11 @@ const OBSERVER_OPTIONS = ['attr', 'attrOldValue', 'charData', 'charDataOldValue'
 export class VelcroMutationObserver extends CharmElement {
   public static override baseName = 'mutation-observer';
 
-  public static override styles = [...CharmElement.styles, styles];
+  // Core's base styles are replaced by Shoelace's own (see the styles file). The only core rule that can apply to this
+  // template is `:host([hidden]) { display: none !important }`, which Shoelace does not have.
+  public static override styles = [styles];
 
-  private mutationObserver?: MutationObserver;
+  private mutationObserver!: MutationObserver;
 
   /**
    * Watches for changes to attributes. To watch only specific attributes, separate them by a space, e.g.
@@ -56,10 +57,32 @@ export class VelcroMutationObserver extends CharmElement {
   @property({ type: Boolean, reflect: true })
   public disabled = false;
 
+  // Upstream behavior: the first time any attribute changes, the values of all reflected properties that are not null
+  // are recorded, and when one of them later becomes null (its attribute was removed) it is set back to the recorded
+  // value. Upstream quirk: `attr` has no default, so it is only recorded (and so only restored) if it already held a
+  // value at that moment, for example when it was assigned as a property before any attribute changed.
+  private hasRecordedInitialProperties = false;
+
+  private readonly initialReflectedProperties = new Map<string, unknown>();
+
+  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
+    if (!this.hasRecordedInitialProperties) {
+      (this.constructor as typeof VelcroMutationObserver).elementProperties.forEach((options, prop) => {
+        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
+        if (options.reflect && current != null) {
+          this.initialReflectedProperties.set(prop as string, current);
+        }
+      });
+      this.hasRecordedInitialProperties = true;
+    }
+    super.attributeChangedCallback(name, previous, next);
+  }
+
   public override connectedCallback() {
     super.connectedCallback();
-    // A reconnect gets a fresh observer; the previous one must not keep reporting alongside it.
-    this.mutationObserver?.disconnect();
+
+    // Upstream quirk: a reconnect creates a new observer without disconnecting the previous one. If the previous one was
+    // restarted while disconnected (see `handleChange`), both observe, and every mutation is reported twice.
     this.mutationObserver = new MutationObserver(this.handleMutation);
 
     if (!this.disabled) {
@@ -74,19 +97,35 @@ export class VelcroMutationObserver extends CharmElement {
 
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
+    this.initialReflectedProperties.forEach((value, prop) => {
+      const self = this as unknown as Record<string, unknown>;
+      if (changed.has(prop as keyof VelcroMutationObserver) && self[prop] == null) {
+        self[prop] = value;
+      }
+    });
+  }
 
-    // Documented divergence from Shoelace 2.20.1, which restarts the observer only when `attr` or `childList` changes
-    // (its watchers for `attr-old-value`, `char-data` and `char-data-old-value` are registered under the attribute names
-    // and never fire) and does so even while `disabled`. Here a change to any of the five options restarts it, and a
-    // disabled observer stays stopped. Like Shoelace, the first update is not a change, but it does (re)start an enabled
-    // observer, so options assigned right after the element is connected take effect.
-    if (this.hasUpdated && OBSERVER_OPTIONS.some(name => changed.has(name) && changed.get(name) !== this[name])) {
-      this.handleChange();
+  // Shoelace's `@watch` decorators, in their order: they run before the render (and before reflection).
+  protected override update(changed: PropertyValues<this>) {
+    // Upstream quirk: Shoelace also watches 'attr-old-value', 'char-data' and 'char-data-old-value', but under their
+    // attribute names, which never match a property name, so only `attr` and `childList` restart the observer.
+    // Changing `attrOldValue`, `charData` or `charDataOldValue` after the first update takes effect only at the next
+    // restart (a change to `attr` or `childList`, or `disabled` going false again).
+    if (this.hasUpdated) {
+      for (const name of ['attr', 'childList'] as const) {
+        if (changed.has(name) && changed.get(name) !== this[name]) {
+          this.handleChange();
+        }
+      }
     }
 
+    // Not guarded by hasUpdated: the first update always (re)starts an enabled observer, so options assigned right
+    // after the element is connected take effect.
     if (changed.has('disabled') && changed.get('disabled') !== this.disabled) {
       this.handleDisabledChange();
     }
+
+    super.update(changed);
   }
 
   private handleMutation = (mutationList: MutationRecord[]) => {
@@ -96,9 +135,6 @@ export class VelcroMutationObserver extends CharmElement {
   };
 
   private startObserver() {
-    // Nothing is observed while disconnected; connecting starts it again.
-    if (!this.mutationObserver || !this.isConnected) return;
-
     const observeAttributes = typeof this.attr === 'string' && this.attr.length > 0;
     const attributeFilter = observeAttributes && this.attr !== '*' ? this.attr.split(' ') : undefined;
 
@@ -122,7 +158,7 @@ export class VelcroMutationObserver extends CharmElement {
   }
 
   private stopObserver() {
-    this.mutationObserver?.disconnect();
+    this.mutationObserver.disconnect();
   }
 
   private handleDisabledChange() {
@@ -133,12 +169,12 @@ export class VelcroMutationObserver extends CharmElement {
     }
   }
 
+  // Upstream quirks: restarting does not check `disabled`, so changing `attr` or `childList` on a disabled observer
+  // starts it, and it does not check that the element is connected, so a restart while disconnected observes the
+  // detached subtree.
   private handleChange() {
     this.stopObserver();
-
-    if (!this.disabled) {
-      this.startObserver();
-    }
+    this.startObserver();
   }
 
   protected override render() {
