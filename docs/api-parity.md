@@ -10,12 +10,12 @@ Shoelace members count when its own docs would list them (described and not priv
 whitespace, quote style and union order. Missing and mismatched entries form the ledger
 `docs/api/api-parity-ledger.json`, which may only shrink.
 
-Totals: 130 Shoelace entries compared, 93 matching, 21 mismatched, 16 missing; 5 Velcro-only and 68 inherited extras.
+Totals: 130 Shoelace entries compared, 115 matching, 15 mismatched, 0 missing; 10 Velcro-only and 54 inherited extras.
 
 | Component | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | `sl-badge` | 5 | 5 | 0 | 0 | 0 | 2 |
-| `sl-button` | 42 | 20 | 6 | 16 | 1 | 27 |
+| `sl-button` | 42 | 42 | 0 | 0 | 6 | 13 |
 | `sl-card` | 13 | 13 | 0 | 0 | 0 | 5 |
 | `sl-divider` | 4 | 4 | 0 | 0 | 0 | 6 |
 | `sl-format-bytes` | 3 | 3 | 0 | 0 | 1 | 2 |
@@ -52,38 +52,19 @@ Inherited extras:
 
 Missing:
 
-- `event sl-invalid`
-- `method blur`
-- `method checkValidity`
-- `method focus`
-- `method getForm`
-- `method reportValidity`
-- `method setCustomValidity`
-- `property form`
-- `property formAction`
-- `property formEnctype`
-- `property formMethod`
-- `property formNoValidate`
-- `property formTarget`
-- `property rel`
-- `property validationMessage`
-- `property validity`
+- None.
 
 Mismatched:
 
-- `property disabled`: default differs (shoelace "false", velcro "")
-- `property disabled`: type differs (shoelace "boolean", velcro "boolean | undefined")
-- `property href`: default differs (shoelace "\"\"", velcro "")
-- `property href`: type differs (shoelace "string", velcro "string | undefined")
-- `property name`: default differs (shoelace "\"\"", velcro "")
-- `property name`: type differs (shoelace "string", velcro "string | undefined")
-- `property target`: type differs (shoelace "\"_blank\" | \"_parent\" | \"_self\" | \"_top\"", velcro "\"_blank\" | \"_parent\" | \"_self\" | \"_top\" | (string & {}) | undefined")
-- `property type`: reflects differs (shoelace "false", velcro "true")
-- `property value`: default differs (shoelace "\"\"", velcro "")
-- `property value`: type differs (shoelace "string", velcro "string | undefined")
+- None.
 
 Velcro-only (own):
 
+- `property button`
+- `property hides`
+- `property shows`
+- `property title`
+- `property toggles`
 - `part button-control`
 
 Inherited extras:
@@ -93,28 +74,14 @@ Inherited extras:
 - `property current` (from @charm-ux/core CoreButton)
 - `property dir` (from @charm-ux/core CharmElement)
 - `property expanded` (from @charm-ux/core CoreButton)
-- `property hides` (from @charm-ux/core CoreButton)
 - `property iconOnly` (from @charm-ux/core CoreButton)
 - `property pressed` (from @charm-ux/core CoreButton)
 - `property referrerPolicy` (from @charm-ux/core CoreButton)
-- `property shows` (from @charm-ux/core CoreButton)
 - `property toggle` (from @charm-ux/core CoreButton)
-- `property toggles` (from @charm-ux/core CoreButton)
 - `event blur` (from @charm-ux/core CoreButton)
 - `event change` (from @charm-ux/core CoreButton)
 - `event focus` (from @charm-ux/core CoreButton)
 - `event ready` (from @charm-ux/core CharmElement)
-- `css-property --button-active-bg-color` (from @charm-ux/core CoreButton)
-- `css-property --button-active-border-color` (from @charm-ux/core CoreButton)
-- `css-property --button-active-fg-color` (from @charm-ux/core CoreButton)
-- `css-property --button-active-shadow` (from @charm-ux/core CoreButton)
-- `css-property --button-bg-color` (from @charm-ux/core CoreButton)
-- `css-property --button-disabled-shadow` (from @charm-ux/core CoreButton)
-- `css-property --button-fg-color` (from @charm-ux/core CoreButton)
-- `css-property --button-icon-size` (from @charm-ux/core CoreButton)
-- `css-property --button-pressed-bg-color` (from @charm-ux/core CoreButton)
-- `css-property --button-pressed-border` (from @charm-ux/core CoreButton)
-- `css-property --button-pressed-fg-color` (from @charm-ux/core CoreButton)
 
 ## `sl-card`
 

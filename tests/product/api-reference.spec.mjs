@@ -41,8 +41,9 @@ for (const { name, tag } of readCatalog()) {
 
 test('inherited members name their core origin on the page', async ({ page }) => {
   await page.goto('/components/button', { waitUntil: 'networkidle' });
-  const disabled = page.locator('table[data-api="attributes"] tr[data-name="disabled"] td').last();
-  await expect(disabled).toHaveText('Inherited from @charm-ux/core CoreButton');
+  // sl-button redeclares disabled with Shoelace's default; toggle is a core extension it inherits unchanged.
+  const toggle = page.locator('table[data-api="attributes"] tr[data-name="toggle"] td').last();
+  await expect(toggle).toHaveText('Inherited from @charm-ux/core CoreButton');
   const variant = page.locator('table[data-api="attributes"] tr[data-name="variant"] td').last();
   await expect(variant).toHaveText('Velcro');
 });

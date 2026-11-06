@@ -26,7 +26,7 @@ test('the docs API data generator emits the manifest model of every catalog comp
   assert.match(generator, /apiModel\(decl\)/);
   const elements = customElements(readJson(velcroManifestPath));
   const button = apiModel(elements.get('sl-button'));
-  assert.ok(button.properties.some(p => p.name === 'disabled' && p.origin === 'from @charm-ux/core CoreButton'));
+  assert.ok(button.properties.some(p => p.name === 'toggle' && p.origin === 'from @charm-ux/core CoreButton'));
   assert.ok(button.properties.some(p => p.name === 'variant' && p.origin === '' && p.reflects && p.attribute === 'variant'));
   assert.ok(button.methods.some(m => m.name === 'click'));
   for (const { tag } of catalog) {

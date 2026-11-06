@@ -39,8 +39,9 @@ test('every catalog component is in the manifest with its sl- tag, status and co
 
 test('inherited core members, attributes and events are present and name their core class and package', () => {
   const button = elements.get('sl-button');
-  const disabled = button.members.find(m => m.name === 'disabled');
-  assert.deepEqual(disabled.inheritedFrom && { name: disabled.inheritedFrom.name, package: disabled.inheritedFrom.package },
+  // sl-button redeclares disabled with Shoelace's default; toggle is a core extension it inherits unchanged.
+  const toggle = button.members.find(m => m.name === 'toggle');
+  assert.deepEqual(toggle.inheritedFrom && { name: toggle.inheritedFrom.name, package: toggle.inheritedFrom.package },
     { name: 'CoreButton', package: '@charm-ux/core' });
   const autofocus = button.attributes.find(a => a.name === 'autofocus');
   assert.equal(autofocus.inheritedFrom.name, 'CharmFocusableElement');
@@ -67,7 +68,8 @@ test('inherited slots, parts and CSS custom properties are exactly the per-compo
       for (const item of inherited) assert.equal(item.inheritedFrom.package, '@charm-ux/core', `${tag} ${key} ${item.name}`);
     }
   }
-  assert.ok(elements.get('sl-button').cssProperties.some(p => p.name === '--button-icon-size' && p.inheritedFrom?.name === 'CoreButton'));
+  // sl-button no longer applies core's button styles, so none of core's --button-* properties are listed.
+  assert.ok(!(elements.get('sl-button').cssProperties ?? []).some(p => p.inheritedFrom));
   assert.deepEqual(elements.get('sl-button').cssParts.map(p => p.name).sort(),
     ['base', 'button-control', 'caret', 'label', 'prefix', 'spinner', 'suffix']);
 });
@@ -83,10 +85,11 @@ test('the package ships the manifest and the React wrappers', () => {
 
 test('the React wrapper type test checks Shoelace props, rejects bad values and pins the known gaps', () => {
   const source = readFileSync(path.join(pkgDir, 'type-tests/react-button.tsx'), 'utf8');
-  for (const prop of ['variant', 'size', 'caret', 'disabled', 'loading', 'outline', 'pill', 'circle', 'type', 'name', 'value', 'href', 'target', 'onSlBlur', 'onSlFocus']) {
+  for (const prop of ['variant', 'size', 'caret', 'disabled', 'loading', 'outline', 'pill', 'circle', 'type', 'name', 'value', 'href', 'target', 'rel', 'form', 'formAction', 'formEnctype', 'formMethod', 'formNoValidate', 'formTarget', 'onSlBlur', 'onSlFocus', 'onSlInvalid']) {
     assert.match(source, new RegExp(`\\b${prop}[:,]`), prop);
   }
-  assert.equal(source.match(/@ts-expect-error/g)?.length, 5);
+  // Only the two bad-value checks remain; the Shoelace gaps they used to pin (rel, form*, sl-invalid) are implemented.
+  assert.equal(source.match(/@ts-expect-error/g)?.length, 2);
   const jsx = readFileSync(path.join(pkgDir, 'type-tests/jsx-intrinsic.tsx'), 'utf8');
   assert.match(jsx, /useRef<VelcroButton>\(null\)/);
   assert.match(jsx, /<sl-button ref=\{hookRef\}/);

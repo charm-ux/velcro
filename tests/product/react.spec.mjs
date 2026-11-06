@@ -79,7 +79,7 @@ test('React 19 wrappers keep element defaults when props are omitted', async ({ 
   expect(s.badge.variant).toBe('primary');
   expect(s.badge.pill).toBe(false);
   expect(s.badge.cls).toContain('badge--primary');
-  expect(s.button).toEqual({ variant: 'default', size: 'medium', disabled: false, href: null });
+  expect(s.button).toEqual({ variant: 'default', size: 'medium', disabled: false, href: '' });
   expect(s.errors).toEqual([]);
   expect(pageErrors).toEqual([]);
 });
@@ -113,7 +113,7 @@ test('React 19 wrappers restore element defaults when a supplied prop is removed
   expect(s.ring).toEqual({ label: '', value: 5, aria: 'Progress' });
   expect(s.badge).toMatchObject({ variant: 'primary', pill: false });
   expect(s.badge.cls).toContain('badge--primary');
-  expect(s.button).toEqual({ variant: 'default', size: 'medium', disabled: false, href: null });
+  expect(s.button).toEqual({ variant: 'default', size: 'medium', disabled: false, href: '' });
   expect(s.errors).toEqual([]);
   expect(pageErrors).toEqual([]);
 });

@@ -21,8 +21,14 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   from the `v2.20.1` tag, commit `fb59fda70ed737c92611051b49bc7e3a5fed5dc5`: API names, types, defaults and descriptions
   of the components Velcro implements, read by the API parity check (`scripts/api/parity.mjs`) and summarized in
   `docs/api-parity.md`. No Shoelace runtime or source files are included.
-- Used in: `packages/velcro/src/components/button/button.ts` (API documentation wording: class, property, event,
-  slot and part descriptions adapted from `src/components/button/button.component.ts`),
+- Used in: `packages/velcro/src/components/button/button.ts` (API documentation wording, the rendered structure: a
+  `base` `<button>` or `<a>` with `button` / `button--*` class names around the prefix, label and suffix slots, caret
+  and spinner, the click, focus, validation and form-submission behavior, adapted from
+  `src/components/button/button.component.ts`, and the restore of reflected properties' initial values adapted from
+  `src/internal/shoelace-element.ts`), `packages/velcro/src/components/button/button.styles.ts` (styles adapted from
+  `src/components/button/button.styles.ts`, with sl-icon sizing rules from `src/components/icon/icon.styles.ts` added
+  for the inline caret), `packages/velcro/src/internal/form.ts` (the form control controller adapted from
+  `src/internal/form.ts`),
   `packages/velcro/src/components/spinner/spinner.ts` (API documentation wording, and the rendered structure: an svg
   `base` part with `role="progressbar"` and a track and an indicator circle, adapted from
   `src/components/spinner/spinner.component.ts`), `packages/velcro/src/components/spinner/spinner.styles.ts`

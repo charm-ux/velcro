@@ -6,7 +6,7 @@ import { VelcroButton, type VelcroButtonElement, type VelcroButtonProps } from '
 const ref = createRef<VelcroButtonElement>();
 const onSlFocus = (event: { target: VelcroButtonElement }) => event.target.focus();
 
-// Every Shoelace attribute/property Velcro implements, with Shoelace's value types, and the sl-blur/sl-focus events.
+// Every Shoelace attribute/property Velcro implements, with Shoelace's value types, and the sl-blur/sl-focus/sl-invalid events.
 const shoelaceProps: VelcroButtonProps = {
   variant: 'primary',
   size: 'large',
@@ -23,8 +23,16 @@ const shoelaceProps: VelcroButtonProps = {
   target: '_blank',
   download: 'file.txt',
   title: 'Save',
+  rel: 'noopener',
+  form: 'checkout',
+  formAction: '/save',
+  formEnctype: 'multipart/form-data',
+  formMethod: 'post',
+  formNoValidate: true,
+  formTarget: '_self',
   onSlBlur: event => event.target.blur(),
   onSlFocus,
+  onSlInvalid: () => undefined,
   onClick: () => undefined,
   children: 'Save',
 };
@@ -36,12 +44,4 @@ const badVariant: VelcroButtonProps = { variant: 'brand' };
 // @ts-expect-error -- not a Shoelace button size
 const badSize: VelcroButtonProps = { size: 'huge' };
 
-// Shoelace API that Velcro does not implement yet (see docs/api-parity.md); remove each line when it is implemented.
-// @ts-expect-error -- sl-invalid is not implemented
-const noInvalid: VelcroButtonProps = { onSlInvalid: () => undefined };
-// @ts-expect-error -- rel is not implemented
-const noRel: VelcroButtonProps = { rel: 'noopener' };
-// @ts-expect-error -- form attributes are not implemented
-const noForm: VelcroButtonProps = { form: 'checkout' };
-
-export { badSize, badVariant, noForm, noInvalid, noRel };
+export { badSize, badVariant };

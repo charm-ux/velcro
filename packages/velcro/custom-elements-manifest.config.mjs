@@ -26,13 +26,9 @@ const reactDir = process.env.VELCRO_CEM_REACT_OUTDIR || path.join('dist', 'react
  * tests/product/inherited-api.spec.mjs measures this in the browser for every component and fails
  * when this list and the measured effect differ.
  */
-export const keptInherited = {
-  VelcroButton: {
-    cssProperties: ['--button-active-bg-color', '--button-active-border-color', '--button-active-fg-color',
-      '--button-active-shadow', '--button-bg-color', '--button-disabled-shadow', '--button-fg-color', '--button-icon-size',
-      '--button-pressed-bg-color', '--button-pressed-border', '--button-pressed-fg-color'],
-  },
-};
+// sl-button renders Shoelace's styles instead of core's button styles, so none of core's --button-* properties apply.
+export const keptInherited = {};
+
 function velcroInheritance() {
   return {
     name: 'velcro-inheritance',
@@ -102,8 +98,10 @@ export function fixWrapperSource(text) {
     return '';
   });
   if (!managed.length) return out;
-  out = out.replace('import { useEventListener, createForwardedRefHandler } from "./react-utils.js";',
-    'import { useEventListener, createForwardedRefHandler, useElementProps } from "./react-utils.js";');
+  // The generator's react-utils import is one line, or a multi-line list when it also imports useProperties (for
+  // public properties without an attribute, e.g. sl-button's `button`, `validity` and `validationMessage`).
+  out = out.replace(/import \{([^}]*?)\s*\} from "\.\/react-utils\.js";/,
+    (_, names) => `import { ${names.split(',').map(n => n.trim()).filter(Boolean).concat('useElementProps').join(', ')} } from "./react-utils.js";`);
   return out.replace(/^(  return React\.createElement\()/m, `  useElementProps(ref, { ${managed.join(', ')} });\n\n$1`);
 }
 const useElementProps = `

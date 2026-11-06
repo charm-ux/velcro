@@ -200,7 +200,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "Buttons represent actions that are available to the user. API modelled on Shoelace's `sl-button`.",
+          "description": "Buttons represent actions that are available to the user.\n\nVelcro extensions inherited from the core button and kept working: `toggle` / `pressed` (an aria-pressed toggle that\nemits `change`), `expanded` and `current` (aria-expanded / aria-current), `autofocus`, `referrerpolicy` on links, and\n`shows` / `hides` / `toggles`. The core `icon-only` and `allow-wrap` attributes are accepted but have no effect.",
           "name": "VelcroButton",
           "cssParts": [
             {
@@ -212,7 +212,7 @@
               "name": "button-control"
             },
             {
-              "description": "The container that wraps the caret icon.",
+              "description": "The button's caret icon, a `<span>` around an inline svg (an `<sl-icon>` in Shoelace).",
               "name": "caret"
             },
             {
@@ -224,7 +224,7 @@
               "name": "prefix"
             },
             {
-              "description": "The spinner shown while `loading`.",
+              "description": "The spinner that shows when the button is in the loading state.",
               "name": "spinner"
             },
             {
@@ -346,6 +346,24 @@
             },
             {
               "kind": "method",
+              "name": "blur",
+              "privacy": "public",
+              "description": "Removes focus from the button.",
+              "type": {
+                "text": "blur() => void"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "button",
+              "type": {
+                "text": "HTMLButtonElement | HTMLAnchorElement"
+              },
+              "privacy": "public",
+              "description": "The rendered native `<button>`, or `<a>` when `href` is set."
+            },
+            {
+              "kind": "method",
               "name": "buttonTemplate",
               "privacy": "protected",
               "inheritedFrom": {
@@ -361,9 +379,18 @@
               },
               "privacy": "public",
               "default": "false",
-              "description": "Draws the button with a caret, used to indicate that the button triggers a dropdown menu or similar behavior.",
+              "description": "Draws the button with a caret. Used to indicate that the button triggers a dropdown menu or similar behavior.",
               "attribute": "caret",
               "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "checkValidity",
+              "privacy": "public",
+              "description": "Checks for validity but does not show a validation message. Returns `true` when valid and `false` when invalid.",
+              "type": {
+                "text": "checkValidity() => void"
+              }
             },
             {
               "kind": "field",
@@ -373,7 +400,7 @@
               },
               "privacy": "public",
               "default": "false",
-              "description": "Draws a circular icon button. When this attribute is present, the button expects a single icon element in the default slot.",
+              "description": "Draws a circular icon button. When this attribute is present, the button expects a single icon element in the\ndefault slot.",
               "attribute": "circle",
               "reflects": true
             },
@@ -386,7 +413,7 @@
                   "text": "void"
                 }
               },
-              "description": "Programmatic `click()` does nothing while disabled, like a native disabled button. Once rendered it activates\nthe inner native button/link exactly once: that single composed click reaches host listeners, and a host\n`preventDefault()` cancels the link's default action. (Core's `click()` instead dispatches a host click and then\nseparately clicks the link, which fires listeners twice and cannot be cancelled.)",
+              "description": "Simulates a click on the button. As in Shoelace, once rendered it always activates the inner native button or link\nexactly once: a disabled native button ignores it, a disabled link's click reaches host listeners without\nnavigating, and a host `preventDefault()` cancels a link's default action.",
               "type": {
                 "text": "click() => void"
               }
@@ -394,7 +421,11 @@
             {
               "kind": "method",
               "name": "contentTemplate",
-              "privacy": "protected"
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CoreButton",
+                "package": "@charm-ux/core"
+              }
             },
             {
               "kind": "field",
@@ -430,16 +461,13 @@
               "kind": "field",
               "name": "disabled",
               "type": {
-                "text": "boolean | undefined"
+                "text": "boolean"
               },
               "privacy": "public",
-              "description": "Disables the component on page load.",
+              "default": "false",
+              "description": "Disables the button.",
               "attribute": "disabled",
-              "reflects": true,
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "reflects": true
             },
             {
               "kind": "field",
@@ -448,12 +476,8 @@
                 "text": "string | undefined"
               },
               "privacy": "public",
-              "description": "Downloads the linked file as the filename.\nOnly used when `href` is set.",
-              "attribute": "download",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "description": "Tells the browser to download the linked file as this filename. Only used when `href` is present.",
+              "attribute": "download"
             },
             {
               "kind": "field",
@@ -468,6 +492,24 @@
               "inheritedFrom": {
                 "name": "CoreButton",
                 "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "focus",
+              "privacy": "public",
+              "parameters": [
+                {
+                  "name": "options",
+                  "optional": true,
+                  "type": {
+                    "text": "FocusOptions"
+                  }
+                }
+              ],
+              "description": "Sets focus on the button.",
+              "type": {
+                "text": "focus(options?: FocusOptions) => void"
               }
             },
             {
@@ -486,17 +528,108 @@
             },
             {
               "kind": "field",
+              "name": "form",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "description": "The \"form owner\" to associate the button with. If omitted, the closest containing form will be used instead. The\nvalue of this attribute must be an id of a form in the same document or shadow root as the button.",
+              "attribute": "form"
+            },
+            {
+              "kind": "field",
+              "name": "formAction",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "description": "Used to override the form owner's `action` attribute.",
+              "attribute": "formaction"
+            },
+            {
+              "kind": "field",
               "name": "formAssociated",
               "type": {
                 "text": "boolean"
               },
               "privacy": "protected",
               "static": true,
-              "default": "true",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "formControlController",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new FormControlController(this, { assumeInteractionOn: ['click'], submitsOnlyAsSubmitter: true, })"
+            },
+            {
+              "kind": "field",
+              "name": "formEnctype",
+              "type": {
+                "text": "'application/x-www-form-urlencoded' | 'multipart/form-data' | 'text/plain'"
+              },
+              "privacy": "public",
+              "description": "Used to override the form owner's `enctype` attribute.",
+              "attribute": "formenctype"
+            },
+            {
+              "kind": "field",
+              "name": "formMethod",
+              "type": {
+                "text": "'post' | 'get'"
+              },
+              "privacy": "public",
+              "description": "Used to override the form owner's `method` attribute.",
+              "attribute": "formmethod"
+            },
+            {
+              "kind": "field",
+              "name": "formNoValidate",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "description": "Used to override the form owner's `novalidate` attribute.",
+              "attribute": "formnovalidate"
+            },
+            {
+              "kind": "field",
+              "name": "formTarget",
+              "type": {
+                "text": "'_self' | '_blank' | '_parent' | '_top' | string"
+              },
+              "privacy": "public",
+              "description": "Used to override the form owner's `target` attribute.",
+              "attribute": "formtarget"
+            },
+            {
+              "kind": "method",
+              "name": "getForm",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "HTMLFormElement | null"
+                }
+              },
+              "description": "Gets the associated form, if one exists.",
+              "type": {
+                "text": "getForm() => HTMLFormElement | null"
               }
+            },
+            {
+              "kind": "method",
+              "name": "guardAction",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "action",
+                  "optional": true,
+                  "type": {
+                    "text": "() => void"
+                  }
+                }
+              ]
             },
             {
               "kind": "field",
@@ -520,24 +653,17 @@
             {
               "kind": "method",
               "name": "handleClick",
-              "privacy": "protected",
-              "parameters": [
-                {
-                  "name": "event",
-                  "type": {
-                    "text": "MouseEvent"
-                  }
-                }
-              ],
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "privacy": "protected"
             },
             {
               "kind": "method",
               "name": "handleFocus",
               "privacy": "protected"
+            },
+            {
+              "kind": "field",
+              "name": "handleInvalid",
+              "privacy": "private"
             },
             {
               "kind": "field",
@@ -552,6 +678,22 @@
                 "module": "src/base/focusable-element/charm-focusable-element.ts",
                 "package": "@charm-ux/core"
               }
+            },
+            {
+              "kind": "field",
+              "name": "hasRecordedInitialProperties",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "hasSlotController",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new HasSlotController(this, '[default]', 'prefix', 'suffix')"
             },
             {
               "kind": "field",
@@ -572,26 +714,19 @@
                 "text": "string | undefined"
               },
               "privacy": "public",
-              "description": "referencing a dismissible element's ID, this button will hide it when clicked",
-              "attribute": "hides",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "description": "referencing a dismissible element's ID, this button will hide it when clicked. Does nothing while disabled.",
+              "attribute": "hides"
             },
             {
               "kind": "field",
               "name": "href",
               "type": {
-                "text": "string | undefined"
+                "text": "string"
               },
               "privacy": "public",
-              "description": "When set, the underlying button will be rendered as an `<a>` with this `href`\ninstead of a `<button>`.",
-              "attribute": "href",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "default": "''",
+              "description": "When set, the underlying button will be rendered as an `<a>` with this `href` instead of a `<button>`.",
+              "attribute": "href"
             },
             {
               "kind": "field",
@@ -610,6 +745,23 @@
             },
             {
               "kind": "field",
+              "name": "initialReflectedProperties",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new Map<string, unknown>()"
+            },
+            {
+              "kind": "method",
+              "name": "isButton",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "isLink",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
               "name": "loading",
               "type": {
                 "text": "boolean"
@@ -622,17 +774,21 @@
             },
             {
               "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
               "name": "name",
               "type": {
-                "text": "string | undefined"
+                "text": "string"
               },
               "privacy": "public",
-              "description": "An optional name for the button. Ignored when `href` is set.",
-              "attribute": "name",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "default": "''",
+              "description": "The name of the button, submitted as a name/value pair with form data, but only when this button is the submitter.\nThis attribute is ignored when `href` is present.",
+              "attribute": "name"
             },
             {
               "kind": "field",
@@ -693,6 +849,26 @@
             },
             {
               "kind": "field",
+              "name": "rel",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "'noreferrer noopener'",
+              "description": "When using `href`, this attribute will map to the underlying link's `rel` attribute. Unlike regular links, the\ndefault is `noreferrer noopener` to prevent security exploits. However, if you're using `target` to point to a\nspecific tab/window, this will prevent that from working correctly. You can remove or change the default value by\nsetting the attribute to an empty string or a value of your choice, respectively.",
+              "attribute": "rel"
+            },
+            {
+              "kind": "method",
+              "name": "reportValidity",
+              "privacy": "public",
+              "description": "Checks for validity and shows the browser's validation message if the control is invalid.",
+              "type": {
+                "text": "reportValidity() => void"
+              }
+            },
+            {
+              "kind": "field",
               "name": "scope",
               "type": {
                 "text": "any"
@@ -702,6 +878,23 @@
                 "name": "CharmElement",
                 "module": "src/base/charm-element/charm-element.ts",
                 "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "setCustomValidity",
+              "privacy": "public",
+              "parameters": [
+                {
+                  "name": "message",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Sets a custom validation message. Pass an empty string to restore validity.",
+              "type": {
+                "text": "setCustomValidity(message: string) => void"
               }
             },
             {
@@ -738,12 +931,8 @@
                 "text": "string | undefined"
               },
               "privacy": "public",
-              "description": "referencing a dismissible element's ID, this button will show it when clicked",
-              "attribute": "shows",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "description": "referencing a dismissible element's ID, this button will show it when clicked. Does nothing while disabled.",
+              "attribute": "shows"
             },
             {
               "kind": "field",
@@ -761,15 +950,22 @@
               "kind": "field",
               "name": "target",
               "type": {
-                "text": "'_blank' | '_parent' | '_self' | '_top' | (string & {}) | undefined"
+                "text": "'_blank' | '_parent' | '_self' | '_top'"
               },
               "privacy": "public",
-              "description": "Tells the browser where to open the link. Only used when `href` is set.",
-              "attribute": "target",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "description": "Tells the browser where to open the link. Only used when `href` is present.",
+              "attribute": "target"
+            },
+            {
+              "kind": "field",
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "''",
+              "description": "Passed through to the inner control; an empty title also hides the browser's validation tooltip on hover.",
+              "attribute": "title"
             },
             {
               "kind": "field",
@@ -806,12 +1002,8 @@
                 "text": "string | undefined"
               },
               "privacy": "public",
-              "description": "referencing a dismissible element's ID, this button will show/hide it when clicked",
-              "attribute": "toggles",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "description": "referencing a dismissible element's ID, this button will show/hide it when clicked. Does nothing while disabled.",
+              "attribute": "toggles"
             },
             {
               "kind": "field",
@@ -821,13 +1013,8 @@
               },
               "privacy": "public",
               "default": "'button'",
-              "description": "Allows the component to be treated standalone or part of a form.\nThe type of button. When the type is `submit`, the button will submit the surrounding form. Note that the default\nvalue is `button` instead of `submit`, which is opposite of how native `<button>` elements behave.",
-              "attribute": "type",
-              "reflects": true,
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "description": "The type of button. Note that the default value is `button` instead of `submit`, which is opposite of how native\n`<button>` elements behave. When the type is `submit`, the button will submit the surrounding form.",
+              "attribute": "type"
             },
             {
               "kind": "field",
@@ -836,12 +1023,7 @@
                 "text": "boolean"
               },
               "privacy": "protected",
-              "default": "true",
-              "inheritedFrom": {
-                "name": "CharmFocusableElement",
-                "module": "src/base/focusable-element/charm-focusable-element.ts",
-                "package": "@charm-ux/core"
-              }
+              "default": "false"
             },
             {
               "kind": "field",
@@ -850,26 +1032,32 @@
                 "text": "boolean"
               },
               "privacy": "protected",
-              "default": "true",
-              "inheritedFrom": {
-                "name": "CharmFocusableElement",
-                "module": "src/base/focusable-element/charm-focusable-element.ts",
-                "package": "@charm-ux/core"
-              }
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "validationMessage",
+              "privacy": "public",
+              "description": "Gets the validation message.",
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "validity",
+              "privacy": "public",
+              "description": "Gets the validity state object.",
+              "readonly": true
             },
             {
               "kind": "field",
               "name": "value",
               "type": {
-                "text": "string | undefined"
+                "text": "string"
               },
               "privacy": "public",
-              "description": "An optional value for the button. Ignored when `href` is set.",
-              "attribute": "value",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "default": "''",
+              "description": "The value of the button, submitted as a pair with the button's name as part of the form data, but only when this\nbutton is the submitter. This attribute is ignored when `href` is present.",
+              "attribute": "value"
             },
             {
               "kind": "field",
@@ -925,6 +1113,10 @@
             {
               "description": "Emitted when the button gains focus.",
               "name": "sl-focus"
+            },
+            {
+              "description": "Emitted when the form control has been checked for validity and its constraints aren't satisfied.",
+              "name": "sl-invalid"
             }
           ],
           "attributes": [
@@ -963,7 +1155,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Draws the button with a caret, used to indicate that the button triggers a dropdown menu or similar behavior.",
+              "description": "Draws the button with a caret. Used to indicate that the button triggers a dropdown menu or similar behavior.",
               "fieldName": "caret",
               "propName": "caret"
             },
@@ -973,7 +1165,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Draws a circular icon button. When this attribute is present, the button expects a single icon element in the default slot.",
+              "description": "Draws a circular icon button. When this attribute is present, the button expects a single icon element in the\ndefault slot.",
               "fieldName": "circle",
               "propName": "circle"
             },
@@ -1007,14 +1199,11 @@
             {
               "name": "disabled",
               "type": {
-                "text": "boolean | undefined"
+                "text": "boolean"
               },
-              "description": "Disables the component on page load.",
+              "default": "false",
+              "description": "Disables the button.",
               "fieldName": "disabled",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              },
               "propName": "disabled"
             },
             {
@@ -1022,12 +1211,8 @@
               "type": {
                 "text": "string | undefined"
               },
-              "description": "Downloads the linked file as the filename.\nOnly used when `href` is set.",
+              "description": "Tells the browser to download the linked file as this filename. Only used when `href` is present.",
               "fieldName": "download",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              },
               "propName": "download"
             },
             {
@@ -1044,29 +1229,76 @@
               "propName": "expanded"
             },
             {
+              "name": "form",
+              "type": {
+                "text": "string"
+              },
+              "description": "The \"form owner\" to associate the button with. If omitted, the closest containing form will be used instead. The\nvalue of this attribute must be an id of a form in the same document or shadow root as the button.",
+              "fieldName": "form",
+              "propName": "form"
+            },
+            {
+              "name": "formaction",
+              "type": {
+                "text": "string"
+              },
+              "description": "Used to override the form owner's `action` attribute.",
+              "fieldName": "formAction",
+              "propName": "formaction"
+            },
+            {
+              "name": "formenctype",
+              "type": {
+                "text": "'application/x-www-form-urlencoded' | 'multipart/form-data' | 'text/plain'"
+              },
+              "description": "Used to override the form owner's `enctype` attribute.",
+              "fieldName": "formEnctype",
+              "propName": "formenctype"
+            },
+            {
+              "name": "formmethod",
+              "type": {
+                "text": "'post' | 'get'"
+              },
+              "description": "Used to override the form owner's `method` attribute.",
+              "fieldName": "formMethod",
+              "propName": "formmethod"
+            },
+            {
+              "name": "formnovalidate",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Used to override the form owner's `novalidate` attribute.",
+              "fieldName": "formNoValidate",
+              "propName": "formnovalidate"
+            },
+            {
+              "name": "formtarget",
+              "type": {
+                "text": "'_self' | '_blank' | '_parent' | '_top' | string"
+              },
+              "description": "Used to override the form owner's `target` attribute.",
+              "fieldName": "formTarget",
+              "propName": "formtarget"
+            },
+            {
               "name": "hides",
               "type": {
                 "text": "string | undefined"
               },
-              "description": "referencing a dismissible element's ID, this button will hide it when clicked",
+              "description": "referencing a dismissible element's ID, this button will hide it when clicked. Does nothing while disabled.",
               "fieldName": "hides",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              },
               "propName": "hides"
             },
             {
               "name": "href",
               "type": {
-                "text": "string | undefined"
+                "text": "string"
               },
-              "description": "When set, the underlying button will be rendered as an `<a>` with this `href`\ninstead of a `<button>`.",
+              "default": "''",
+              "description": "When set, the underlying button will be rendered as an `<a>` with this `href` instead of a `<button>`.",
               "fieldName": "href",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              },
               "propName": "href"
             },
             {
@@ -1095,14 +1327,11 @@
             {
               "name": "name",
               "type": {
-                "text": "string | undefined"
+                "text": "string"
               },
-              "description": "An optional name for the button. Ignored when `href` is set.",
+              "default": "''",
+              "description": "The name of the button, submitted as a name/value pair with form data, but only when this button is the submitter.\nThis attribute is ignored when `href` is present.",
               "fieldName": "name",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              },
               "propName": "name"
             },
             {
@@ -1156,16 +1385,22 @@
               "propName": "referrerpolicy"
             },
             {
+              "name": "rel",
+              "type": {
+                "text": "string"
+              },
+              "default": "'noreferrer noopener'",
+              "description": "When using `href`, this attribute will map to the underlying link's `rel` attribute. Unlike regular links, the\ndefault is `noreferrer noopener` to prevent security exploits. However, if you're using `target` to point to a\nspecific tab/window, this will prevent that from working correctly. You can remove or change the default value by\nsetting the attribute to an empty string or a value of your choice, respectively.",
+              "fieldName": "rel",
+              "propName": "rel"
+            },
+            {
               "name": "shows",
               "type": {
                 "text": "string | undefined"
               },
-              "description": "referencing a dismissible element's ID, this button will show it when clicked",
+              "description": "referencing a dismissible element's ID, this button will show it when clicked. Does nothing while disabled.",
               "fieldName": "shows",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              },
               "propName": "shows"
             },
             {
@@ -1181,15 +1416,21 @@
             {
               "name": "target",
               "type": {
-                "text": "'_blank' | '_parent' | '_self' | '_top' | (string & {}) | undefined"
+                "text": "'_blank' | '_parent' | '_self' | '_top'"
               },
-              "description": "Tells the browser where to open the link. Only used when `href` is set.",
+              "description": "Tells the browser where to open the link. Only used when `href` is present.",
               "fieldName": "target",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              },
               "propName": "target"
+            },
+            {
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Passed through to the inner control; an empty title also hides the browser's validation tooltip on hover.",
+              "fieldName": "title",
+              "propName": "title"
             },
             {
               "name": "toggle",
@@ -1210,12 +1451,8 @@
               "type": {
                 "text": "string | undefined"
               },
-              "description": "referencing a dismissible element's ID, this button will show/hide it when clicked",
+              "description": "referencing a dismissible element's ID, this button will show/hide it when clicked. Does nothing while disabled.",
               "fieldName": "toggles",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              },
               "propName": "toggles"
             },
             {
@@ -1224,25 +1461,18 @@
                 "text": "'button' | 'submit' | 'reset'"
               },
               "default": "'button'",
-              "description": "Allows the component to be treated standalone or part of a form.\nThe type of button. When the type is `submit`, the button will submit the surrounding form. Note that the default\nvalue is `button` instead of `submit`, which is opposite of how native `<button>` elements behave.",
+              "description": "The type of button. Note that the default value is `button` instead of `submit`, which is opposite of how native\n`<button>` elements behave. When the type is `submit`, the button will submit the surrounding form.",
               "fieldName": "type",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              },
               "propName": "type"
             },
             {
               "name": "value",
               "type": {
-                "text": "string | undefined"
+                "text": "string"
               },
-              "description": "An optional value for the button. Ignored when `href` is set.",
+              "default": "''",
+              "description": "The value of the button, submitted as a pair with the button's name as part of the form data, but only when this\nbutton is the submitter. This attribute is ignored when `href` is present.",
               "fieldName": "value",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              },
               "propName": "value"
             },
             {
@@ -1263,96 +1493,6 @@
           "tagName": "sl-button",
           "customElement": true,
           "status": "prototype",
-          "cssProperties": [
-            {
-              "description": "Sets the background color of the button when active.",
-              "name": "--button-active-bg-color",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
-            },
-            {
-              "description": "Sets the border color of the button when active.",
-              "name": "--button-active-border-color",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
-            },
-            {
-              "description": "Sets button's text color when active.",
-              "name": "--button-active-fg-color",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
-            },
-            {
-              "description": "Sets button's box-shadow when active.",
-              "name": "--button-active-shadow",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
-            },
-            {
-              "description": "Sets the background color of the button.",
-              "name": "--button-bg-color",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
-            },
-            {
-              "description": "Sets button's box-shadow when disabled.",
-              "name": "--button-disabled-shadow",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
-            },
-            {
-              "description": "Sets button's text color.",
-              "name": "--button-fg-color",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
-            },
-            {
-              "description": "Sets the height and width of the slotted icon and svg.",
-              "name": "--button-icon-size",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
-            },
-            {
-              "description": "Sets the background color of the button when toggled.",
-              "name": "--button-pressed-bg-color",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
-            },
-            {
-              "description": "Sets the border of the button when toggled.",
-              "name": "--button-pressed-border",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
-            },
-            {
-              "description": "Sets button's text color when toggled.",
-              "name": "--button-pressed-fg-color",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
-            }
-          ],
           "modulePath": "src/components/button/button.ts"
         }
       ],
