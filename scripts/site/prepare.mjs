@@ -9,6 +9,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ICONS_JSON_SHA256, LICENSE_SHA256, SPRITE_SHA256 } from '../../packages/velcro/scripts/build-icons.mjs';
 import { scanDir } from '../security/gitleaks.mjs';
 import { loadPolicy, scanText } from '../security/privacy.mjs';
 import { componentPages, readCatalog } from './catalog.mjs';
@@ -50,6 +51,26 @@ function allowedKind(rel) {
 }
 
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+
+// Icon assets must be exactly the Bootstrap Icons 1.11.3 release's: each icon SVG matches the package's SHA256SUMS, and
+// icons.json, LICENSE and the sprite sheet match the hashes the package build pins. Unknown names or changed bytes block.
+const ICON_SUMS = 'packages/velcro/assets/bootstrap-icons/SHA256SUMS';
+export function checkIconAssets(staged, repoRoot) {
+  const assets = staged.filter(f => f.rel.startsWith('assets/'));
+  if (!assets.length) return;
+  const expected = new Map([['assets/icons/icons.json', ICONS_JSON_SHA256], ['assets/icons/LICENSE', LICENSE_SHA256], ['assets/images/sprite.svg', SPRITE_SHA256]]);
+  try {
+    for (const line of readBounded(path.join(repoRoot, ICON_SUMS), 1024 * 1024).toString('utf8').split('\n').filter(Boolean)) {
+      const m = /^([a-f0-9]{64}) {2}([a-z0-9]+(?:-[a-z0-9]+)*\.svg)$/.exec(line);
+      if (!m) fail('icon-sums-invalid');
+      expected.set(`assets/icons/${m[2]}`, m[1]);
+    }
+  } catch (e) {
+    if (e instanceof PrepareError) throw e;
+    fail('icon-sums-invalid');
+  }
+  for (const f of assets) if (expected.get(f.rel) !== sha256(f.bytes)) fail('icon-asset-mismatch');
+}
 
 function readBounded(full, max) {
   // O_NOFOLLOW refuses a symlink swapped in after the walk; fstat proves a regular file of bounded size.
@@ -268,6 +289,8 @@ export async function prepareSite({ repoRoot, sourceDir, closurePath, runDir, ba
     const mirrored = all.map(f => ({ rel: scanName(f.rel), sha256: sha256(f.bytes), size: f.bytes.length })).sort((a, b) => (a.rel < b.rel ? -1 : 1));
     if (JSON.stringify(treeFiles(mirror)) !== JSON.stringify(mirrored)) fail('staged-bytes-changed');
     rmSync(mirror, { recursive: true, force: true });
+    // After the scans, so that a planted secret in an icon is still reported as one.
+    checkIconAssets(staged, repoRoot);
     // The closure that was evaluated must still be the closure on disk.
     let closureAfter;
     try { closureAfter = readBounded(closurePath, 4 * 1024 * 1024); } catch { fail('closure-changed'); }
