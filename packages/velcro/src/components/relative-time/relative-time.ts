@@ -5,7 +5,7 @@
 import { html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
-import { LocalizeController } from '../../internal/localize.js';
+import { LocalizeController } from '../../utilities/localize.js';
 import styles from './relative-time.styles.js';
 
 interface UnitConfig {

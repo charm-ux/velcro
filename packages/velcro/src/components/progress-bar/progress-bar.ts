@@ -8,6 +8,7 @@ import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { CoreProgressBar } from '@charm-ux/core/dist/components/progress-bar/progress-bar.js';
+import { LocalizeController } from '../../utilities/localize.js';
 import styles from './progress-bar.styles.js';
 
 /**
@@ -29,6 +30,12 @@ import styles from './progress-bar.styles.js';
  */
 export class VelcroProgressBar extends CoreProgressBar {
   public static override styles = [...super.styles, styles];
+
+  private readonly localize = new LocalizeController(this);
+
+  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the accessible name. Like Shoelace it has no initial value (undefined).
+  @property()
+  public override lang!: string;
 
   /** The current progress as a percentage, 0 to 100. */
   @property({ type: Number, reflect: true })
@@ -61,18 +68,17 @@ export class VelcroProgressBar extends CoreProgressBar {
   // form-control label, a track with `progress-bar-*` parts, help text and `max`/`meter` support) is replaced because
   // Shoelace's contract is a single `base` progressbar with `indicator` and `label` parts and a fixed 0 to 100 range.
   protected override progressBarTemplate() {
-    // The default accessible name is English-only; Shoelace localizes it through its own localization controller.
     return html`
       <div
         part="base"
         class=${classMap({
           'progress-bar': true,
           'progress-bar--indeterminate': this.indeterminate,
-          'progress-bar--rtl': this.dir === 'rtl',
+          'progress-bar--rtl': this.localize.dir() === 'rtl',
         })}
         role="progressbar"
         title=${ifDefined(this.title)}
-        aria-label=${this.label.length > 0 ? this.label : 'Progress'}
+        aria-label=${this.label.length > 0 ? this.label : this.localize.term('progress')}
         aria-valuemin="0"
         aria-valuemax="100"
         aria-valuenow=${this.indeterminate ? 0 : this.value}

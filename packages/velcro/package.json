@@ -176,6 +176,8 @@
   "sideEffects": [
     "./dist/index.js",
     "./dist/components/*/index.js",
+    "./dist/utilities/localize.js",
+    "./dist/translations/*.js",
     "*.css"
   ],
   "scripts": {

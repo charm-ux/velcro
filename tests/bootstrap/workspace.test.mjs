@@ -119,8 +119,11 @@ test('prototype exports are supported without weakening publication locks', () =
 
 test('only the registering entries have side effects; class-only entries and the helper stay pure', () => {
   const { sideEffects } = json('packages/velcro/package.json');
-  assert.deepEqual(sideEffects, ['./dist/index.js', './dist/components/*/index.js', '*.css']);
-  assert.ok(!sideEffects.some(pattern => /class|registration|utilities/.test(pattern)));
+  // The localize module registers English and each translation module registers itself when imported, as in Shoelace.
+  assert.deepEqual(sideEffects, ['./dist/index.js', './dist/components/*/index.js', './dist/utilities/localize.js',
+    './dist/translations/*.js', '*.css']);
+  assert.ok(!sideEffects.some(pattern => /class|registration|internal/.test(pattern)));
+  assert.deepEqual(sideEffects.filter(pattern => /utilities/.test(pattern)), ['./dist/utilities/localize.js']);
 });
 
 test('changelog is heading-only', () => {

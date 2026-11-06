@@ -3,7 +3,7 @@
 // See THIRD_PARTY_NOTICES.md. No Shoelace source file or runtime is included.
 import { property } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
-import { LocalizeController } from '../../internal/localize.js';
+import { LocalizeController } from '../../utilities/localize.js';
 import styles from './format-number.styles.js';
 
 /**

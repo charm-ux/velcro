@@ -1,6 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
+import { withBase } from '../../src/base.js';
 import { docsShell, shellStyles } from '../../src/shell.js';
 import { themeHead } from '../../src/theme.js';
 import { apiReference } from '../../src/api.js';
@@ -12,7 +13,8 @@ export const pageData = definePageData(async () => ({
 }));
 
 const gaps = [
-  'The accessible name is the fixed English string "Loading". Shoelace localizes it through its localization controller; that is not implemented and localized output has not been compared.',
+  'The accessible name is the localized "loading" term, as in Shoelace: "Loading" in English, the fallback. It follows the element\'s lang, then the document\'s, and re-renders when either changes or a translation is registered.',
+  'Translations cannot yet be registered from outside the package: Velcro ships the localization registry and Shoelace\'s 29 translation files, but their entry points (@charm-ux/velcro/utilities/localize for registerTranslation, and @charm-ux/velcro/translations/<code>) are not public package exports yet, so a page that uses the package renders the English text whatever its lang. See the Localization page.',
   'The element has role="progressbar" without a value (an indeterminate progress bar), as in Shoelace. Whether a given screen reader announces it was not tested.',
   'Neither Shoelace 2.20.1 nor this component reduces or stops the animation for prefers-reduced-motion; the spinner keeps animating. This is recorded as parity, not as an accessibility endorsement.',
   'The inherited core properties label and label-position exist on the element but have no effect, and the core "spinner-*" parts and "--spinner-*" custom properties are not rendered or read; they are not part of the Shoelace contract. The core spinner styles are not applied, so core\'s label-position rules cannot reach the Shoelace markup.',
@@ -32,6 +34,7 @@ export class SpinnerPage extends LitElement {
     return docsShell('spinner', html`
       <h1>Spinner</h1>
       <p><code>&lt;sl-spinner&gt;</code> is registered by <code>@charm-ux/velcro</code> on top of the <code>@charm-ux/core</code> spinner. Prototype status: unreleased.</p>
+      <p>Its built-in text is localized; see <a href=${withBase('/localization')}>Localization</a>.</p>
       <p>A spinner shows the progress of an indeterminate operation. It is sized by <code>font-size</code> (default <code>1em</code>).</p>
 
       <h2 id="examples">Examples</h2>
@@ -39,8 +42,8 @@ export class SpinnerPage extends LitElement {
       <pre><code>${source}</code></pre>
 
       ${apiReference('sl-spinner', {
-        attributes: html`<p>Shoelace 2.20.1 has no public attributes or properties on the spinner; the rows above are inherited from the core spinner.</p>`,
-        parts: html`<p><code>base</code> (the <code>svg</code> element, with <code>role="progressbar"</code> and <code>aria-label="Loading"</code>). Inside it, as in Shoelace, the shadow DOM is <code>svg.spinner</code> around <code>circle.spinner__track</code> and <code>circle.spinner__indicator</code>; only <code>base</code> is a public part, and Shoelace's own spinner test finds the indicator by that class name.</p>`,
+        attributes: html`<p>Shoelace 2.20.1 has no public attributes or properties on the spinner besides <code>dir</code> and <code>lang</code> from its base element. <code>lang</code> is declared the same way, as a reactive property with no initial value, and selects the language of the accessible name. The other rows are inherited from the core spinner.</p>`,
+        parts: html`<p><code>base</code> (the <code>svg</code> element, with <code>role="progressbar"</code> and an <code>aria-label</code> from the localized "loading" term, "Loading" in English). Inside it, as in Shoelace, the shadow DOM is <code>svg.spinner</code> around <code>circle.spinner__track</code> and <code>circle.spinner__indicator</code>; only <code>base</code> is a public part, and Shoelace's own spinner test finds the indicator by that class name.</p>`,
         events: html`<p>None from Shoelace; only the inherited core <code>ready</code> event.</p>`,
       })}
 

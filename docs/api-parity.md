@@ -10,7 +10,7 @@ Shoelace members count when its own docs would list them (described and not priv
 whitespace, quote style and union order. Missing and mismatched entries form the ledger
 `docs/api/api-parity-ledger.json`, which may only shrink.
 
-Totals: 229 Shoelace entries compared, 214 matching, 15 mismatched, 0 missing; 39 Velcro-only and 63 inherited extras.
+Totals: 229 Shoelace entries compared, 214 matching, 15 mismatched, 0 missing; 42 Velcro-only and 63 inherited extras.
 
 | Component | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -23,12 +23,12 @@ Totals: 229 Shoelace entries compared, 214 matching, 15 mismatched, 0 missing; 3
 | `sl-format-number` | 10 | 5 | 5 | 0 | 1 | 2 |
 | `sl-mutation-observer` | 8 | 8 | 0 | 0 | 1 | 2 |
 | `sl-popup` | 34 | 34 | 0 | 0 | 2 | 1 |
-| `sl-progress-bar` | 11 | 11 | 0 | 0 | 0 | 6 |
-| `sl-progress-ring` | 11 | 11 | 0 | 0 | 0 | 2 |
+| `sl-progress-bar` | 11 | 11 | 0 | 0 | 1 | 6 |
+| `sl-progress-ring` | 11 | 11 | 0 | 0 | 1 | 2 |
 | `sl-relative-time` | 4 | 4 | 0 | 0 | 1 | 2 |
 | `sl-resize-observer` | 3 | 3 | 0 | 0 | 0 | 2 |
 | `sl-skeleton` | 6 | 6 | 0 | 0 | 0 | 4 |
-| `sl-spinner` | 5 | 5 | 0 | 0 | 0 | 4 |
+| `sl-spinner` | 5 | 5 | 0 | 0 | 1 | 4 |
 | `sl-split-panel` | 19 | 19 | 0 | 0 | 5 | 2 |
 | `sl-switch` | 33 | 33 | 0 | 0 | 19 | 3 |
 | `sl-tab-panel` | 5 | 5 | 0 | 0 | 2 | 1 |
@@ -253,7 +253,7 @@ Mismatched:
 
 Velcro-only (own):
 
-- None.
+- `property lang`
 
 Inherited extras:
 
@@ -276,7 +276,7 @@ Mismatched:
 
 Velcro-only (own):
 
-- None.
+- `property lang`
 
 Inherited extras:
 
@@ -354,7 +354,7 @@ Mismatched:
 
 Velcro-only (own):
 
-- None.
+- `property lang`
 
 Inherited extras:
 

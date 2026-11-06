@@ -13,7 +13,7 @@ import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-eleme
 import { CoreButton } from '@charm-ux/core/dist/components/button/button.js';
 import { HasSlotController } from '@charm-ux/core/dist/controller/index.js';
 import { FormControlController, validValidityState } from '../../internal/form.js';
-import { LocalizeController } from '../../internal/localize.js';
+import { LocalizeController } from '../../utilities/localize.js';
 import styles from './button.styles.js';
 
 /**

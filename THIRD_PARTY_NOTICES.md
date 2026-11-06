@@ -135,10 +135,20 @@ shipped with it. This file alone never certifies an artifact: where a built arti
 - Also used in: `packages/velcro/src/components/format-bytes/format-bytes.ts` (API documentation wording and the
   formatting algorithm, adapted from `src/components/format-bytes/format-bytes.component.ts`),
   `packages/velcro/src/components/format-bytes/format-bytes.styles.ts` (written for Velcro; upstream has no styles file)
-  and `packages/velcro/src/internal/localize.ts` (a small original implementation of the language and direction
-  resolution and the `number`, `date` and `relativeTime` helpers of `@shoelace-style/localize` as used by
-  `src/utilities/localize.ts`; no source of that package is included). Built on the `@charm-ux/core` base element; no
-  Shoelace runtime or source files are included.
+  and the localization controller listed below. Built on the `@charm-ux/core` base element; no Shoelace runtime or
+  source files are included.
+- Also used in: the localization module. `packages/velcro/src/internal/localize.ts` is a small original implementation
+  of the translation registry (`registerTranslation`, with the first registered translation as the fallback), the
+  `term`, `exists`, `lang`, `dir`, `number`, `date` and `relativeTime` behavior and the resolution rules of
+  `@shoelace-style/localize` 3.2 (Copyright (c) 2020 A Beautiful Site, LLC, MIT License, the same terms as the license
+  text below) as used by Shoelace; no source of that package is included. `packages/velcro/src/utilities/localize.ts`
+  (the `Translation` term list, the English registration and the re-export of `registerTranslation`) is adapted from
+  `src/utilities/localize.ts`. The 29 translation modules `packages/velcro/src/translations/*.ts` are copied from
+  `src/translations/*.ts` at commit `fb59fda70ed737c92611051b49bc7e3a5fed5dc5` and are shipped in the package: 21 are
+  unmodified, and in 8 (ar, cs, en, fi, hr, id, it and sl) the one import of `registerTranslation` from
+  `@shoelace-style/localize` is changed to Velcro's `../internal/localize.js`. Their hash manifest is
+  `packages/velcro/src/translations/UPSTREAM.json`. The docs page `packages/docs/pages/localization.ts` adapts the
+  wording and examples of `docs/pages/getting-started/localization.md`.
 - Also used in: `packages/velcro/src/components/format-date/format-date.ts` (API documentation wording and the
   rendering algorithm, a `time` element with an ISO `datetime` around an `Intl.DateTimeFormat` result with `hour-format`
   mapped to `hour12`, adapted from `src/components/format-date/format-date.component.ts`),
