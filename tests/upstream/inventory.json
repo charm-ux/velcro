@@ -225,6 +225,9 @@
     "<sl-format-number> > maximumSignificantDigits property > number has correct type format: 5",
     "<sl-format-number> > maximumSignificantDigits property > number has correct type format: 6"
   ],
+  "mutation-observer": [
+    "<sl-mutation-observer> > should render a component"
+  ],
   "progress-bar": [
     "<sl-progress-bar> > when provided just a value parameter > should pass accessibility tests",
     "<sl-progress-bar> > when provided a title, and value parameter > should pass accessibility tests",

@@ -21,6 +21,7 @@ const CONTENT = {
   'sl-card': '<div slot="header">h</div>Body<div slot="footer">f</div>',
   'sl-progress-bar': 'Label',
   'sl-progress-ring': 'Label',
+  'sl-mutation-observer': '<div>x</div>',
   'sl-resize-observer': '<div>x</div>',
   'sl-visually-hidden': 'Hidden',
   'sl-switch': 'Label<span slot="help-text">Help</span>',

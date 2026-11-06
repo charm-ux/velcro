@@ -23,7 +23,7 @@ test.beforeAll(async () => {
       import React from 'react';
       import { flushSync } from 'react-dom';
       import { createRoot } from 'react-dom/client';
-      import { VelcroBadge, VelcroButton, VelcroProgressRing } from 'velcro-react';
+      import { VelcroBadge, VelcroButton, VelcroMutationObserver, VelcroProgressRing } from 'velcro-react';
       window.errors = [];
       addEventListener('error', e => window.errors.push(String(e.message)));
       addEventListener('unhandledrejection', e => window.errors.push(String(e.reason)));
@@ -34,6 +34,11 @@ test.beforeAll(async () => {
         React.createElement(VelcroProgressRing, { id: 'ring', ...p.ring }),
         React.createElement(VelcroBadge, { id: 'badge', ...p.badge }, 'Badge'),
         React.createElement(VelcroButton, { id: 'button', ...p.button, onSlFocus: () => { window.slFocus++; } }, 'Go'))));
+      window.mutations = [];
+      const observerRoot = createRoot(document.getElementById('observer-root'));
+      window.renderObserver = p => flushSync(() => observerRoot.render(React.createElement(VelcroMutationObserver,
+        { id: 'observer', ...p, onSlMutation: e => window.mutations.push(e.detail.mutationList.map(r => [r.type, r.attributeName])) },
+        React.createElement('p', { id: 'observed-child' }, 'text'))));
     `);
     const out = await build({
       configFile: false, logLevel: 'silent', root: dir,
@@ -50,7 +55,7 @@ test.beforeAll(async () => {
 async function mount(page) {
   const pageErrors = [];
   page.on('pageerror', e => pageErrors.push(e.message));
-  await page.setContent('<!DOCTYPE html><html><body><div id="root"></div></body></html>');
+  await page.setContent('<!DOCTYPE html><html><body><div id="root"></div><div id="observer-root"></div></body></html>');
   await page.addScriptTag({ type: 'module', content: bundle });
   await page.waitForFunction(() => typeof window.renderScenario === 'function');
   return pageErrors;
@@ -137,5 +142,26 @@ test('React 19 wrappers never touch props omitted on both renders: element-manag
   await page.evaluate(() => window.renderScenario({ ring: { value: 2 }, badge: { variant: 'success' }, button: { toggle: true, size: 'small' } }));
   expect((await state(page)).toggle.pressed).toBe(false);
   expect(s.errors).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+test('React 19 wrapper for the mutation observer sets its props and forwards sl-mutation with the record list', async ({ page }) => {
+  const pageErrors = await mount(page);
+  await page.evaluate(() => window.renderObserver({ attr: 'title' }));
+  await page.evaluate(async () => { await document.getElementById('observer').updateComplete; });
+  expect(await page.evaluate(() => document.getElementById('observer').attr)).toBe('title');
+  await page.evaluate(() => document.getElementById('observed-child').setAttribute('title', 'one'));
+  await expect.poll(() => page.evaluate(() => window.mutations)).toEqual([[['attributes', 'title']]]);
+  // The disabled prop stops the observer; removing it starts it again.
+  await page.evaluate(() => window.renderObserver({ attr: 'title', disabled: true }));
+  await page.evaluate(async () => { await document.getElementById('observer').updateComplete; });
+  await page.evaluate(() => document.getElementById('observed-child').setAttribute('title', 'two'));
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => window.mutations.length)).toBe(1);
+  await page.evaluate(() => window.renderObserver({ attr: 'title' }));
+  await page.evaluate(async () => { await document.getElementById('observer').updateComplete; });
+  await page.evaluate(() => document.getElementById('observed-child').setAttribute('title', 'three'));
+  await expect.poll(() => page.evaluate(() => window.mutations.length)).toBe(2);
+  expect(await page.evaluate(() => window.errors)).toEqual([]);
   expect(pageErrors).toEqual([]);
 });

@@ -3006,6 +3006,315 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/components/mutation-observer/mutation-observer.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "The Mutation Observer component offers a thin, declarative interface to the MutationObserver API.\nAPI modelled on Shoelace's `sl-mutation-observer`. There is no core counterpart, so it extends the core base element.",
+          "name": "VelcroMutationObserver",
+          "slots": [
+            {
+              "description": "The content to watch for mutations.",
+              "name": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "attr",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "description": "Watches for changes to attributes. To watch only specific attributes, separate them by a space, e.g.\n`attr=\"class id title\"`. To watch all attributes, use `*`.",
+              "attribute": "attr",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "attrOldValue",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Indicates whether or not the attribute's previous value should be recorded when monitoring changes.",
+              "attribute": "attr-old-value",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'mutation-observer'"
+            },
+            {
+              "kind": "field",
+              "name": "charData",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Watches for changes to the character data contained within the node.",
+              "attribute": "char-data",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "charDataOldValue",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Indicates whether or not the previous value of the node's text should be recorded.",
+              "attribute": "char-data-old-value",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "childList",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Watches for the addition or removal of new child nodes.",
+              "attribute": "child-list",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "attribute": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Disables the observer.",
+              "attribute": "disabled",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "handleChange",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "handleDisabledChange",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "handleMutation",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "hasRecordedInitialProperties",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "initialReflectedProperties",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new Map<string, unknown>()"
+            },
+            {
+              "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "mutationObserver",
+              "type": {
+                "text": "MutationObserver"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "startObserver",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "stopObserver",
+              "privacy": "private"
+            }
+          ],
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "type": {
+                "text": "{ mutationList: MutationRecord[] }"
+              },
+              "description": "Emitted when a mutation occurs.",
+              "name": "sl-mutation"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "attr",
+              "type": {
+                "text": "string"
+              },
+              "description": "Watches for changes to attributes. To watch only specific attributes, separate them by a space, e.g.\n`attr=\"class id title\"`. To watch all attributes, use `*`.",
+              "fieldName": "attr",
+              "propName": "attr"
+            },
+            {
+              "name": "attr-old-value",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Indicates whether or not the attribute's previous value should be recorded when monitoring changes.",
+              "fieldName": "attrOldValue",
+              "propName": "attrOldValue"
+            },
+            {
+              "name": "char-data",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Watches for changes to the character data contained within the node.",
+              "fieldName": "charData",
+              "propName": "charData"
+            },
+            {
+              "name": "char-data-old-value",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Indicates whether or not the previous value of the node's text should be recorded.",
+              "fieldName": "charDataOldValue",
+              "propName": "charDataOldValue"
+            },
+            {
+              "name": "child-list",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Watches for the addition or removal of new child nodes.",
+              "fieldName": "childList",
+              "propName": "childList"
+            },
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "fieldName": "dir",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              },
+              "propName": "dir"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Disables the observer.",
+              "fieldName": "disabled",
+              "propName": "disabled"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "fieldName": "lang",
+              "propName": "lang"
+            }
+          ],
+          "superclass": {
+            "name": "CharmElement",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-mutation-observer",
+          "customElement": true,
+          "status": "prototype",
+          "modulePath": "src/components/mutation-observer/mutation-observer.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroMutationObserver",
+            "module": "src/components/mutation-observer/mutation-observer.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroMutationObserver",
+          "declaration": {
+            "name": "VelcroMutationObserver",
+            "module": "src/components/mutation-observer/mutation-observer.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/components/progress-bar/progress-bar.ts",
       "declarations": [
         {

@@ -50,6 +50,8 @@ test('copied or adapted upstream files carry a provenance header', () => {
     'packages/velcro/src/components/card/card.styles.ts',
     'packages/velcro/src/components/divider/divider.ts',
     'packages/velcro/src/components/divider/divider.styles.ts',
+    'packages/velcro/src/components/mutation-observer/mutation-observer.ts',
+    'packages/velcro/src/components/mutation-observer/mutation-observer.styles.ts',
     'packages/velcro/src/components/progress-bar/progress-bar.ts',
     'packages/velcro/src/components/progress-bar/progress-bar.styles.ts',
     'packages/velcro/src/components/progress-ring/progress-ring.ts',
