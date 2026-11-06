@@ -24,6 +24,7 @@ const CONTENT = {
   'sl-mutation-observer': '<div>x</div>',
   'sl-popup': '<span slot="anchor">a</span><div>x</div>',
   'sl-resize-observer': '<div>x</div>',
+  'sl-split-panel': '<div slot="start">a</div><div slot="end">b</div>',
   'sl-visually-hidden': 'Hidden',
   'sl-switch': 'Label<span slot="help-text">Help</span>',
   'sl-tab-panel': 'Panel',

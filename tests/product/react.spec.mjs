@@ -23,7 +23,7 @@ test.beforeAll(async () => {
       import React from 'react';
       import { flushSync } from 'react-dom';
       import { createRoot } from 'react-dom/client';
-      import { VelcroBadge, VelcroButton, VelcroMutationObserver, VelcroPopup, VelcroProgressRing } from 'velcro-react';
+      import { VelcroBadge, VelcroButton, VelcroMutationObserver, VelcroPopup, VelcroProgressRing, VelcroSplitPanel } from 'velcro-react';
       import * as wrappers from 'velcro-react';
       window.errors = [];
       addEventListener('error', e => window.errors.push(String(e.message)));
@@ -35,6 +35,10 @@ test.beforeAll(async () => {
         React.createElement(VelcroProgressRing, { id: 'ring', ...p.ring }),
         React.createElement(VelcroBadge, { id: 'badge', ...p.badge }, 'Badge'),
         React.createElement(VelcroButton, { id: 'button', ...p.button, onSlFocus: () => { window.slFocus++; } }, 'Go'))));
+      const splitRoot = createRoot(document.getElementById('split-root'));
+      window.renderSplit = p => flushSync(() => splitRoot.render(React.createElement(VelcroSplitPanel,
+        { id: 'split', style: { width: '400px', height: '100px' }, ...p },
+        React.createElement('div', { slot: 'start' }, 'a'), React.createElement('div', { slot: 'end' }, 'b'))));
       window.mutations = [];
       const observerRoot = createRoot(document.getElementById('observer-root'));
       window.renderObserver = p => flushSync(() => observerRoot.render(React.createElement(VelcroMutationObserver,
@@ -64,7 +68,7 @@ test.beforeAll(async () => {
 async function mount(page) {
   const pageErrors = [];
   page.on('pageerror', e => pageErrors.push(e.message));
-  await page.setContent('<!DOCTYPE html><html><body><div id="root"></div><div id="observer-root"></div><div id="popup-root" style="position: relative; width: 400px; height: 60px; overflow: hidden"></div><div id="wrapper-root"></div></body></html>');
+  await page.setContent('<!DOCTYPE html><html><body><div id="root"></div><div id="observer-root"></div><div id="split-root"></div><div id="popup-root" style="position: relative; width: 400px; height: 60px; overflow: hidden"></div><div id="wrapper-root"></div></body></html>');
   await page.addScriptTag({ type: 'module', content: bundle });
   await page.waitForFunction(() => typeof window.renderScenario === 'function');
   return pageErrors;
@@ -323,5 +327,51 @@ test('React 19 wrappers set camelCase props with hyphenated attributes as proper
     expect.soft(r.viaAttribute, r.key).toEqual({ value: fromAttribute, attribute: text });
   }
   expect(await page.evaluate(() => window.errors)).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+test('React 19 wrapper for the split panel assigns hyphenated-attribute props (positionInPixels, snapThreshold) as element properties', async ({ page }) => {
+  const pageErrors = await mount(page);
+  const read = () => page.evaluate(async () => {
+    const el = document.getElementById('split');
+    await el.updateComplete;
+    return { positionInPixels: el.positionInPixels, snapThreshold: el.snapThreshold, attributes: [el.hasAttribute('position-in-pixels'), el.hasAttribute('snap-threshold')] };
+  });
+  // Omitted: the element's own defaults (the element itself measures positionInPixels: half of 400px), and neither attribute is written.
+  await page.evaluate(() => window.renderSplit({}));
+  expect(await read()).toEqual({ positionInPixels: 200, snapThreshold: 12, attributes: [false, false] });
+  // Supplied: the properties are set (neither is reflected, as in Shoelace), and nothing is written as an attribute.
+  await page.evaluate(() => window.renderSplit({ positionInPixels: 100, snapThreshold: 30 }));
+  expect(await read()).toEqual({ positionInPixels: 100, snapThreshold: 30, attributes: [false, false] });
+  await page.evaluate(() => window.renderSplit({ positionInPixels: 120, snapThreshold: 5 }));
+  expect(await read()).toEqual({ positionInPixels: 120, snapThreshold: 5, attributes: [false, false] });
+  // Removed: the element's default comes back (snapThreshold is a setting; positionInPixels is a measured value).
+  await page.evaluate(() => window.renderSplit({}));
+  expect((await read()).snapThreshold).toBe(12);
+  expect(await page.evaluate(() => window.errors)).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+test('React 19 wrapper for the split panel behaves like the property on a plain element when it is shown after being hidden', async ({ page }) => {
+  const pageErrors = await mount(page);
+  // Shoelace recomputes a pixel position from the position-in-pixels ATTRIBUTE when the element is first shown, so a prop
+  // that is only a property is lost (position 0), exactly as for `el.positionInPixels = 100` on a plain element.
+  const shown = await page.evaluate(async () => {
+    const root = document.getElementById('split-root');
+    root.style.display = 'none';
+    window.renderSplit({ positionInPixels: 100 });
+    const plain = document.createElement('sl-split-panel');
+    plain.style.cssText = 'width: 400px; height: 100px';
+    plain.innerHTML = '<div slot="start">a</div><div slot="end">b</div>';
+    root.append(plain);
+    plain.positionInPixels = 100;
+    const react = document.getElementById('split');
+    await Promise.all([react.updateComplete, plain.updateComplete]);
+    root.style.display = '';
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await Promise.all([react.updateComplete, plain.updateComplete]);
+    return { react: react.position, plain: plain.position, attribute: react.hasAttribute('position-in-pixels') };
+  });
+  expect(shown).toEqual({ react: 0, plain: 0, attribute: false });
   expect(pageErrors).toEqual([]);
 });

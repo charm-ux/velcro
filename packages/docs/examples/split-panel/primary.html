@@ -1,0 +1,33 @@
+<div class="split-panel-primary">
+  <sl-split-panel>
+    <div
+      slot="start"
+      style="height: 200px; background: var(--sl-color-neutral-50); display: flex; align-items: center; justify-content: center; overflow: hidden;"
+    >
+      Start
+    </div>
+    <div
+      slot="end"
+      style="height: 200px; background: var(--sl-color-neutral-50); display: flex; align-items: center; justify-content: center; overflow: hidden;"
+    >
+      End
+    </div>
+  </sl-split-panel>
+
+  <label>
+    Primary Panel
+    <select style="display: block; width: 200px; margin-top: 0.25rem;">
+      <option value="" selected>None</option>
+      <option value="start">Start</option>
+      <option value="end">End</option>
+    </select>
+  </label>
+</div>
+
+<script>
+  const container = document.querySelector('.split-panel-primary');
+  const splitPanel = container.querySelector('sl-split-panel');
+  const select = container.querySelector('select');
+
+  select.addEventListener('change', () => (splitPanel.primary = select.value));
+</script>

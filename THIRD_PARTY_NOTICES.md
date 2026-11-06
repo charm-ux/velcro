@@ -85,6 +85,17 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   adapted from `docs/pages/components/resize-observer.md` and the added light theme token `--sl-input-border-color`
   (name and value following `src/themes/light.css`). The component extends the `@charm-ux/core` base element; no
   Shoelace runtime or source files are included.
+- Also used in: `packages/velcro/src/components/split-panel/split-panel.ts` (API documentation wording and behavior: the
+  position, snapping, keyboard, drag and resize logic and the rendered structure, adapted from
+  `src/components/split-panel/split-panel.component.ts`), `packages/velcro/src/components/split-panel/split-panel.styles.ts`
+  (styles adapted from `src/components/split-panel/split-panel.styles.ts` and `src/styles/component.styles.ts`, declarations unchanged),
+  `packages/velcro/src/internal/drag.ts` (adapted from `src/internal/drag.ts`) and `packages/velcro/src/internal/math.ts`
+  (the `clamp` helper, adapted from `src/internal/math.ts`), plus the docs page examples adapted from
+  `docs/pages/components/split-panel.md` (the icon handle is replaced by an inline svg and the select by a native one).
+  Shoelace's `src/components/split-panel/split-panel.test.ts` and the two helpers it imports
+  (`src/internal/test.ts`, `src/internal/test/data-testid-helpers.ts`) are vendored unchanged for the conformance run
+  (see `tests/upstream/`). The component extends the `@charm-ux/core` base element and uses the localization controller
+  listed above; no Shoelace runtime or source files are included in the package.
 - Also used in: `packages/velcro/src/components/mutation-observer/mutation-observer.ts` (API documentation wording and
   behavior: a `MutationObserver` over the element and its subtree, configured by `attr`, `attr-old-value`, `char-data`,
   `char-data-old-value` and `child-list`, started and stopped by `disabled` and reporting through `sl-mutation`, adapted
