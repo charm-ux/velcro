@@ -152,6 +152,16 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   `src/components/icon/library.system.ts`; the icons themselves are Bootstrap Icons, see below) and
   `packages/docs/pages/components/icon.ts` with `packages/docs/examples/icon/` (example sections and wording adapted from
   `docs/pages/components/icon.md`). No Shoelace runtime or source files are included.
+- Also used in: `packages/velcro/src/components/tab-panel/tab-panel.ts` (API documentation wording, the rendered
+  structure: one slot with the `base` part and the `tab-panel` / `tab-panel--active` class names, the generated
+  `sl-tab-panel-<n>` id, the `role` and `aria-hidden` handling, adapted from
+  `src/components/tab-panel/tab-panel.component.ts`, and the restore of reflected properties' initial values from
+  `src/internal/shoelace-element.ts`), `packages/velcro/src/components/tab-panel/tab-panel.styles.ts` (styles
+  concatenated from `src/styles/component.styles.ts` and `src/components/tab-panel/tab-panel.styles.ts`, rules
+  unchanged) and the docs page and examples `packages/docs/pages/components/tab-panel.ts` and
+  `packages/docs/examples/tab-panel/*.html` (example markup and wording adapted from
+  `docs/pages/components/tab-panel.md`). The tab panel is built on the `@charm-ux/core` tab panel; no Shoelace runtime
+  or source files are included.
 - Also used in: `tests/upstream/shoelace-2.20.1/` (test files only, never shipped): the upstream test files
   `src/components/<name>/<name>.test.ts` for each implemented component and the helper
   `src/internal/test/form-control-base-tests.ts`, copied unmodified from commit
