@@ -8,7 +8,8 @@ async function openExample(page, name = 'Overview') {
   page.on('request', request => requests.push(request.url()));
   // Litro's client router remounts the page component once after load, which reloads the iframe; wait for it to settle.
   await page.goto(PAGE, { waitUntil: 'networkidle' });
-  const frame = page.frameLocator(`iframe.example[title="Split Panel example: ${name}"]`);
+  // `first()`: while the router remounts the page there can briefly be two iframes with this title.
+  const frame = page.frameLocator(`iframe.example[title="Split Panel example: ${name}"]`).first();
   await expect(frame.locator('sl-split-panel').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-split-panel'));
   await page.waitForLoadState('networkidle');
@@ -302,9 +303,12 @@ test('keyboard: arrows move 1%, shift moves 10%, Home/End jump, Enter collapses 
   expect(await press('ArrowLeft')).toBe(50);
   expect(await press('Shift+ArrowLeft')).toBe(40);
   expect(await press('Shift+ArrowRight')).toBe(50);
-  // Up and down do nothing in a horizontal panel; the default action (page scroll) is not prevented for them.
+  // Up and down do not move a horizontal panel, but (as upstream) every accepted key is prevented first, so the page
+  // cannot be scrolled with them while the divider has focus.
+  await host.evaluate(() => { window.keydownDefaultPrevented = []; document.addEventListener('keydown', event => window.keydownDefaultPrevented.push([event.key, event.defaultPrevented])); });
   expect(await press('ArrowUp')).toBe(50);
   expect(await press('ArrowDown')).toBe(50);
+  expect(await host.evaluate(() => window.keydownDefaultPrevented)).toEqual([['ArrowUp', true], ['ArrowDown', true]]);
   expect(await press('Home')).toBe(0);
   expect(await press('ArrowLeft')).toBe(0);
   expect(await press('End')).toBe(100);
@@ -496,7 +500,7 @@ test('dir="rtl": the columns mirror (the start panel is on the right), the posit
   await page.keyboard.press('ArrowRight');
   await rtl.evaluate(el => el.updateComplete);
   expect(await position(rtl)).toBe(beforeKey + 1);
-  // A dir attribute on an ancestor is not seen by the component (upstream reads the host and the document only).
+  // A dir attribute on an ancestor is not seen by the component (Shoelace reads the host's dir and then the document's, nothing in between).
   const inherited = await frame.locator('body').evaluate(async body => {
     const wrap = document.createElement('div');
     wrap.dir = 'rtl';
@@ -525,6 +529,8 @@ test('min and max: --min and --max constrain the primary (start) panel', async (
   await drag(page, host, 152, 399);
   s = await state(host);
   expect(s.start[2]).toBe(250);
+  // --min and --max size the primary (start) track, and the 4px divider comes out of the rest: the end panel is 146px,
+  // not the 150px the example's text promises (upstream quirk, listed on the docs page).
   expect(s.end[2]).toBe(146);
   // The reported position is not clamped by the CSS: that is only layout.
   expect(s.position).toBeGreaterThan(90);
@@ -642,16 +648,23 @@ test('slots: a custom divider handle is slotted and nested split panels work ind
   expect(await position(outer)).toBeCloseTo(25, 0);
 });
 
-test('keyboard focus shows the divider in the primary colour; mouse focus does not', async ({ page }) => {
+test('keyboard focus shows the divider in the primary colour; a mouse press does not focus it (upstream quirk)', async ({ page }) => {
   const { frame } = await openExample(page);
+  const background = host => host.evaluate(el => getComputedStyle(el.shadowRoot.querySelector('.divider')).backgroundColor);
+  // Mouse: the press prevents the mousedown default (to stop text selection), which also stops it from focusing the
+  // divider, so there is no focus and the colour does not change.
+  const clicked = await mount(frame, {}, { id: 'clicked' });
+  expect(await background(clicked)).toBe('rgb(228, 228, 231)');
+  await clicked.locator('.divider').click();
+  expect(await clicked.evaluate(el => el.shadowRoot.activeElement)).toBeNull();
+  expect(await background(clicked)).toBe('rgb(228, 228, 231)');
+  // Keyboard: Tab (or, when the page started elsewhere, script focus after a key press) matches :focus-visible.
   const host = await mount(frame);
-  const background = () => host.evaluate(el => getComputedStyle(el.shadowRoot.querySelector('.divider')).backgroundColor);
-  expect(await background()).toBe('rgb(228, 228, 231)');
   await page.keyboard.press('Tab');
   const focused = await host.evaluate(el => el.matches(':focus-within') || el.shadowRoot.activeElement !== null);
   if (!focused) await host.locator('.divider').focus();
   await page.keyboard.press('ArrowRight');
-  expect(await background()).toBe('rgb(2, 132, 199)');
+  expect(await background(host)).toBe('rgb(2, 132, 199)');
   const outline = await host.evaluate(el => getComputedStyle(el.shadowRoot.querySelector('.divider')).outlineStyle);
   expect(outline).toBe('none');
 });
@@ -699,7 +712,7 @@ test('forced colors: the divider keeps a visible outline', async ({ page }) => {
   expect(outline).toEqual(['solid', '1px']);
 });
 
-test('hidden attribute hides the host (core base rule); core extras: ready event once, dir property', async ({ page }) => {
+test('the hidden attribute does not hide the host (as in Shoelace, whose :host rule beats the UA one); core extras: ready event once, dir property', async ({ page }) => {
   const { frame } = await openExample(page);
   const r = await frame.locator('body').evaluate(async body => {
     const el = document.createElement('sl-split-panel');
@@ -717,8 +730,40 @@ test('hidden attribute hides the host (core base rule); core extras: ready event
     return out;
   });
   expect(r.events).toEqual([{ bubbles: false, composed: false }]);
-  expect(r.hidden).toBe('none');
+  // Shoelace's `:host { display: grid }` outranks the user agent's `[hidden] { display: none }`, so the element stays visible.
+  expect(r.hidden).toBe('grid');
   expect(r.dir).toBe('ltr');
+});
+
+test('core base styles do not leak into the divider part: no focus outline offset from --focus-outline-offset, and the host box-sizing is inherited', async ({ page }) => {
+  const { frame } = await openExample(page);
+  await frame.locator('head').evaluate(head => {
+    const style = document.createElement('style');
+    style.id = 'leak-probe';
+    // The custom focus outline is an author style on the part; the width and border are for the box-sizing check.
+    style.textContent = '#probe::part(divider):focus-visible { outline: 3px solid red; } #box::part(divider) { width: 4px; border: 1px solid; }';
+    head.append(style);
+  });
+  // Core's `*:focus-visible { outline-offset: var(--focus-outline-offset) }` would reach the divider with this token set.
+  const host = await mount(frame, {}, { style: 'width: 400px; height: 120px; --focus-outline-offset: 8px;' });
+  await page.keyboard.press('Tab');
+  const focused = await host.evaluate(el => el.shadowRoot.activeElement !== null);
+  if (!focused) await host.locator('.divider').focus();
+  await page.keyboard.press('ArrowRight');
+  const focus = await host.evaluate(el => {
+    const cs = getComputedStyle(el.shadowRoot.querySelector('.divider'));
+    return [cs.outlineStyle, cs.outlineWidth, cs.outlineOffset];
+  });
+  // Shoelace does not read the token: the offset stays at its initial value.
+  expect(focus).toEqual(['solid', '3px', '0px']);
+  const width = async style => {
+    const box = await mount(frame, {}, { id: 'box', style });
+    return box.evaluate(el => el.shadowRoot.querySelector('.divider').getBoundingClientRect().width);
+  };
+  // The part inherits the host's box-sizing: border-box keeps the 4px, content-box adds the 2px border.
+  expect(await width('width: 400px; height: 120px;')).toBe(4);
+  expect(await width('width: 400px; height: 120px; box-sizing: content-box;')).toBe(6);
+  await frame.locator('#leak-probe').evaluate(el => el.remove());
 });
 
 test('moving the element in the DOM keeps resizing and measuring working', async ({ page }) => {

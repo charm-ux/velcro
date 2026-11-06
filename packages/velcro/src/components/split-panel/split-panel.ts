@@ -58,7 +58,9 @@ export const SNAP_NONE = () => null;
 export class VelcroSplitPanel extends CharmElement {
   public static override baseName = 'split-panel';
 
-  public static override styles = [...CharmElement.styles, styles];
+  // Core's base styles are replaced by Shoelace's own (see the styles file): they would hide the host with the `hidden`
+  // attribute, add a focus outline offset to the divider part and force border-box on the shadow descendants.
+  public static override styles = [styles];
 
   private cachedPositionInPixels!: number;
   private isCollapsed = false;

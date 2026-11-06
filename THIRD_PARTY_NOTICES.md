@@ -88,7 +88,7 @@ shipped with it. This file alone never certifies an artifact: where a built arti
 - Also used in: `packages/velcro/src/components/split-panel/split-panel.ts` (API documentation wording and behavior: the
   position, snapping, keyboard, drag and resize logic and the rendered structure, adapted from
   `src/components/split-panel/split-panel.component.ts`), `packages/velcro/src/components/split-panel/split-panel.styles.ts`
-  (styles adapted from `src/components/split-panel/split-panel.styles.ts`, declarations unchanged),
+  (styles adapted from `src/components/split-panel/split-panel.styles.ts` and `src/styles/component.styles.ts`, declarations unchanged),
   `packages/velcro/src/internal/drag.ts` (adapted from `src/internal/drag.ts`) and `packages/velcro/src/internal/math.ts`
   (the `clamp` helper, adapted from `src/internal/math.ts`), plus the docs page examples adapted from
   `docs/pages/components/split-panel.md` (the icon handle is replaced by an inline svg and the select by a native one).

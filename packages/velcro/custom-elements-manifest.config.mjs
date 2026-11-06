@@ -100,7 +100,9 @@ function hideNativeEvents() {
 const globalAttributes = new Set(['exportparts', 'for', 'part', 'tabindex']);
 export function fixWrapperSource(text) {
   const managed = [];
-  let out = text.replace(/^( {6})("?[\w-]+"?): (\w+)( \? true : undefined)?,\n/gm, (line, indent, key, name) => {
+  // A property whose attribute name is hyphenated is written `"position-in-pixels": positionInPixels ?? props["position-in-pixels"],`
+  // (and wrapped onto two lines when long); it is managed like the others, as a property of the element.
+  let out = text.replace(/^( {6})("?[\w-]+"?):\s+(\w+)( \? true : undefined| \?\? props\["[\w-]+"\])?,\n/gm, (line, indent, key, name) => {
     if (key === 'ref' || key === 'style') return line;
     if (globalAttributes.has(key)) return `${indent}...(${name} === undefined ? {} : { ${key}: ${name} }),\n`;
     managed.push(name);
