@@ -33,7 +33,10 @@ const VALUES = ['37px', 'rgb(1, 2, 3)', 'dotted', '3px solid rgb(1, 2, 3)', '2px
 
 for (const [tag, decl] of elements) {
   test(`${tag}: inherited CSS custom properties, slots and parts are listed exactly when they still apply`, async ({ page }) => {
-    test.setTimeout(120000);
+    // The probe measures every candidate property with every value in every state. sl-switch (55 core candidates,
+    // 7 boolean states) takes about 1 minute on a fast workstation and about 2 at half that CPU speed, so 2 minutes is
+    // too tight for slower runners.
+    test.setTimeout(240000);
     const parent = coreDecls.get(decl.superclass.name);
     expect(parent, `${tag} superclass in core's manifest`).toBeTruthy();
     const listed = key => (decl[key] ?? []).filter(x => x.inheritedFrom).map(x => x.name).sort();
