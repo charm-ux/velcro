@@ -756,7 +756,7 @@ test('animations & easings: the pickers list every preset and easing and drive t
   await expect.poll(read).toEqual({ name: 'tada', easing: 'cubic-bezier(0.645, 0.045, 0.355, 1)', rate: 1.5, state: 'running' });
 });
 
-test('intersection observer: the animation plays while the box is in view and rewinds when it leaves', async ({ page }) => {
+test('intersection observer: the animation plays while the box is in view and stops near the start when it leaves', async ({ page }) => {
   const { frame } = await openExample(page, 'Using Intersection Observer');
   const iframe = page.locator('iframe.example[title="Animation example: Using Intersection Observer"]');
   // The example sets currentTime = 0 right after play = false, and play only pauses on the next update, so the

@@ -1,15 +1,19 @@
 // The vendored @shoelace-style/animations data (packages/velcro/src/components/animation/presets/presets.ts) must be
 // exactly the published package Shoelace 2.20.1 resolves: the record SOURCE.json beside it pins the package, version,
 // npm's sha512 integrity and every tarball file's sha256, plus the canonical digest of the package's data, derived
-// from the tarball with `node scripts/vendor/shoelace-animations.mjs verify <tarball>`.
+// from the tarball with `node scripts/vendor/shoelace-animations.mjs verify <tarball>`. These tests tie the vendored data
+// to that recorded digest; the record itself is re-checked against the published tarball only by running `verify`
+// offline on an acquired tarball (the tarball is not committed).
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   fileLines,
+  parseDataModule,
   presetsDigest,
   readRecord,
   RECORD_PATH,
@@ -65,19 +69,88 @@ test('the digest changes when any value, name or entry changes, and only then', 
   assert.throws(() => presetsDigest({ easings: {}, bounce: {} }), /not a keyframe list/);
 });
 
-test('tarball verification fails closed on another tarball', async () => {
+// Builds a gzipped tarball under package/ from { path: text } at runtime; returns its path, its sha512 integrity and the
+// sha256 of each file, so a test can hand verifyTarball a record that matches it up to a chosen stage.
+async function fakeTarball(name, files, { symlink } = {}) {
   const { create } = await import('tar');
-  const pkg = path.join(tmp, 'fake', 'package');
-  mkdirSync(path.join(pkg, 'dist'), { recursive: true });
-  writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: '@shoelace-style/animations', version: '1.2.0', type: 'module' }));
-  writeFileSync(path.join(pkg, 'dist/index.js'), "export const bounce = [{ offset: 0 }];\nexport const easings = { linear: 'linear' };\n");
-  const tarball = path.join(tmp, 'fake.tgz');
-  await create({ gzip: true, file: tarball, cwd: path.join(tmp, 'fake'), portable: true }, ['package']);
-  const problems = await verifyTarball(tarball);
-  assert.match(problems[0], /^tarball integrity sha512-\S+ is not the recorded sha512-avvo1/);
-  assert.ok(problems.some(p => p.startsWith('file dist/LICENSE: missing')), 'missing files are reported');
-  assert.ok(problems.some(p => p.startsWith('tarball data ')), 'the data digest is compared');
-  assert.ok(problems.some(p => p.startsWith('vendored data ')), 'the vendored copy is compared with the tarball');
+  const root = path.join(tmp, name);
+  for (const [file, text] of Object.entries(files)) {
+    mkdirSync(path.dirname(path.join(root, 'package', file)), { recursive: true });
+    writeFileSync(path.join(root, 'package', file), text);
+  }
+  if (symlink) symlinkSync('package.json', path.join(root, 'package', symlink));
+  const tarball = path.join(tmp, `${name}.tgz`);
+  await create({ gzip: true, file: tarball, cwd: root, portable: true }, ['package']);
+  const integrity = `sha512-${createHash('sha512').update(readFileSync(tarball)).digest('base64')}`;
+  const hashes = Object.fromEntries(Object.entries(files).map(([file, text]) => [file, createHash('sha256').update(text).digest('hex')]));
+  return { tarball, integrity, hashes, root };
+}
+
+// Top-level code in a fake package writes this marker; verification must never run it.
+const marker = path.join(tmp, 'tarball-code-ran');
+const pkgJson = JSON.stringify({ name: '@shoelace-style/animations', version: '1.2.0', type: 'module' });
+const hostile = {
+  'package.json': pkgJson,
+  'dist/index.js': `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(marker)}, 'ran');\nexport * from './attention_seekers/bounce.js';\n`,
+  'dist/attention_seekers/bounce.js': "export const bounce = [{ offset: 0 }];\nexport const easings = { linear: 'linear' };\n",
+};
+
+test('a tampered tarball is rejected on its integrity alone: nothing is read further, extracted or run', async () => {
+  const { tarball, root } = await fakeTarball('tampered', hostile);
+  const scratch = () => readdirSync(tmpdir()).filter(name => name.startsWith('velcro-animations-')).length;
+  const before = scratch();
+  assert.deepEqual(await verifyTarball(tarball), [
+    `tarball integrity ${(await fakeTarball('tampered-again', hostile)).integrity} is not the recorded ${INTEGRITY}`,
+  ]);
+  assert.equal(existsSync(marker), false, 'the tarball\'s code did not run');
+  assert.equal(scratch(), before, 'nothing was extracted');
+  // The marker is a working tripwire: running the fake's entry point does write it.
+  await import(pathToFileURL(path.join(root, 'package/dist/index.js')).href);
+  assert.equal(existsSync(marker), true);
+  rmSync(marker);
+});
+
+test('past the integrity check the archive is still untrusted: each stage stops verification, and no code runs', async () => {
+  const record = readRecord();
+  // Matching integrity but other files: stops at the file hashes, before any data is read.
+  const other = await fakeTarball('other-files', hostile);
+  const fileProblems = await verifyTarball(other.tarball, { ...record, integrity: other.integrity });
+  assert.ok(fileProblems.some(p => p.startsWith('file dist/LICENSE: missing')), 'missing files are reported');
+  assert.ok(fileProblems.some(p => p.startsWith('file dist/index.js: ')), 'changed files are reported');
+  assert.ok(fileProblems.every(p => p.startsWith('file ')), fileProblems.join('\n'));
+  // Matching integrity and files: the data is parsed, never run, so code is rejected rather than executed.
+  const matched = async (name, files) => {
+    const fake = await fakeTarball(name, files);
+    return verifyTarball(fake.tarball, { ...record, integrity: fake.integrity, files: fake.hashes });
+  };
+  assert.deepEqual(await matched('code-in-index', hostile), ['tarball data: dist/index.js: statement at 0 is not `export * | { <names> } from \'./<file>.js\'`']);
+  assert.match((await matched('code-in-module', {
+    ...hostile,
+    'dist/index.js': "export * from './attention_seekers/bounce.js';\n",
+    'dist/attention_seekers/bounce.js': `export const bounce = (await import('node:fs')).writeFileSync(${JSON.stringify(marker)}, 'ran');\n`,
+  }))[0], /^tarball data: dist\/attention_seekers\/bounce\.js bounce: \w+ is not a literal$/);
+  assert.equal(existsSync(marker), false, 'no tarball code ran');
+  // Plain data that differs from the package's is reported against the record and the vendored copy.
+  const data = await matched('other-data', {
+    'package.json': pkgJson,
+    'dist/index.js': "export * from './attention_seekers/bounce.js';\nexport { easings } from './easings/easings.js';\n",
+    'dist/attention_seekers/bounce.js': 'export const bounce = [{ offset: 0 }];\n',
+    'dist/easings/easings.js': "export const easings = { linear: 'linear' };\nexport const unused = 1;\n",
+  });
+  assert.equal(data.length, 2, data.join('\n'));
+  assert.match(data[0], /^tarball data \{"animations":1,"easings":1,"sha256":"[0-9a-f]{64}"\} != recorded /);
+  assert.match(data[1], /^vendored data \{"animations":98,"easings":29,/);
+  // Links and other non-file entries are refused.
+  const linked = await fakeTarball('linked', { 'package.json': pkgJson }, { symlink: 'link.json' });
+  assert.deepEqual(await verifyTarball(linked.tarball, { ...record, integrity: linked.integrity }), ['tarball archive: unsupported tar entry type "2" for "package/link.json"']);
+});
+
+test('the data parser reads the vendored module to the same data as importing it', async () => {
+  const parsed = Object.fromEntries(await parseDataModule(readFileSync(VENDORED_PATH, 'utf8'), 'presets.ts'));
+  assert.deepEqual(presetsDigest(parsed), await vendoredDigest());
+  await assert.rejects(parseDataModule('export const a = [{ ...b }];', 'x.js'), /not a plain property/);
+  await assert.rejects(parseDataModule('export let a = 1;', 'x.js'), /is not `export const/);
+  await assert.rejects(parseDataModule('export const a = `x${1}`;', 'x.js'), /TemplateExpression is not a literal/);
 });
 
 test('the vendored file, the notices and the docs name the package, version and integrity', () => {
