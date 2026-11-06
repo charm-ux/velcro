@@ -63,6 +63,8 @@ test('accessible loading semantics: one indeterminate progressbar named "Loading
     const base = el.shadowRoot.querySelector('[part~="base"]');
     return {
       parts: [...el.shadowRoot.querySelectorAll('[part]')].map(n => n.getAttribute('part')),
+      // Shoelace's shadow DOM: svg.spinner around circle.spinner__track and circle.spinner__indicator (its own test queries the class).
+      structure: [base.getAttribute('class'), ...[...base.children].map(n => `${n.localName}.${n.getAttribute('class')}`)],
       tag: base.localName,
       role: base.getAttribute('role'),
       label: base.getAttribute('aria-label'),
@@ -72,7 +74,7 @@ test('accessible loading semantics: one indeterminate progressbar named "Loading
       focusable: el.tabIndex,
     };
   });
-  expect(info).toEqual({ parts: ['base'], tag: 'svg', role: 'progressbar', label: 'Loading', valueNow: null, slots: 0, hostRole: null, focusable: -1 });
+  expect(info).toEqual({ parts: ['base'], structure: ['spinner', 'circle.spinner__track', 'circle.spinner__indicator'], tag: 'svg', role: 'progressbar', label: 'Loading', valueNow: null, slots: 0, hostRole: null, focusable: -1 });
 });
 
 test('geometry: 1em square by default, follows font-size, and does not shrink in a flex container (flex: none)', async ({ page }) => {
@@ -110,29 +112,29 @@ test('geometry: 1em square by default, follows font-size, and does not shrink in
 
 test('ring geometry follows the track width and font-size (circle radius is 0.5em minus half the track width)', async ({ page }) => {
   const { frame } = await openExample(page);
-  const def = await styleOf(frame.locator('#demo-default'), '.indicator');
+  const def = await styleOf(frame.locator('#demo-default'), '.spinner__indicator');
   const base = await frame.locator('body').evaluate(() => parseFloat(getComputedStyle(document.body).fontSize));
   expect(def.strokeWidth).toBe('2px');
   expect(def.r).toBe(`${base / 2 - 1}px`);
   expect(def.cx).toBe(`${base / 2}px`);
-  const large = await styleOf(frame.locator('#demo-large'), '.indicator');
+  const large = await styleOf(frame.locator('#demo-large'), '.spinner__indicator');
   expect(large.r).toBe('23px');
-  const custom = await styleOf(frame.locator('#demo-custom'), '.indicator');
+  const custom = await styleOf(frame.locator('#demo-custom'), '.spinner__indicator');
   expect(custom.strokeWidth).toBe('6px');
   expect(custom.r).toBe('21px');
-  const track = await styleOf(frame.locator('#demo-custom'), '.track');
+  const track = await styleOf(frame.locator('#demo-custom'), '.spinner__track');
   expect(track.r).toBe('21px');
 });
 
 test('CSS custom properties: defaults, and --track-width, --track-color, --indicator-color, --speed overrides', async ({ page }) => {
   const { frame } = await openExample(page);
-  const defIndicator = await styleOf(frame.locator('#demo-default'), '.indicator');
-  const defTrack = await styleOf(frame.locator('#demo-default'), '.track');
+  const defIndicator = await styleOf(frame.locator('#demo-default'), '.spinner__indicator');
+  const defTrack = await styleOf(frame.locator('#demo-default'), '.spinner__track');
   expect(defIndicator.stroke).toBe('rgb(2, 132, 199)'); // --sl-color-primary-600 from the light theme
   expect(defIndicator.animationDuration).toBe('2s');
   expect(defTrack.stroke).toBe('rgba(128, 128, 128, 0.25)');
-  const custom = await styleOf(frame.locator('#demo-custom'), '.indicator');
-  const customTrack = await styleOf(frame.locator('#demo-custom'), '.track');
+  const custom = await styleOf(frame.locator('#demo-custom'), '.spinner__indicator');
+  const customTrack = await styleOf(frame.locator('#demo-custom'), '.spinner__track');
   expect(custom.stroke).toBe('rgb(217, 119, 6)');
   expect(custom.animationDuration).toBe('3s');
   expect(customTrack.stroke).toBe('rgb(253, 230, 138)');
@@ -144,7 +146,7 @@ test('CSS custom properties: defaults, and --track-width, --track-color, --indic
     wrap.append(el);
     document.body.append(wrap);
     await el.updateComplete;
-    const cs = getComputedStyle(el.shadowRoot.querySelector('.indicator'));
+    const cs = getComputedStyle(el.shadowRoot.querySelector('.spinner__indicator'));
     const out = { stroke: cs.stroke, duration: cs.animationDuration, width: cs.strokeWidth };
     wrap.remove();
     return out;
@@ -156,7 +158,7 @@ test('CSS custom properties: defaults, and --track-width, --track-color, --indic
 test('indicator animates with transform: rotate (not the rotate property) and is running', async ({ page }) => {
   const { frame } = await openExample(page);
   const result = await frame.locator('#demo-default').evaluate(async el => {
-    const indicator = el.shadowRoot.querySelector('.indicator');
+    const indicator = el.shadowRoot.querySelector('.spinner__indicator');
     const [animation] = indicator.getAnimations();
     const frames = animation.effect.getKeyframes();
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -170,7 +172,7 @@ test('indicator animates with transform: rotate (not the rotate property) and is
     };
   });
   expect(result.count).toBe(1);
-  expect(result.name).toBe('velcro-spinner-spin');
+  expect(result.name).toBe('spin');
   expect(result.state).toBe('running');
   expect(result.keyframeTransforms).toEqual(['rotate(0deg)', 'rotate(450deg)', 'rotate(1080deg)']);
   expect(result.rotateProperty).toBe('none');
@@ -185,8 +187,8 @@ test.describe('prefers-reduced-motion: reduce', () => {
   test('the spinner keeps its Shoelace animation (no reduced-motion rule is implemented)', async ({ page }) => {
     const { frame } = await openExample(page);
     expect(await frame.locator('body').evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true);
-    const indicator = await styleOf(frame.locator('#demo-default'), '.indicator');
-    expect(indicator.animationName).toBe('velcro-spinner-spin');
+    const indicator = await styleOf(frame.locator('#demo-default'), '.spinner__indicator');
+    expect(indicator.animationName).toBe('spin');
     expect(indicator.animationPlayState).toBe('running');
     expect(indicator.animationDuration).toBe('2s');
   });
@@ -209,8 +211,8 @@ test.describe('forced colors', () => {
       };
       return { gray: probe('GrayText'), highlight: probe('Highlight') };
     });
-    expect((await styleOf(frame.locator('#demo-default'), '.track')).stroke).toBe(system.gray);
-    expect((await styleOf(frame.locator('#demo-default'), '.indicator')).stroke).toBe(system.highlight);
+    expect((await styleOf(frame.locator('#demo-default'), '.spinner__track')).stroke).toBe(system.gray);
+    expect((await styleOf(frame.locator('#demo-default'), '.spinner__indicator')).stroke).toBe(system.highlight);
   });
 });
 
@@ -228,16 +230,25 @@ test('dynamically created spinner renders, inherits nothing from core label prop
       width: el.getBoundingClientRect().width,
       name: el.shadowRoot.querySelector('[part~="base"]').getAttribute('aria-label'),
     };
+    // Core's `.spinner` flex wrapper rules (gap, label-position directions) must not reach Shoelace's `svg.spinner`.
+    const leak = [];
+    for (const position of ['before', 'after', 'above']) {
+      el.setAttribute('label-position', position);
+      await el.updateComplete;
+      const cs = getComputedStyle(el.shadowRoot.querySelector('[part~="base"]'));
+      leak.push([cs.gap, cs.flexDirection, cs.alignItems, cs.justifyContent]);
+    }
     el.hidden = true;
     await el.updateComplete;
     const hidden = getComputedStyle(el).display;
     el.remove();
-    return { withLabel, hidden };
+    return { withLabel, leak, hidden };
   });
   // The core label/label-position properties are inherited but have no effect (documented limitation).
   expect(result.withLabel.shadowText).toBe('');
   expect(result.withLabel.name).toBe('Loading');
   expect(result.withLabel.width).toBeGreaterThan(0);
+  expect(result.leak).toEqual(Array(3).fill(['normal', 'row', 'normal', 'normal']));
   expect(result.hidden).toBe('none');
 });
 

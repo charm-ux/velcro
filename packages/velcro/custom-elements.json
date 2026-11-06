@@ -2048,7 +2048,6 @@
                 "text": "string"
               },
               "privacy": "public",
-              "default": "''",
               "attribute": "lang"
             },
             {
@@ -2122,7 +2121,6 @@
               "type": {
                 "text": "string"
               },
-              "default": "''",
               "fieldName": "lang",
               "propName": "lang"
             },
@@ -2278,7 +2276,6 @@
                 "text": "string"
               },
               "privacy": "public",
-              "default": "''",
               "attribute": "lang"
             },
             {
@@ -2437,7 +2434,6 @@
               "type": {
                 "text": "string"
               },
-              "default": "''",
               "fieldName": "lang",
               "propName": "lang"
             },
