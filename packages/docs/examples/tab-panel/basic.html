@@ -1,0 +1,44 @@
+<div class="tab-panel-overview">
+  <div class="tab-panel-nav">
+    <sl-button variant="primary" size="small" data-panel="general">General</sl-button>
+    <sl-button variant="default" size="small" data-panel="custom">Custom</sl-button>
+    <sl-button variant="default" size="small" data-panel="advanced">Advanced</sl-button>
+    <sl-button variant="default" size="small" data-panel="disabled" disabled>Disabled</sl-button>
+  </div>
+
+  <sl-tab-panel id="demo-default" name="general" active>This is the general tab panel.</sl-tab-panel>
+  <sl-tab-panel name="custom">This is the custom tab panel.</sl-tab-panel>
+  <sl-tab-panel name="advanced">This is the advanced tab panel.</sl-tab-panel>
+  <sl-tab-panel name="disabled">This is a disabled tab panel.</sl-tab-panel>
+
+  <p>Active panel: <output id="demo-active">general</output></p>
+
+  <script>
+    const container = document.querySelector('.tab-panel-overview');
+    const buttons = [...container.querySelectorAll('sl-button')];
+    const panels = [...container.querySelectorAll('sl-tab-panel')];
+    const output = container.querySelector('#demo-active');
+
+    // There is no sl-tab-group or sl-tab yet, so the buttons do what a tab group does: make one panel active.
+    buttons.forEach(button => {
+      button.addEventListener('click', () => {
+        const name = button.dataset.panel;
+        panels.forEach(panel => {
+          panel.active = panel.name === name;
+        });
+        buttons.forEach(other => {
+          other.variant = other === button ? 'primary' : 'default';
+        });
+        output.textContent = name;
+      });
+    });
+  </script>
+
+  <style>
+    .tab-panel-overview .tab-panel-nav {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+  </style>
+</div>

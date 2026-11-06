@@ -25,8 +25,11 @@ const CONTENT = {
   'sl-resize-observer': '<div>x</div>',
   'sl-visually-hidden': 'Hidden',
   'sl-switch': 'Label<span slot="help-text">Help</span>',
+  'sl-tab-panel': 'Panel',
 };
-const ATTRS = { 'sl-progress-bar': { value: '40' }, 'sl-progress-ring': { value: '40' }, 'sl-format-bytes': { value: '1000' }, 'sl-format-number': { value: '1000' } };
+const ATTRS = { 'sl-progress-bar': { value: '40' }, 'sl-progress-ring': { value: '40' }, 'sl-format-bytes': { value: '1000' }, 'sl-format-number': { value: '1000' },
+  // A tab panel is display: none until active, and a probe with no box cannot be pointed at.
+  'sl-tab-panel': { active: '' } };
 // One valid value of each kind a core custom property takes: length, color, border style, border shorthand, a visible
 // box shadow, time, keyword, number, alignment.
 const VALUES = ['37px', 'rgb(1, 2, 3)', 'dotted', '3px solid rgb(1, 2, 3)', '2px 2px rgb(1, 2, 3)', '3s', 'none', '0.25', 'flex-end'];
