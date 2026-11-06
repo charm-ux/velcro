@@ -5,7 +5,8 @@
  * `customElements.get('sl-button') === VelcroButton` and `new VelcroButton()` works. It deliberately does not call
  * `project.updateProject`, touch core's shared scope maps or patch prototypes, which keeps the page-wide core prefix
  * (`ch`) intact. Limit: core's scope is never populated for these tags, so components that depend on core's
- * scope-aware lookups (declared `dependencies`, `scope.tag(...)` in templates) are NOT supported by this helper.
+ * scope-aware lookups (declared `dependencies`, `scope.tag(...)` in templates) are NOT supported by this helper alone;
+ * such a class opts in to Velcro's local scope resolver (`internal/scope.ts`, `useVelcroScope`) before it is defined.
  * Importing this module has no side effects.
  */
 

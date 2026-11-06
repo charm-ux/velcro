@@ -1,6 +1,8 @@
 // Runs Shoelace 2.20.1's own component test files (vendored unmodified under shoelace-2.20.1/) against Velcro in
-// Chromium. Test files are never edited: a resolver plugin redirects each test's Shoelace entry import
-// ('../../../dist/shoelace.js', or its own './<name>.js') to Velcro's registering entry for that component.
+// Chromium. Test files are never edited: a resolver plugin redirects each test's Shoelace entry import to Velcro.
+// '../../../dist/shoelace.js' is Shoelace's whole library, so it maps to Velcro's package root (which registers every
+// component, including the one under test through its own entry): tests such as the switch's also render <sl-button>.
+// A test's own './<name>.js' maps to Velcro's registering entry for that component alone.
 import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { esbuildPlugin } from '@web/dev-server-esbuild';
@@ -23,9 +25,8 @@ const velcroEntries = {
     const match = importer.match(new RegExp(`/${vendor}/src/components/([a-z-]+)/\\1\\.test\\.ts$`));
     if (!match) return undefined;
     const name = match[1];
-    if (source === '../../../dist/shoelace.js' || source === `./${name}.js`) {
-      return `/packages/velcro/dist/components/${name}/index.js`;
-    }
+    if (source === '../../../dist/shoelace.js') return '/packages/velcro/dist/index.js';
+    if (source === `./${name}.js`) return `/packages/velcro/dist/components/${name}/index.js`;
     return undefined;
   }
 };
