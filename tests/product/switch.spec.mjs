@@ -36,7 +36,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
 });
 
-test('sl-switch registers as the exported class without touching core\'s scope, prefix or tags', async ({ page }) => {
+test('sl-switch registers as the exported class with no core marker attribute and no ch-* or sl-icon definitions', async ({ page }) => {
   const { frame, requests } = await openExample(page);
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
   const r = await frame.locator('#demo-default').evaluate(el => ({
@@ -248,7 +248,7 @@ test('properties: defaults, reflection, checked attribute sets defaultChecked, a
   });
 });
 
-test('core extensions kept: readonly, label fallback, hide-label and error-message; invalid and label-position have no effect', async ({ page }) => {
+test('core extensions kept: readonly, label fallback, hide-label and error-message; invalid, label-position and autofocus have no effect', async ({ page }) => {
   const { frame } = await openExample(page);
   await mount(frame, `
     <sl-switch id="ro" readonly>Read only</sl-switch>
@@ -256,7 +256,10 @@ test('core extensions kept: readonly, label fallback, hide-label and error-messa
     <sl-switch id="hidden" hide-label help-text="Help">Hidden label</sl-switch>
     <sl-switch id="err" error-message="Pick this">Error</sl-switch>
     <sl-switch id="before" label-position="before">Before</sl-switch>
-    <sl-switch id="after">After</sl-switch>`);
+    <sl-switch id="after">After</sl-switch>
+    <sl-switch id="af" autofocus>Autofocus</sl-switch>`);
+  // autofocus is reflected on the host but, as in Shoelace, not passed to the inner checkbox.
+  expect(await frame.locator('#af').evaluate(el => [el.hasAttribute('autofocus'), el.shadowRoot.querySelector('input').hasAttribute('autofocus')])).toEqual([true, false]);
   const ro = frame.locator('#ro');
   await ro.locator('[part~="control"]').click();
   await ro.evaluate(el => el.focus());
@@ -292,6 +295,51 @@ test('core extensions kept: readonly, label fallback, hide-label and error-messa
     return label > control;
   }));
   expect(order).toEqual([true, true]);
+});
+
+test('dir and lang are reactive, not reflected and undefined by default, as Shoelace\'s base element declares them', async ({ page }) => {
+  const { frame } = await openExample(page);
+  await mount(frame, '<sl-switch id="dl">Lang</sl-switch><sl-switch id="attrs" dir="rtl" lang="de">Attrs</sl-switch>');
+  const r = await frame.locator('body').evaluate(async () => {
+    const el = document.querySelector('#dl');
+    const attrs = document.querySelector('#attrs');
+    const observed = customElements.get('sl-switch').observedAttributes.filter(a => a === 'dir' || a === 'lang');
+    const defaults = [el.dir, el.lang];
+    el.dir = 'auto';
+    el.lang = 'fr';
+    await el.updateComplete;
+    const assigned = [el.dir, el.lang, el.getAttribute('dir'), el.getAttribute('lang')];
+    const fromAttributes = [attrs.dir, attrs.lang];
+    attrs.removeAttribute('dir');
+    attrs.removeAttribute('lang');
+    await attrs.updateComplete;
+    return { observed, defaults, assigned, fromAttributes, removed: [attrs.dir, attrs.lang] };
+  });
+  expect(r).toEqual({
+    observed: ['dir', 'lang'],
+    defaults: [undefined, undefined],
+    assigned: ['auto', 'fr', null, null],
+    fromAttributes: ['rtl', 'de'],
+    // not reflected, so not restored to an initial value (Shoelace restores reflected properties only)
+    removed: [null, null],
+  });
+});
+
+test('focus is not delegated, as in Shoelace: clicking the help text neither focuses the switch nor emits sl-focus', async ({ page }) => {
+  const { frame } = await openExample(page);
+  await mount(frame, '<sl-switch id="nf" help-text="Some help text">Label</sl-switch>');
+  const el = frame.locator('#nf');
+  await el.evaluate(el => {
+    window.__nfEvents = [];
+    el.addEventListener('sl-focus', () => window.__nfEvents.push('sl-focus'));
+  });
+  expect(await el.evaluate(el => el.shadowRoot.delegatesFocus)).toBe(false);
+  await el.locator('[part~="form-control-help-text"]').click();
+  expect(await frame.locator('body').evaluate(() => ({ active: document.activeElement?.localName, events: window.__nfEvents })))
+    .toEqual({ active: 'body', events: [] });
+  // focus() still focuses the inner checkbox
+  await el.evaluate(el => el.focus());
+  expect(await el.evaluate(el => [document.activeElement === el, el.shadowRoot.activeElement?.localName, window.__nfEvents])).toEqual([true, 'input', ['sl-focus']]);
 });
 
 test('upstream quirks matched: hidden does not hide it, ArrowLeft on an off switch emits sl-change, aria-describedby and form="" are always set', async ({ page }) => {

@@ -4422,7 +4422,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "Switches allow the user to toggle an option on or off.\n\nVelcro extensions inherited from the core switch and kept working: `readonly` (the switch keeps its state on click and\narrow keys), `label` (label text shown when the default slot is empty), `hide-label` (visually hides the label and\nhelp text, which stay accessible), `error-message` (sets a custom validity message, like `setCustomValidity()`; it is\nnot rendered) and `autofocus` (passed to the inner checkbox). The core `invalid` and `label-position` properties are\naccepted but have no effect (use `data-invalid`, as in Shoelace). As with every Velcro form control the host carries\ncore's `focusable` attribute.",
+          "description": "Switches allow the user to toggle an option on or off.\n\nVelcro extensions inherited from the core switch and kept working: `readonly` (the switch keeps its state on click and\narrow keys), `label` (label text shown when the default slot is empty), `hide-label` (visually hides the label and\nhelp text, which stay accessible) and `error-message` (sets a custom validity message, like `setCustomValidity()`; it\nis not rendered). The core `invalid`, `label-position` and `autofocus` properties are accepted but have no effect\n(use `data-invalid`, as in Shoelace). As with every Velcro form control the host carries core's `focusable`\nattribute.",
           "name": "VelcroSwitch",
           "cssProperties": [
             {
@@ -4548,14 +4548,9 @@
               },
               "privacy": "public",
               "default": "false",
-              "description": "Focus on the input on page load.",
+              "description": "Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, without effect. As\nin Shoelace, the switch is not focused on page load.",
               "attribute": "autofocus",
-              "reflects": true,
-              "inheritedFrom": {
-                "name": "CharmFocusableElement",
-                "module": "src/base/focusable-element/charm-focusable-element.ts",
-                "package": "@charm-ux/core"
-              }
+              "reflects": true
             },
             {
               "kind": "field",
@@ -4702,13 +4697,8 @@
                 "text": "'ltr' | 'rtl' | 'auto'"
               },
               "privacy": "public",
-              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
-              "attribute": "dir",
-              "inheritedFrom": {
-                "name": "CharmElement",
-                "module": "src/base/charm-element/charm-element.ts",
-                "package": "@charm-ux/core"
-              }
+              "description": "The element's text direction, as set by the `dir` attribute or property. Not reflected.",
+              "attribute": "dir"
             },
             {
               "kind": "field",
@@ -5081,14 +5071,9 @@
               },
               "privacy": "public",
               "default": "false",
-              "description": "Hides the input label and help text.",
+              "description": "Velcro extension (core): visually hides the label and help text, which stay accessible.",
               "attribute": "hide-label",
-              "reflects": true,
-              "inheritedFrom": {
-                "name": "CharmFormControlElement",
-                "module": "src/base/form-control-element/charm-form-control-element.ts",
-                "package": "@charm-ux/core"
-              }
+              "reflects": true
             },
             {
               "kind": "field",
@@ -5150,14 +5135,9 @@
               },
               "privacy": "public",
               "default": "false",
-              "description": "This will be true when the control is in an invalid state. Validity is determined by the `required` prop.",
+              "description": "Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, but not maintained\nand without effect. Use `validity` or the `data-invalid` attribute, as in Shoelace.",
               "attribute": "invalid",
-              "reflects": true,
-              "inheritedFrom": {
-                "name": "CharmFormControlElement",
-                "module": "src/base/form-control-element/charm-form-control-element.ts",
-                "package": "@charm-ux/core"
-              }
+              "reflects": true
             },
             {
               "kind": "field",
@@ -5166,14 +5146,9 @@
                 "text": "string | undefined"
               },
               "privacy": "public",
-              "description": "The input's label. If you need to display HTML, you can use the `label` slot instead.",
+              "description": "Velcro extension (core): label text rendered as the default slot's fallback content when the slot is empty.",
               "attribute": "label",
-              "reflects": true,
-              "inheritedFrom": {
-                "name": "CharmFormControlElement",
-                "module": "src/base/form-control-element/charm-form-control-element.ts",
-                "package": "@charm-ux/core"
-              }
+              "reflects": true
             },
             {
               "kind": "method",
@@ -5199,14 +5174,9 @@
                 "text": "'end' | 'start' | 'top' | undefined"
               },
               "privacy": "public",
-              "description": "The position of the label",
+              "description": "Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, without effect.",
               "attribute": "label-position",
-              "reflects": true,
-              "inheritedFrom": {
-                "name": "CharmFormControlElement",
-                "module": "src/base/form-control-element/charm-form-control-element.ts",
-                "package": "@charm-ux/core"
-              }
+              "reflects": true
             },
             {
               "kind": "method",
@@ -5217,6 +5187,16 @@
                 "name": "CoreSwitch",
                 "package": "@charm-ux/core"
               }
+            },
+            {
+              "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "attribute": "lang"
             },
             {
               "kind": "field",
@@ -5236,14 +5216,10 @@
                 "text": "boolean"
               },
               "privacy": "public",
-              "description": "Makes the input readonly.",
+              "description": "Velcro extension (core): keeps the switch's state on clicks and arrow keys.",
+              "default": "false",
               "attribute": "readonly",
-              "reflects": true,
-              "inheritedFrom": {
-                "name": "CharmFormControlElement",
-                "module": "src/base/form-control-element/charm-form-control-element.ts",
-                "package": "@charm-ux/core"
-              }
+              "reflects": true
             },
             {
               "kind": "method",
@@ -5310,17 +5286,9 @@
             {
               "kind": "field",
               "name": "shadowRootOptions",
-              "type": {
-                "text": "object"
-              },
               "privacy": "public",
               "static": true,
-              "default": "{ ...LitElement.shadowRootOptions, delegatesFocus: true }",
-              "inheritedFrom": {
-                "name": "CharmFocusableElement",
-                "module": "src/base/focusable-element/charm-focusable-element.ts",
-                "package": "@charm-ux/core"
-              }
+              "default": "{ ...LitElement.shadowRootOptions }"
             },
             {
               "kind": "field",
@@ -5439,6 +5407,14 @@
             },
             {
               "kind": "field",
+              "name": "velcroDir",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
               "name": "velcroDisabled",
               "type": {
                 "text": "boolean"
@@ -5454,6 +5430,15 @@
               },
               "privacy": "private",
               "default": "''"
+            },
+            {
+              "kind": "field",
+              "name": "velcroReadonly",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
             },
             {
               "kind": "field",
@@ -5518,13 +5503,8 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Focus on the input on page load.",
+              "description": "Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, without effect. As\nin Shoelace, the switch is not focused on page load.",
               "fieldName": "autofocus",
-              "inheritedFrom": {
-                "name": "CharmFocusableElement",
-                "module": "src/base/focusable-element/charm-focusable-element.ts",
-                "package": "@charm-ux/core"
-              },
               "propName": "autofocus"
             },
             {
@@ -5542,13 +5522,8 @@
               "type": {
                 "text": "'ltr' | 'rtl' | 'auto'"
               },
-              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "description": "The element's text direction, as set by the `dir` attribute or property. Not reflected.",
               "fieldName": "dir",
-              "inheritedFrom": {
-                "name": "CharmElement",
-                "module": "src/base/charm-element/charm-element.ts",
-                "package": "@charm-ux/core"
-              },
               "propName": "dir"
             },
             {
@@ -5597,13 +5572,8 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Hides the input label and help text.",
+              "description": "Velcro extension (core): visually hides the label and help text, which stay accessible.",
               "fieldName": "hideLabel",
-              "inheritedFrom": {
-                "name": "CharmFormControlElement",
-                "module": "src/base/form-control-element/charm-form-control-element.ts",
-                "package": "@charm-ux/core"
-              },
               "propName": "hideLabel"
             },
             {
@@ -5612,13 +5582,8 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "This will be true when the control is in an invalid state. Validity is determined by the `required` prop.",
+              "description": "Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, but not maintained\nand without effect. Use `validity` or the `data-invalid` attribute, as in Shoelace.",
               "fieldName": "invalid",
-              "inheritedFrom": {
-                "name": "CharmFormControlElement",
-                "module": "src/base/form-control-element/charm-form-control-element.ts",
-                "package": "@charm-ux/core"
-              },
               "propName": "invalid"
             },
             {
@@ -5626,13 +5591,8 @@
               "type": {
                 "text": "string | undefined"
               },
-              "description": "The input's label. If you need to display HTML, you can use the `label` slot instead.",
+              "description": "Velcro extension (core): label text rendered as the default slot's fallback content when the slot is empty.",
               "fieldName": "label",
-              "inheritedFrom": {
-                "name": "CharmFormControlElement",
-                "module": "src/base/form-control-element/charm-form-control-element.ts",
-                "package": "@charm-ux/core"
-              },
               "propName": "label"
             },
             {
@@ -5640,14 +5600,18 @@
               "type": {
                 "text": "'end' | 'start' | 'top' | undefined"
               },
-              "description": "The position of the label",
+              "description": "Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, without effect.",
               "fieldName": "labelPosition",
-              "inheritedFrom": {
-                "name": "CharmFormControlElement",
-                "module": "src/base/form-control-element/charm-form-control-element.ts",
-                "package": "@charm-ux/core"
-              },
               "propName": "labelPosition"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "fieldName": "lang",
+              "propName": "lang"
             },
             {
               "name": "name",
@@ -5664,13 +5628,9 @@
               "type": {
                 "text": "boolean"
               },
-              "description": "Makes the input readonly.",
+              "description": "Velcro extension (core): keeps the switch's state on clicks and arrow keys.",
+              "default": "false",
               "fieldName": "readonly",
-              "inheritedFrom": {
-                "name": "CharmFormControlElement",
-                "module": "src/base/form-control-element/charm-form-control-element.ts",
-                "package": "@charm-ux/core"
-              },
               "propName": "readonly"
             },
             {

@@ -66,6 +66,7 @@ test('class-only entries define nothing and leave core state alone, and construc
     const s = await import('/spinnerClass.js');
     const c = await import('/cardClass.js');
     const p = await import('/progressBarClass.js');
+    const w = await import('/switchClass.js');
     let constructError;
     try {
       new b.VelcroButton();
@@ -79,20 +80,21 @@ test('class-only entries define nothing and leave core state alone, and construc
       cardConstructError = e.name;
     }
     return {
-      exports: [Object.keys(b).sort(), Object.keys(s).sort(), Object.keys(c).sort(), Object.keys(p).sort()],
+      exports: [Object.keys(b).sort(), Object.keys(s).sort(), Object.keys(c).sort(), Object.keys(p).sort(), Object.keys(w).sort()],
+      aliasSwitch: w.SlSwitch === w.VelcroSwitch,
       aliasProgressBar: p.SlProgressBar === p.VelcroProgressBar,
       aliasButton: b.SlButton === b.VelcroButton,
       aliasSpinner: s.SlSpinner === s.VelcroSpinner,
       aliasCard: c.SlCard === c.VelcroCard,
-      defined: [customElements.get('sl-button'), customElements.get('sl-spinner'), customElements.get('sl-card'), customElements.get('sl-progress-bar')],
+      defined: [customElements.get('sl-button'), customElements.get('sl-spinner'), customElements.get('sl-card'), customElements.get('sl-progress-bar'), customElements.get('sl-switch')],
       defines: window.__defines.slice(),
       constructError,
       cardConstructError,
     };
   });
-  expect(r.exports).toEqual([['SlButton', 'VelcroButton'], ['SlSpinner', 'VelcroSpinner'], ['SlCard', 'VelcroCard'], ['SlProgressBar', 'VelcroProgressBar']]);
-  expect(r.aliasButton && r.aliasSpinner && r.aliasCard && r.aliasProgressBar).toBe(true);
-  expect(r.defined).toEqual([undefined, undefined, undefined, undefined]);
+  expect(r.exports).toEqual([['SlButton', 'VelcroButton'], ['SlSpinner', 'VelcroSpinner'], ['SlCard', 'VelcroCard'], ['SlProgressBar', 'VelcroProgressBar'], ['SlSwitch', 'VelcroSwitch']]);
+  expect(r.aliasButton && r.aliasSpinner && r.aliasCard && r.aliasProgressBar && r.aliasSwitch).toBe(true);
+  expect(r.defined).toEqual([undefined, undefined, undefined, undefined, undefined]);
   expect(r.defines).toEqual([]);
   expect(r.constructError).toBe('TypeError');
   expect(r.cardConstructError).toBe('TypeError');

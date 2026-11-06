@@ -5,7 +5,7 @@
 // the `control` / `thumb` track and the `label` slot, then the help text), the events, keyboard handling and the form
 // participation and validation API follow Shoelace. Velcro changes: built on the @charm-ux/core switch through
 // Velcro's local scope resolver (core-only extras are kept, see the class comment).
-import { css, html, type PropertyValues } from 'lit';
+import { css, html, LitElement, type PropertyValues } from 'lit';
 import { property, query } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
@@ -23,10 +23,10 @@ import styles from './switch.styles.js';
  *
  * Velcro extensions inherited from the core switch and kept working: `readonly` (the switch keeps its state on click and
  * arrow keys), `label` (label text shown when the default slot is empty), `hide-label` (visually hides the label and
- * help text, which stay accessible), `error-message` (sets a custom validity message, like `setCustomValidity()`; it is
- * not rendered) and `autofocus` (passed to the inner checkbox). The core `invalid` and `label-position` properties are
- * accepted but have no effect (use `data-invalid`, as in Shoelace). As with every Velcro form control the host carries
- * core's `focusable` attribute.
+ * help text, which stay accessible) and `error-message` (sets a custom validity message, like `setCustomValidity()`; it
+ * is not rendered). The core `invalid`, `label-position` and `autofocus` properties are accepted but have no effect
+ * (use `data-invalid`, as in Shoelace). As with every Velcro form control the host carries core's `focusable`
+ * attribute.
  *
  * @tag sl-switch
  * @status prototype
@@ -70,6 +70,10 @@ export class VelcroSwitch extends CoreSwitch {
     `,
   ];
 
+  // Shoelace's switch uses Lit's default shadow root options ({ mode: 'open' }). Core's focusable base delegates focus,
+  // which would, for example, focus the switch (and emit sl-focus) on a click on its help text.
+  public static override shadowRootOptions = { ...LitElement.shadowRootOptions } as typeof CoreSwitch.shadowRootOptions;
+
   // Shoelace's switch is not form-associated: the form is found from `form` / the closest <form> and the value is added
   // in its `formdata` event. Core's ElementInternals association is switched off so the host does not join
   // `form.elements`, submit core's form value or follow a disabled fieldset, which Shoelace's switch does not do either.
@@ -99,6 +103,23 @@ export class VelcroSwitch extends CoreSwitch {
   private velcroDisabled = false;
   private velcroChecked = false;
   private velcroErrorMessage = '';
+  private velcroReadonly = false;
+  private velcroDir?: string;
+
+  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
+  // initial value (undefined). Core's `dir` would return the computed direction instead.
+  /** The element's text direction, as set by the `dir` attribute or property. Not reflected. */
+  @property()
+  public override get dir(): 'ltr' | 'rtl' | 'auto' {
+    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+  }
+  public override set dir(value: 'ltr' | 'rtl' | 'auto') {
+    this.velcroDir = value;
+  }
+
+  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
+  @property()
+  public override lang!: string;
 
   @query('input[type="checkbox"]')
   public override input!: HTMLInputElement;
@@ -179,6 +200,44 @@ export class VelcroSwitch extends CoreSwitch {
     this.velcroErrorMessage = message ?? '';
   }
 
+  /**
+   * Velcro extension (core): keeps the switch's state on clicks and arrow keys.
+   * @default false
+   */
+  @property({ type: Boolean, reflect: true })
+  public override get readonly(): boolean {
+    return this.velcroReadonly;
+  }
+  public override set readonly(value: boolean) {
+    this.velcroReadonly = value;
+  }
+
+  /** Velcro extension (core): label text rendered as the default slot's fallback content when the slot is empty. */
+  @property({ reflect: true })
+  public override label?: string;
+
+  /** Velcro extension (core): visually hides the label and help text, which stay accessible. */
+  @property({ type: Boolean, attribute: 'hide-label', reflect: true })
+  public override hideLabel = false;
+
+  /**
+   * Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, but not maintained
+   * and without effect. Use `validity` or the `data-invalid` attribute, as in Shoelace.
+   */
+  @property({ type: Boolean, reflect: true })
+  public override invalid = false;
+
+  /** Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, without effect. */
+  @property({ attribute: 'label-position', reflect: true })
+  public override labelPosition?: 'end' | 'start' | 'top';
+
+  /**
+   * Velcro extension (core), inert: accepted and reflected for compatibility with the core switch, without effect. As
+   * in Shoelace, the switch is not focused on page load.
+   */
+  @property({ type: Boolean, reflect: true })
+  public override autofocus = false;
+
   /** Gets the validity state object */
   public override get validity() {
     return this.input.validity;
@@ -208,8 +267,9 @@ export class VelcroSwitch extends CoreSwitch {
     }
     if (!this.hasRecordedInitialProperties) {
       (this.constructor as typeof VelcroSwitch).elementProperties.forEach((options, prop) => {
+        if (!options.reflect) return;
         const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-        if (options.reflect && current != null) {
+        if (current != null) {
           this.initialReflectedProperties.set(prop as string, current);
         }
       });
@@ -400,7 +460,6 @@ export class VelcroSwitch extends CoreSwitch {
             .checked=${live(this.checked)}
             .disabled=${this.disabled}
             .required=${this.required}
-            ?autofocus=${this.autofocus}
             role="switch"
             aria-checked=${this.checked ? 'true' : 'false'}
             aria-describedby="help-text"

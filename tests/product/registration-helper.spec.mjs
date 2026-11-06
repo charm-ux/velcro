@@ -306,6 +306,72 @@ test('scope resolver: core lookups resolve to sl-* tags, a registered Velcro dep
   });
 });
 
+test('scope resolver: the scope stays available while connecting and reconnecting; only core\'s marker write is skipped', async ({ page }) => {
+  await load(page);
+  await loadScoped(page);
+  const r = await page.evaluate(async () => {
+    const Icon = class extends CoreIcon {};
+    Icon.baseName = 'icon';
+    define(Icon);
+    const seen = [];
+    const Sw = class extends CoreSwitch {
+      static get dependencies() {
+        return [];
+      }
+      connectedCallback() {
+        super.connectedCallback();
+        // connection-time lookups by a subclass, after core's own connectedCallback ran
+        const baseName = this.scope.getBaseName(this);
+        seen.push(['connected', this.scope.tagName('icon'), baseName]);
+        this.setAttribute('data-connected', baseName); // an ordinary write after getBaseName passes through
+      }
+    };
+    Sw.baseName = 'switch';
+    useVelcroScope(Sw); // wraps the subclass's own connectedCallback, so its lookups run while connecting
+    define(Sw);
+    const el = new Sw();
+    el.addController({ hostConnected: () => seen.push(['controller', el.scope?.tagName('icon')]) });
+    const states = [];
+    const snapshot = () => ({
+      marker: el.hasAttribute('switch'), connected: el.getAttribute('data-connected'),
+      ownSetAttribute: Object.prototype.hasOwnProperty.call(el, 'setAttribute'), scope: el.scope === velcroScope,
+    });
+    document.body.append(el);
+    await el.updateComplete;
+    states.push(snapshot());
+    el.remove();
+    el.removeAttribute('data-connected');
+    document.body.append(el); // reconnection
+    states.push(snapshot());
+    el.setAttribute('switch', ''); // the same write by user code outside connectedCallback is not filtered
+    const userMarker = el.hasAttribute('switch');
+    let late;
+    try {
+      const Late = class extends CoreSwitch {
+        static get dependencies() {
+          return [];
+        }
+      };
+      Late.baseName = 'late-switch';
+      define(Late);
+      useVelcroScope(Late);
+      late = 'no error';
+    } catch (e) {
+      late = e.message;
+    }
+    return { seen, states, userMarker, late, getName: typeof customElements.getName === 'function' };
+  });
+  expect(r.seen).toEqual([
+    ['controller', 'sl-icon'], ['connected', 'sl-icon', 'switch'],
+    ['controller', 'sl-icon'], ['connected', 'sl-icon', 'switch'],
+  ]);
+  const state = { marker: false, connected: 'switch', ownSetAttribute: false, scope: true };
+  expect(r.states).toEqual([state, state]);
+  expect(r.userMarker).toBe(true);
+  // The guard needs customElements.getName (every current engine); without it the late call cannot be detected.
+  if (r.getName) expect(r.late).toContain('before the class is defined');
+});
+
 test('scope resolver: a missing or foreign dependency is a clear construction error, never a silent gap', async ({ page }) => {
   await load(page);
   await loadScoped(page);
