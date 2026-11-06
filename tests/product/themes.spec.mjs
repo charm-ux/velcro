@@ -62,6 +62,8 @@ test('light and dark define exactly the same tokens, with the upstream selectors
 
 async function openFrame(page) {
   await page.goto('/components/card', { waitUntil: 'networkidle' });
+  // The client router replaces the prerendered page once; until it has settled there can be two example iframes.
+  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-basic')).toBeVisible();
   await frame.locator('#demo-basic').evaluate(() => customElements.whenDefined('sl-card'));
