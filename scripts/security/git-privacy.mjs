@@ -18,13 +18,23 @@ const protectedPath = name => /^(?:security\/|scripts\/|\.githooks\/|\.github\/|
 const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_TOTAL = 64 * 1024 * 1024;
 const MAX_ENTRIES = 10000;
+// Changed-file entries a published range may contain before the exact head
+// needs owner approval. Full-history mode keeps only the hard caps above.
+const APPROVAL_LIMIT = 1000;
+const APPROVAL_ENV = 'VELCRO_HISTORY_APPROVED';
 // Approved public-platform metadata, only for a raw historical committer role.
 // This does not authenticate provenance or permit the platform as an author.
 const platformCommitter = { name: 'GitHub', email: ['noreply', 'github.com'].join('@') };
 
+const MESSAGES = {
+  1: 'git-privacy: publication findings; details withheld',
+  2: 'git-privacy: input, policy or scanner failure; details withheld',
+  3: 'git-privacy: history scan exceeds 1,000 changed files; owner approval required',
+};
+
 class GuardError extends Error {
   constructor(code = 2) {
-    super(code === 1 ? 'git-privacy: publication findings; details withheld' : 'git-privacy: input, policy or scanner failure; details withheld');
+    super(MESSAGES[code] ?? MESSAGES[2]);
     this.code = code;
     this.stack = this.message;
   }
@@ -120,7 +130,7 @@ async function sourceScan(repo, policy, collect) {
     // Numbered .txt names deliberately avoid the scanner's stock path filters.
     writeFileSync(path.join(scratch, `${entries}.txt`), bytes, { flag: 'wx', mode: 0o600 });
   }
-  function blob(mode, oid, label) {
+  function blob(mode, oid, label, content) {
     if (++visits > MAX_ENTRIES) fail();
     cleanText('', label, policy);
     if (!['100644', '100755'].includes(mode) || !OID.test(oid)
@@ -129,7 +139,7 @@ async function sourceScan(repo, policy, collect) {
     // content without using them as scanner-visible filenames or diagnostics.
     if (!labels.has(label)) { labels.add(label); materialize(Buffer.from(`source path: ${label}\n`)); }
     // Inspect every path, even if its blob was already inspected at another path.
-    const bytes = repo.git(['cat-file', 'blob', oid], { maxBuffer: MAX_BYTES + 1 });
+    const bytes = content ?? repo.git(['cat-file', 'blob', oid], { maxBuffer: MAX_BYTES + 1 });
     cleanText(decode(bytes), label, policy);
     if (!blobs.has(oid)) { blobs.add(oid); materialize(bytes); }
   }
@@ -146,14 +156,64 @@ async function sourceScan(repo, policy, collect) {
   }
 }
 
-function tree(repo, oid, blob) {
-  const records = decode(repo.git(['ls-tree', '-r', '-z', '--full-tree', oid])).split('\0');
-  if (records.length > MAX_ENTRIES + 1) fail();
-  for (const record of records.filter(Boolean)) {
-    const match = /^(\d+) (blob|commit) ([a-f0-9]+)\t([\s\S]+)$/.exec(record);
-    if (!match || match[2] !== 'blob') fail();
-    blob(match[1], match[3], match[4]);
+// Raw `diff-tree -r -z` records: ":<old-mode> <new-mode> <old-oid> <new-oid> <status>\0<path>\0".
+function treeDiff(repo, revisions) {
+  const fields = decode(repo.git(['diff-tree', '-r', '-z', '--raw', '--no-abbrev', '--no-renames',
+    '--no-commit-id', '--ignore-submodules=none', '--no-ext-diff', '--no-textconv', ...revisions])).split('\0');
+  if (fields.at(-1) !== '') fail();
+  fields.pop();
+  if (fields.length % 2 || fields.length / 2 > MAX_ENTRIES) fail();
+  const changes = new Map();
+  for (let index = 0; index < fields.length; index += 2) {
+    const match = /^:(\d{6}) (\d{6}) ([a-f0-9]+) ([a-f0-9]+) ([ADMT])$/.exec(fields[index]);
+    const name = fields[index + 1];
+    if (!match || !name || changes.has(name)) fail();
+    // Deleted paths need no content scan: their bytes were checked when added.
+    if (match[5] === 'D') { if (!/^0+$/.test(match[4])) fail(); continue; }
+    changes.set(name, { mode: match[2], oid: match[4], name });
   }
+  return changes;
+}
+
+// The (mode, blob, path) entries of a commit that are not already covered.
+// Invariant, in topological order: every entry in the tree of a selected
+// commit is either scanned or present in the base tip's tree (the verified
+// published baseline). An entry identical to a selected parent is covered by
+// that parent; one identical only to a parent outside the selection is not,
+// because that ancestor's content was never scanned in this range (a later
+// base may have cleaned it), so such parents are replaced by the base tip
+// itself. A root commit contributes its whole tree; a merge, the paths that
+// differ from every one of these comparison trees (so an evil merge, or a
+// merge keeping an unscanned side, is scanned).
+function introduced(repo, id, parents, selected, base) {
+  if (!parents.length) return treeDiff(repo, ['--root', id]);
+  const against = parents.filter(parent => selected.has(parent));
+  if (against.length < parents.length) {
+    if (!base) fail();
+    against.push(base);
+  }
+  const [first, ...rest] = [...new Set(against)].map(parent => treeDiff(repo, [parent, id]));
+  for (const other of rest) for (const name of first.keys()) if (!other.has(name)) first.delete(name);
+  return first;
+}
+
+// Deduplicated changed-file entries for `tip` excluding commits reachable from
+// `base` (the already verified published baseline); all ancestry without one.
+function changedEntries(repo, tip, base) {
+  const lines = decode(repo.git(['rev-list', '--parents', tip, ...(base ? [`^${base}`] : [])])).trim()
+    .split('\n').filter(Boolean);
+  if (lines.length > MAX_ENTRIES) fail();
+  const commits = lines.map(line => line.split(' '));
+  if (!commits.every(ids => ids.every(oid => OID.test(oid)))) fail();
+  const selected = new Set(commits.map(([id]) => id));
+  const entries = new Map();
+  for (const [id, ...parents] of commits) {
+    for (const entry of introduced(repo, id, parents, selected, base).values()) {
+      entries.set(`${entry.mode} ${entry.oid}\0${entry.name}`, entry);
+      if (entries.size > MAX_ENTRIES) fail();
+    }
+  }
+  return { commits: lines.length, entries: [...entries.values()] };
 }
 
 function protectedChanges(repo, from, to) {
@@ -189,12 +249,41 @@ function fetchedRef(repo, name, optional = false) {
   return oid;
 }
 
-async function history(repo, oid, policy) {
-  // Full ancestry is intentional, including when a caller supplies a range:
-  // no mutable or unreviewed baseline can conceal an unsafe earlier object.
+// One `cat-file --batch` read instead of a process per blob. Every response must
+// be the requested OID, a blob and within the per-file bound.
+function readBlobs(repo, oids) {
+  const unique = [...new Set(oids)];
+  const blobs = new Map();
+  if (!unique.length) return blobs;
+  const output = repo.git(['cat-file', '--batch'], { input: unique.map(oid => `${oid}\n`).join(''),
+    maxBuffer: MAX_TOTAL + unique.length * 160 });
+  let offset = 0;
+  for (const oid of unique) {
+    const end = output.indexOf(0x0a, offset);
+    if (end < 0) fail();
+    const match = /^([a-f0-9]+) blob (\d+)$/.exec(decode(output.subarray(offset, end)));
+    if (!match || match[1] !== oid || Number(match[2]) > MAX_BYTES) fail();
+    const start = end + 1;
+    const stop = start + Number(match[2]);
+    if (output.length < stop + 1 || output[stop] !== 0x0a) fail();
+    blobs.set(oid, output.subarray(start, stop));
+    offset = stop + 1;
+  }
+  if (offset !== output.length) fail();
+  return blobs;
+}
+
+// Commit metadata and messages are always scanned across the tip's full
+// ancestry (cheap). File content is scanned only where a commit changed it:
+// in full-history mode (no base) across all ancestry under the hard caps; with
+// a base, only for commits not reachable from that already verified published
+// baseline, where more than APPROVAL_LIMIT entries need exact-head approval.
+async function history(repo, oid, policy, { base, approval } = {}) {
   const commits = decode(repo.git(['rev-list', oid])).trim().split('\n');
   if (commits.length > MAX_ENTRIES || commits.some(id => !OID.test(id))) fail();
-  return sourceScan(repo, policy, ({ blob, materialize }) => {
+  const range = changedEntries(repo, oid, base);
+  if (base && range.entries.length > APPROVAL_LIMIT && approval !== oid) fail(3);
+  await sourceScan(repo, policy, ({ blob, materialize }) => {
     for (const id of commits) {
       const bytes = repo.git(['cat-file', 'commit', id], { maxBuffer: MAX_BYTES + 1 });
       const raw = decode(bytes);
@@ -211,12 +300,21 @@ async function history(repo, oid, policy) {
       cleanText(headers.filter(line => !/^(?:author|committer) /.test(line)).join('\n'), 'metadata.txt', policy);
       cleanText(raw.slice(split + 2), 'message.txt', policy);
       materialize(bytes);
-      tree(repo, id, blob);
     }
+    // Mode, archive and path checks run in blob() before any content is used.
+    const contents = readBlobs(repo, range.entries.filter(entry => ['100644', '100755'].includes(entry.mode))
+      .map(entry => entry.oid));
+    for (const entry of range.entries) blob(entry.mode, entry.oid, entry.name, contents.get(entry.oid));
   });
+  return { commits: commits.length, rangeCommits: range.commits, entries: range.entries.length };
 }
 
-export async function main(args, { cwd = process.cwd(), input, io = process } = {}) {
+function historyNotice(io, result) {
+  io.stdout.write(`git-privacy: history metadata ${result.commits} commit(s); content ${result.entries} changed file entr${
+    result.entries === 1 ? 'y' : 'ies'} in ${result.rangeCommits} commit(s)\n`);
+}
+
+export async function main(args, { cwd = process.cwd(), input, io = process, env = process.env } = {}) {
   try {
     ({ loadPolicy, scanText } = await import('./privacy.mjs'));
     ({ parseRevisionRange, scanDir } = await import('./gitleaks.mjs'));
@@ -248,8 +346,13 @@ export async function main(args, { cwd = process.cwd(), input, io = process } = 
       });
     } else if (command === 'history' && rest.length <= 1) {
       const range = rest.length ? parseRevisionRange(rest[0]) : { to: 'HEAD' };
-      if (range.from) repo.resolve(range.from);
-      await history(repo, repo.resolve(range.to), policy);
+      // A range's lower bound must be already verified published history (the
+      // fetched main or a PR base): its content is trusted, its metadata is not.
+      // It must be the fetched main or one of its ancestors; anything else fails.
+      const base = range.from ? repo.resolve(range.from) : undefined;
+      if (base) repo.git(['merge-base', '--is-ancestor', base, fetchedRef(repo, 'refs/remotes/origin/main')]);
+      const tip = repo.resolve(range.to);
+      historyNotice(io, await history(repo, tip, policy, { base, approval: env[APPROVAL_ENV] }));
     } else if (command === 'pre-push' && rest.length <= 1) {
       if (rest.length && rest[0] !== 'origin') fail();
       // Include command-scope push configuration when rejecting configured mirror
@@ -282,9 +385,10 @@ export async function main(args, { cwd = process.cwd(), input, io = process } = 
         repo.git(['merge-base', '--is-ancestor', old, fields[1]]);
       }
       await sourceScan(repo, policy, ({ materialize }) => materialize(Buffer.from(`${fields[0]}\n${fields[2]}\n`)));
-      await history(repo, fields[1], policy);
+      const result = await history(repo, fields[1], policy, { base, approval: env[APPROVAL_ENV] });
       const count = protectedChanges(repo, base, fields[1]);
       if (fetchedRef(repo, mainRef) !== base || fetchedRef(repo, featureRef, true) !== old) fail();
+      historyNotice(io, result);
       reviewNotice(io, count);
     } else if (command === 'policy' && rest.length === 2) {
       if (rest.some(id => !OID.test(id))) fail();
