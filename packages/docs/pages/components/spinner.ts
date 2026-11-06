@@ -15,7 +15,8 @@ const gaps = [
   'The accessible name is the fixed English string "Loading". Shoelace localizes it through its localization controller; that is not implemented and localized output has not been compared.',
   'The element has role="progressbar" without a value (an indeterminate progress bar), as in Shoelace. Whether a given screen reader announces it was not tested.',
   'Neither Shoelace 2.20.1 nor this component reduces or stops the animation for prefers-reduced-motion; the spinner keeps animating. This is recorded as parity, not as an accessibility endorsement.',
-  'The inherited core properties label and label-position, the core "spinner-*" parts and the core "--spinner-*" custom properties exist on the element but have no effect; they are not part of the Shoelace contract.',
+  'The inherited core properties label and label-position exist on the element but have no effect, and the core "spinner-*" parts and "--spinner-*" custom properties are not rendered or read; they are not part of the Shoelace contract. The core spinner styles are not applied, so core\'s label-position rules cannot reach the Shoelace markup.',
+  'Two additions to Shoelace\'s styles: the default indicator color falls back to #0284c7 when the --sl-color-primary-600 token is not loaded, and a forced-colors rule draws the track in GrayText and the indicator in Highlight. Shoelace 2.20.1 has neither.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. The package root, which registers all four components, is checked in Chromium against core\'s prefix, project configuration and scope maps, with core\'s own button loaded in either order. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported: a Velcro component that needs them fails when it is created, even when it is the only Charm library on the page. Server-side rendering is not supported.',
   'Geometry and animation were checked by computed-style assertions in Chromium only; there is no pixel comparison against Shoelace.',
   'sl-button still draws its own internal loading indicator; it does not use sl-spinner yet.',
@@ -39,7 +40,7 @@ export class SpinnerPage extends LitElement {
 
       ${apiReference('sl-spinner', {
         attributes: html`<p>Shoelace 2.20.1 has no public attributes or properties on the spinner; the rows above are inherited from the core spinner.</p>`,
-        parts: html`<p><code>base</code> (the <code>svg</code> element, with <code>role="progressbar"</code> and <code>aria-label="Loading"</code>).</p>`,
+        parts: html`<p><code>base</code> (the <code>svg</code> element, with <code>role="progressbar"</code> and <code>aria-label="Loading"</code>). Inside it, as in Shoelace, the shadow DOM is <code>svg.spinner</code> around <code>circle.spinner__track</code> and <code>circle.spinner__indicator</code>; only <code>base</code> is a public part, and Shoelace's own spinner test finds the indicator by that class name.</p>`,
         events: html`<p>None from Shoelace; only the inherited core <code>ready</code> event.</p>`,
       })}
 

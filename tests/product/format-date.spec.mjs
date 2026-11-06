@@ -120,7 +120,7 @@ test('defaults: the date is the current time, no format options, auto hour forma
   `);
   expect(out.defaults).toEqual({ hourFormat: 'auto' });
   expect(out.isDate).toBe(true);
-  expect([out.initialLang, out.removedLang]).toEqual(['', null]); // Shoelace starts at undefined; removal leaves null in both
+  expect([out.initialLang, out.removedLang]).toEqual([undefined, null]); // as in Shoelace: starts undefined; removal leaves null
   expect(out.recent).toBe(true);
   expect(out.attrs).toEqual([]);
   expect(out.text).toContain('Thursday');

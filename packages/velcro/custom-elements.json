@@ -413,7 +413,7 @@
                   "text": "void"
                 }
               },
-              "description": "Simulates a click on the button. Does nothing while disabled, like a native disabled button. Once rendered it\nactivates the inner native button or link exactly once: that single composed click reaches host listeners, and a\nhost `preventDefault()` cancels a link's default action.",
+              "description": "Simulates a click on the button. As in Shoelace, once rendered it always activates the inner native button or link\nexactly once: a disabled native button ignores it, a disabled link's click reaches host listeners without\nnavigating, and a host `preventDefault()` cancels a link's default action.",
               "type": {
                 "text": "click() => void"
               }
@@ -561,7 +561,7 @@
               "name": "formControlController",
               "privacy": "private",
               "readonly": true,
-              "default": "new FormControlController(this, { assumeInteractionOn: ['click'], submitsOnlyAsSubmitter: true, // Shoelace resets a button's `value` to its (undefined) `defaultValue` on form reset, which then submits the string // \"undefined\" as the submitter value. Velcro leaves the value alone instead. setValue: () => {}, })"
+              "default": "new FormControlController(this, { assumeInteractionOn: ['click'], submitsOnlyAsSubmitter: true, })"
             },
             {
               "kind": "field",
@@ -639,15 +639,7 @@
             {
               "kind": "method",
               "name": "handleClick",
-              "privacy": "protected",
-              "parameters": [
-                {
-                  "name": "event",
-                  "type": {
-                    "text": "MouseEvent"
-                  }
-                }
-              ]
+              "privacy": "protected"
             },
             {
               "kind": "method",
@@ -2206,7 +2198,6 @@
                 "text": "string"
               },
               "privacy": "public",
-              "default": "''",
               "attribute": "lang"
             },
             {
@@ -2280,7 +2271,6 @@
               "type": {
                 "text": "string"
               },
-              "default": "''",
               "fieldName": "lang",
               "propName": "lang"
             },
@@ -2436,7 +2426,6 @@
                 "text": "string"
               },
               "privacy": "public",
-              "default": "''",
               "attribute": "lang"
             },
             {
@@ -2595,7 +2584,6 @@
               "type": {
                 "text": "string"
               },
-              "default": "''",
               "fieldName": "lang",
               "propName": "lang"
             },

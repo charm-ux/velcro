@@ -4,12 +4,13 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 /**
- * Minimal localization controller shared by the formatting components (format-bytes now; format-number, format-date and
- * relative-time later).
+ * Minimal localization controller shared by the formatting components (format-bytes, format-date, format-number and
+ * relative-time).
  *
  * Resolution matches @shoelace-style/localize: the host's `lang` (and `dir`) when set, otherwise the `lang` / `dir` of the
- * document element, otherwise the browser language (`navigator.language`) / `ltr`. The host is re-rendered when the
- * document element's `lang` or `dir` attribute changes (one shared observer, attached while any host is connected). A change
+ * document element, otherwise the browser language (`navigator.language`) / `ltr`. An unset host `lang` (undefined, as in
+ * Shoelace, or null after its attribute is removed) falls through the same way, as does an empty string. The host is
+ * re-rendered when the document element's `lang` or `dir` attribute changes (one shared observer, attached while any host is connected). A change
  * of the host's own `lang` property already re-renders it through Lit.
  *
  * Gap: there is no translation registry (no `registerTranslation`, no `term()`), so strings such as accessible names are

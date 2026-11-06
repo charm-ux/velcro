@@ -2,8 +2,8 @@
 // src/internal/shoelace-element.ts), Copyright (c) 2020 A Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md.
 // The API documentation wording, the rendered structure (a `base` <button> or <a> with `button` / `button--*` class names
 // around the prefix, label and suffix slots, caret and spinner), the form participation and the validation API follow
-// Shoelace. Velcro changes: built on the @charm-ux/core button (core-only extras are kept, see the class comment), the
-// caret is an inline svg instead of an sl-icon, a disabled link swallows clicks, and form reset leaves `value` alone.
+// Shoelace. Velcro changes: built on the @charm-ux/core button (core-only extras are kept, see the class comment),
+// and the caret is an inline svg instead of an sl-icon.
 import { type PropertyValues } from 'lit';
 import { html, literal } from 'lit/static-html.js';
 import { property, query } from 'lit/decorators.js';
@@ -53,9 +53,6 @@ export class VelcroButton extends CoreButton {
   private readonly formControlController = new FormControlController(this, {
     assumeInteractionOn: ['click'],
     submitsOnlyAsSubmitter: true,
-    // Shoelace resets a button's `value` to its (undefined) `defaultValue` on form reset, which then submits the string
-    // "undefined" as the submitter value. Velcro leaves the value alone instead.
-    setValue: () => {},
   });
   private readonly hasSlotController = new HasSlotController(this, '[default]', 'prefix', 'suffix');
   private readonly localize = new LocalizeController(this);
@@ -248,14 +245,9 @@ export class VelcroButton extends CoreButton {
     this.emit('sl-focus');
   }
 
-  protected override handleClick(event: MouseEvent) {
-    // Velcro hardening: a disabled link (an <a> without href) would otherwise still deliver its click to host
-    // listeners. A disabled native button never fires one.
-    if (this.disabled) {
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
+  // As in Shoelace there is no disabled guard: a disabled native button never fires a click, and a disabled link
+  // renders without href, so its click reaches host listeners but does not navigate.
+  protected override handleClick() {
     // Core's toggle-button extension: a `toggle` button flips `pressed` and emits `change` instead of acting on a form.
     if (!this.href && this.toggle) {
       this.pressed = !this.pressed;
@@ -284,14 +276,11 @@ export class VelcroButton extends CoreButton {
   }
 
   /**
-   * Simulates a click on the button. Does nothing while disabled, like a native disabled button. Once rendered it
-   * activates the inner native button or link exactly once: that single composed click reaches host listeners, and a
-   * host `preventDefault()` cancels a link's default action.
+   * Simulates a click on the button. As in Shoelace, once rendered it always activates the inner native button or link
+   * exactly once: a disabled native button ignores it, a disabled link's click reaches host listeners without
+   * navigating, and a host `preventDefault()` cancels a link's default action.
    */
   public override click(): void {
-    if (this.disabled) {
-      return;
-    }
     if (this.button) {
       this.button.click();
       return;

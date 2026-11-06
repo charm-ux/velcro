@@ -12,32 +12,30 @@ export const pageData = definePageData(async () => ({
 }));
 
 const sections: Array<[string, string, string, string]> = [
-  ['overview', 'Overview', 'button/basic', 'Buttons represent actions that are available to the user. Clicks reach ordinary click listeners on the element; a disabled button receives none.'],
+  ['overview', 'Overview', 'button/basic', 'Buttons represent actions that are available to the user. Clicks reach ordinary click listeners on the element; a disabled native button receives none.'],
   ['variants', 'Variants', 'button/variants', 'Use the variant attribute to set the button\'s variant.'],
   ['sizes', 'Sizes', 'button/sizes', 'Use the size attribute to change a button\'s size.'],
   ['outline', 'Outline buttons', 'button/outline', 'Use the outline attribute to draw outlined buttons with transparent backgrounds.'],
   ['pill', 'Pill buttons', 'button/pill', 'Use the pill attribute to give buttons rounded edges.'],
   ['circle', 'Circle buttons', 'button/circle', 'Use the circle attribute to create circular icon buttons. Give the icon an accessible name; a label on the sl-button element itself does not reach the inner button.'],
   ['text', 'Text buttons', 'button/text', 'Use the text variant to create text buttons that share the same size as regular buttons but don\'t have backgrounds or borders.'],
-  ['links', 'Link buttons', 'button/links', 'It\'s often helpful to have a button that works like a link. Set href and the button renders an <a> instead of a <button>; target and download work as on a link. A disabled link button has no href and swallows clicks.'],
+  ['links', 'Link buttons', 'button/links', 'It\'s often helpful to have a button that works like a link. Set href and the button renders an <a> instead of a <button>; target and download work as on a link. A disabled link button renders without href, so it does not navigate; as in Shoelace, its clicks still reach click listeners on the element.'],
   ['width', 'Setting a custom width', 'button/width', 'As expected, buttons can be given a custom width by setting the width attribute. This is useful for making buttons span the full width of their container on smaller screens.'],
   ['prefix-suffix', 'Prefix and suffix icons', 'button/prefix-suffix', 'Use the prefix and suffix slots to add icons. Velcro has no sl-icon yet, so these examples use text glyphs.'],
   ['caret', 'Caret', 'button/caret', 'Use the caret attribute to add a dropdown indicator when a button will trigger a dropdown, menu, or popover.'],
   ['loading', 'Loading', 'button/loading', 'Use the loading attribute to make a button busy. The width will remain the same as before, preventing adjacent elements from moving around. Clicks still work while loading, as in Shoelace.'],
   ['disabled', 'Disabled', 'button/disabled', 'Use the disabled attribute to disable a button.'],
   ['styling', 'Styling buttons', 'button/styling', 'This example demonstrates how to style buttons using a custom class. This is the recommended approach if you need to add additional variations. To customize an existing variation, modify the selector to target the button\'s variant attribute instead of a class (e.g. sl-button[variant="primary"]).'],
-  ['forms', 'Forms', 'button/forms', 'A submit button submits its form with the button as the submitter: the submit event fires, constraint validation runs unless novalidate or formnovalidate is set, and the button\'s name and value are sent. A reset button resets the form.'],
+  ['forms', 'Forms', 'button/forms', 'A submit button submits its form with the button as the submitter: the submit event fires, constraint validation runs unless novalidate or formnovalidate is set, and the button\'s name and value are sent. A reset button resets the form. As in Shoelace, a form reset also sets each button\'s value to its undefined defaultValue, so a later submit sends the string "undefined" as the submitter value.'],
 ];
 
 const gaps = [
   'Velcro builds on the @charm-ux/core button and keeps its extras, which are not part of the Shoelace contract: toggle and pressed (an aria-pressed toggle button that emits a change event instead of acting on a form), expanded and current (aria-expanded / aria-current on the inner control), autofocus, referrerpolicy on links (defaults to strict-origin-when-cross-origin, the browser default), and shows / hides / toggles. The element also carries the core attribute "focusable" and emits the core ready event (see Events). The core icon-only and allow-wrap attributes are accepted but have no effect.',
-  'A disabled link button swallows clicks: click listeners on the element do not run. Reading the Shoelace 2.20.1 source (not run here), the inner <a> of a disabled link there still delivers its click to listeners on the element. A disabled native button fires no click in either library.',
-  'Form reset leaves the button\'s value alone. Reading the Shoelace 2.20.1 source (not run here), Shoelace sets a button\'s value to its undefined defaultValue on form reset, so a later submit sends the string "undefined" as the submitter value.',
   'The caret is an inline svg inside a <span part="caret"> instead of an <sl-icon>; Velcro has no icon component yet. The loading spinner is Velcro\'s own <sl-spinner>, which the sl-button entry and the package root register. The class-only entry registers nothing, so register a spinner yourself if you use loading with it.',
   'As in Shoelace, the element is not form-associated: it does not appear in form.elements, is not disabled by a disabled <fieldset>, and adds nothing to FormData unless it is the submitter. Implicit submission (Enter in a text field) does not use it as the default button. Submission goes through a temporary native button appended to the form, so event.submitter in the submit event is that <button>, not the sl-button element.',
   'As in Shoelace, a button attached to a form replaces the form\'s checkValidity() and reportValidity() with versions that also check Velcro controls (restored when the last one detaches), and sets data-valid / data-invalid / data-optional / data-user-valid / data-user-invalid attributes on itself.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. The package root is checked in Chromium against core\'s prefix, project configuration and scope maps, with core\'s own button loaded in either order. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported. Server-side rendering is not supported.',
-  'Shoelace\'s own button tests run against Velcro; the remaining failures are listed with reasons in the upstream ledger. Rendering is checked by computed-style assertions in Chromium; there is no pixel comparison against Shoelace, and no Firefox or WebKit run. Dark rendering is not screenshot-checked.',
+  'Shoelace\'s own button tests run against Velcro and all pass. Rendering is checked by computed-style assertions in Chromium; there is no pixel comparison against Shoelace, and no Firefox or WebKit run. Dark rendering is not screenshot-checked.',
 ];
 
 @customElement('page-components-button')

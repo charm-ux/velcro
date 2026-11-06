@@ -60,7 +60,7 @@ test('click increments the example counter through document-level wiring', async
   await expect(frame.locator('#demo-count')).toHaveText('2');
 });
 
-test('disabled: swallows clicks and is not keyboard focusable', async ({ page }) => {
+test('disabled: a native button swallows clicks and is not keyboard focusable', async ({ page }) => {
   const { frame } = await openExample(page);
   const disabled = frame.locator('#demo-disabled');
   await expect(disabled).toHaveAttribute('disabled', '');
@@ -146,7 +146,34 @@ test('rendered link: click() emits exactly one host click and host preventDefaul
   });
   expect(result.allowed).toEqual({ windowSeen: [false], controlClicks: 1 });
   expect(result.prevented).toEqual({ windowSeen: [true], controlClicks: 1 });
-  expect(result.disabled).toEqual({ windowSeen: [], controlClicks: 0 });
+  // As in Shoelace, a disabled link still activates its inner <a> (rendered without href), so the click reaches host
+  // listeners; the no-navigation check is the next test.
+  expect(result.disabled).toEqual({ windowSeen: [false], controlClicks: 1 });
+});
+
+test('disabled link: click() and a real pointer click each reach the host once and do not navigate', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const before = await frame.locator('body').evaluate(async () => {
+    const el = document.createElement('sl-button');
+    el.id = 'demo-disabled-link';
+    el.setAttribute('href', '#disabled-link');
+    el.setAttribute('disabled', '');
+    el.textContent = 'Link';
+    document.body.append(el);
+    window.__disabledLinkClicks = 0;
+    // No preventDefault anywhere: a navigation would show up as a changed location.
+    el.addEventListener('click', () => window.__disabledLinkClicks++);
+    await el.updateComplete;
+    const anchor = el.shadowRoot.querySelector('a');
+    return { href: location.href, anchorHref: anchor.getAttribute('href'), ariaDisabled: anchor.getAttribute('aria-disabled') };
+  });
+  expect(before.anchorHref).toBeNull();
+  expect(before.ariaDisabled).toBe('true');
+  await frame.locator('#demo-disabled-link').evaluate(el => el.click());
+  await frame.locator('#demo-disabled-link').click({ force: true });
+  await page.waitForTimeout(100);
+  const after = await frame.locator('body').evaluate(() => ({ href: location.href, clicks: window.__disabledLinkClicks }));
+  expect(after).toEqual({ href: before.href, clicks: 2 });
 });
 
 test('rendered link: a real pointer click emits exactly one host click', async ({ page }) => {
@@ -250,7 +277,7 @@ test('forms: formaction / formmethod overrides reach the submitter; the form att
   expect(outside.submits).toEqual([expect.objectContaining({ data: ['q=1', 'act=x'] })]);
 });
 
-test('forms: type=reset resets the form and keeps the button value; type=button and disabled submit nothing', async ({ page }) => {
+test('forms: type=reset resets the form and, as in Shoelace, the button value to undefined; type=button and disabled submit nothing', async ({ page }) => {
   const { frame } = await openExample(page);
   const reset = await frame.locator('body').evaluate(async body => {
     const host = document.createElement('div');
@@ -267,13 +294,31 @@ test('forms: type=reset resets the form and keeps the button value; type=button 
     });
     submitButton.click();
     host.remove();
-    return { value: host.querySelector('input').value, submitValue: submitButton.value, data };
+    return { value: host.querySelector('input').value, submitValueIsUndefined: submitButton.value === undefined, data };
   });
-  expect(reset).toEqual({ value: 'ada', submitValue: 'save', data: ['who=ada', 'act=save'] });
+  // Shoelace's form controller assigns the button's (undefined) defaultValue on reset, so the submitter then sends
+  // the string "undefined".
+  expect(reset).toEqual({ value: 'ada', submitValueIsUndefined: true, data: ['who=ada', 'act=undefined'] });
   const plain = await formScenario(frame, `<form><sl-button id="target">Go</sl-button></form>`, 'click');
   expect(plain.submits).toEqual([]);
-  const disabled = await formScenario(frame, `<form><sl-button id="target" type="submit" disabled>Go</sl-button></form>`, 'pointer');
+  // As in Shoelace there is no disabled guard in the click handler: the disabled inner native button is what keeps
+  // both click() and a real pointer click from submitting.
+  const disabled = await formScenario(frame, `<form><sl-button id="target" type="submit" disabled>Go</sl-button></form>`, 'click');
   expect(disabled.submits).toEqual([]);
+  await frame.locator('body').evaluate(async body => {
+    const host = document.createElement('div');
+    host.innerHTML = `<form><sl-button id="disabled-submit" type="submit" disabled>Go</sl-button></form>`;
+    body.append(host);
+    window.__disabledSubmits = 0;
+    host.querySelector('form').addEventListener('submit', event => {
+      window.__disabledSubmits++;
+      event.preventDefault();
+    });
+    await host.querySelector('sl-button').updateComplete;
+  });
+  await frame.locator('#disabled-submit').click({ force: true });
+  await page.waitForTimeout(100);
+  expect(await frame.locator('body').evaluate(() => window.__disabledSubmits)).toBe(0);
 });
 
 test('forms: keyboard Enter and Space on a focused submit button submit the form', async ({ page }) => {

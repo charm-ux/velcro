@@ -17,7 +17,7 @@ later Firefox and WebKit lane can reuse it.
 
 Shoelace 2.20.1 ships no test file for resize-observer, so it has no row here.
 
-Totals: 260 tests, 257 passed, 3 failed.
+Totals: 260 tests, 260 passed, 0 failed.
 
 | Component | Tests | Passed | Failed |
 | --- | ---: | ---: | ---: |
@@ -25,29 +25,17 @@ Totals: 260 tests, 257 passed, 3 failed.
 | button | 87 | 87 | 0 |
 | card | 17 | 17 | 0 |
 | divider | 3 | 3 | 0 |
-| format-bytes | 9 | 8 | 1 |
-| format-date | 40 | 39 | 1 |
+| format-bytes | 9 | 9 | 0 |
+| format-date | 40 | 40 | 0 |
 | format-number | 39 | 39 | 0 |
 | progress-bar | 8 | 8 | 0 |
 | progress-ring | 6 | 6 | 0 |
 | relative-time | 25 | 25 | 0 |
 | skeleton | 3 | 3 | 0 |
-| spinner | 4 | 3 | 1 |
+| spinner | 4 | 4 | 0 |
 | visually-hidden | 2 | 2 | 0 |
 
 ## Failing tests
-
-### format-bytes
-
-- <sl-format-bytes> > defaults  > default properties: lang defaults to an empty string instead of undefined
-
-### format-date
-
-- <sl-format-date> > defaults  > default properties: lang defaults to an empty string instead of undefined
-
-### spinner
-
-- <sl-spinner> > when provided no parameters > should use "transform: rotate(x)" instead of "rotate: x" when animating: shadow DOM uses different class names (no .spinner__indicator)
 
 Harness notes: the runner page loads Velcro's light theme where upstream loads Shoelace's, uses upstream's
 mocha settings (3 s timeout, one retry), and adds two guards so one failure cannot discard a whole file's
