@@ -648,3 +648,44 @@ test('range edge cases: symlink, gitlink, mode-only, octopus and unrelated roots
   assert.equal(run(unrelated.repo, ['pre-push'], { input: proposed(joined) }), 1);
   assert.equal(run(unrelated.repo, ['history', `${unrelated.base}..${joined}`]), 1);
 });
+
+// The real CI history step, run with this engine as the trusted copy: every PR
+// meets the 1,000-entry budget against the fetched main, so targeting (or
+// retargeting from) a branch that is not main cannot skip the approval.
+test('CI history step enforces the main publication budget whatever the PR base', () => {
+  const workflow = readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8');
+  const step = /- name: Trusted source and history scan\n([\s\S]*?)(?=\n {6}(?:#|- )|\n\n)/.exec(workflow)?.[1] ?? '';
+  const script = /\n {8}run: \|\n((?: {10}.*\n?)+)/.exec(step)?.[1];
+  assert.ok(script, 'actual history step must be testable');
+  const { repo, base } = prFixture();
+  mkdirSync(path.join(repo, '.airig/trusted/scripts/security'), { recursive: true });
+  symlinkSync(path.join(root, 'scripts/security/git-privacy.mjs'), path.join(repo, '.airig/trusted/scripts/security/git-privacy.mjs'));
+  // An intermediate target branch that is not part of main.
+  git(repo, ['checkout', '-q', '-b', 'target']);
+  const target = commit(repo, 'target change\n');
+  git(repo, ['checkout', '-q', '-b', 'large']);
+  const bulk = {};
+  for (let index = 0; index <= 1000; index += 1) bulk[`bulk/file-${String(index).padStart(4, '0')}.txt`] = `bulk ${index}\n`;
+  const head = commitFiles(repo, bulk);
+  const step$ = (event, baseOid, approved = '') => {
+    const result = spawnSync('sh', ['-e', '-c', script], { cwd: repo, encoding: 'utf8', timeout: 300000, env: { ...env,
+      EVENT_NAME: event, BASE_OID: baseOid, HEAD_OID: head, VELCRO_HISTORY_APPROVED: approved,
+      PATH: `${path.dirname(process.execPath)}${path.delimiter}${process.env.PATH}` } });
+    const output = `${result.stdout}${result.stderr}`;
+    assert.ok(!output.includes(repo), 'diagnostic exposed fixture location');
+    return { status: result.status, output };
+  };
+  const notice = 'history scan exceeds 1,000 changed files; owner approval required';
+  // Non-qualifying base (PR into `target`): fails closed without approval...
+  const unapproved = step$('pull_request', target);
+  assert.equal(unapproved.status, 3);
+  assert.ok(unapproved.output.includes(notice));
+  for (const wrong of [target, base]) assert.equal(step$('pull_request', target, wrong).status, 3);
+  // ...and passes only with exact-head approval (budget, then full history).
+  assert.equal(step$('pull_request', target, head).status, 0);
+  // After a retarget to main the same head is still capped.
+  assert.equal(step$('pull_request', base).status, 3);
+  assert.equal(step$('pull_request', base, head).status, 0);
+  // A push has no PR budget step; full-history mode stays uncapped.
+  assert.equal(step$('push', '0'.repeat(40)).status, 0);
+});

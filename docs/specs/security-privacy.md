@@ -148,7 +148,9 @@ from the fetched `origin/main`, CI scans a PR's commits against its base and a
 verified when it was published, so it is not rescanned. An explicit range base
 must be the fetched `origin/main` or its ancestor; CI falls back to full-history
 mode when its base is not (a PR into another branch, whose tip is unverified, a
-force push or a first push). More than 1,000
+force push or a first push). Every PR, whatever its base, also meets the budget
+below against the fetched `origin/main`, and a base change (`edited`) re-runs CI,
+so a fallback or a retarget cannot skip approval. More than 1,000
 changed-file entries in that range fail with a distinct exit (3) and
 "history scan exceeds 1,000 changed files; owner approval required". Approval
 names one exact head: locally `VELCRO_HISTORY_APPROVED=<full head OID>`, in CI

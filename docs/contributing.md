@@ -119,8 +119,9 @@ verify in parallel.
 ### History scan approval
 
 A published range (pre-push: commits not reachable from the fetched `origin/main`;
-CI on a PR: the PR's commits against its base; CI on `main`: the commits since the
-previous `main` tip) may contain at most 1,000 changed-file entries. Above that the
+CI on a PR: the PR's commits against the fetched `origin/main`, whatever the PR's
+base; CI on `main`: the commits since the previous `main` tip) may contain at most
+1,000 changed-file entries. Above that the
 scan stops with exit 3 before inspecting content. Only the owner approves a larger
 range, and only for one exact head:
 
@@ -134,9 +135,9 @@ range, and only for one exact head:
   set; the login is never committed. While it is unset or empty nobody can approve.
   The labeled run approves only the head it ran for; a later push runs blocked
   again until the label is removed and re-applied. A label applied by anyone else
-  approves nothing. Applying any other label also re-runs CI (including the product
-  job) without approval, and that run becomes the head's latest result, so re-apply
-  the approval label afterwards.
+  approves nothing. Applying any other label, or editing the PR (its base, title or
+  body), also re-runs CI (including the product job) without approval, and that run
+  becomes the head's latest result, so re-apply the approval label afterwards.
 - A post-merge run on `main` has no approval channel, so an approved range over
   1,000 entries fails there too. It does not gate Pages, which scans full history,
   and clears on the next push to `main` (a small range again).
@@ -145,7 +146,9 @@ range, and only for one exact head:
   (or `history origin/main..HEAD`) explicitly.
 - A PR into a branch other than `main`, a force push, or a first push has no base
   that is the fetched `main` or its ancestor, so CI scans the full history under the
-  hard caps instead of a range.
+  hard caps instead of a range. A PR still meets the 1,000-entry budget against the
+  fetched `main` first, so targeting another branch and later retargeting to `main`
+  cannot skip approval; a base change is an `edited` event and re-runs CI.
 
 Approval lifts only the 1,000-entry cap. Every finding, identity, protected-path,
 archive and scanner check still applies, as do the scanner's hard size and 10,000-entry caps.

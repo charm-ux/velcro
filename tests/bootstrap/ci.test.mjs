@@ -129,7 +129,9 @@ test('security scans the published range and only the configured approver label 
     { github: event({ event_name: 'push' }), vars: approver },
   ];
   for (const context of rejected) assert.equal(evaluate(approval, context), '', 'approval must stay empty');
-  assert.match(workflow, /\n {2}pull_request:\n(?: {4}#.*\n)? {4}types: \[opened, synchronize, reopened, labeled\]\n/);
+  // edited: retargeting a PR's base re-runs every job against the new base.
+  assert.match(workflow, /\n {2}pull_request:\n(?: {4}#.*\n)* {4}types: \[opened, synchronize, reopened, labeled, edited\]\n/);
+  assert.doesNotMatch(workflow, /github\.event\.action (?:==|!=) 'edited'|github\.event\.changes/, 'no job may be skipped on edits');
   assert.doesNotMatch(workflow, /git-privacy\.mjs history HEAD/);
   const script = /\n {8}run: \|\n((?: {10}.*\n?)+)/.exec(step)?.[1];
   assert.ok(script, 'actual history step must be testable');
@@ -137,16 +139,26 @@ test('security scans the published range and only the configured approver label 
   try {
     mkdirSync(path.join(dir, 'bin'));
     writeFileSync(path.join(dir, 'bin/node'), '#!/bin/sh\nprintf "%s\\n" "$*"\n', { mode: 0o755 });
-    // `git merge-base --is-ancestor <base> refs/remotes/origin/main`, answered by the fixture.
-    writeFileSync(path.join(dir, 'bin/git'), '#!/bin/sh\n[ "$1 $2 $4" = "merge-base --is-ancestor refs/remotes/origin/main" ] || exit 9\n[ "$3" = "$ANCESTOR" ]\n', { mode: 0o755 });
-    const invoke = (base, ancestor = base) => spawnSync('sh', ['-e', '-c', script], { cwd: dir, encoding: 'utf8', env: { ...process.env,
-      BASE_OID: base, HEAD_OID: head, ANCESTOR: ancestor, PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } }).stdout.trim();
+    // `git rev-parse` of the fetched main and `git merge-base --is-ancestor <base> refs/remotes/origin/main`.
+    writeFileSync(path.join(dir, 'bin/git'), [
+      '#!/bin/sh',
+      'if [ "$*" = "rev-parse --verify refs/remotes/origin/main^{commit}" ]; then echo "$MAIN"; exit 0; fi',
+      '[ "$1 $2 $4" = "merge-base --is-ancestor refs/remotes/origin/main" ] || exit 9',
+      '[ "$3" = "$ANCESTOR" ]', '',
+    ].join('\n'), { mode: 0o755 });
+    const main = 'd'.repeat(40);
+    const invoke = (event, base, ancestor = base) => spawnSync('sh', ['-e', '-c', script], { cwd: dir, encoding: 'utf8', env: { ...process.env,
+      EVENT_NAME: event, BASE_OID: base, HEAD_OID: head, ANCESTOR: ancestor, MAIN: main,
+      PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } }).stdout.trim().split('\n');
     const trusted = '.airig/trusted/scripts/security/git-privacy.mjs history';
-    assert.equal(invoke('a'.repeat(40)), `${trusted} ${'a'.repeat(40)}..${head}`);
-    // A base that is not the fetched main or its ancestor (PR into another branch, force push): full history.
-    assert.equal(invoke('a'.repeat(40), 'none'), `${trusted} ${head}`);
-    // No usable base (new branch, first push): full-history mode under the hard caps.
-    assert.equal(invoke('0'.repeat(40)), `${trusted} ${head}`);
-    assert.equal(invoke(''), `${trusted} ${head}`);
+    const budget = `${trusted} ${main}..${head}`;
+    assert.deepEqual(invoke('push', 'a'.repeat(40)), [`${trusted} ${'a'.repeat(40)}..${head}`]);
+    // No usable base (new branch, first push, force push): full-history mode under the hard caps.
+    assert.deepEqual(invoke('push', '0'.repeat(40)), [`${trusted} ${head}`]);
+    assert.deepEqual(invoke('push', ''), [`${trusted} ${head}`]);
+    assert.deepEqual(invoke('push', 'a'.repeat(40), 'none'), [`${trusted} ${head}`]);
+    // Every PR meets the budget against the fetched main first, whatever its event base.
+    assert.deepEqual(invoke('pull_request', 'a'.repeat(40)), [budget, `${trusted} ${'a'.repeat(40)}..${head}`]);
+    assert.deepEqual(invoke('pull_request', 'e'.repeat(40), 'none'), [budget, `${trusted} ${head}`]);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
