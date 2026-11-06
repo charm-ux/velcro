@@ -96,11 +96,11 @@ const hostile = {
 };
 
 test('a tampered tarball is rejected on its integrity alone: nothing is read further, extracted or run', async () => {
-  const { tarball, root } = await fakeTarball('tampered', hostile);
+  const { tarball, integrity, root } = await fakeTarball('tampered', hostile);
   const scratch = () => readdirSync(tmpdir()).filter(name => name.startsWith('velcro-animations-')).length;
   const before = scratch();
   assert.deepEqual(await verifyTarball(tarball), [
-    `tarball integrity ${(await fakeTarball('tampered-again', hostile)).integrity} is not the recorded ${INTEGRITY}`,
+    `tarball integrity ${integrity} is not the recorded ${INTEGRITY}`,
   ]);
   assert.equal(existsSync(marker), false, 'the tarball\'s code did not run');
   assert.equal(scratch(), before, 'nothing was extracted');
