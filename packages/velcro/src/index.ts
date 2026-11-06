@@ -15,3 +15,4 @@ export * from './components/spinner/index.js';
 export * from './components/switch/index.js';
 export * from './components/tab-panel/index.js';
 export * from './components/visually-hidden/index.js';
+export * from './components/popup/index.js';
