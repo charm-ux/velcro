@@ -195,6 +195,112 @@ test('rendered link: a real pointer click emits exactly one host click', async (
   expect(await frame.locator('body').evaluate(() => window.__linkClicks)).toBe(1);
 });
 
+// Core's declarative shows / hides / toggles actions are Velcro extensions. Click delivery follows Shoelace (a disabled
+// link still reaches host listeners), but the actions themselves do nothing while the button is disabled.
+test('extensions: shows / hides / toggles do nothing while disabled (link or native), and work once re-enabled', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const cases = [];
+  for (const kind of ['link', 'native']) for (const action of ['shows', 'hides', 'toggles']) cases.push({ kind, action, id: `ext-${kind}-${action}` });
+  const href = await frame.locator('body').evaluate(async (body, cases) => {
+    window.__ext = {};
+    for (const { kind, action, id } of cases) {
+      // A stub dismissible: records every show / hide / toggle call and exposes `open` like a real one.
+      const target = document.createElement('div');
+      target.id = `${id}-target`;
+      const state = { calls: [], clicks: 0 };
+      target.open = false;
+      target.show = () => (state.calls.push('show'), (target.open = true));
+      target.hide = () => (state.calls.push('hide'), (target.open = false));
+      target.toggle = () => (state.calls.push('toggle'), (target.open = !target.open));
+      const el = document.createElement('sl-button');
+      el.id = id;
+      el.textContent = id;
+      el.setAttribute(action, target.id);
+      el.setAttribute('disabled', '');
+      if (kind === 'link') el.setAttribute('href', `#${id}`);
+      // No preventDefault while disabled: a navigation would show up as a changed location.
+      el.addEventListener('click', () => state.clicks++);
+      body.append(target, el);
+      await el.updateComplete;
+      state.expanded = el.expanded;
+      window.__ext[id] = state;
+    }
+    return location.href;
+  }, cases);
+  const read = () => frame.locator('body').evaluate((_, cases) => ({
+    href: location.href,
+    ...Object.fromEntries(cases.map(({ id }) => {
+      const state = window.__ext[id];
+      return [id, { calls: [...state.calls], clicks: state.clicks, expandedUnchanged: document.getElementById(id).expanded === state.expanded }];
+    })),
+  }), cases);
+  for (const { id } of cases) {
+    await frame.locator(`#${id}`).evaluate(el => el.click());
+    await frame.locator(`#${id}`).click({ force: true });
+  }
+  await page.waitForTimeout(100);
+  const disabled = await read();
+  expect(disabled.href).toBe(href);
+  // A disabled link delivers one host click per activation (as in Shoelace); a disabled native button delivers none.
+  for (const { kind, id } of cases) expect(disabled[id], id).toEqual({ calls: [], clicks: kind === 'link' ? 2 : 0, expandedUnchanged: true });
+
+  // Re-enabled, each action runs once per click (links are cancelled by a host listener so nothing navigates).
+  await frame.locator('body').evaluate(async (_, cases) => {
+    for (const { kind, id } of cases) {
+      const el = document.getElementById(id);
+      if (kind === 'link') el.addEventListener('click', event => event.preventDefault());
+      el.disabled = false;
+      await el.updateComplete;
+    }
+  }, cases);
+  for (const { id } of cases) await frame.locator(`#${id}`).evaluate(el => el.click());
+  const enabled = await read();
+  expect(enabled.href).toBe(href);
+  const expected = { shows: ['show'], hides: ['hide'], toggles: ['toggle'] };
+  for (const { kind, action, id } of cases) {
+    expect(enabled[id].calls, id).toEqual(expected[action]);
+    expect(enabled[id].clicks, id).toBe(kind === 'link' ? 3 : 1);
+  }
+  const expanded = await frame.locator('body').evaluate((_, cases) => Object.fromEntries(cases.map(({ id }) => [id, document.getElementById(id).expanded])), cases);
+  for (const { kind, action } of cases) expect(expanded[`ext-${kind}-${action}`]).toBe(action !== 'hides');
+});
+
+test('extensions: before the first render, click() on a disabled button reaches the host but runs no action', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const result = await frame.locator('body').evaluate(async body => {
+    const out = {};
+    for (const kind of ['link', 'native']) {
+      for (const action of ['shows', 'hides', 'toggles']) {
+        const target = document.createElement('div');
+        target.id = `pre-${kind}-${action}-target`;
+        const calls = [];
+        target.show = () => calls.push('show');
+        target.hide = () => calls.push('hide');
+        target.toggle = () => calls.push('toggle');
+        const el = document.createElement('sl-button');
+        el.setAttribute(action, target.id);
+        el.setAttribute('disabled', '');
+        if (kind === 'link') el.setAttribute('href', '#pre-render');
+        let clicks = 0;
+        el.addEventListener('click', () => clicks++);
+        body.append(target, el);
+        const before = el.expanded;
+        const rendered = Boolean(el.shadowRoot?.querySelector('.button'));
+        el.click();
+        out[`${kind}-${action}`] = { rendered, clicks, calls, expandedUnchanged: el.expanded === before };
+        await el.updateComplete;
+        el.remove();
+        target.remove();
+      }
+    }
+    return { out, href: location.href };
+  });
+  expect(result.href).not.toContain('#pre-render');
+  for (const [key, value] of Object.entries(result.out)) {
+    expect(value, key).toEqual({ rendered: false, clicks: 1, calls: [], expandedUnchanged: true });
+  }
+});
+
 // Builds a form in the overview example document, clicks (or keys) the given control and reports what the form saw.
 // Every submit is cancelled after it is recorded, so the example document never navigates.
 async function formScenario(frame, markup, act) {

@@ -618,6 +618,20 @@
               }
             },
             {
+              "kind": "method",
+              "name": "guardAction",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "action",
+                  "optional": true,
+                  "type": {
+                    "text": "() => void"
+                  }
+                }
+              ]
+            },
+            {
               "kind": "field",
               "name": "hadFocus",
               "type": {
@@ -700,12 +714,8 @@
                 "text": "string | undefined"
               },
               "privacy": "public",
-              "description": "referencing a dismissible element's ID, this button will hide it when clicked",
-              "attribute": "hides",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "description": "referencing a dismissible element's ID, this button will hide it when clicked. Does nothing while disabled.",
+              "attribute": "hides"
             },
             {
               "kind": "field",
@@ -921,12 +931,8 @@
                 "text": "string | undefined"
               },
               "privacy": "public",
-              "description": "referencing a dismissible element's ID, this button will show it when clicked",
-              "attribute": "shows",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "description": "referencing a dismissible element's ID, this button will show it when clicked. Does nothing while disabled.",
+              "attribute": "shows"
             },
             {
               "kind": "field",
@@ -996,12 +1002,8 @@
                 "text": "string | undefined"
               },
               "privacy": "public",
-              "description": "referencing a dismissible element's ID, this button will show/hide it when clicked",
-              "attribute": "toggles",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              }
+              "description": "referencing a dismissible element's ID, this button will show/hide it when clicked. Does nothing while disabled.",
+              "attribute": "toggles"
             },
             {
               "kind": "field",
@@ -1285,12 +1287,8 @@
               "type": {
                 "text": "string | undefined"
               },
-              "description": "referencing a dismissible element's ID, this button will hide it when clicked",
+              "description": "referencing a dismissible element's ID, this button will hide it when clicked. Does nothing while disabled.",
               "fieldName": "hides",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              },
               "propName": "hides"
             },
             {
@@ -1401,12 +1399,8 @@
               "type": {
                 "text": "string | undefined"
               },
-              "description": "referencing a dismissible element's ID, this button will show it when clicked",
+              "description": "referencing a dismissible element's ID, this button will show it when clicked. Does nothing while disabled.",
               "fieldName": "shows",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              },
               "propName": "shows"
             },
             {
@@ -1457,12 +1451,8 @@
               "type": {
                 "text": "string | undefined"
               },
-              "description": "referencing a dismissible element's ID, this button will show/hide it when clicked",
+              "description": "referencing a dismissible element's ID, this button will show/hide it when clicked. Does nothing while disabled.",
               "fieldName": "toggles",
-              "inheritedFrom": {
-                "name": "CoreButton",
-                "package": "@charm-ux/core"
-              },
               "propName": "toggles"
             },
             {

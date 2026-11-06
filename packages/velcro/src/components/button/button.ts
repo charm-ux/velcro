@@ -271,6 +271,53 @@ export class VelcroButton extends CoreButton {
     return !this.href;
   }
 
+  // Core's declarative shows / hides / toggles actions (Velcro extensions, not Shoelace API) are host click listeners.
+  // Since click delivery follows Shoelace, a disabled link (and a host click() before the first render) still reaches
+  // them, so each action is re-registered with a Velcro-local disabled check before it touches its target or
+  // `expanded`. The click itself is neither cancelled nor stopped.
+
+  /** referencing a dismissible element's ID, this button will show it when clicked. Does nothing while disabled. */
+  @property()
+  public override get shows(): string | undefined {
+    return super.shows;
+  }
+  public override set shows(value: string | undefined) {
+    super.shows = value;
+    if (value) this.showHandler = this.guardAction(this.showHandler);
+  }
+
+  /** referencing a dismissible element's ID, this button will hide it when clicked. Does nothing while disabled. */
+  @property()
+  public override get hides(): string | undefined {
+    return super.hides;
+  }
+  public override set hides(value: string | undefined) {
+    super.hides = value;
+    if (value) this.hideHandler = this.guardAction(this.hideHandler);
+  }
+
+  /** referencing a dismissible element's ID, this button will show/hide it when clicked. Does nothing while disabled. */
+  @property()
+  public override get toggles(): string | undefined {
+    return super.toggles;
+  }
+  public override set toggles(value: string | undefined) {
+    super.toggles = value;
+    if (value) this.toggleHandler = this.guardAction(this.toggleHandler);
+  }
+
+  // Swaps the click listener core just installed for one that skips the action while disabled. Core removes the
+  // stored handler on the next assignment, so the stored handler must be the guarded one.
+  private guardAction(action?: () => void) {
+    if (!action) return action;
+    this.removeEventListener('click', action);
+    const guarded = () => {
+      if (!this.disabled) action();
+    };
+    this.addEventListener('click', guarded);
+    return guarded;
+  }
+
   private isLink() {
     return Boolean(this.href);
   }

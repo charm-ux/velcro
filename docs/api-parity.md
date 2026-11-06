@@ -10,12 +10,12 @@ Shoelace members count when its own docs would list them (described and not priv
 whitespace, quote style and union order. Missing and mismatched entries form the ledger
 `docs/api/api-parity-ledger.json`, which may only shrink.
 
-Totals: 130 Shoelace entries compared, 115 matching, 15 mismatched, 0 missing; 7 Velcro-only and 57 inherited extras.
+Totals: 130 Shoelace entries compared, 115 matching, 15 mismatched, 0 missing; 10 Velcro-only and 54 inherited extras.
 
 | Component | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | `sl-badge` | 5 | 5 | 0 | 0 | 0 | 2 |
-| `sl-button` | 42 | 42 | 0 | 0 | 3 | 16 |
+| `sl-button` | 42 | 42 | 0 | 0 | 6 | 13 |
 | `sl-card` | 13 | 13 | 0 | 0 | 0 | 5 |
 | `sl-divider` | 4 | 4 | 0 | 0 | 0 | 6 |
 | `sl-format-bytes` | 3 | 3 | 0 | 0 | 1 | 2 |
@@ -61,7 +61,10 @@ Mismatched:
 Velcro-only (own):
 
 - `property button`
+- `property hides`
+- `property shows`
 - `property title`
+- `property toggles`
 - `part button-control`
 
 Inherited extras:
@@ -71,13 +74,10 @@ Inherited extras:
 - `property current` (from @charm-ux/core CoreButton)
 - `property dir` (from @charm-ux/core CharmElement)
 - `property expanded` (from @charm-ux/core CoreButton)
-- `property hides` (from @charm-ux/core CoreButton)
 - `property iconOnly` (from @charm-ux/core CoreButton)
 - `property pressed` (from @charm-ux/core CoreButton)
 - `property referrerPolicy` (from @charm-ux/core CoreButton)
-- `property shows` (from @charm-ux/core CoreButton)
 - `property toggle` (from @charm-ux/core CoreButton)
-- `property toggles` (from @charm-ux/core CoreButton)
 - `event blur` (from @charm-ux/core CoreButton)
 - `event change` (from @charm-ux/core CoreButton)
 - `event focus` (from @charm-ux/core CoreButton)
