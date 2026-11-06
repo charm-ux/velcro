@@ -59,6 +59,28 @@ test('inherited core members, attributes and events are present and name their c
   }
 });
 
+test('sl-switch documents its core extensions truthfully: inert ones say so and no label slot is advertised', () => {
+  const sw = elements.get('sl-switch');
+  const member = name => sw.members.find(m => m.name === name);
+  for (const name of ['invalid', 'labelPosition', 'autofocus']) {
+    assert.match(member(name).description, /^Velcro extension \(core\), inert:/, name);
+    assert.equal(member(name).inheritedFrom, undefined, `${name} is redeclared with the switch's own description`);
+  }
+  for (const name of ['readonly', 'label', 'hideLabel', 'errorMessage']) {
+    assert.match(member(name).description, /^Velcro extension \(core\):/, name);
+  }
+  const text = JSON.stringify(sw);
+  assert.doesNotMatch(text, /`label` slot/);
+  assert.deepEqual(sw.slots.map(s => s.name).sort(), ['', 'help-text']);
+  // dir and lang as Shoelace's base element declares them; core's computed dir is not inherited.
+  for (const name of ['dir', 'lang']) {
+    const attr = sw.attributes.find(a => a.name === name);
+    assert.ok(attr, name);
+    assert.equal(attr.inheritedFrom, undefined, name);
+    assert.equal(member(name).reflects, undefined, `${name} does not reflect`);
+  }
+});
+
 test('inherited slots, parts and CSS custom properties are exactly the per-component kept list (measured in tests/product/inherited-api.spec.mjs)', async () => {
   const { keptInherited } = await import('../../packages/velcro/custom-elements-manifest.config.mjs');
   for (const [tag, decl] of elements) {

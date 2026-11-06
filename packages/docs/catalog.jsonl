@@ -13,4 +13,5 @@
 {"name":"skeleton","title":"Skeleton","tag":"sl-skeleton","example":"#demo-avatar"}
 {"name":"spinner","title":"Spinner","tag":"sl-spinner","example":"sl-spinner"}
 {"name":"split-panel","title":"Split Panel","tag":"sl-split-panel","example":"sl-split-panel"}
+{"name":"switch","title":"Switch","tag":"sl-switch","example":"#demo-default"}
 {"name":"visually-hidden","title":"Visually Hidden","tag":"sl-visually-hidden","example":"#demo-skip"}

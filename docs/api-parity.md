@@ -10,7 +10,7 @@ Shoelace members count when its own docs would list them (described and not priv
 whitespace, quote style and union order. Missing and mismatched entries form the ledger
 `docs/api/api-parity-ledger.json`, which may only shrink.
 
-Totals: 157 Shoelace entries compared, 142 matching, 15 mismatched, 0 missing; 16 Velcro-only and 58 inherited extras.
+Totals: 190 Shoelace entries compared, 175 matching, 15 mismatched, 0 missing; 35 Velcro-only and 61 inherited extras.
 
 | Component | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -29,6 +29,7 @@ Totals: 157 Shoelace entries compared, 142 matching, 15 mismatched, 0 missing; 1
 | `sl-skeleton` | 6 | 6 | 0 | 0 | 0 | 4 |
 | `sl-spinner` | 5 | 5 | 0 | 0 | 0 | 4 |
 | `sl-split-panel` | 19 | 19 | 0 | 0 | 5 | 2 |
+| `sl-switch` | 33 | 33 | 0 | 0 | 19 | 3 |
 | `sl-visually-hidden` | 1 | 1 | 0 | 0 | 0 | 2 |
 
 ## `sl-badge`
@@ -362,6 +363,44 @@ Velcro-only (own):
 Inherited extras:
 
 - `property dir` (from @charm-ux/core CharmElement)
+- `event ready` (from @charm-ux/core CharmElement)
+
+## `sl-switch`
+
+Missing:
+
+- None.
+
+Mismatched:
+
+- None.
+
+Velcro-only (own):
+
+- `property autofocus`
+- `property dir`
+- `property errorMessage`
+- `property hideLabel`
+- `property input`
+- `property invalid`
+- `property label`
+- `property labelPosition`
+- `property lang`
+- `property readonly`
+- `property title`
+- `method formResetCallback`
+- `method handleArrowLeftKey`
+- `method handleArrowRightKey`
+- `method handleCheckedChange`
+- `method handleClick`
+- `method handleDisabledChange`
+- `method handleKeyDown`
+- `method updateValidity`
+
+Inherited extras:
+
+- `event blur` (from @charm-ux/core CoreSwitch)
+- `event focus` (from @charm-ux/core CoreSwitch)
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-visually-hidden`
