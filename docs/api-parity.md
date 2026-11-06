@@ -10,7 +10,7 @@ Shoelace members count when its own docs would list them (described and not priv
 whitespace, quote style and union order. Missing and mismatched entries form the ledger
 `docs/api/api-parity-ledger.json`, which may only shrink.
 
-Totals: 130 Shoelace entries compared, 115 matching, 15 mismatched, 0 missing; 10 Velcro-only and 54 inherited extras.
+Totals: 163 Shoelace entries compared, 148 matching, 15 mismatched, 0 missing; 21 Velcro-only and 64 inherited extras.
 
 | Component | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -27,6 +27,7 @@ Totals: 130 Shoelace entries compared, 115 matching, 15 mismatched, 0 missing; 1
 | `sl-resize-observer` | 3 | 3 | 0 | 0 | 0 | 2 |
 | `sl-skeleton` | 6 | 6 | 0 | 0 | 0 | 4 |
 | `sl-spinner` | 5 | 5 | 0 | 0 | 0 | 4 |
+| `sl-switch` | 33 | 33 | 0 | 0 | 11 | 10 |
 | `sl-visually-hidden` | 1 | 1 | 0 | 0 | 0 | 2 |
 
 ## `sl-badge`
@@ -318,6 +319,43 @@ Inherited extras:
 - `property dir` (from @charm-ux/core CharmElement)
 - `property label` (from @charm-ux/core CoreSpinner)
 - `property labelPosition` (from @charm-ux/core CoreSpinner)
+- `event ready` (from @charm-ux/core CharmElement)
+
+## `sl-switch`
+
+Missing:
+
+- None.
+
+Mismatched:
+
+- None.
+
+Velcro-only (own):
+
+- `property errorMessage`
+- `property input`
+- `property title`
+- `method formResetCallback`
+- `method handleArrowLeftKey`
+- `method handleArrowRightKey`
+- `method handleCheckedChange`
+- `method handleClick`
+- `method handleDisabledChange`
+- `method handleKeyDown`
+- `method updateValidity`
+
+Inherited extras:
+
+- `property autofocus` (from @charm-ux/core CharmFocusableElement)
+- `property dir` (from @charm-ux/core CharmElement)
+- `property hideLabel` (from @charm-ux/core CharmFormControlElement)
+- `property invalid` (from @charm-ux/core CharmFormControlElement)
+- `property label` (from @charm-ux/core CharmFormControlElement)
+- `property labelPosition` (from @charm-ux/core CharmFormControlElement)
+- `property readonly` (from @charm-ux/core CharmFormControlElement)
+- `event blur` (from @charm-ux/core CoreSwitch)
+- `event focus` (from @charm-ux/core CoreSwitch)
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-visually-hidden`

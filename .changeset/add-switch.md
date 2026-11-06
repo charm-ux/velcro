@@ -1,0 +1,5 @@
+---
+'@charm-ux/velcro': minor
+---
+
+Add a prototype `VelcroSwitch`, registered as `sl-switch` and built on the `@charm-ux/core` switch, with Shoelace 2.20.1's API, markup, styles, events (`sl-change`, `sl-input`, `sl-focus`, `sl-blur`, `sl-invalid`), keyboard handling and form participation and validation. Shoelace's own switch tests run against it and all pass. The core switch's `readonly`, `label`, `hide-label`, `error-message`, `invalid` and `autofocus` are kept as Velcro extensions; `label-position` is accepted but has no effect, and core's `change` / `input` events are replaced by Shoelace's. Adds an internal, Velcro-local scope resolver so core components that read their scope while they are constructed can be registered as `sl-*` without touching core's shared scope or prefix. Adds the `@charm-ux/velcro/switch` and `@charm-ux/velcro/switch/class` exports and updates the third-party notices for adapted Shoelace (MIT) wording, structure and styles. The upstream conformance harness now maps Shoelace's whole-library import to Velcro's package root, because the switch tests also render `sl-button`. Registration is browser-only.

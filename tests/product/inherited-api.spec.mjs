@@ -23,6 +23,7 @@ const CONTENT = {
   'sl-progress-ring': 'Label',
   'sl-resize-observer': '<div>x</div>',
   'sl-visually-hidden': 'Hidden',
+  'sl-switch': 'Label<span slot="help-text">Help</span>',
 };
 const ATTRS = { 'sl-progress-bar': { value: '40' }, 'sl-progress-ring': { value: '40' }, 'sl-format-bytes': { value: '1000' }, 'sl-format-number': { value: '1000' } };
 // One valid value of each kind a core custom property takes: length, color, border style, border shorthand, a visible
