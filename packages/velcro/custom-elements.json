@@ -3147,6 +3147,15 @@
             },
             {
               "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
               "name": "mutationObserver",
               "type": {
                 "text": "MutationObserver"
@@ -3265,6 +3274,14 @@
               "description": "Disables the observer.",
               "fieldName": "disabled",
               "propName": "disabled"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "fieldName": "lang",
+              "propName": "lang"
             }
           ],
           "superclass": {

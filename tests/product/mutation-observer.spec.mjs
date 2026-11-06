@@ -193,7 +193,45 @@ test('boolean options: reflected properties, default false, removing the attribu
     charDataOldValue: step,
     childList: step,
     disabled: step,
-    observed: ['attr', 'attr-old-value', 'char-data', 'char-data-old-value', 'child-list', 'dir', 'disabled'],
+    // Shoelace's list: its six options plus the base element's `dir` and `lang`.
+    observed: ['attr', 'attr-old-value', 'char-data', 'char-data-old-value', 'child-list', 'dir', 'disabled', 'lang'],
+  });
+});
+
+test('lang is a reactive property with no default that is not reflected, as in Shoelace\'s base element: assigning it changes no attribute, so nothing is reported', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const r = await run(
+    frame,
+    `
+    const out = {};
+    const { el, events } = await make({ attr: 'lang' });
+    out.initial = [typeof el.lang, el.hasAttribute('lang')];
+    el.lang = 'fr';
+    await el.updateComplete;
+    await tick();
+    out.afterProperty = [el.lang, el.hasAttribute('lang'), events.length];
+    // The attribute still feeds the property, and an author's attribute change is reported as usual.
+    el.setAttribute('lang', 'de');
+    await el.updateComplete;
+    await tick();
+    out.afterAttribute = [el.lang, events.flat().map(r => [r.type, r.name, r.old, r.target])];
+    // Not reflected, so removing the attribute is not restored: the property is null, as for any non-reflected string.
+    el.removeAttribute('lang');
+    await el.updateComplete;
+    out.afterRemoval = [el.lang, el.hasAttribute('lang')];
+    el.lang = 'it';
+    await el.updateComplete;
+    out.reassigned = [el.lang, el.hasAttribute('lang')];
+    el.remove();
+    return out;
+  `
+  );
+  expect(r).toEqual({
+    initial: ['undefined', false],
+    afterProperty: ['fr', false, 0],
+    afterAttribute: ['de', [['attributes', 'lang', null, 'sl-mutation-observer']]],
+    afterRemoval: [null, false],
+    reassigned: ['it', false],
   });
 });
 
@@ -219,7 +257,7 @@ test('attr: string property with no default, reflected in both directions', asyn
   expect(r).toEqual({ initial: ['undefined', false], afterProp: ['class id', 'class id'], afterAttr: 'title' });
 });
 
-test('upstream quirk: removing the attr attribute restores a value recorded at the first attribute change, otherwise leaves null', async ({ page }) => {
+test('upstream quirk: removing the attr attribute restores a value recorded at the first attribute change of any observed attribute, otherwise leaves null', async ({ page }) => {
   const { frame } = await openExample(page);
   const r = await run(
     frame,
@@ -244,10 +282,22 @@ test('upstream quirk: removing the attr attribute restores a value recorded at t
     await fromProperty.el.updateComplete;
     out.fromProperty = [fromProperty.el.attr, fromProperty.el.getAttribute('attr')];
     fromProperty.el.remove();
+
+    // The record is taken at the first change of any observed attribute, including the base element's lang and dir:
+    // after one of those, attr is still undefined when recorded, so assigning it later and removing it leaves null.
+    for (const name of ['lang', 'dir']) {
+      const early = await make({ [name]: name === 'lang' ? 'en' : 'rtl' });
+      early.el.attr = 'class';
+      await early.el.updateComplete;
+      early.el.removeAttribute('attr');
+      await early.el.updateComplete;
+      out[name + 'First'] = [early.el.attr, early.el.hasAttribute('attr')];
+      early.el.remove();
+    }
     return out;
   `
   );
-  expect(r).toEqual({ fromAttribute: [null, false], fromProperty: ['class', 'class'] });
+  expect(r).toEqual({ fromAttribute: [null, false], fromProperty: ['class', 'class'], langFirst: [null, false], dirFirst: [null, false] });
 });
 
 test('attr="name": reports that attribute on descendants, with sl-mutation carrying a MutationRecord list, and nothing else', async ({ page }) => {

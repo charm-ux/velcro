@@ -23,7 +23,7 @@ const quirks = [
   'Restarting does not check that the element is connected: a change to attr or child-list while the element is disconnected makes it observe its detached subtree and report mutations.',
   'Reconnecting creates a new observer without disconnecting the previous one. After a restart while disconnected (the quirk above), both observe, and every mutation is reported twice.',
   'The first update always (re)starts an enabled observer, because disabled counts as changed then. Options assigned right after the element is connected, before its first update, therefore take effect.',
-  'Removing a reflected attribute restores the value recorded when the first attribute change happened, and attr has no default. An attr set as an attribute is never recorded, so removing it leaves the property null (and the restart that follows observes no attributes); an attr assigned as a property first is recorded when it reflects, so removing the attribute sets the property back to that value and it reflects again.',
+  'Removing a reflected attribute restores the value the property had when the first change to any observed attribute happened (including dir and lang, which every Shoelace component observes), and attr has no default. An attr set as an attribute is never recorded, and neither is one assigned after a dir or lang attribute changed, so removing it leaves the property null (and the restart that follows observes no attributes). An attr assigned as a property before any attribute changed is recorded when it reflects, so removing the attribute sets the property back to that value and it reflects again.',
   'With attr="*" the host itself is observed too, so a change to its own reflected attributes (attr, attr-old-value, char-data, char-data-old-value, child-list, disabled) is reported like any other attribute change.',
 ] as const;
 
@@ -60,7 +60,7 @@ export class MutationObserverPage extends LitElement {
       )}
 
       ${apiReference('sl-mutation-observer', {
-        attributes: html`<p>Removing a boolean attribute sets its property back to <code>false</code>. <code>attr</code> has no default; see the upstream quirks below for what removing it does. Only <code>attr</code> and <code>child-list</code> restart the observer when they change after the element has first updated (see the quirks below).</p>`,
+        attributes: html`<p>Removing a boolean attribute sets its property back to <code>false</code>. As in Shoelace's base element, <code>lang</code> is a reactive property with no default that is not reflected, so assigning <code>el.lang</code> does not change the attribute. <code>attr</code> has no default; see the upstream quirks below for what removing it does. Only <code>attr</code> and <code>child-list</code> restart the observer when they change after the element has first updated (see the quirks below).</p>`,
         events: html`<p><code>sl-mutation</code> bubbles and is composed. Inherited from core: a non-bubbling <code>ready</code> event on first update, which Shoelace does not have.</p>`,
         slots: html`<p>The default slot holds the content to watch. The host is <code>display: contents</code>, and the whole subtree of the host is observed.</p>`,
       })}

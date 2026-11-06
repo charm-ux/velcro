@@ -30,6 +30,12 @@ export class VelcroMutationObserver extends CharmElement {
 
   private mutationObserver!: MutationObserver;
 
+  // Shoelace's base element declares `lang` as a reactive property with no initial value and no reflection, which also
+  // makes `lang` an observed attribute. Without this, `lang` would be the native one, which reflects: assigning it
+  // would change the attribute (and be reported by `attr="lang"`) and reading it would give '' instead of undefined.
+  @property()
+  public override lang!: string;
+
   /**
    * Watches for changes to attributes. To watch only specific attributes, separate them by a space, e.g.
    * `attr="class id title"`. To watch all attributes, use `*`.
@@ -57,10 +63,11 @@ export class VelcroMutationObserver extends CharmElement {
   @property({ type: Boolean, reflect: true })
   public disabled = false;
 
-  // Upstream behavior: the first time any attribute changes, the values of all reflected properties that are not null
-  // are recorded, and when one of them later becomes null (its attribute was removed) it is set back to the recorded
-  // value. Upstream quirk: `attr` has no default, so it is only recorded (and so only restored) if it already held a
-  // value at that moment, for example when it was assigned as a property before any attribute changed.
+  // Upstream behavior: the first time any observed attribute changes (including `dir` and `lang`), the values of all
+  // reflected properties that are not null are recorded, and when one of them later becomes null (its attribute was
+  // removed) it is set back to the recorded value. Upstream quirk: `attr` has no default, so it is only recorded (and
+  // so only restored) if it already held a value at that moment, for example when it was assigned as a property
+  // before any attribute changed.
   private hasRecordedInitialProperties = false;
 
   private readonly initialReflectedProperties = new Map<string, unknown>();
@@ -68,9 +75,13 @@ export class VelcroMutationObserver extends CharmElement {
   public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
     if (!this.hasRecordedInitialProperties) {
       (this.constructor as typeof VelcroMutationObserver).elementProperties.forEach((options, prop) => {
-        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-        if (options.reflect && current != null) {
-          this.initialReflectedProperties.set(prop as string, current);
+        // Reflection is checked first, as upstream does, so that a non-reflected property's getter is not read here
+        // (core's `dir` getter computes the style).
+        if (options.reflect) {
+          const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
+          if (current != null) {
+            this.initialReflectedProperties.set(prop as string, current);
+          }
         }
       });
       this.hasRecordedInitialProperties = true;
