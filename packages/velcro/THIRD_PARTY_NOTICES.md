@@ -140,6 +140,17 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   `packages/velcro/src/components/format-number/format-number.styles.ts` (written for Velcro; upstream has no styles
   file). Uses the localization controller listed above. Built on the `@charm-ux/core` base element; no Shoelace runtime
   or source files are included.
+- Also used in: `packages/velcro/src/components/include/include.ts` (API documentation wording, the request and
+  response handling, the replacement of the element's content, the re-creation of scripts and the `sl-load` and
+  `sl-error` events, adapted from `src/components/include/include.component.ts`, and the `@watch` timing of the `src`
+  change from `src/internal/watch.ts`), `packages/velcro/src/components/include/request.ts` (the request function and
+  its cache, adapted from `src/components/include/request.ts`),
+  `packages/velcro/src/components/include/include.styles.ts` (styles concatenated from
+  `src/styles/component.styles.ts` and `src/components/include/include.styles.ts`, rules unchanged) and the docs page
+  and examples `packages/docs/pages/components/include.ts` and `packages/docs/examples/include/*.html` (example markup
+  and explanatory wording adapted from `docs/pages/components/include.md`; the included fixture file
+  `packages/docs/public/include-fixtures/hello/index.html` is original, not Shoelace's `include.html`). The include is
+  built on the `@charm-ux/core` base element; no Shoelace runtime or source files are included.
 - Also used in: `packages/velcro/src/components/skeleton/skeleton.ts` (API documentation wording, and the rendered
   structure: a `div` with the `base` part and `skeleton` / `skeleton--*` class names around a `div` with the
   `indicator` part, adapted from `src/components/skeleton/skeleton.component.ts`),

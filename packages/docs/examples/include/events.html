@@ -1,0 +1,43 @@
+<div class="include-events">
+  <sl-include id="demo-events" src="include-fixtures/hello/"></sl-include>
+  <sl-include id="demo-missing"></sl-include>
+
+  <sl-button id="demo-include-missing">Include a file that does not exist</sl-button>
+  <pre id="demo-log">No events yet.</pre>
+
+  <script>
+    const container = document.querySelector('.include-events');
+    const log = container.querySelector('#demo-log');
+    const lines = [];
+    const report = line => {
+      lines.push(line);
+      log.textContent = lines.join('\n');
+    };
+
+    // Both includes report here. Check the event phase so an include nested in the included content is ignored.
+    container.querySelectorAll('sl-include').forEach(include => {
+      include.addEventListener('sl-load', event => {
+        if (event.eventPhase === Event.AT_TARGET) {
+          report(`${include.id}: sl-load`);
+        }
+      });
+
+      include.addEventListener('sl-error', event => {
+        if (event.eventPhase === Event.AT_TARGET) {
+          report(`${include.id}: sl-error, status ${event.detail.status}`);
+        }
+      });
+    });
+
+    // A request for a file that does not exist ends in sl-error with the HTTP status.
+    container.querySelector('sl-button').addEventListener('click', () => {
+      container.querySelector('#demo-missing').src = 'include-fixtures/missing/';
+    });
+  </script>
+
+  <style>
+    .include-events sl-button {
+      margin-top: 1rem;
+    }
+  </style>
+</div>

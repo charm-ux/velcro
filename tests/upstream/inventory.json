@@ -225,6 +225,10 @@
     "<sl-format-number> > maximumSignificantDigits property > number has correct type format: 5",
     "<sl-format-number> > maximumSignificantDigits property > number has correct type format: 6"
   ],
+  "include": [
+    "<sl-include> > should load content and emit sl-load",
+    "<sl-include> > should emit sl-error when content cannot be loaded"
+  ],
   "mutation-observer": [
     "<sl-mutation-observer> > should render a component"
   ],

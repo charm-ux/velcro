@@ -79,6 +79,20 @@ for (const [label, mutate, expected] of negatives) {
   });
 }
 
+// Shoelace helper modules published inside a component directory are exported next to the component (UTILITY_EXPORTS).
+const includeCatalog = [{ name: 'include' }];
+const includeExports = { ...baseExports(['include']), './include/request': tgt('components/include/request') };
+test('the include utility export is required, exact and allowed only for include', () => {
+  assert.deepEqual(checkExports(includeExports, includeCatalog), []);
+  const { './include/request': _omitted, ...without } = includeExports;
+  assert.deepEqual(checkExports(without, includeCatalog), ['include: missing request utility export']);
+  assert.deepEqual(checkExports({ ...includeExports, './include/request': tgt('components/include/index') }, includeCatalog), ['include: wrong request utility export targets']);
+  assert.deepEqual(checkExports({ ...includeExports, './include/other': tgt('components/include/other') }, includeCatalog), ['package.json: unexpected export ./include/other']);
+  // A utility subpath is not available to other components, or without its component in the catalog.
+  assert.deepEqual(checkExports({ ...baseExports(['alpha']), './alpha/request': tgt('components/alpha/request') }, [{ name: 'alpha' }]), ['package.json: unexpected export ./alpha/request']);
+  assert.deepEqual(checkExports(includeExports, [{ name: 'alpha' }]), ['alpha: missing package export', 'package.json: unexpected export ./include', 'package.json: unexpected export ./include/request']);
+});
+
 test('a complete additional component passes the combined source contracts', () => {
   const dir = fixture(({ put }) => {
     put('packages/docs/catalog.jsonl', '{"name":"alpha","title":"Alpha","tag":"sl-alpha","example":"#demo-default"}\n{"name":"beta-box","title":"Beta Box","tag":"sl-beta-box","example":"sl-beta-box"}\n');

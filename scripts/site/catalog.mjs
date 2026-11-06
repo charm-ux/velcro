@@ -81,8 +81,16 @@ const listFiles = dir => {
 const target = file => ({ types: `./dist/${file}.d.ts`, import: `./dist/${file}.js` });
 
 /**
- * Export contract of packages/velcro: the fixed entries, ./<name> with exact targets for every catalog entry, and
- * ./<name>/class (exact targets) only for a catalog component. Any other key or target is a problem.
+ * Helper modules that Shoelace publishes inside a component's directory (dist/components/<name>/<util>.js) and that
+ * Velcro exports at the matching entry point ./<name>/<util>. Each is required once its component is in the catalog;
+ * no other ./<name>/<something> subpath is allowed.
+ */
+export const UTILITY_EXPORTS = Object.freeze({ include: Object.freeze(['request']) });
+
+/**
+ * Export contract of packages/velcro: the fixed entries, ./<name> with exact targets for every catalog entry,
+ * ./<name>/class (exact targets) only for a catalog component, and the utility modules of UTILITY_EXPORTS (exact
+ * targets, required) for their catalog component. Any other key or target is a problem.
  */
 export function checkExports(exportsMap, catalog) {
   const problems = [];
@@ -98,10 +106,16 @@ export function checkExports(exportsMap, catalog) {
     else if (!same(exportsMap[`./${name}`], target(`components/${name}/index`))) problems.push(`${name}: wrong package export targets`);
     const cls = `./${name}/class`;
     if (Object.hasOwn(exportsMap, cls) && !same(exportsMap[cls], target(`components/${name}/class`))) problems.push(`${name}: wrong class export targets`);
+    for (const util of UTILITY_EXPORTS[name] ?? []) {
+      const key = `./${name}/${util}`;
+      if (!Object.hasOwn(exportsMap, key)) problems.push(`${name}: missing ${util} utility export`);
+      else if (!same(exportsMap[key], target(`components/${name}/${util}`))) problems.push(`${name}: wrong ${util} utility export targets`);
+    }
   }
   for (const key of Object.keys(exportsMap)) {
-    const m = /^\.\/([a-z0-9-]+)(\/class)?$/.exec(key);
-    if (Object.hasOwn(fixed, key) || (m && names.has(m[1]))) continue;
+    const m = /^\.\/([a-z0-9-]+)(?:\/(class|[a-z0-9-]+))?$/.exec(key);
+    const allowed = m && names.has(m[1]) && (m[2] === undefined || m[2] === 'class' || (UTILITY_EXPORTS[m[1]] ?? []).includes(m[2]));
+    if (Object.hasOwn(fixed, key) || allowed) continue;
     problems.push(`package.json: unexpected export ${key}`);
   }
   return problems;

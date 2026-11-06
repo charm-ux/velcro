@@ -3006,6 +3006,264 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/components/include/include.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Includes give you the power to embed external HTML files into the page. API modelled on Shoelace's `sl-include`.\nThere is no core counterpart, so it extends the core base element.\n\nVelcro extension inherited from the core base element and kept working: the `ready` event (non-bubbling, emitted once\nafter the first render). Shoelace has no such event.",
+          "name": "VelcroInclude",
+          "members": [
+            {
+              "kind": "field",
+              "name": "allowScripts",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Allows included scripts to be executed. Be sure you trust the content you are including as it will be executed as\ncode and can result in XSS attacks.",
+              "attribute": "allow-scripts"
+            },
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'include'"
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any\nstring can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.",
+              "attribute": "dir"
+            },
+            {
+              "kind": "method",
+              "name": "executeScript",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "script",
+                  "type": {
+                    "text": "HTMLScriptElement"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "handleSrcChange",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "Promise<void>"
+                }
+              },
+              "type": {
+                "text": "handleSrcChange() => Promise<void>"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "mode",
+              "type": {
+                "text": "'cors' | 'no-cors' | 'same-origin'"
+              },
+              "privacy": "public",
+              "default": "'cors'",
+              "description": "The fetch mode to use.",
+              "attribute": "mode"
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "src",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "description": "The location of the HTML file to include. Be sure you trust the content you are including as it will be executed as\ncode and can result in XSS attacks.",
+              "attribute": "src"
+            },
+            {
+              "kind": "field",
+              "name": "velcroDir",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "private"
+            }
+          ],
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "type": {
+                "text": "{ status: number }"
+              },
+              "description": "Emitted when the included file fails to load due to an error.",
+              "name": "sl-error"
+            },
+            {
+              "description": "Emitted when the included file is loaded.",
+              "name": "sl-load"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "allow-scripts",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Allows included scripts to be executed. Be sure you trust the content you are including as it will be executed as\ncode and can result in XSS attacks.",
+              "fieldName": "allowScripts",
+              "propName": "allowScripts"
+            },
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any\nstring can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.",
+              "fieldName": "dir",
+              "propName": "dir"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "fieldName": "lang",
+              "propName": "lang"
+            },
+            {
+              "name": "mode",
+              "type": {
+                "text": "'cors' | 'no-cors' | 'same-origin'"
+              },
+              "default": "'cors'",
+              "description": "The fetch mode to use.",
+              "fieldName": "mode",
+              "propName": "mode"
+            },
+            {
+              "name": "src",
+              "type": {
+                "text": "string"
+              },
+              "description": "The location of the HTML file to include. Be sure you trust the content you are including as it will be executed as\ncode and can result in XSS attacks.",
+              "fieldName": "src",
+              "propName": "src"
+            }
+          ],
+          "superclass": {
+            "name": "CharmElement",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-include",
+          "customElement": true,
+          "status": "prototype",
+          "modulePath": "src/components/include/include.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroInclude",
+            "module": "src/components/include/include.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroInclude",
+          "declaration": {
+            "name": "VelcroInclude",
+            "module": "src/components/include/include.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/include/request.ts",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "requestInclude",
+          "return": {
+            "type": {
+              "text": "Promise<IncludeFile>"
+            }
+          },
+          "parameters": [
+            {
+              "name": "src",
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "name": "mode",
+              "default": "'cors'",
+              "type": {
+                "text": "'cors' | 'no-cors' | 'same-origin'"
+              }
+            }
+          ],
+          "description": "Fetches an include file from a remote source. Caching is enabled so the origin is only pinged once."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "requestInclude",
+          "declaration": {
+            "name": "requestInclude",
+            "module": "src/components/include/request.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/components/mutation-observer/mutation-observer.ts",
       "declarations": [
         {
