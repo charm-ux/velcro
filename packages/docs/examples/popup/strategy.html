@@ -1,0 +1,46 @@
+<div class="popup-strategy">
+  <div class="overflow">
+    <sl-popup id="demo-strategy" placement="top" strategy="fixed" active>
+      <span slot="anchor"></span>
+      <div class="box"></div>
+    </sl-popup>
+  </div>
+
+  <sl-switch checked>Fixed</sl-switch>
+</div>
+
+<style>
+  .popup-strategy .overflow {
+    position: relative;
+    height: 300px;
+    border: solid 2px var(--sl-color-neutral-200);
+    overflow: auto;
+  }
+
+  .popup-strategy span[slot='anchor'] {
+    display: inline-block;
+    width: 150px;
+    height: 150px;
+    border: dashed 2px var(--sl-color-neutral-600);
+    margin: 150px 50px;
+  }
+
+  .popup-strategy .box {
+    width: 100px;
+    height: 50px;
+    background: var(--sl-color-primary-600);
+    border-radius: var(--sl-border-radius-medium);
+  }
+
+  .popup-strategy sl-switch {
+    margin-top: 1rem;
+  }
+</style>
+
+<script>
+  const container = document.querySelector('.popup-strategy');
+  const popup = container.querySelector('sl-popup');
+  const fixed = container.querySelector('sl-switch');
+
+  fixed.addEventListener('sl-change', () => (popup.strategy = fixed.checked ? 'fixed' : 'absolute'));
+</script>

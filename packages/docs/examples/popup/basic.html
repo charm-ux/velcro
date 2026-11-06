@@ -1,0 +1,81 @@
+<div class="popup-overview">
+  <sl-popup id="demo-default" placement="top" active>
+    <span slot="anchor"></span>
+    <div class="box"></div>
+  </sl-popup>
+  <div class="popup-overview-options">
+    <label>
+      Placement
+      <select name="placement">
+        <option value="top" selected>top</option>
+        <option value="top-start">top-start</option>
+        <option value="top-end">top-end</option>
+        <option value="bottom">bottom</option>
+        <option value="bottom-start">bottom-start</option>
+        <option value="bottom-end">bottom-end</option>
+        <option value="right">right</option>
+        <option value="right-start">right-start</option>
+        <option value="right-end">right-end</option>
+        <option value="left">left</option>
+        <option value="left-start">left-start</option>
+        <option value="left-end">left-end</option>
+      </select>
+    </label>
+    <label>Distance <input type="number" name="distance" value="0"></label>
+    <label>Skidding <input type="number" name="skidding" value="0"></label>
+  </div>
+  <div class="popup-overview-options">
+    <sl-switch name="active" checked>Active</sl-switch>
+    <sl-switch name="arrow">Arrow</sl-switch>
+  </div>
+</div>
+<script>
+  const container = document.querySelector('.popup-overview');
+  const popup = container.querySelector('sl-popup');
+  const select = container.querySelector('select[name="placement"]');
+  const distance = container.querySelector('input[name="distance"]');
+  const skidding = container.querySelector('input[name="skidding"]');
+  const active = container.querySelector('sl-switch[name="active"]');
+  const arrow = container.querySelector('sl-switch[name="arrow"]');
+
+  select.addEventListener('change', () => (popup.placement = select.value));
+  distance.addEventListener('input', () => (popup.distance = distance.value));
+  skidding.addEventListener('input', () => (popup.skidding = skidding.value));
+  active.addEventListener('sl-change', () => (popup.active = active.checked));
+  arrow.addEventListener('sl-change', () => (popup.arrow = arrow.checked));
+</script>
+<style>
+  .popup-overview sl-popup {
+    --arrow-color: var(--sl-color-primary-600);
+  }
+
+  .popup-overview span[slot='anchor'] {
+    display: inline-block;
+    width: 150px;
+    height: 150px;
+    border: dashed 2px var(--sl-color-neutral-600);
+    margin: 50px;
+  }
+
+  .popup-overview .box {
+    width: 100px;
+    height: 50px;
+    background: var(--sl-color-primary-600);
+    border-radius: var(--sl-border-radius-medium);
+  }
+
+  .popup-overview-options {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 1rem;
+  }
+
+  .popup-overview-options input[type='number'] {
+    width: 80px;
+  }
+
+  .popup-overview-options + .popup-overview-options {
+    margin-top: 1rem;
+  }
+</style>

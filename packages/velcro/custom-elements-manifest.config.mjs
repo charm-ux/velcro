@@ -104,9 +104,15 @@ function hideNativeEvents() {
 const globalAttributes = new Set(['exportparts', 'for', 'part', 'tabindex']);
 export function fixWrapperSource(text) {
   const managed = [];
-  // A property whose attribute name is hyphenated is written `"position-in-pixels": positionInPixels ?? props["position-in-pixels"],`
-  // (and wrapped onto two lines when long); it is managed like the others, as a property of the element.
-  let out = text.replace(/^( {6})("?[\w-]+"?):\s+(\w+)( \? true : undefined| \?\? props\["[\w-]+"\])?,\n/gm, (line, indent, key, name) => {
+  // A property whose attribute name differs (arrowPadding / arrow-padding) is generated as an attribute with the camelCase
+  // prop as its value (`"arrow-padding": arrowPadding ?? props["arrow-padding"]`, wrapped onto two lines when long). The
+  // camelCase prop is set as the element property instead, like every other property; the hyphenated spelling, if a
+  // caller uses it, stays in restProps and is passed to React as an attribute.
+  text = text.replace(/^ {6}"([\w-]+)":\s+(\w+) \?\? props\["\1"\],\n/gm, (line, attribute, name) => {
+    managed.push(name);
+    return '';
+  });
+  let out = text.replace(/^( {6})("?[\w-]+"?): (\w+)( \? true : undefined)?,\n/gm, (line, indent, key, name) => {
     if (key === 'ref' || key === 'style') return line;
     if (globalAttributes.has(key)) return `${indent}...(${name} === undefined ? {} : { ${key}: ${name} }),\n`;
     managed.push(name);
