@@ -22,6 +22,7 @@ const CONTENT = {
   'sl-progress-bar': 'Label',
   'sl-progress-ring': 'Label',
   'sl-resize-observer': '<div>x</div>',
+  'sl-split-panel': '<div slot="start">a</div><div slot="end">b</div>',
   'sl-visually-hidden': 'Hidden',
 };
 const ATTRS = { 'sl-progress-bar': { value: '40' }, 'sl-progress-ring': { value: '40' }, 'sl-format-bytes': { value: '1000' }, 'sl-format-number': { value: '1000' } };

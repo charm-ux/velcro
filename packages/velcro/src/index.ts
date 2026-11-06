@@ -11,4 +11,5 @@ export * from './components/relative-time/index.js';
 export * from './components/resize-observer/index.js';
 export * from './components/skeleton/index.js';
 export * from './components/spinner/index.js';
+export * from './components/split-panel/index.js';
 export * from './components/visually-hidden/index.js';

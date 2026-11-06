@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 
-// Scope of these checks: Velcro's own badge, button, card, divider, format-bytes, format-date, format-number, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner and visually-hidden (everything the package root registers) register
+// Scope of these checks: Velcro's own badge, button, card, divider, format-bytes, format-date, format-number, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, split-panel and visually-hidden (everything the package root registers) register
 // by defining their exported classes natively, in Chromium, alone or next to core's own button. They do NOT show that scope-dependent or nested core components work.
 // Needs the built library: `pnpm --filter @charm-ux/velcro run build` (verify:product does this first).
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -43,7 +43,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 // Everything the package root registers.
-const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-visually-hidden'];
+const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-split-panel', 'sl-visually-hidden'];
 
 const importAll = (page, ...names) => page.evaluate(async list => {
   const out = [];
@@ -109,6 +109,7 @@ for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spi
         ['sl-progress-ring', m.VelcroProgressRing, m.SlProgressRing], ['sl-relative-time', m.VelcroRelativeTime, m.SlRelativeTime], ['sl-resize-observer', m.VelcroResizeObserver, m.SlResizeObserver],
         ['sl-skeleton', m.VelcroSkeleton, m.SlSkeleton],
         ['sl-spinner', m.VelcroSpinner, m.SlSpinner],
+        ['sl-split-panel', m.VelcroSplitPanel, m.SlSplitPanel],
         ['sl-visually-hidden', m.VelcroVisuallyHidden, m.SlVisuallyHidden]]) {
         const el = new Cls();
         document.body.append(el);
@@ -126,6 +127,7 @@ for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spi
             : tag === 'sl-format-date' ? !!el.shadowRoot?.querySelector('time[datetime]')
             : tag === 'sl-relative-time' ? !!el.shadowRoot?.querySelector('time')
             : tag === 'sl-format-number' ? el.shadowRoot?.textContent === '0'
+            : tag === 'sl-split-panel' ? !!el.shadowRoot?.querySelector('[part~="divider"]')
             : tag === 'sl-visually-hidden' || tag === 'sl-resize-observer' ? !!el.shadowRoot?.querySelector('slot') : !!el.shadowRoot?.querySelector('[part~="base"]'),
         };
       }
@@ -258,9 +260,9 @@ test('the whole package root changes no core state: prefix, config, scope object
       for (const [k] of after[entriesKey]) if (!before[entriesKey].some(([k2]) => k2 === k)) problems.push(`${label} key added: ${k}`);
     }
     return { seeded: [before.tagEntries.length, before.baseEntries.length], problems, sameConfig: before.config === after.config,
-      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-visually-hidden'].map(t => customElements.get(t) !== undefined) };
+      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-split-panel', 'sl-visually-hidden'].map(t => customElements.get(t) !== undefined) };
   });
-  expect(r.defined).toEqual(Array(14).fill(true));
+  expect(r.defined).toEqual(Array(15).fill(true));
   expect(r.seeded[0]).toBeGreaterThan(0);
   expect(r.seeded[1]).toBeGreaterThan(0);
   expect(r.problems).toEqual([]);

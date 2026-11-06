@@ -10,7 +10,7 @@ Shoelace members count when its own docs would list them (described and not priv
 whitespace, quote style and union order. Missing and mismatched entries form the ledger
 `docs/api/api-parity-ledger.json`, which may only shrink.
 
-Totals: 130 Shoelace entries compared, 115 matching, 15 mismatched, 0 missing; 10 Velcro-only and 54 inherited extras.
+Totals: 149 Shoelace entries compared, 134 matching, 15 mismatched, 0 missing; 15 Velcro-only and 56 inherited extras.
 
 | Component | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -27,6 +27,7 @@ Totals: 130 Shoelace entries compared, 115 matching, 15 mismatched, 0 missing; 1
 | `sl-resize-observer` | 3 | 3 | 0 | 0 | 0 | 2 |
 | `sl-skeleton` | 6 | 6 | 0 | 0 | 0 | 4 |
 | `sl-spinner` | 5 | 5 | 0 | 0 | 0 | 4 |
+| `sl-split-panel` | 19 | 19 | 0 | 0 | 5 | 2 |
 | `sl-visually-hidden` | 1 | 1 | 0 | 0 | 0 | 2 |
 
 ## `sl-badge`
@@ -318,6 +319,29 @@ Inherited extras:
 - `property dir` (from @charm-ux/core CharmElement)
 - `property label` (from @charm-ux/core CoreSpinner)
 - `property labelPosition` (from @charm-ux/core CoreSpinner)
+- `event ready` (from @charm-ux/core CharmElement)
+
+## `sl-split-panel`
+
+Missing:
+
+- None.
+
+Mismatched:
+
+- None.
+
+Velcro-only (own):
+
+- `property divider`
+- `property lang`
+- `method handlePositionChange`
+- `method handlePositionInPixelsChange`
+- `method handleVerticalChange`
+
+Inherited extras:
+
+- `property dir` (from @charm-ux/core CharmElement)
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-visually-hidden`

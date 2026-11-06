@@ -196,7 +196,9 @@ export default {
     jsxTypesPlugin({
       outdir: reactDir,
       fileName: 'custom-element-jsx.d.ts',
-      componentTypePath: (_, tagName) => `../components/${componentDir(tagName)}/${componentDir(tagName)}.js`,
+      // The plugin asks for a path once per declaration in a module, so also for exported constants that are not
+      // components (split-panel's SNAP_NONE), which have no tag name; every component module is src/components/<name>/<name>.ts.
+      componentTypePath: (_, __, modulePath) => `../${modulePath.replace(/^src\//, '').replace(/\.ts$/, '.js')}`,
       stronglyTypedEvents: true,
       // Typed CSS custom properties would merge into React's CSSProperties and conflict with its number values.
       excludeCssCustomProperties: true,
