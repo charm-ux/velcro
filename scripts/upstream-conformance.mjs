@@ -51,14 +51,28 @@ export function keyResults(results) {
 export function scoreboard(results) {
   const board = {};
   for (const r of results) {
-    const c = (board[r.component] ??= { passed: 0, failed: 0, skipped: 0, failures: [], titles: [], infrastructure: [] });
+    const c = (board[r.component] ??= { passed: 0, failed: 0, skipped: 0, skips: [], failures: [], titles: [], infrastructure: [] });
     if (r.infrastructure) { c.infrastructure.push(r.reason ?? r.title); continue; }
     c.titles.push(r.title);
-    if (r.skipped) c.skipped++;
+    if (r.skipped) { c.skipped++; c.skips.push(r.title); }
     else if (r.passed) c.passed++;
     else { c.failed++; c.failures.push({ title: r.title, reason: r.reason ?? '' }); }
   }
   return Object.fromEntries(Object.keys(board).sort().map(k => [k, board[k]]));
+}
+
+// Titles of the tests that upstream itself marks `it.skip(...)` in a vendored (hash-pinned) test file, per component.
+// Only these may be reported as skipped: Velcro never skips a test, and editing a vendored file breaks its pinned hash.
+export function upstreamSkips(root, components) {
+  const skips = {};
+  for (const name of components) {
+    const file = path.join(root, VENDOR, 'src/components', name, `${name}.test.ts`);
+    if (!existsSync(file)) continue;
+    const titles = [...readFileSync(file, 'utf8').matchAll(/\bit\.skip\(\s*(['"])((?:\\.|(?!\1)[^\\])*)\1/g)]
+      .map(m => m[2].replace(/\\(.)/g, '$1'));
+    if (titles.length) skips[name] = titles;
+  }
+  return skips;
 }
 
 const malformedList = (value, ok) => !value || typeof value !== 'object' || Array.isArray(value)
@@ -67,8 +81,9 @@ const malformedList = (value, ok) => !value || typeof value !== 'object' || Arra
 // Compares a run with the pinned inventory and the ledger. Returns { ok, unexpected, fixed, problems }.
 // The inventory lists every expected test title per component (repeated titles carry their [#n] suffix): any missing or
 // extra outcome fails, infrastructure (load/session) failures always fail and can never be ledgered, and only assertion
-// failures of inventoried tests may be ledgered.
-export function evaluate(board, ledger, inventory, components) {
+// failures of inventoried tests may be ledgered. A skipped outcome fails unless upstream itself skips that test
+// (`skips`, from upstreamSkips: the last title segment must be one upstream marks `it.skip`).
+export function evaluate(board, ledger, inventory, components, skips = {}) {
   const problems = [];
   const unexpected = [];
   const fixed = [];
@@ -85,7 +100,11 @@ export function evaluate(board, ledger, inventory, components) {
     const result = board[component];
     if (!result) { problems.push(`no results for ${component}`); continue; }
     for (const reason of result.infrastructure) problems.push(`infrastructure failure in ${component}: ${reason}`);
-    if (result.skipped) problems.push(`skipped tests in ${component}`);
+    const allowed = new Set(skips[component] ?? []);
+    for (const t of result.skips ?? []) {
+      if (!allowed.has(t.split(' > ').at(-1).replace(/ \[#\d+\]$/, ''))) problems.push(`skipped test in ${component}: ${t}`);
+    }
+    if (result.skipped !== (result.skips?.length ?? 0)) problems.push(`skipped tests in ${component}`);
     const want = new Set(expected);
     const seen = new Set();
     for (const t of result.titles) {
@@ -112,7 +131,9 @@ export function renderDocs(board, ledger) {
     'Velcro runs Shoelace 2.20.1\'s own component test files, vendored unmodified in',
     `\`${VENDOR}/\` (upstream commit \`fb59fda70ed737c92611051b49bc7e3a5fed5dc5\`, MIT), against`,
     'Velcro\'s components in Chromium. A resolver plugin points each test\'s Shoelace import at Velcro\'s',
-    'registering entry for that component; no test is edited or skipped. Run it with `pnpm test:upstream`.',
+    'registering entry for that component; no test is edited, and Velcro skips none. A test that upstream itself',
+    'marks `it.skip` in its vendored file is reported as skipped, and the gate allows only those (listed below).',
+    'Run it with `pnpm test:upstream`.',
     '',
     'The complete pinned list of expected tests per component (repeated titles carry a `[#n]` suffix) is',
     '`tests/upstream/inventory.json`; a run must report exactly those outcomes, with nothing missing or extra.',
@@ -132,6 +153,11 @@ export function renderDocs(board, ledger) {
     '| --- | ---: | ---: | ---: |',
     ...Object.entries(board).map(([c, r]) => `| ${c} | ${r.passed + r.failed} | ${r.passed} | ${r.failed} |`),
     '',
+    ...(Object.values(board).some(r => r.skipped) ? [
+      '## Skipped upstream', '',
+      'Skipped in the vendored upstream file itself (`it.skip`), not counted above:', '',
+      ...Object.entries(board).flatMap(([c, r]) => (r.skips ?? []).map(t => `- ${c}: \`${t}\``)),
+      ''] : []),
     '## Failing tests',
     ''
   ];
@@ -145,7 +171,10 @@ export function renderDocs(board, ledger) {
   lines.push('Harness notes: the runner page loads Velcro\'s light theme where upstream loads Shoelace\'s, uses upstream\'s',
     'mocha settings (3 s timeout, one retry), and adds two guards so one failure cannot discard a whole file\'s',
     'results: real form submission and navigation by `form.submit()` are suppressed, and an assertion that carries a',
-    'sinon spy is reported instead of crashing the runner. Neither guard can turn a failing assertion into a pass.', '',
+    'sinon spy is reported instead of crashing the runner. Neither guard can turn a failing assertion into a pass.',
+    'Upstream\'s icon sprite sheet tests load `/docs/assets/images/sprite.svg`, which Shoelace\'s docs build generates',
+    'from Bootstrap Icons; the runner serves that one path from the same Bootstrap Icons sprite that Velcro\'s docs',
+    'site ships (`packages/docs/public/assets/images/sprite.svg`).', '',
     '## Dependency note: inflation override', '',
     'The test runner\'s dev server pulls in `inflation` through `co-body` (range `^2.0.0`). The root `package.json`',
     'pins it to 2.0.0 with a pnpm override because the published integrity hash of 2.1.0 is falsely reported by',
@@ -205,7 +234,7 @@ function main() {
   let passed = 0, failed = 0;
   for (const [c, b] of Object.entries(board)) { passed += b.passed; failed += b.failed; say(`${c} ${b.passed} passed, ${b.failed} failed`); }
   say(`total ${passed + failed}, passed ${passed}, failed ${failed}; scoreboard in ignored .airig/upstream/`);
-  const result = evaluate(board, ledger, inventory, components);
+  const result = evaluate(board, ledger, inventory, components, upstreamSkips(root, components));
   for (const p of result.problems) say(`problem: ${p}`);
   for (const u of result.unexpected) say(`unexpected failure: ${u}`);
   for (const f of result.fixed) say(`now passes, remove from ledger: ${f}`);

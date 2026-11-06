@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { DOCS, INVENTORY, LEDGER, VENDOR, checkVendor, evaluate, keyResults, scoreboard } from '../../scripts/upstream-conformance.mjs';
+import { DOCS, INVENTORY, LEDGER, VENDOR, checkVendor, evaluate, keyResults, scoreboard, upstreamSkips } from '../../scripts/upstream-conformance.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const components = readdirSync(new URL(`../../${VENDOR}/src/components/`, import.meta.url)).sort();
@@ -37,7 +37,7 @@ const inventory = JSON.parse(readFileSync(new URL(`../../${INVENTORY}`, import.m
 
 test('the pinned inventory covers every vendored component, is unique, and contains every ledgered title', () => {
   assert.deepEqual(Object.keys(inventory).sort(), components);
-  assert.equal(Object.values(inventory).flat().length, 260);
+  assert.equal(Object.values(inventory).flat().length, 275);
   for (const [c, titles] of Object.entries(inventory)) {
     assert.equal(new Set(titles).size, titles.length, c);
     for (const e of ledger[c] ?? []) assert.ok(titles.includes(e.title), `${c}: ${e.title}`);
@@ -87,6 +87,18 @@ test('gate fails on missing components, skips, unknown or malformed ledger and i
     assert.equal(gate(baseline(), led, bad).ok, false);
   }
   assert.equal(gate(baseline(), led, { a: ['x', 'y', 'w'] }).ok, false);
+});
+
+test('a skip passes only when the vendored upstream file itself marks that test it.skip', () => {
+  const skipped = baseline(); skipped[0] = r('a', 'suite > x', true, { skipped: true });
+  const nested = { a: ['suite > x', 'y', 'w'], b: ['z'] };
+  const run = skips => evaluate(scoreboard(keyResults(skipped)), led, nested, ['a', 'b'], skips);
+  assert.equal(run({ a: ['x'] }).ok, true);
+  assert.deepEqual(run({}).problems, ['skipped test in a: suite > x']);
+  assert.equal(run({ b: ['x'] }).ok, false, 'an upstream skip in another component does not cover it');
+  assert.equal(run({ a: ['suite'] }).ok, false, 'only the test title itself counts, not a suite segment');
+  // The real vendored files: icon's own it.skip is the only upstream skip.
+  assert.deepEqual(upstreamSkips(root, components), { icon: ["Should produce an error if the icon doesn't exist."] });
 });
 
 test('repeated titles get stable occurrence suffixes', () => {

@@ -5,6 +5,7 @@
 {"name":"format-bytes","title":"Format Bytes","tag":"sl-format-bytes","example":"#demo-default"}
 {"name":"format-date","title":"Format Date","tag":"sl-format-date","example":"#demo-default"}
 {"name":"format-number","title":"Format Number","tag":"sl-format-number","example":"#demo-default"}
+{"name":"icon","title":"Icon","tag":"sl-icon","example":"sl-icon"}
 {"name":"progress-bar","title":"Progress Bar","tag":"sl-progress-bar","example":"#demo-default"}
 {"name":"progress-ring","title":"Progress Ring","tag":"sl-progress-ring","example":"#demo-default"}
 {"name":"relative-time","title":"Relative Time","tag":"sl-relative-time","example":"#demo-default"}

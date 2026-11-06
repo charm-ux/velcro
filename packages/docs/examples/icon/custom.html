@@ -1,0 +1,8 @@
+<sl-icon id="custom-icon" style="font-size: 8rem;"></sl-icon>
+
+<script type="module">
+  import { getBasePath } from '@charm-ux/velcro';
+
+  // Any SVG on a local or CORS-enabled endpoint works. This one is a file that this site serves itself.
+  document.querySelector('#custom-icon').src = getBasePath('assets/icons/emoji-sunglasses.svg');
+</script>

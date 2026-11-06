@@ -12,6 +12,7 @@
     "src/components/format-bytes/format-bytes.test.ts": "55eaf839f16745b92212cd6c0eb02fefc4a086d9340e553ca9867a67de78de99",
     "src/components/format-date/format-date.test.ts": "2e806259d9777e234de247ce10b096ae7cc8d1674c2e7fe0c7d123988b003f4e",
     "src/components/format-number/format-number.test.ts": "f6cd1f10540e45f919f49e2c309f32250dcef5069ec1d7ab2763fcdfe0709918",
+    "src/components/icon/icon.test.ts": "2bc75f591ead62749877a7d767adbc421765d5583b0b8ea1f4f13a75164de137",
     "src/components/progress-bar/progress-bar.test.ts": "5c7294f8182d478068a64c9add8d175f42c4c4589a5a3ebf43356cb176a1bf58",
     "src/components/progress-ring/progress-ring.test.ts": "761ba747e3aa1f6c6815b12b1786ca4b0960e1f596c7bf1a04ad35d8a128f3ea",
     "src/components/relative-time/relative-time.test.ts": "b6c54d4a521cf0cf7e751f14186724138c22cc8579c5df7bab0ee81bd89f2d17",

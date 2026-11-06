@@ -1,0 +1,36 @@
+<script type="module">
+  import { registerIconLibrary } from '@charm-ux/velcro';
+
+  registerIconLibrary('boxicons', {
+    resolver: name => {
+      let folder = 'regular';
+      if (name.substring(0, 4) === 'bxs-') folder = 'solid';
+      if (name.substring(0, 4) === 'bxl-') folder = 'logos';
+      return `https://cdn.jsdelivr.net/npm/boxicons@2.0.5/svg/${folder}/${name}.svg`;
+    },
+    mutator: svg => svg.setAttribute('fill', 'currentColor')
+  });
+</script>
+
+<div style="font-size: 24px;">
+  <sl-icon library="boxicons" name="bx-bot"></sl-icon>
+  <sl-icon library="boxicons" name="bx-cookie"></sl-icon>
+  <sl-icon library="boxicons" name="bx-joystick"></sl-icon>
+  <sl-icon library="boxicons" name="bx-save"></sl-icon>
+  <sl-icon library="boxicons" name="bx-server"></sl-icon>
+  <sl-icon library="boxicons" name="bx-wine"></sl-icon>
+  <br />
+  <sl-icon library="boxicons" name="bxs-bot"></sl-icon>
+  <sl-icon library="boxicons" name="bxs-cookie"></sl-icon>
+  <sl-icon library="boxicons" name="bxs-joystick"></sl-icon>
+  <sl-icon library="boxicons" name="bxs-save"></sl-icon>
+  <sl-icon library="boxicons" name="bxs-server"></sl-icon>
+  <sl-icon library="boxicons" name="bxs-wine"></sl-icon>
+  <br />
+  <sl-icon library="boxicons" name="bxl-apple"></sl-icon>
+  <sl-icon library="boxicons" name="bxl-chrome"></sl-icon>
+  <sl-icon library="boxicons" name="bxl-edge"></sl-icon>
+  <sl-icon library="boxicons" name="bxl-firefox"></sl-icon>
+  <sl-icon library="boxicons" name="bxl-opera"></sl-icon>
+  <sl-icon library="boxicons" name="bxl-microsoft"></sl-icon>
+</div>

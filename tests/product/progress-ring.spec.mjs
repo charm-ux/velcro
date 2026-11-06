@@ -39,7 +39,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).toContain('Velcro is an unreleased prototype');
   expect(html).toContain('Not implemented or unverified');
   expect(html).toContain('localizes it through its localization controller');
-  expect(html).toContain('sl-icon is not implemented');
+  expect(html).toContain('as before Velcro had sl-icon');
   expect(html).toContain('--indicator-transition-duration');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
@@ -299,7 +299,7 @@ test('no upstream Shoelace runtime is requested or defined; all requests stay on
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);
-  const defined = await frame.locator('body').evaluate(() => ['sl-icon', 'sl-dialog', 'sl-icon-button'].filter(tag => customElements.get(tag)));
+  const defined = await frame.locator('body').evaluate(() => ['sl-dialog', 'sl-icon-button'].filter(tag => customElements.get(tag)));
   expect(defined).toEqual([]);
   expect(await frame.locator('body').evaluate(() => Boolean(window.Shoelace || document.querySelector('script[src*="shoelace"]')))).toBe(false);
 });

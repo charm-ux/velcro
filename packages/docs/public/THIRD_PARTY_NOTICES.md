@@ -119,6 +119,18 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   explanatory wording adapted from `docs/pages/components/skeleton.md`). The skeleton is built on the
   `@charm-ux/core` skeleton; no Shoelace runtime or source files are included. The added light theme tokens
   (`--sl-border-radius-medium`, `--sl-border-radius-circle`) follow `src/themes/light.css` names and values.
+- Also used in: `packages/velcro/src/components/icon/icon.ts` (API documentation wording, and the icon resolution and
+  rendering behavior: library or `src` lookup, the shared request cache with cacheable and retryable errors, sprite
+  sheets, mutators, `sl-load` / `sl-error` and the label-driven host ARIA, adapted from
+  `src/components/icon/icon.component.ts`), `packages/velcro/src/components/icon/icon.styles.ts` (adapted from
+  `src/components/icon/icon.styles.ts`), `packages/velcro/src/components/icon/library.ts`,
+  `packages/velcro/src/components/icon/library.default.ts` and `packages/velcro/src/utilities/base-path.ts` (the icon
+  library registry and base path contract, adapted from `src/components/icon/library.ts`,
+  `src/components/icon/library.default.ts` and `src/utilities/base-path.ts`),
+  `packages/velcro/src/components/icon/library.system.ts` (the system icon set and resolver, copied from
+  `src/components/icon/library.system.ts`; the icons themselves are Bootstrap Icons, see below) and
+  `packages/docs/pages/components/icon.ts` with `packages/docs/examples/icon/` (example sections and wording adapted from
+  `docs/pages/components/icon.md`). No Shoelace runtime or source files are included.
 - Also used in: `tests/upstream/shoelace-2.20.1/` (test files only, never shipped): the upstream test files
   `src/components/<name>/<name>.test.ts` for each implemented component and the helper
   `src/internal/test/form-control-base-tests.ts`, copied unmodified from commit
@@ -134,6 +146,44 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+## Bootstrap Icons v1.11.3 (MIT)
+
+- Source: the `v1.11.3` release of Bootstrap Icons (https://github.com/twbs/icons); file contents identical to the
+  `bootstrap-icons` 1.11.3 npm package that Shoelace 2.20.1's default icon library is built from.
+- Used in: `packages/velcro/assets/bootstrap-icons/bootstrap-icons.svg` and
+  `packages/docs/public/assets/images/sprite.svg` (the release's sprite, copied unmodified; the package build generates
+  the 2,050 icon files in `dist/assets/icons/` from it for the default icon library and checks each against the
+  release's own files with `SHA256SUMS`, so they are byte-identical), `packages/velcro/assets/bootstrap-icons/LICENSE`
+  (the license, copied unmodified), `packages/velcro/assets/bootstrap-icons/icons.json` (an index of icon names,
+  titles, categories and tags, generated from the front matter of the release's `docs/content/icons/*.md`) and the
+  system icons in
+  `packages/velcro/src/components/icon/library.system.ts` (via Shoelace).
+- The release carries no NOTICE file. Its license text, verbatim:
+
+```text
+The MIT License (MIT)
+
+Copyright (c) 2019-2024 The Bootstrap Authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 ```
 
 ## Litro scaffold, @beatzball/create-litro 0.15.3 (Apache-2.0)

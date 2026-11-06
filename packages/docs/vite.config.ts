@@ -28,6 +28,9 @@ export default defineConfig({
       // `app` is Litro's hydration/router bundle; `velcro` is the browser-only Velcro runtime that the
       // isolated example documents load. Keeping it a separate entry keeps it out of server rendering.
       input: { app: 'app.ts', velcro: 'velcro-entry.ts' },
+      // Keep the `velcro` entry's exports (Vite drops entry exports in app builds by default): example documents
+      // import them through an import map.
+      preserveEntrySignatures: 'exports-only',
       output: {
         entryFileNames: '[name].js',
         assetFileNames: asset => (asset.names?.some(n => n.endsWith('.css')) ? '[name][extname]' : 'assets/[name]-[hash][extname]'),

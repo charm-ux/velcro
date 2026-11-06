@@ -5,6 +5,7 @@ export * from './components/divider/index.js';
 export * from './components/format-bytes/index.js';
 export * from './components/format-date/index.js';
 export * from './components/format-number/index.js';
+export * from './components/icon/index.js';
 export * from './components/progress-bar/index.js';
 export * from './components/progress-ring/index.js';
 export * from './components/relative-time/index.js';
