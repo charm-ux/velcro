@@ -61,16 +61,22 @@ jobs:
       - run: node .airig/trusted/scripts/security/gitleaks.mjs install
       # Content of commits new to the PR base (on main: since the previous main tip) is scanned file by changed
       # file; metadata of the full ancestry always is. A range over 1,000 changed files needs owner approval: the
-      # history-scan-approved label applied by the repository owner, which approves only the head it was applied
-      # to (this labeled run). Later pushes run as synchronize events and stay blocked until the label is re-applied.
-      # Without a usable base (first push, new branch) the full history is scanned under the hard caps.
+      # history-scan-approved label applied by the approver named in the VELCRO_HISTORY_APPROVER repository variable
+      # (unset: nobody can approve), which approves only the head it was applied to (this labeled run). Later pushes,
+      # and runs started by any other label, are not approved until the label is re-applied. Without a base that is
+      # the fetched main or its ancestor (first push, new branch, PR into another branch, force push) the full
+      # history is scanned under the hard caps.
       - name: Trusted source and history scan
         env:
           BASE_OID: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_OID: ${{ github.event.pull_request.head.sha || github.sha }}
-          VELCRO_HISTORY_APPROVED: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'history-scan-approved' && github.event.sender.login == github.repository_owner && github.event.pull_request.head.sha || '' }}
+          VELCRO_HISTORY_APPROVED: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'history-scan-approved' && vars.VELCRO_HISTORY_APPROVER != '' && github.event.sender.login == vars.VELCRO_HISTORY_APPROVER && github.event.pull_request.head.sha || '' }}
         run: |
-          if [ -n "$(printf '%s' "$BASE_OID" | tr -d 0)" ]; then scope="$BASE_OID..$HEAD_OID"; else scope="$HEAD_OID"; fi
+          if [ -n "$(printf '%s' "$BASE_OID" | tr -d 0)" ] && git merge-base --is-ancestor "$BASE_OID" refs/remotes/origin/main; then
+            scope="$BASE_OID..$HEAD_OID"
+          else
+            scope="$HEAD_OID"
+          fi
           node .airig/trusted/scripts/security/git-privacy.mjs history "$scope"
       # Detection is not approval: protected changes require a separate human
       # merge/publication gate, not a false secret finding or a blocked PR push.

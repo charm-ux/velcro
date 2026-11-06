@@ -175,13 +175,24 @@ function treeDiff(repo, revisions) {
   return changes;
 }
 
-// Every (mode, blob, path) a commit introduces relative to its parents. A root
-// commit introduces its whole tree. A merge introduces exactly the paths whose
-// result differs from every parent: content identical to some parent's path was
-// already covered by that parent, while an evil merge's new content is not.
-function introduced(repo, id, parents) {
+// The (mode, blob, path) entries of a commit that are not already covered.
+// Invariant, in topological order: every entry in the tree of a selected
+// commit is either scanned or present in the base tip's tree (the verified
+// published baseline). An entry identical to a selected parent is covered by
+// that parent; one identical only to a parent outside the selection is not,
+// because that ancestor's content was never scanned in this range (a later
+// base may have cleaned it), so such parents are replaced by the base tip
+// itself. A root commit contributes its whole tree; a merge, the paths that
+// differ from every one of these comparison trees (so an evil merge, or a
+// merge keeping an unscanned side, is scanned).
+function introduced(repo, id, parents, selected, base) {
   if (!parents.length) return treeDiff(repo, ['--root', id]);
-  const [first, ...rest] = parents.map(parent => treeDiff(repo, [parent, id]));
+  const against = parents.filter(parent => selected.has(parent));
+  if (against.length < parents.length) {
+    if (!base) fail();
+    against.push(base);
+  }
+  const [first, ...rest] = [...new Set(against)].map(parent => treeDiff(repo, [parent, id]));
   for (const other of rest) for (const name of first.keys()) if (!other.has(name)) first.delete(name);
   return first;
 }
@@ -192,11 +203,12 @@ function changedEntries(repo, tip, base) {
   const lines = decode(repo.git(['rev-list', '--parents', tip, ...(base ? [`^${base}`] : [])])).trim()
     .split('\n').filter(Boolean);
   if (lines.length > MAX_ENTRIES) fail();
+  const commits = lines.map(line => line.split(' '));
+  if (!commits.every(ids => ids.every(oid => OID.test(oid)))) fail();
+  const selected = new Set(commits.map(([id]) => id));
   const entries = new Map();
-  for (const line of lines) {
-    const [id, ...parents] = line.split(' ');
-    if (![id, ...parents].every(oid => OID.test(oid))) fail();
-    for (const entry of introduced(repo, id, parents).values()) {
+  for (const [id, ...parents] of commits) {
+    for (const entry of introduced(repo, id, parents, selected, base).values()) {
       entries.set(`${entry.mode} ${entry.oid}\0${entry.name}`, entry);
       if (entries.size > MAX_ENTRIES) fail();
     }
@@ -336,7 +348,9 @@ export async function main(args, { cwd = process.cwd(), input, io = process, env
       const range = rest.length ? parseRevisionRange(rest[0]) : { to: 'HEAD' };
       // A range's lower bound must be already verified published history (the
       // fetched main or a PR base): its content is trusted, its metadata is not.
+      // It must be the fetched main or one of its ancestors; anything else fails.
       const base = range.from ? repo.resolve(range.from) : undefined;
+      if (base) repo.git(['merge-base', '--is-ancestor', base, fetchedRef(repo, 'refs/remotes/origin/main')]);
       const tip = repo.resolve(range.to);
       historyNotice(io, await history(repo, tip, policy, { base, approval: env[APPROVAL_ENV] }));
     } else if (command === 'pre-push' && rest.length <= 1) {

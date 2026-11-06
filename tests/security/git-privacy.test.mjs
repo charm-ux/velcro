@@ -78,9 +78,13 @@ test('full history rejects dirty ancestors despite a clean tip and replacement r
   assert.equal(run(repo, ['history']), 1);
   // A range's base is already verified published history: its file content is
   // not rescanned (owner decision), but its commit metadata still is.
+  // The base must be the fetched main or its ancestor.
+  assert.equal(run(repo, ['history', `${bad}..${clean}`]), 2);
+  git(repo, ['update-ref', 'refs/remotes/origin/main', clean]);
   assert.equal(run(repo, ['history', `${bad}..${clean}`]), 0);
   const metadata = fixture();
   const unapproved = commit(metadata, 'clean\n', { GIT_AUTHOR_NAME: 'Unapproved Fixture' });
+  git(metadata, ['update-ref', 'refs/remotes/origin/main', unapproved]);
   assert.equal(run(metadata, ['history', `${unapproved}..${commit(metadata, 'next\n')}`]), 1);
 });
 
@@ -550,4 +554,97 @@ test('a published range over 1,000 changed files needs exact-head owner approval
   assert.equal(run(repo, ['pre-push'], { input: proposed(secret), extra: { VELCRO_HISTORY_APPROVED: secret } }), 1);
   // Full-history mode is not a published range and keeps only the hard caps.
   assert.equal(run(repo, ['history', next]), 0);
+});
+
+test('content inherited from outside the range is scanned unless the base tip has it', () => {
+  // Main: A adds a forbidden value, B cleans it. The feature branched from A
+  // never touches the file, and a merge with B keeps the feature's version.
+  const repo = fixture();
+  const a = commitFiles(repo, { 'notes.txt': `token = "${secretToken()}"\n` });
+  const b = commitFiles(repo, { 'notes.txt': 'cleaned\n' });
+  git(repo, ['update-ref', 'refs/remotes/origin/main', b]);
+  git(repo, ['checkout', '-q', '-b', 'feature/guard', a]);
+  const f = commitFiles(repo, { 'other.txt': 'clean feature\n' });
+  const kept = git(repo, ['commit-tree', `${f}^{tree}`, '-p', f, '-p', b, '-m', 'merge main keeping ours']);
+  assert.equal(run(repo, ['history', `${b}..${kept}`]), 1);
+  assert.equal(run(repo, ['pre-push'], { input: proposed(kept) }), 1);
+  // The unmerged feature tip carries the same unscanned inherited value.
+  assert.equal(run(repo, ['history', `${b}..${f}`]), 1);
+  // Taking the base's cleaned file in the merge does not hide the feature
+  // commit, which itself still carries the value.
+  const taken = git(repo, ['commit-tree', mergeTree(repo, f, { 'notes.txt': 'cleaned\n' }), '-p', f, '-p', b, '-m', 'merge main']);
+  assert.equal(run(repo, ['pre-push'], { input: proposed(taken) }), 1);
+  // Control: a feature from the cleaned base passes and counts only its own change.
+  const fresh = fixture();
+  commitFiles(fresh, { 'notes.txt': `token = "${secretToken()}"\n` });
+  const base = commitFiles(fresh, { 'notes.txt': 'cleaned\n' });
+  git(fresh, ['update-ref', 'refs/remotes/origin/main', base]);
+  git(fresh, ['checkout', '-q', '-b', 'feature/guard']);
+  const tip = commitFiles(fresh, { 'other.txt': 'clean feature\n' });
+  const clean = scan(fresh, ['pre-push'], { input: proposed(tip) });
+  assert.equal(clean.status, 0);
+  assert.deepEqual(counted(clean.output), { entries: 1, commits: 1 });
+});
+
+test('an explicit range base must be the fetched main or its ancestor', () => {
+  const { repo, base } = prFixture();
+  const tip = commit(repo, 'feature\n');
+  assert.equal(run(repo, ['history', `${base}..${tip}`]), 0);
+  // A caller-chosen base past main cannot hide the range.
+  assert.equal(run(repo, ['history', `${tip}..${tip}`]), 2);
+  git(repo, ['symbolic-ref', 'refs/remotes/origin/main', 'refs/heads/main']);
+  assert.equal(run(repo, ['history', `${base}..${tip}`]), 2);
+  git(repo, ['symbolic-ref', '--delete', 'refs/remotes/origin/main']);
+  assert.equal(run(repo, ['history', `${base}..${tip}`]), 2);
+  assert.equal(run(repo, ['history', tip]), 0);
+});
+
+test('range edge cases: symlink, gitlink, mode-only, octopus and unrelated roots', () => {
+  const blocked = (files, mode) => {
+    const { repo, base } = prFixture();
+    const sha = git(repo, ['hash-object', '-w', '--stdin'], files);
+    git(repo, ['update-index', '--add', '--cacheinfo', `${mode},${mode === '160000' ? base : sha},entry`]);
+    git(repo, ['commit', '-q', '-m', 'fixture entry']);
+    const tip = git(repo, ['rev-parse', 'HEAD']);
+    assert.equal(run(repo, ['pre-push'], { input: proposed(tip) }), 2);
+    assert.equal(run(repo, ['history', `${base}..${tip}`]), 2);
+  };
+  blocked('source.txt', '120000');
+  blocked('', '160000');
+  const mode = prFixture();
+  git(mode.repo, ['update-index', '--chmod=+x', 'source.txt']);
+  git(mode.repo, ['commit', '-q', '-m', 'mode only']);
+  const modeTip = git(mode.repo, ['rev-parse', 'HEAD']);
+  const modeResult = scan(mode.repo, ['pre-push'], { input: proposed(modeTip) });
+  assert.equal(modeResult.status, 0);
+  assert.deepEqual(counted(modeResult.output), { entries: 1, commits: 1 });
+  // Octopus: content in no parent is scanned; content equal to a parent is not.
+  const { repo, base } = prFixture();
+  const sides = ['one', 'two', 'three'].map(name => {
+    git(repo, ['checkout', '-q', '-B', `side-${name}`, base]);
+    return commitFiles(repo, { [`${name}.txt`]: `${name}\n` });
+  });
+  git(repo, ['checkout', '-q', 'feature/guard']);
+  const octopusTree = files => mergeTree(repo, sides[0], { 'two.txt': 'two\n', 'three.txt': 'three\n', ...files });
+  const octopus = files => git(repo, ['commit-tree', octopusTree(files), ...sides.flatMap(side => ['-p', side]), '-m', 'octopus']);
+  const cleanOctopus = scan(repo, ['pre-push'], { input: proposed(octopus({})) });
+  assert.equal(cleanOctopus.status, 0);
+  assert.deepEqual(counted(cleanOctopus.output), { entries: 3, commits: 4 });
+  const evil = octopus({ 'extra.txt': `token = "${secretToken()}"\n` });
+  assert.equal(run(repo, ['pre-push'], { input: proposed(evil) }), 1);
+  assert.equal(run(repo, ['history', `${base}..${evil}`]), 1);
+  // Unrelated root in range: carries a value, later deletes it, then merged.
+  const unrelated = prFixture();
+  git(unrelated.repo, ['checkout', '-q', '--orphan', 'stray']);
+  git(unrelated.repo, ['rm', '-q', '-r', '--cached', '.']);
+  const root = commitFiles(unrelated.repo, { 'stray.txt': `token = "${secretToken()}"\n` });
+  git(unrelated.repo, ['rm', '-q', '--', 'stray.txt']);
+  git(unrelated.repo, ['commit', '-q', '-m', 'remove stray']);
+  const removed = git(unrelated.repo, ['rev-parse', 'HEAD']);
+  assert.equal(git(unrelated.repo, ['rev-parse', `${removed}^`]), root);
+  git(unrelated.repo, ['checkout', '-q', '-f', 'feature/guard']);
+  const head = git(unrelated.repo, ['rev-parse', 'HEAD']);
+  const joined = git(unrelated.repo, ['commit-tree', `${head}^{tree}`, '-p', head, '-p', removed, '-m', 'join']);
+  assert.equal(run(unrelated.repo, ['pre-push'], { input: proposed(joined) }), 1);
+  assert.equal(run(unrelated.repo, ['history', `${unrelated.base}..${joined}`]), 1);
 });

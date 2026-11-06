@@ -41,7 +41,8 @@ Run these explicitly and keep the evidence tied to the exact content/head:
 - `node scripts/security/gitleaks.mjs install` — acquire the pinned scanner into ignored scratch (once)
 - `node scripts/security/gitleaks.mjs dir <path>` / `git <repo> [range]` — secret scan
 - `node scripts/security/git-privacy.mjs staged | identity | message <file> | history [range] | pre-push`
-  (exit 3: the published range exceeds 1,000 changed files and needs owner approval)
+  (a range base must be the fetched `origin/main` or its ancestor; exit 3: the published range
+  exceeds 1,000 changed files and needs owner approval; the pre-push hook hides the code, so rerun explicitly)
 - `node scripts/security/artifacts.mjs <path...>` — explicit plain UTF-8 `.txt`/`.md` outbound text
   (PR title/body, release notes) only; archives, images, packages and site artifacts are not supported
 
@@ -59,7 +60,8 @@ suppressed findings, or admin overrides to make progress. Recovery: report the
 sanitized location and category, preserve evidence privately, resolve or
 escalate, then rerun the checks before continuing.
 
-Never set `VELCRO_HISTORY_APPROVED` or apply the `history-scan-approved` label.
+Never set `VELCRO_HISTORY_APPROVED` or `VELCRO_HISTORY_APPROVER`, or apply the
+`history-scan-approved` label.
 They are the owner's exact-head approval for a history scan over 1,000 changed
 files (`docs/contributing.md`, "History scan approval"); on exit 3, stop and report.
 
