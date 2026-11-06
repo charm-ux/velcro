@@ -1,0 +1,50 @@
+<div class="popup-hover-bridge">
+  <sl-popup id="demo-hover-bridge" placement="top" hover-bridge distance="10" skidding="0" active>
+    <span slot="anchor"></span>
+    <div class="box"></div>
+  </sl-popup>
+
+  <br>
+  <label><input type="checkbox" name="hover-bridge" checked> Hover Bridge</label><br>
+  <label>Distance <input type="range" name="distance" min="0" max="50" step="1" value="10"></label><br>
+  <label>Skidding <input type="range" name="skidding" min="-50" max="50" step="1" value="0"></label>
+</div>
+
+<style>
+  .popup-hover-bridge span[slot='anchor'] {
+    display: inline-block;
+    width: 150px;
+    height: 150px;
+    border: dashed 2px var(--sl-color-neutral-600);
+    margin: 50px;
+  }
+
+  .popup-hover-bridge .box {
+    width: 100px;
+    height: 50px;
+    background: var(--sl-color-primary-600);
+    border-radius: var(--sl-border-radius-medium);
+  }
+
+  .popup-hover-bridge input[type='range'] {
+    max-width: 260px;
+    margin-top: .5rem;
+  }
+
+  .popup-hover-bridge sl-popup::part(hover-bridge) {
+    background: tomato;
+    opacity: .5;
+  }
+</style>
+
+<script>
+  const container = document.querySelector('.popup-hover-bridge');
+  const popup = container.querySelector('sl-popup');
+  const hoverBridge = container.querySelector('input[name="hover-bridge"]');
+  const distance = container.querySelector('input[name="distance"]');
+  const skidding = container.querySelector('input[name="skidding"]');
+
+  distance.addEventListener('input', () => (popup.distance = distance.value));
+  skidding.addEventListener('input', () => (popup.skidding = skidding.value));
+  hoverBridge.addEventListener('change', () => (popup.hoverBridge = hoverBridge.checked));
+</script>

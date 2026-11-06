@@ -1,0 +1,43 @@
+<div class="popup-flip">
+  <div class="overflow">
+    <sl-popup id="demo-flip" placement="top" flip active>
+      <span slot="anchor"></span>
+      <div class="box"></div>
+    </sl-popup>
+  </div>
+
+  <br />
+  <label><input type="checkbox" checked> Flip</label>
+</div>
+
+<style>
+  .popup-flip .overflow {
+    position: relative;
+    height: 300px;
+    border: solid 2px var(--sl-color-neutral-200);
+    overflow: auto;
+  }
+
+  .popup-flip span[slot='anchor'] {
+    display: inline-block;
+    width: 150px;
+    height: 150px;
+    border: dashed 2px var(--sl-color-neutral-600);
+    margin: 150px 50px;
+  }
+
+  .popup-flip .box {
+    width: 100px;
+    height: 50px;
+    background: var(--sl-color-primary-600);
+    border-radius: var(--sl-border-radius-medium);
+  }
+</style>
+
+<script>
+  const container = document.querySelector('.popup-flip');
+  const popup = container.querySelector('sl-popup');
+  const flip = container.querySelector('input[type="checkbox"]');
+
+  flip.addEventListener('change', () => (popup.flip = flip.checked));
+</script>

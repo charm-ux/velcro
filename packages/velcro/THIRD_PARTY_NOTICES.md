@@ -95,6 +95,15 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   unchanged), plus the docs page examples
   adapted from `docs/pages/components/mutation-observer.md`. The component extends the `@charm-ux/core` base element;
   no Shoelace runtime or source files are included.
+- Also used in: `packages/velcro/src/components/popup/popup.ts` (API documentation wording and behavior: anchoring by
+  slot, id, element or virtual element, `active`, placement, distance, skidding, arrow, flip, shift, auto-size, sync,
+  the hover bridge, the rendered `popup` / `popup__arrow` / `popup-hover-bridge` structure and `sl-reposition`, adapted
+  from `src/components/popup/popup.component.ts`, and the restore of reflected properties' initial values, adapted from
+  `src/internal/shoelace-element.ts`) and `packages/velcro/src/components/popup/popup.styles.ts` (styles adapted from
+  `src/components/popup/popup.styles.ts` and `src/styles/component.styles.ts`, declarations unchanged), plus the docs
+  page examples adapted from `docs/pages/components/popup.md`. The component extends the `@charm-ux/core` base element
+  and positions through the Floating UI calls of the `@charm-ux/core` popup; no Shoelace runtime or source files are
+  included.
 - Also used in: `packages/velcro/src/components/visually-hidden/visually-hidden.ts` (API documentation wording and the
   rendered structure, a default slot only, adapted from `src/components/visually-hidden/visually-hidden.component.ts`)
   and `packages/velcro/src/components/visually-hidden/visually-hidden.styles.ts` (styles adapted from

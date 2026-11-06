@@ -1,0 +1,50 @@
+<div class="popup-auto-size">
+  <div class="overflow">
+    <sl-popup id="demo-auto-size" placement="top" auto-size="both" auto-size-padding="10" active>
+      <span slot="anchor"></span>
+      <div class="box"></div>
+    </sl-popup>
+  </div>
+
+  <br />
+  <label><input type="checkbox" checked> Auto-size</label>
+</div>
+
+<style>
+  .popup-auto-size .overflow {
+    position: relative;
+    height: 300px;
+    border: solid 2px var(--sl-color-neutral-200);
+    overflow: auto;
+  }
+
+  .popup-auto-size span[slot='anchor'] {
+    display: inline-block;
+    width: 150px;
+    height: 150px;
+    border: dashed 2px var(--sl-color-neutral-600);
+    margin: 250px 50px 100px 50px;
+  }
+
+  .popup-auto-size .box {
+    background: var(--sl-color-primary-600);
+    border-radius: var(--sl-border-radius-medium);
+
+    /* This sets the preferred size of the popup's content */
+    width: 100px;
+    height: 200px;
+
+    /* This sets the maximum dimensions and allows scrolling when auto-size kicks in */
+    max-width: var(--auto-size-available-width);
+    max-height: var(--auto-size-available-height);
+    overflow: auto;
+  }
+</style>
+
+<script>
+  const container = document.querySelector('.popup-auto-size');
+  const popup = container.querySelector('sl-popup');
+  const autoSize = container.querySelector('input[type="checkbox"]');
+
+  autoSize.addEventListener('change', () => (popup.autoSize = autoSize.checked ? 'both' : ''));
+</script>

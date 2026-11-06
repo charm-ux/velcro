@@ -69,6 +69,14 @@
       "types": "./dist/components/mutation-observer/class.d.ts",
       "import": "./dist/components/mutation-observer/class.js"
     },
+    "./popup": {
+      "types": "./dist/components/popup/index.d.ts",
+      "import": "./dist/components/popup/index.js"
+    },
+    "./popup/class": {
+      "types": "./dist/components/popup/class.d.ts",
+      "import": "./dist/components/popup/class.js"
+    },
     "./progress-bar": {
       "types": "./dist/components/progress-bar/index.d.ts",
       "import": "./dist/components/progress-bar/index.js"
