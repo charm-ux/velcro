@@ -7,7 +7,7 @@
   </div>
 
   <br />
-  <label><input type="checkbox" checked> Auto-size</label>
+  <sl-switch checked>Auto-size</sl-switch>
 </div>
 
 <style>
@@ -44,7 +44,7 @@
 <script>
   const container = document.querySelector('.popup-auto-size');
   const popup = container.querySelector('sl-popup');
-  const autoSize = container.querySelector('input[type="checkbox"]');
+  const autoSize = container.querySelector('sl-switch');
 
-  autoSize.addEventListener('change', () => (popup.autoSize = autoSize.checked ? 'both' : ''));
+  autoSize.addEventListener('sl-change', () => (popup.autoSize = autoSize.checked ? 'both' : ''));
 </script>

@@ -23,7 +23,7 @@ test.beforeAll(async () => {
       import React from 'react';
       import { flushSync } from 'react-dom';
       import { createRoot } from 'react-dom/client';
-      import { VelcroBadge, VelcroButton, VelcroMutationObserver, VelcroProgressRing } from 'velcro-react';
+      import { VelcroBadge, VelcroButton, VelcroMutationObserver, VelcroPopup, VelcroProgressRing } from 'velcro-react';
       window.errors = [];
       addEventListener('error', e => window.errors.push(String(e.message)));
       addEventListener('unhandledrejection', e => window.errors.push(String(e.reason)));
@@ -39,6 +39,12 @@ test.beforeAll(async () => {
       window.renderObserver = p => flushSync(() => observerRoot.render(React.createElement(VelcroMutationObserver,
         { id: 'observer', ...p, onSlMutation: e => window.mutations.push(e.detail.mutationList.map(r => [r.type, r.attributeName])) },
         React.createElement('p', { id: 'observed-child' }, 'text'))));
+      window.repositions = 0;
+      const popupRoot = createRoot(document.getElementById('popup-root'));
+      window.renderPopup = p => flushSync(() => popupRoot.render(React.createElement(VelcroPopup,
+        { id: 'popup', active: true, ...p, onSlReposition: () => { window.repositions++; } },
+        React.createElement('span', { slot: 'anchor', style: { display: 'inline-block', width: '100px', height: '40px' } }),
+        React.createElement('div', { style: { width: '80px', height: '20px' } }))));
     `);
     const out = await build({
       configFile: false, logLevel: 'silent', root: dir,
@@ -55,7 +61,7 @@ test.beforeAll(async () => {
 async function mount(page) {
   const pageErrors = [];
   page.on('pageerror', e => pageErrors.push(e.message));
-  await page.setContent('<!DOCTYPE html><html><body><div id="root"></div><div id="observer-root"></div></body></html>');
+  await page.setContent('<!DOCTYPE html><html><body><div id="root"></div><div id="observer-root"></div><div id="popup-root"></div></body></html>');
   await page.addScriptTag({ type: 'module', content: bundle });
   await page.waitForFunction(() => typeof window.renderScenario === 'function');
   return pageErrors;
@@ -162,6 +168,34 @@ test('React 19 wrapper for the mutation observer sets its props and forwards sl-
   await page.evaluate(async () => { await document.getElementById('observer').updateComplete; });
   await page.evaluate(() => document.getElementById('observed-child').setAttribute('title', 'three'));
   await expect.poll(() => page.evaluate(() => window.mutations.length)).toBe(2);
+  expect(await page.evaluate(() => window.errors)).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+test('React 19 wrapper for the popup sets camelCase props whose attribute is hyphenated as element properties', async ({ page }) => {
+  const pageErrors = await mount(page);
+  const read = () => page.evaluate(async () => {
+    const el = document.getElementById('popup');
+    await el.updateComplete;
+    const keys = ['arrowPadding', 'arrowPlacement', 'autoSize', 'autoSizePadding', 'flipFallbackPlacements', 'flipFallbackStrategy',
+      'flipPadding', 'shiftPadding'];
+    // The wrapper always passes `style`, so that attribute is left out.
+    return { props: Object.fromEntries(keys.map(k => [k, el[k] ?? null])), attrs: el.getAttributeNames().filter(n => n !== 'style').sort() };
+  });
+  const supplied = { arrowPadding: 4, arrowPlacement: 'start', autoSize: 'vertical', autoSizePadding: 3, flipFallbackPlacements: 'right bottom',
+    flipFallbackStrategy: 'initial', flipPadding: 2, shiftPadding: 5 };
+  await page.evaluate(p => window.renderPopup(p), supplied);
+  // Set as properties: numbers stay numbers, a string flipFallbackPlacements is not split (as with Shoelace's wrapper), and
+  // only the reflected attributes appear.
+  expect(await read()).toEqual({ props: supplied, attrs: ['active', 'data-current-placement', 'id', 'placement', 'strategy'] });
+  await expect.poll(() => page.evaluate(() => window.repositions)).toBeGreaterThan(0);
+  // Removing the props restores the element's defaults.
+  await page.evaluate(() => window.renderPopup({}));
+  expect((await read()).props).toEqual({ arrowPadding: 10, arrowPlacement: 'anchor', autoSize: null, autoSizePadding: 0, flipFallbackPlacements: '',
+    flipFallbackStrategy: 'best-fit', flipPadding: 0, shiftPadding: 0 });
+  // A hyphenated spelling is still passed through as an attribute.
+  await page.evaluate(() => window.renderPopup({ 'arrow-padding': '7' }));
+  expect((await read()).props.arrowPadding).toBe(7);
   expect(await page.evaluate(() => window.errors)).toEqual([]);
   expect(pageErrors).toEqual([]);
 });

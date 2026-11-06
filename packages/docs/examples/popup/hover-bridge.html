@@ -5,7 +5,7 @@
   </sl-popup>
 
   <br>
-  <label><input type="checkbox" name="hover-bridge" checked> Hover Bridge</label><br>
+  <sl-switch name="hover-bridge" checked>Hover Bridge</sl-switch><br>
   <label>Distance <input type="range" name="distance" min="0" max="50" step="1" value="10"></label><br>
   <label>Skidding <input type="range" name="skidding" min="-50" max="50" step="1" value="0"></label>
 </div>
@@ -40,11 +40,11 @@
 <script>
   const container = document.querySelector('.popup-hover-bridge');
   const popup = container.querySelector('sl-popup');
-  const hoverBridge = container.querySelector('input[name="hover-bridge"]');
+  const hoverBridge = container.querySelector('sl-switch[name="hover-bridge"]');
   const distance = container.querySelector('input[name="distance"]');
   const skidding = container.querySelector('input[name="skidding"]');
 
   distance.addEventListener('input', () => (popup.distance = distance.value));
   skidding.addEventListener('input', () => (popup.skidding = skidding.value));
-  hoverBridge.addEventListener('change', () => (popup.hoverBridge = hoverBridge.checked));
+  hoverBridge.addEventListener('sl-change', () => (popup.hoverBridge = hoverBridge.checked));
 </script>

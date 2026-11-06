@@ -25,8 +25,8 @@
     <label>Skidding <input type="number" name="skidding" value="0"></label>
   </div>
   <div class="popup-overview-options">
-    <label><input type="checkbox" name="active" checked> Active</label>
-    <label><input type="checkbox" name="arrow"> Arrow</label>
+    <sl-switch name="active" checked>Active</sl-switch>
+    <sl-switch name="arrow">Arrow</sl-switch>
   </div>
 </div>
 <script>
@@ -35,14 +35,14 @@
   const select = container.querySelector('select[name="placement"]');
   const distance = container.querySelector('input[name="distance"]');
   const skidding = container.querySelector('input[name="skidding"]');
-  const active = container.querySelector('input[name="active"]');
-  const arrow = container.querySelector('input[name="arrow"]');
+  const active = container.querySelector('sl-switch[name="active"]');
+  const arrow = container.querySelector('sl-switch[name="arrow"]');
 
   select.addEventListener('change', () => (popup.placement = select.value));
   distance.addEventListener('input', () => (popup.distance = distance.value));
   skidding.addEventListener('input', () => (popup.skidding = skidding.value));
-  active.addEventListener('change', () => (popup.active = active.checked));
-  arrow.addEventListener('change', () => (popup.arrow = arrow.checked));
+  active.addEventListener('sl-change', () => (popup.active = active.checked));
+  arrow.addEventListener('sl-change', () => (popup.arrow = arrow.checked));
 </script>
 <style>
   .popup-overview sl-popup {

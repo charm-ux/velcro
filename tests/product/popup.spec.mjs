@@ -9,6 +9,14 @@ const TITLES = {
   'auto-size': 'Popup example: Auto-size',
   'hover-bridge': 'Popup example: Hover Bridge',
   virtual: 'Popup example: Virtual Elements',
+  activating: 'Popup example: Activating',
+  placement: 'Popup example: Placement',
+  distance: 'Popup example: Distance',
+  skidding: 'Popup example: Skidding',
+  arrows: 'Popup example: Arrows',
+  sync: "Popup example: Syncing with the Anchor's Dimensions",
+  strategy: 'Popup example: Positioning Strategy',
+  'flip-fallbacks': 'Popup example: Flip Fallbacks',
 };
 const IDS = {
   overview: '#demo-default',
@@ -18,6 +26,14 @@ const IDS = {
   'auto-size': '#demo-auto-size',
   'hover-bridge': '#demo-hover-bridge',
   virtual: '#demo-virtual',
+  activating: '#demo-activating',
+  placement: '#demo-placement',
+  distance: '#demo-distance',
+  skidding: '#demo-skidding',
+  arrows: '#demo-arrows',
+  sync: '#demo-sync',
+  strategy: '#demo-strategy',
+  'flip-fallbacks': '#demo-flip-fallbacks',
 };
 
 async function openExample(page, which = 'overview') {
@@ -173,10 +189,10 @@ test('overview example: the controls change placement, distance, skidding, activ
   await frame.locator('input[name="distance"]').fill('12');
   await frame.locator('input[name="skidding"]').fill('7');
   await expect.poll(geometry).toEqual({ placement: 'bottom', gapTop: -216, gapBottom: 12, centerOffset: 7, visible: true });
-  await frame.locator('input[name="arrow"]').check();
+  await frame.locator('sl-switch[name="arrow"]').click();
   await expect(frame.locator('#demo-default')).toHaveJSProperty('arrow', true);
   expect(await frame.locator('#demo-default').evaluate(el => !!el.shadowRoot.querySelector('[part="arrow"]'))).toBe(true);
-  await frame.locator('input[name="active"]').uncheck();
+  await frame.locator('sl-switch[name="active"]').click();
   await expect.poll(() => frame.locator('#demo-default').evaluate(el => ({
     active: el.hasAttribute('active'), display: getComputedStyle(el.popup).display, placement: el.getAttribute('data-current-placement') }))).toEqual({
     active: false, display: 'none', placement: null });
@@ -282,7 +298,7 @@ test('anchors: slot, id, element reference, a <slot> (its first assigned element
 
 test('virtual element example: the popup follows the pointer while active', async ({ page }) => {
   const { frame } = await openExample(page, 'virtual');
-  await frame.locator('input[type="checkbox"]').check();
+  await frame.locator('sl-switch').click();
   await frame.locator('body').evaluate(() => document.addEventListener('mousemove', e => (window.__pointer = [e.clientX, e.clientY])));
   const iframe = await page.locator(`iframe[title="${TITLES.virtual}"]`).boundingBox();
   await page.mouse.move(iframe.x + 30, iframe.y + 40);
@@ -293,7 +309,7 @@ test('virtual element example: the popup follows the pointer while active', asyn
   })).toEqual({ at: true, placement: 'right-start' });
 });
 
-test('arrow: each arrow-placement, the static side, padding and RTL start', async ({ page }) => {
+test('arrow: each arrow-placement, the static side, padding, and RTL start and end from the dir attribute or property', async ({ page }) => {
   const { frame } = await openExample(page);
   const r = await run(frame, `
     const out = {};
@@ -304,8 +320,16 @@ test('arrow: each arrow-placement, the static side, padding and RTL start', asyn
       ['top center', { placement: 'top', 'arrow-placement': 'center' }],
       ['right anchor', { placement: 'right' }],
       ['rtl start', { placement: 'top', 'arrow-placement': 'start', dir: 'rtl' }],
+      ['rtl end', { placement: 'top', 'arrow-placement': 'end', dir: 'rtl' }],
+      ['rtl property start', { placement: 'top', 'arrow-placement': 'start' }],
     ]) {
       const { el } = await make({ active: '', arrow: '', ...attrs });
+      if (label === 'rtl property start') {
+        el.dir = 'rtl'; // the property only: no attribute, so the element's CSS direction stays ltr
+        await el.updateComplete;
+        el.reposition();
+        await settle();
+      }
       const s = el.shadowRoot.querySelector('.popup__arrow').style;
       out[label] = { top: s.top, right: s.right, bottom: s.bottom, left: s.left };
       el.remove();
@@ -313,14 +337,23 @@ test('arrow: each arrow-placement, the static side, padding and RTL start', asyn
     return out;
   `);
   const side = 'calc(var(--arrow-size-diagonal) * -1)';
-  // The arrow box is 2 * 6px * 0.7071 = 8.485px wide, centered on the anchor's center: 40 - 4.24 and 10 - 4.24.
+  // The arrow box is 2 * 6px * 0.7071 = 8.485px wide, centered on the anchor's center: 40 - 4.243 and 10 - 4.243. The
+  // engine stores these lengths rounded to its layout unit, so they are compared numerically.
+  const arrowBox = 2 * 6 * 0.7071;
+  expect(parseFloat(r['top anchor'].left)).toBeCloseTo(40 - arrowBox / 2, 1);
+  expect(parseFloat(r['right anchor'].top)).toBeCloseTo(10 - arrowBox / 2, 1);
+  expect(r['top anchor'].left).toMatch(/^[\d.]+px$/);
+  expect(r['right anchor'].top).toMatch(/^[\d.]+px$/);
+  r['top anchor'].left = r['right anchor'].top = '<anchor-centered>';
   expect(r).toEqual({
-    'top anchor': { top: '', right: '', bottom: side, left: '35.7578px' },
+    'top anchor': { top: '', right: '', bottom: side, left: '<anchor-centered>' },
     'top start': { top: '', right: '', bottom: side, left: 'calc(4px - var(--arrow-padding-offset))' },
     'top end': { top: '', right: 'calc(10px - var(--arrow-padding-offset))', bottom: side, left: '' },
     'top center': { top: '', right: '', bottom: side, left: 'calc(50% - var(--arrow-size-diagonal))' },
-    'right anchor': { top: '5.75781px', right: '', bottom: '', left: side },
+    'right anchor': { top: '<anchor-centered>', right: '', bottom: '', left: side },
     'rtl start': { top: '', right: 'calc(10px - var(--arrow-padding-offset))', bottom: side, left: '' },
+    'rtl end': { top: '', right: '', bottom: side, left: 'calc(10px - var(--arrow-padding-offset))' },
+    'rtl property start': { top: '', right: 'calc(10px - var(--arrow-padding-offset))', bottom: side, left: '' },
   });
 });
 
@@ -349,7 +382,7 @@ test('flip example: the popup flips to the bottom when the top is clipped, and s
   await expect.poll(placement).toBe('top');
   await frame.locator('.popup-flip .overflow').evaluate(el => (el.scrollTop = 120));
   await expect.poll(placement).toBe('bottom');
-  await frame.locator('input[type="checkbox"]').uncheck();
+  await frame.locator('sl-switch').click();
   await expect.poll(placement).toBe('top');
 });
 
@@ -385,7 +418,7 @@ test('shift example: the popup is shifted inside the container by shift-padding,
   const offset = () => frame.locator('#demo-shift').evaluate(el => Math.round(el.popup.getBoundingClientRect().left - el.closest('.overflow').getBoundingClientRect().left));
   // Container border 2px + shift-padding 10px.
   await expect.poll(offset).toBe(12);
-  await frame.locator('input[type="checkbox"]').uncheck();
+  await frame.locator('sl-switch').click();
   // Anchor at 2 + 10, 150 wide plus a 2px border each side; the 300px popup is centered on it.
   await expect.poll(offset).toBe(2 + 10 + 77 - 150);
 });
@@ -403,7 +436,7 @@ test('auto-size example: sets the available-size custom properties on the host, 
   const before = await vars();
   expect(before.w).toMatch(/^\d+(\.\d+)?px$/);
   expect(before.boxH).toBe(140);
-  await frame.locator('input[type="checkbox"]').uncheck();
+  await frame.locator('sl-switch').click();
   await expect.poll(vars).toEqual({ w: '', h: '', boxH: 200 });
 
   const r = await run(frame, `
@@ -429,7 +462,7 @@ test('hover bridge example: drawn only while active, and its corners span the ga
       topLeftY: css('top-left-y') === `${p.bottom}px`, bottomLeftY: css('bottom-left-y') === `${a.top}px` };
   });
   await expect.poll(bridge).toEqual({ visible: true, position: 'fixed', topLeftY: true, bottomLeftY: true });
-  await frame.locator('input[name="hover-bridge"]').uncheck();
+  await frame.locator('sl-switch[name="hover-bridge"]').click();
   await expect.poll(async () => (await bridge()).visible).toBe(false);
 });
 
@@ -584,4 +617,166 @@ test('upstream quirk: flipFallbackPlacements assigned as a string property is no
   expect(r.attribute).toEqual({ value: ['right'], current: 'right' });
   expect(r.property.value).toBe('right');
   expect(r.property.current).not.toBe('right');
+});
+
+test('dir and lang are Shoelace\'s plain reactive properties: undefined by default, set from the attribute, never reflected', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const r = await run(frame, `
+    const el = document.createElement('sl-popup');
+    document.body.append(el);
+    await el.updateComplete;
+    const out = { initial: [el.dir, el.lang] };
+    el.dir = 'rtl';
+    el.lang = 'de';
+    await el.updateComplete;
+    out.setByProperty = [el.dir, el.lang, el.hasAttribute('dir'), el.hasAttribute('lang'), getComputedStyle(el).direction];
+    el.setAttribute('dir', 'ltr');
+    el.setAttribute('lang', 'fr');
+    out.setByAttribute = [el.dir, el.lang];
+    el.remove();
+    return out;
+  `);
+  expect(r).toEqual({ initial: [undefined, undefined], setByProperty: ['rtl', 'de', false, false, 'ltr'], setByAttribute: ['ltr', 'fr'] });
+});
+
+test('absolute strategy: a popup slotted into a shadow tree is positioned against the positioned element around the slot', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const r = await run(frame, `
+    const host = document.createElement('div');
+    host.attachShadow({ mode: 'open' }).innerHTML = '<div style="position: relative; margin: 30px 0 0 50px; padding: 7px"><slot></slot></div>';
+    document.body.append(host);
+    const out = {};
+    for (const strategy of ['absolute', 'fixed']) {
+      const { el, anchor } = await make({ active: '', placement: 'bottom', strategy }, { parent: host });
+      out[strategy] = { dx: rect(el.popup).x - rect(anchor).x, dy: rect(el.popup).y - rect(anchor).y };
+      // Outside a computation the popup's offsetParent is the native (retargeted) one.
+      out[strategy].nativeOutside = el.popup.offsetParent === Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetParent').get.call(el.popup);
+      el.remove();
+    }
+    // Arrow middleware: the arrow is measured against the same offset parent.
+    const { el, anchor } = await make({ active: '', placement: 'bottom', arrow: '', distance: '8' }, { parent: host });
+    const arrow = el.shadowRoot.querySelector('[part="arrow"]').getBoundingClientRect();
+    const a = anchor.getBoundingClientRect();
+    out.arrowCenterOffset = Math.abs(Math.round(arrow.x + arrow.width / 2 - (a.x + a.width / 2)));
+    host.remove();
+    return out;
+  `);
+  // Centered under the 100x40 anchor: the 80px box is 10px in, and directly below it.
+  expect(r).toEqual({ absolute: { dx: 10, dy: 40, nativeOutside: true }, fixed: { dx: 10, dy: 40, nativeOutside: true }, arrowCenterOffset: 0 });
+});
+
+test('an sl-reposition listener that changes the direction affects the next computation, not the current one (as in Shoelace)', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const r = await run(frame, `
+    const { el, anchor } = await make({ active: '', placement: 'top-start' });
+    const left = () => Math.round(el.popup.getBoundingClientRect().left - anchor.getBoundingClientRect().left);
+    const out = { ltr: left() };
+    el.addEventListener('sl-reposition', () => (el.style.direction = 'rtl'), { once: true });
+    el.reposition();
+    await settle();
+    out.listenerChangedDirection = left();
+    el.reposition();
+    await settle();
+    out.next = left();
+    el.remove();
+    return out;
+  `);
+  // top-start aligns the 80px box with the anchor's start edge: left in ltr, right (100 - 80) in rtl.
+  expect(r).toEqual({ ltr: 0, listenerChangedDirection: 0, next: 20 });
+});
+
+test('upstream quirk: active set to false and back to true before an update starts a second auto-update', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const r = await run(frame, `
+    const normal = await make({ active: '' });
+    const toggled = await make({ active: '' });
+    toggled.el.active = false;
+    toggled.el.active = true;
+    await toggled.el.updateComplete;
+    await settle();
+    const scroll = () => {
+      const before = [normal.events.count, toggled.events.count];
+      window.dispatchEvent(new Event('scroll'));
+      return [normal.events.count - before[0], toggled.events.count - before[1]];
+    };
+    const out = { bothActive: scroll() };
+    toggled.el.active = false;
+    await toggled.el.updateComplete;
+    await settle();
+    out.toggledInactive = scroll();
+    normal.el.remove();
+    toggled.el.remove();
+    return out;
+  `);
+  // Each auto-update repositions on a window scroll; the inactive popup's leaked one returns early, without an event.
+  expect(r).toEqual({ bothActive: [1, 2], toggledInactive: [1, 0] });
+});
+
+test('ported examples: activating, placement, distance, skidding, arrows, sync, strategy and flip fallbacks', async ({ page }) => {
+  const geometry = (frame, id) => frame.locator(id).evaluate(el => {
+    const a = el.querySelector('[slot="anchor"]').getBoundingClientRect();
+    const p = el.popup.getBoundingClientRect();
+    return { placement: el.getAttribute('data-current-placement'), gapTop: Math.round(a.top - p.bottom),
+      centerX: Math.round(p.left + p.width / 2 - (a.left + a.width / 2)), w: Math.round(p.width), h: Math.round(p.height),
+      display: getComputedStyle(el.popup).display };
+  });
+
+  let { frame } = await openExample(page, 'activating');
+  await expect.poll(() => geometry(frame, IDS.activating)).toMatchObject({ placement: 'top', gapTop: 0, display: 'block' });
+  await frame.locator('sl-switch').click();
+  await expect.poll(() => geometry(frame, IDS.activating)).toMatchObject({ placement: null, display: 'none' });
+
+  ({ frame } = await openExample(page, 'placement'));
+  await frame.locator('select').selectOption('left-end');
+  await expect.poll(() => geometry(frame, IDS.placement)).toMatchObject({ placement: 'left-end' });
+
+  ({ frame } = await openExample(page, 'distance'));
+  await frame.locator('input[type="range"]').fill('20');
+  await expect.poll(() => geometry(frame, IDS.distance)).toMatchObject({ placement: 'top', gapTop: 20, centerX: 0 });
+
+  ({ frame } = await openExample(page, 'skidding'));
+  await frame.locator('input[type="range"]').fill('-30');
+  await expect.poll(() => geometry(frame, IDS.skidding)).toMatchObject({ placement: 'top', gapTop: 0, centerX: -30 });
+
+  ({ frame } = await openExample(page, 'arrows'));
+  const arrowState = () => frame.locator(IDS.arrows).evaluate(el => {
+    const arrow = el.shadowRoot.querySelector('[part="arrow"]');
+    return { placement: el.getAttribute('data-current-placement'), arrowPlacement: el.arrowPlacement, arrow: !!arrow,
+      color: arrow && getComputedStyle(arrow).backgroundColor === getComputedStyle(el.querySelector('.box')).backgroundColor };
+  });
+  await expect.poll(arrowState).toEqual({ placement: 'top', arrowPlacement: 'anchor', arrow: true, color: true });
+  await frame.locator('select[name="placement"]').selectOption('bottom-start');
+  await frame.locator('select[name="arrow-placement"]').selectOption('end');
+  await expect.poll(arrowState).toEqual({ placement: 'bottom-start', arrowPlacement: 'end', arrow: true, color: true });
+  await frame.locator('sl-switch[name="arrow"]').click();
+  await expect.poll(arrowState).toEqual({ placement: 'bottom-start', arrowPlacement: 'end', arrow: false, color: null });
+
+  ({ frame } = await openExample(page, 'sync'));
+  // The anchor is 150px plus a 2px border on each side.
+  await expect.poll(() => geometry(frame, IDS.sync)).toMatchObject({ w: 154, h: 50 });
+  await frame.locator('select').selectOption('both');
+  await expect.poll(() => geometry(frame, IDS.sync)).toMatchObject({ w: 154, h: 154 });
+  await frame.locator('select').selectOption('');
+  await expect.poll(() => geometry(frame, IDS.sync)).toMatchObject({ w: 50, h: 50 });
+
+  ({ frame } = await openExample(page, 'strategy'));
+  const strategy = () => frame.locator(IDS.strategy).evaluate(el => {
+    const container = el.closest('.overflow').getBoundingClientRect();
+    const p = el.popup.getBoundingClientRect();
+    const hit = document.elementFromPoint(p.left + p.width / 2, p.top + p.height / 2);
+    return { strategy: el.strategy, position: getComputedStyle(el.popup).position, aboveContainer: p.top < container.top,
+      visible: hit === el.querySelector('.box') };
+  });
+  // Scrolled so that the anchor's top is near the container's top: the popup is above the container, where only the fixed
+  // one is visible; the absolute one is clipped by the container.
+  await frame.locator('.popup-strategy .overflow').evaluate(el => (el.scrollTop = 130));
+  await expect.poll(strategy).toEqual({ strategy: 'fixed', position: 'fixed', aboveContainer: true, visible: true });
+  await frame.locator('sl-switch').click();
+  await expect.poll(strategy).toEqual({ strategy: 'absolute', position: 'absolute', aboveContainer: true, visible: false });
+
+  ({ frame } = await openExample(page, 'flip-fallbacks'));
+  const placement = () => frame.locator(IDS['flip-fallbacks']).getAttribute('data-current-placement');
+  await expect.poll(placement).toBe('top');
+  await frame.locator('.popup-flip-fallbacks .overflow').evaluate(el => (el.scrollTop = 220));
+  await expect.poll(placement).toBe('right');
 });

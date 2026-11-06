@@ -11,6 +11,7 @@ import { property, query } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
 import { CorePopup } from '@charm-ux/core/dist/components/popup/popup.js';
+import { composedOffsetParent } from '../../internal/composed-offset-parent.js';
 import { LocalizeController } from '../../internal/localize.js';
 import styles from './popup.styles.js';
 
@@ -40,8 +41,17 @@ function isVirtualElement(e: unknown): e is VirtualElement {
 //   middleware the factory would return for Shoelace's options.
 // - computePosition: core's `reposition` with the stand-in's placement, middleware and strategy. For the `absolute`
 //   strategy the stand-in leaves `strategy` undefined, so core keeps Floating UI's own platform (core's replacement
-//   offset-parent lookup is only used for `absolute`) and Floating UI applies its `absolute` default. Core awaits the
-//   stand-in's (absent) `updateComplete` first, so the computation starts one microtask later than in Shoelace.
+//   offset-parent lookup, which tries the native `offsetParent` first, is only used for `absolute`) and Floating UI
+//   applies its `absolute` default. Shoelace instead gives Floating UI's `getOffsetParent` the composed-offset-position
+//   lookup for `absolute`. Floating UI's own platform reads `offsetParent` from the popup (and the arrow, for the arrow
+//   middleware), so while a computation runs those two elements answer `offsetParent` with that lookup, including the
+//   loop over static table elements that Floating UI would otherwise answer natively: the result is the one Shoelace's
+//   platform gives.
+//   Core awaits the stand-in's (absent) `updateComplete` before it calls Floating UI, one microtask later than
+//   Shoelace. The only input Floating UI reads synchronously is the popup's direction (`platform.isRTL`); it is
+//   sampled where Shoelace calls Floating UI and pinned on the popup for that synchronous call, so an `sl-reposition`
+//   listener that changes the direction affects the next computation, as in Shoelace. Everything else (rects,
+//   clipping, middleware) is read after at least one microtask in both, so after any listener has run.
 // - autoUpdate: core's `start`, with a no-op for the window scroll listener that core adds (and removed with it).
 //
 type FloatingMiddleware = { name: string; options?: unknown; fn: (state: unknown) => unknown };
@@ -100,15 +110,72 @@ function arrow(options: Record<string, unknown>) {
   return withOptions(created, options);
 }
 
+const nativeOffsetParent = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetParent')!.get!;
+const composedLookups = new Map<HTMLElement, number>();
+
+// What Floating UI's `getOffsetParent(element, polyfill)` takes from the polyfill: the first lookup, repeated while it
+// gives a static table element (Floating UI's `getTrueOffsetParent` loop).
+function shoelaceOffsetParent(element: HTMLElement): Element | null {
+  let parent = composedOffsetParent(element);
+  while (parent && /^(table|td|th)$/.test(parent.nodeName.toLowerCase()) && getComputedStyle(parent).position === 'static') {
+    parent = parent instanceof HTMLElement ? composedOffsetParent(parent) : null;
+  }
+  return parent;
+}
+
+function useComposedOffsetParent(elements: HTMLElement[]): () => void {
+  for (const element of elements) {
+    if (!Object.prototype.hasOwnProperty.call(element, 'offsetParent')) {
+      Object.defineProperty(element, 'offsetParent', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return composedLookups.has(this) ? shoelaceOffsetParent(this) : nativeOffsetParent.call(this);
+        },
+      });
+    }
+    composedLookups.set(element, (composedLookups.get(element) ?? 0) + 1);
+  }
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    for (const element of elements) {
+      const count = composedLookups.get(element)! - 1;
+      if (count) composedLookups.set(element, count);
+      else composedLookups.delete(element);
+    }
+  };
+}
+
+// Pins the popup's direction to `direction` until the current synchronous run ends (see "Floating UI through core").
+function pinDirection(floating: HTMLElement, direction: string) {
+  if (getComputedStyle(floating).direction === direction) return;
+  const value = floating.style.getPropertyValue('direction');
+  const priority = floating.style.getPropertyPriority('direction');
+  floating.style.setProperty('direction', direction, 'important');
+  queueMicrotask(() => floating.style.setProperty('direction', value, priority));
+}
+
 function computePosition(
   reference: Element | VirtualElement,
   floating: HTMLElement,
-  options: { placement: string; middleware: FloatingMiddleware[]; strategy: string },
+  options: { placement: string; middleware: FloatingMiddleware[]; strategy: string; arrowElement?: HTMLElement },
 ): Promise<FloatingPosition> {
-  return new Promise((resolve, reject) => {
+  // Shoelace's call to Floating UI reads the popup's direction here, synchronously.
+  const direction = getComputedStyle(floating).direction;
+  const release =
+    options.strategy === 'absolute'
+      ? useComposedOffsetParent(options.arrowElement ? [floating, options.arrowElement] : [floating])
+      : noop;
+  let popupReads = 0;
+  return new Promise<FloatingPosition>((resolve, reject) => {
     const standIn: StandIn = {
       anchorEl: reference,
-      popup: floating,
+      // Core reads `popup` once before its await and once more as the argument of its Floating UI call.
+      get popup() {
+        if (++popupReads === 2) pinDirection(floating, direction);
+        return floating;
+      },
       placement: options.placement,
       strategy: options.strategy === 'absolute' ? undefined : options.strategy,
       distance: 0,
@@ -120,7 +187,7 @@ function computePosition(
       emit: noop,
     };
     (core.reposition.call(standIn) as Promise<void>).catch(reject);
-  });
+  }).finally(release);
 }
 
 function autoUpdate(reference: Element | VirtualElement, floating: HTMLElement, update: () => void): () => void {
@@ -182,7 +249,20 @@ export class VelcroPopup extends CharmElement {
   @query('.popup__arrow')
   private arrowEl!: HTMLElement;
 
-  // Shoelace's base element declares `lang` as a reactive property with no initial value and no reflection.
+  private velcroDir?: string;
+
+  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
+  // initial value (undefined). Core's `dir` would return the computed direction instead.
+  /** The element's text direction, as set by the `dir` attribute or property. Not reflected. */
+  @property()
+  public override get dir(): 'ltr' | 'rtl' | 'auto' {
+    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+  }
+  public override set dir(value: 'ltr' | 'rtl' | 'auto') {
+    this.velcroDir = value;
+  }
+
+  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
   @property()
   public override lang!: string;
 
@@ -571,9 +651,11 @@ export class VelcroPopup extends CharmElement {
       placement: this.placement,
       middleware,
       strategy: this.strategy,
+      arrowElement: this.arrow ? this.arrowEl : undefined,
     }).then(({ x, y, middlewareData, placement }) => {
-      // Shoelace uses its localization utility for the direction: the host's `dir`, else the document's, else `ltr`.
-      const isRtl = this.localize.dir() === 'rtl';
+      // Shoelace uses its localization utility for the direction: the host's `dir` property, else the document's, else
+      // `ltr` (`localize.dir()` reads the attribute, which only differs when the property was set on its own).
+      const isRtl = (this.dir || this.localize.dir()).toLowerCase() === 'rtl';
       const staticSide = ({ top: 'bottom', right: 'left', bottom: 'top', left: 'right' } as Record<string, string>)[
         placement.split('-')[0]
       ];

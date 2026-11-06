@@ -7,7 +7,7 @@
   </div>
 
   <br />
-  <label><input type="checkbox" checked> Flip</label>
+  <sl-switch checked>Flip</sl-switch>
 </div>
 
 <style>
@@ -37,7 +37,7 @@
 <script>
   const container = document.querySelector('.popup-flip');
   const popup = container.querySelector('sl-popup');
-  const flip = container.querySelector('input[type="checkbox"]');
+  const flip = container.querySelector('sl-switch');
 
-  flip.addEventListener('change', () => (popup.flip = flip.checked));
+  flip.addEventListener('sl-change', () => (popup.flip = flip.checked));
 </script>

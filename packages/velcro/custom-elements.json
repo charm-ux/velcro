@@ -3494,12 +3494,8 @@
                 "text": "'ltr' | 'rtl' | 'auto'"
               },
               "privacy": "public",
-              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
-              "attribute": "dir",
-              "inheritedFrom": {
-                "name": "CharmElement",
-                "package": "@charm-ux/core"
-              }
+              "description": "The element's text direction, as set by the `dir` attribute or property. Not reflected.",
+              "attribute": "dir"
             },
             {
               "kind": "field",
@@ -3605,6 +3601,7 @@
                 "text": "string"
               },
               "privacy": "public",
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
               "attribute": "lang"
             },
             {
@@ -3743,6 +3740,14 @@
               "kind": "method",
               "name": "updateHoverBridge",
               "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "velcroDir",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "private"
             }
           ],
           "events": [
@@ -3842,12 +3847,8 @@
               "type": {
                 "text": "'ltr' | 'rtl' | 'auto'"
               },
-              "description": "The dir global attribute is an enumerated attribute that indicates the directionality of the element's text.",
+              "description": "The element's text direction, as set by the `dir` attribute or property. Not reflected.",
               "fieldName": "dir",
-              "inheritedFrom": {
-                "name": "CharmElement",
-                "package": "@charm-ux/core"
-              },
               "propName": "dir"
             },
             {
@@ -3924,6 +3925,7 @@
               "type": {
                 "text": "string"
               },
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
               "fieldName": "lang",
               "propName": "lang"
             },

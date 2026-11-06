@@ -6,7 +6,7 @@
     </sl-popup>
   </div>
 
-  <label><input type="checkbox" checked> Shift</label>
+  <sl-switch checked>Shift</sl-switch>
 </div>
 
 <style>
@@ -35,7 +35,7 @@
 <script>
   const container = document.querySelector('.popup-shift');
   const popup = container.querySelector('sl-popup');
-  const shift = container.querySelector('input[type="checkbox"]');
+  const shift = container.querySelector('sl-switch');
 
-  shift.addEventListener('change', () => (popup.shift = shift.checked));
+  shift.addEventListener('sl-change', () => (popup.shift = shift.checked));
 </script>

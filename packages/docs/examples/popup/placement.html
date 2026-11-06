@@ -1,0 +1,49 @@
+<div class="popup-placement">
+  <sl-popup id="demo-placement" placement="top" active>
+    <span slot="anchor"></span>
+    <div class="box"></div>
+  </sl-popup>
+
+  <label>
+    Placement
+    <select name="placement">
+      <option value="top" selected>top</option>
+      <option value="top-start">top-start</option>
+      <option value="top-end">top-end</option>
+      <option value="bottom">bottom</option>
+      <option value="bottom-start">bottom-start</option>
+      <option value="bottom-end">bottom-end</option>
+      <option value="right">right</option>
+      <option value="right-start">right-start</option>
+      <option value="right-end">right-end</option>
+      <option value="left">left</option>
+      <option value="left-start">left-start</option>
+      <option value="left-end">left-end</option>
+    </select>
+  </label>
+</div>
+
+<style>
+  .popup-placement span[slot='anchor'] {
+    display: inline-block;
+    width: 150px;
+    height: 150px;
+    border: dashed 2px var(--sl-color-neutral-600);
+    margin: 50px;
+  }
+
+  .popup-placement .box {
+    width: 100px;
+    height: 50px;
+    background: var(--sl-color-primary-600);
+    border-radius: var(--sl-border-radius-medium);
+  }
+</style>
+
+<script>
+  const container = document.querySelector('.popup-placement');
+  const popup = container.querySelector('sl-popup');
+  const select = container.querySelector('select');
+
+  select.addEventListener('change', () => (popup.placement = select.value));
+</script>

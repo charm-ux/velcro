@@ -3,13 +3,13 @@
     <div class="circle"></div>
   </sl-popup>
 
-  <label><input type="checkbox"> Highlight mouse cursor</label>
+  <sl-switch>Highlight mouse cursor</sl-switch>
 </div>
 
 <script>
   const container = document.querySelector('.popup-virtual-element');
   const popup = container.querySelector('sl-popup');
-  const enabled = container.querySelector('input[type="checkbox"]');
+  const enabled = container.querySelector('sl-switch');
 
   let clientX = 0;
   let clientY = 0;
@@ -31,7 +31,7 @@
   };
 
   // Only activate the popup when the checkbox is checked
-  enabled.addEventListener('change', () => {
+  enabled.addEventListener('sl-change', () => {
     popup.active = enabled.checked;
   });
 
