@@ -1,0 +1,43 @@
+<div class="mutation-overview">
+  <sl-mutation-observer id="demo-observer" attr="variant">
+    <sl-button id="demo-button" variant="primary">Click to mutate</sl-button>
+  </sl-mutation-observer>
+
+  <br />
+  👆 Click the button and watch the log
+
+  <p>Mutation events: <output id="demo-count">0</output></p>
+  <pre id="demo-log"></pre>
+
+  <script>
+    const container = document.querySelector('.mutation-overview');
+    const mutationObserver = container.querySelector('sl-mutation-observer');
+    const button = container.querySelector('sl-button');
+    const count = container.querySelector('#demo-count');
+    const log = container.querySelector('#demo-log');
+    const variants = ['primary', 'success', 'neutral', 'warning', 'danger'];
+    let clicks = 0;
+    let events = 0;
+
+    // Change the button's variant attribute
+    button.addEventListener('click', () => {
+      clicks++;
+      button.setAttribute('variant', variants[clicks % variants.length]);
+    });
+
+    // Report mutations
+    mutationObserver.addEventListener('sl-mutation', event => {
+      events += 1;
+      count.textContent = String(events);
+      log.textContent = event.detail.mutationList
+        .map(record => `${record.type}: ${record.attributeName} = ${record.target.getAttribute(record.attributeName)}`)
+        .join('\n');
+    });
+  </script>
+
+  <style>
+    .mutation-overview sl-button {
+      margin-bottom: 1rem;
+    }
+  </style>
+</div>
