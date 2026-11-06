@@ -889,7 +889,14 @@ test.describe('React examples', () => {
   test('intersection observer: the ref plays the animation in view and stops and rewinds it out of view', async ({ page }) => {
     const pageErrors = await mount(page, 'intersection-observer');
     await expect.poll(() => animationState(page)).toEqual([{ name: 'jackInTheBox', duration: 2000, iterations: 1, play: true, playState: 'running' }]);
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    // Let the animation run well past the bound below, so only the example's rewind can bring it back near the start.
+    await expect.poll(() => page.evaluate(() => document.querySelector('sl-animation').currentTime)).toBeGreaterThan(500);
+    // The example's own scroll area is only 100px taller than the viewport, which does not take the grown box fully out
+    // of view; a spacer after it lets the page scroll the box out.
+    await page.evaluate(() => {
+      document.body.append(Object.assign(document.createElement('div'), { style: 'height: 200vh' }));
+      window.scrollTo(0, document.documentElement.scrollHeight);
+    });
     // The example sets currentTime = 0 right after play = false, and play only pauses on the next update, so the animation
     // is paused about one frame after the start (as with Shoelace).
     await expect.poll(() => page.evaluate(() => {
