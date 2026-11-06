@@ -51,9 +51,10 @@ async function openExample(page, which = 'overview') {
 // Runs `body` (the text of an async function body) inside the example document, with helpers in scope:
 //   make(attrs, { anchor, content, anchorStyle, parent }) creates a 100x40 anchor (slotted unless `anchor` is 'external')
 //     and an 80x20 box, connects an <sl-popup> with the given attributes and returns { el, anchor, box, events } once
-//     positioned; `events` counts sl-reposition events;
+//     positioned and auto-update has gone quiet (a subpixel anchor can make Floating UI's layout-shift observer run one
+//     more computation a frame later); `events` counts sl-reposition events;
 //   settle() waits for the positioner (two animation frames after a microtask turn);
-//   rect(node) returns { x, y, w, h } of a node's border box, rounded to 0.01px.
+//   rect(node) returns { x, y, w, h } of a node's border box, rounded to 0.01px; round(n) rounds to 0.01px.
 const run = (frame, body) =>
   frame.locator('body').evaluate(async (_, src) => {
     const raf = () => new Promise(resolve => requestAnimationFrame(() => resolve()));
@@ -88,10 +89,14 @@ const run = (frame, body) =>
       parent.append(el);
       await el.updateComplete;
       await settle();
+      for (let n = -1, i = 0; n !== events.count && i < 20; i++) {
+        n = events.count;
+        await settle();
+      }
       return { el, anchor: a, box, events };
     };
     // eslint-disable-next-line no-new-func
-    return new Function('make', 'settle', 'rect', `return (async () => { ${src} })()`)(make, settle, rect);
+    return new Function('make', 'settle', 'rect', 'round', `return (async () => { ${src} })()`)(make, settle, rect, round);
   }, body);
 
 test('docs page is prerendered with Velcro branding, prototype status and explicit limits', async ({ request }) => {
@@ -206,7 +211,7 @@ test('each of the twelve placements, with distance and skidding, positions like 
       const { el, anchor, box } = await make({ active: '', placement, distance: '10', skidding: '5' });
       const a = rect(anchor);
       const p = rect(el.popup);
-      out[placement] = { dx: p.x - a.x, dy: p.y - a.y, current: el.getAttribute('data-current-placement'), w: p.w, h: p.h };
+      out[placement] = { dx: round(p.x - a.x), dy: round(p.y - a.y), current: el.getAttribute('data-current-placement'), w: p.w, h: p.h };
       el.remove();
     }
     return out;
