@@ -25,12 +25,15 @@ artifact. The `deploy` job is the only one with `pages: write` and `id-token: wr
    the license text each package requires, provenance where it is not the package's own file. It fails on a missing,
    unrecognised or mismatched license. It is separate from the source notices in `THIRD_PARTY_NOTICES.md`.
 3. A fresh private directory (`.airig/site/<n>/site`) is staged from `dist/static-prefixed` with a text-only allowlist
-   (`*.html`, `_litro/**.js|css`, the source notices), bounded in entries, depth, file and total size. Symlinks, special
-   files, maps, `sourceMappingURL`, archives, images, other formats and unsafe names are rejected. Only `nitro.json` and
+   (`*.html`, `_litro/**.js|css`, the source notices, and the icon assets: `assets/icons/<name>.svg`, `icons.json` and
+   `LICENSE` from the package's Bootstrap Icons, and `assets/images/sprite.svg`), bounded in entries, depth, file and
+   total size. Symlinks, special files, maps, `sourceMappingURL`, archives, other images, other formats and unsafe names
+   are rejected. Only `nitro.json` and
    the byte-identical duplicate `_litro/THIRD_PARTY_NOTICES.md` are omitted. `404.html`, the runtime notices and an empty
    `.nojekyll` are added. Shipped bundle files must match the closure hashes exactly.
 4. The exact staged bytes and every outbound name are scanned with the repository's privacy rules (logical `site/<path>`
-   labels) and the pinned Gitleaks engine, with no exclusions. Any finding, missing scanner or incomplete scan blocks, and
+   labels) and the pinned Gitleaks engine, with no exclusions (Gitleaks scans a private mirror of the staged bytes in which
+   `.svg` names get a `.txt` suffix, because its stock path allowlist would skip SVG files). Any finding, missing scanner or incomplete scan blocks, and
    the staged tree is re-hashed afterwards. `manifest.json` records per-file and aggregate hashes, the source SHA (clean
    tracked tree required) and the closure hash. A failure removes all partial output.
 

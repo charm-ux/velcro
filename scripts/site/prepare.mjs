@@ -23,7 +23,9 @@ export class PrepareError extends Error {
 }
 const fail = code => { throw new PrepareError(code); };
 
-export const LIMITS = Object.freeze({ maxEntries: 200, maxFiles: 120, maxFileBytes: 1024 * 1024, maxTotalBytes: 8 * 1024 * 1024, maxDepth: 6 });
+// Sized for the icon assets (about 2,050 Bootstrap Icons SVGs, icons.json, their LICENSE and the 1.1 MB sprite sheet)
+// on top of the pages and bundles.
+export const LIMITS = Object.freeze({ maxEntries: 2400, maxFiles: 2300, maxFileBytes: 2 * 1024 * 1024, maxTotalBytes: 16 * 1024 * 1024, maxDepth: 6 });
 const FIXED_REQUIRED = Object.freeze(['index.html', '_litro/app.js', '_litro/velcro.js', '_litro/velcro.css', 'THIRD_PARTY_NOTICES.md']);
 // The fixed files plus one page per catalog entry. An unreadable or malformed catalog blocks (fail closed).
 export function requiredFiles(repoRoot) {
@@ -40,6 +42,10 @@ function allowedKind(rel) {
   if (rel === SOURCE_NOTICES) return 'text';
   if (/^(?:[A-Za-z0-9_-]+\/)*index\.html$/.test(rel) && !rel.startsWith('_litro/')) return 'text';
   if (/^_litro\/(?:assets\/)?[A-Za-z0-9_.-]+\.(?:js|css)$/.test(rel) && !rel.endsWith('.map')) return 'closure';
+  // Icon assets: the package's Bootstrap Icons (one SVG per icon, icons.json, LICENSE) and the sprite sheet. Plain
+  // UTF-8 text, privacy- and secret-scanned like every other staged file.
+  if (/^assets\/icons\/(?:[a-z0-9]+(?:-[a-z0-9]+)*\.svg|icons\.json|LICENSE)$/.test(rel)) return 'text';
+  if (rel === 'assets/images/sprite.svg') return 'text';
   return null;
 }
 
@@ -248,7 +254,20 @@ export async function prepareSite({ repoRoot, sourceDir, closurePath, runDir, ba
       writeFileSync(target, f.bytes, { flag: 'wx', mode: 0o600 });
     }
     await privacyScan(all.map(f => ({ rel: f.rel, bytes: f.bytes, text: f.kind === 'marker' ? '' : undefined })), repoRoot, scanners.privacy);
-    const secrets = await secretScan(site, { scanner: scanners.secrets });
+    // Gitleaks' stock path allowlist skips *.svg, and any skipped path blocks (excluded must be 0). So the secret scan
+    // runs over a private mirror of exactly the staged bytes in which each .svg name gets a .txt suffix: every staged
+    // byte is inspected, nothing is allowlisted. The mirror must be unchanged afterwards, like the site itself.
+    const scanName = rel => (rel.endsWith('.svg') ? `${rel}.txt` : rel);
+    const mirror = path.join(partial, 'secret-scan');
+    for (const f of all) {
+      const target = path.join(mirror, scanName(f.rel));
+      mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+      writeFileSync(target, f.bytes, { flag: 'wx', mode: 0o600 });
+    }
+    const secrets = await secretScan(mirror, { scanner: scanners.secrets });
+    const mirrored = all.map(f => ({ rel: scanName(f.rel), sha256: sha256(f.bytes), size: f.bytes.length })).sort((a, b) => (a.rel < b.rel ? -1 : 1));
+    if (JSON.stringify(treeFiles(mirror)) !== JSON.stringify(mirrored)) fail('staged-bytes-changed');
+    rmSync(mirror, { recursive: true, force: true });
     // The closure that was evaluated must still be the closure on disk.
     let closureAfter;
     try { closureAfter = readBounded(closurePath, 4 * 1024 * 1024); } catch { fail('closure-changed'); }

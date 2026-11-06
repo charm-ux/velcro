@@ -103,6 +103,20 @@ test('symlinks, special files, maps and unexpected formats are rejected, not ski
   }
   await blocked(fixture(leaf(c => { c.files['.env'] = 'x\n'; })), 'unsafe-name');
   await blocked(fixture(leaf(c => { c.files['sp ace.html'] = 'x\n'; })), 'unsafe-name');
+  // Icon assets are allowed only at their exact locations and names.
+  for (const name of ['assets/icons/x.png', 'assets/icons/Gear.svg', 'assets/icons/sub/gear.svg', 'assets/icons/other.json',
+    'assets/x.svg', 'assets/images/other.svg', 'assets/images/sprite.svg.js', 'components/assets/icons/gear.svg']) {
+    await blocked(fixture(leaf(c => { c.files[name] = '<svg></svg>\n'; })), 'unexpected-file');
+  }
+});
+
+test('icon assets (icon SVGs, icons.json, LICENSE, the sprite sheet) stage as scanned text', async () => {
+  const icons = { 'assets/icons/gear.svg': '<svg xmlns="http://www.w3.org/2000/svg"></svg>\n', 'assets/icons/x-circle-fill.svg': '<svg></svg>\n',
+    'assets/icons/icons.json': '[]\n', 'assets/icons/LICENSE': 'MIT\n', 'assets/images/sprite.svg': '<svg></svg>\n' };
+  const f = fixture(leaf(c => Object.assign(c.files, icons)));
+  await run(f);
+  for (const [rel, text] of Object.entries(icons)) assert.equal(readFileSync(path.join(f.runDir, 'site', rel), 'utf8'), text, rel);
+  await blocked(fixture(leaf(c => { c.files['assets/icons/gear.svg'] = '<svg>\u0001</svg>\n'; })), 'control-characters');
 });
 
 test('binary or control-character content in an allowed name is rejected', async () => {
@@ -154,6 +168,9 @@ test('real pinned secret scanner blocks a planted credential and the control pas
   // Isolate the secret engine: privacy stubbed clean, the real engine must still find it.
   const only = fixture(leaf(c => { c.files['index.html'] += `<script>const t = "${token}";</script>\n`; }));
   await blocked(only, 'secret-findings', { scanners: { readLicense, privacy: () => [] } });
+  // An .svg (a path the stock Gitleaks allowlist would skip) is still inspected, through the scan mirror.
+  const svg = fixture(leaf(c => { c.files['assets/icons/gear.svg'] = `<svg><desc>${token}</desc></svg>\n`; }));
+  await blocked(svg, 'secret-findings', { scanners: { readLicense, privacy: () => [] } });
   const clean = fixture();
   assert.equal((await run(clean)).checks.secretFindings, 0);
 });
