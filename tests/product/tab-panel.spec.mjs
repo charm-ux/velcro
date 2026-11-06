@@ -124,7 +124,7 @@ test('properties: defaults, attribute and property reflection in both directions
     named.setAttribute('name', 'gamma');
     await named.updateComplete;
     out.renamed = named.name;
-    out.observed = customElements.get('sl-tab-panel').observedAttributes.filter(a => a === 'name' || a === 'active' || a === 'dir' || a === 'lang');
+    out.observed = customElements.get('sl-tab-panel').observedAttributes;
     return out;
   });
   expect(r.defaults).toEqual({ name: '', active: false, nameAttr: '', activeAttr: false, role: 'tabpanel', hidden: 'true' });
@@ -134,7 +134,8 @@ test('properties: defaults, attribute and property reflection in both directions
   expect(r.removedActive).toEqual({ active: false, hidden: 'true' });
   expect(r.setActive).toEqual({ active: true, hidden: 'false' });
   expect(r.renamed).toBe('gamma');
-  expect(r.observed.sort()).toEqual(['active', 'dir', 'lang', 'name']);
+  // Exactly Shoelace's list (base element dir and lang, then name and active): core's reflected `visible` is not observed.
+  expect(r.observed).toEqual(['dir', 'lang', 'name', 'active']);
 });
 
 test('upstream quirk: the id comes from a counter that advances on construction; a page id is kept; role and aria-hidden are overwritten', async ({ page }) => {
@@ -248,25 +249,38 @@ test('dir and lang are reactive, not reflected and undefined by default, as Shoe
     const el = document.querySelector('#dl');
     const attrs = document.querySelector('#attrs');
     const defaults = [el.dir, el.lang];
+    await el.updateComplete;
     el.dir = 'auto';
+    const updateRequestedByDir = el.isUpdatePending;
+    await el.updateComplete;
     el.lang = 'fr';
+    const updateRequestedByLang = el.isUpdatePending;
     await el.updateComplete;
     const assigned = [el.dir, el.lang, el.getAttribute('dir'), el.getAttribute('lang')];
+    // Shoelace declares `dir: string`: any string is stored and returned as set, not normalized to ltr or rtl.
+    el.dir = 'sideways';
+    const anyString = el.dir;
+    el.dir = '';
+    const emptyString = el.dir;
     const fromAttributes = [attrs.dir, attrs.lang];
     attrs.removeAttribute('dir');
     attrs.removeAttribute('lang');
     await attrs.updateComplete;
-    return { defaults, assigned, fromAttributes, removed: [attrs.dir, attrs.lang] };
+    return { defaults, updateRequestedByDir, updateRequestedByLang, assigned, anyString, emptyString, fromAttributes, removed: [attrs.dir, attrs.lang] };
   });
   expect(r).toEqual({
     defaults: [undefined, undefined],
+    updateRequestedByDir: true,
+    updateRequestedByLang: true,
     assigned: ['auto', 'fr', null, null],
+    anyString: 'sideways',
+    emptyString: '',
     fromAttributes: ['rtl', 'de'],
     removed: [null, null],
   });
 });
 
-test('core\'s tab coordination is switched off: no slot or hidden attribute, inert visible and tab, no tab-* events, no transitionend handling', async ({ page }) => {
+test('core\'s tab coordination is switched off: no slot or hidden attribute, visible and tab without effect, no tab-* events, no transitionend handling', async ({ page }) => {
   const { frame } = await openExample(page);
   const r = await frame.locator('body').evaluate(async body => {
     const events = [];
@@ -294,13 +308,69 @@ test('core\'s tab coordination is switched off: no slot or hidden attribute, ine
     el.style.opacity = '0.8';
     await new Promise(resolve => setTimeout(resolve, 120));
     const reconnected = { slot: el.getAttribute('slot'), hidden: el.hasAttribute('hidden') };
+    // Deterministic check that no transitionend handler is installed: a transitionend event aimed at the panel itself is
+    // what core's handler turns into `hidden` and tab-after-hide. The listener below proves that the event reached it.
+    let reached = 0;
+    el.addEventListener('transitionend', () => reached++);
+    el.visible = false;
+    el.dispatchEvent(new TransitionEvent('transitionend', { propertyName: 'opacity', bubbles: true }));
+    await el.updateComplete;
+    const afterTransitionEnd = { reached, hidden: el.hasAttribute('hidden'), display: getComputedStyle(el).display };
     el.remove();
-    return { initial, after, reconnected, events };
+    return { initial, after, reconnected, afterTransitionEnd, events };
   });
   expect(r.initial).toEqual({ slot: null, hidden: false, display: 'block' });
   expect(r.after).toEqual({ slot: null, hidden: false, display: 'block', boxes: 1 });
   expect(r.reconnected).toEqual({ slot: null, hidden: false });
+  expect(r.afterTransitionEnd).toEqual({ reached: 1, hidden: false, display: 'block' });
   expect(r.events).toEqual([]);
+});
+
+test('core\'s visible flag is not an attribute: not observed, not reflected, and it cannot change when Shoelace\'s restore of reflected values records them', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const r = await frame.locator('body').evaluate(async body => {
+    const el = document.createElement('sl-tab-panel');
+    body.append(el);
+    await el.updateComplete;
+    const before = el.getAttributeNames().sort();
+    el.visible = true;
+    await el.updateComplete;
+    const afterTrue = { attributes: el.getAttributeNames().sort(), value: el.visible };
+    el.visible = false;
+    await el.updateComplete;
+    const afterFalse = el.getAttributeNames().sort();
+    el.setAttribute('visible', '');
+    await el.updateComplete;
+    const fromAttribute = { value: el.visible, attributes: el.getAttributeNames().sort() };
+    el.remove();
+    return { before, afterTrue, afterFalse, fromAttribute };
+  });
+  const base = ['aria-hidden', 'id', 'name', 'role'];
+  expect(r.before).toEqual(base);
+  expect(r.afterTrue).toEqual({ attributes: base, value: true });
+  expect(r.afterFalse).toEqual(base);
+  // Setting the attribute by hand does not reach the property, as for any attribute Shoelace's panel does not observe.
+  expect(r.fromAttribute).toEqual({ value: false, attributes: [...base, 'visible'].sort() });
+});
+
+test('upstream quirk with core\'s visible present: a visible attribute is not an observed change, so the first recorded name is the one that reflects first', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const r = await frame.locator('body').evaluate(async body => {
+    // The first observed attribute change records the initial values, and removing a reflected attribute later restores
+    // the recorded value. `visible` is not observed (as in Shoelace), so setting it first must not start the recording.
+    const early = document.createElement('sl-tab-panel');
+    early.name = 'first';
+    early.setAttribute('visible', '');
+    early.name = 'second';
+    body.append(early);
+    await early.updateComplete;
+    early.removeAttribute('name');
+    await early.updateComplete;
+    const restored = { name: early.name, attribute: early.getAttribute('name') };
+    early.remove();
+    return restored;
+  });
+  expect(r).toEqual({ name: 'second', attribute: 'second' });
 });
 
 test('inherited core ready event: dispatched once on the element after the first update, not bubbling or composed', async ({ page }) => {

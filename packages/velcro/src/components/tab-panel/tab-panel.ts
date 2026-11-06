@@ -22,8 +22,9 @@ let id = 0;
  * Velcro extensions inherited from the core tab panel and kept working: the core `ready` event only. The rest of core's
  * tab panel belongs to core's own tabs and conflicts with Shoelace's model (default slot, `active`, `display`), so it is
  * switched off: core's `slot="tabpanel"`, `hidden` and `transitionend` handling do not run, its internal `visible` and
- * `tab` properties are inert, the `tab-show`, `tab-hide`, `tab-after-show` and `tab-after-hide` events are never
- * emitted, and core's `--tab-panel-*` custom properties and `tab-panel-base` part do not exist.
+ * `tab` properties have no effect (`visible` has no attribute either), the `tab-show`, `tab-hide`, `tab-after-show` and
+ * `tab-after-hide` events are never emitted, and core's `--tab-panel-*` custom properties and `tab-panel-base` part do
+ * not exist.
  *
  * @tag sl-tab-panel
  * @status prototype
@@ -40,6 +41,10 @@ export class VelcroTabPanel extends CoreTabPanel {
   // `tab-panel-base` wrapper that this template does not render.
   public static override styles = [styles];
 
+  // Core's protected `handleTransitionEnd`, `hidePanel` and `tabPanelTemplate` are still inherited (and so still listed
+  // in the manifest as protected members), but nothing calls them: `connectedCallback` does not add the listener,
+  // `willUpdate` is not run and `render` is replaced.
+
   private readonly attrId = ++id;
 
   private readonly componentId = `sl-tab-panel-${this.attrId}`;
@@ -50,14 +55,28 @@ export class VelcroTabPanel extends CoreTabPanel {
 
   private velcroDir?: string;
 
+  // Core declares `visible` as a reflected attribute. Shoelace has no such member, and a `visible` attribute would
+  // change which attributes are observed and, through the restore of reflected properties below, when the initial
+  // values are recorded. It is redeclared here with no attribute and no reflection, so the attribute is neither
+  // observed nor written; the value does nothing, because core's `willUpdate` that reads it is not run.
+  /** @internal Core's show/hide flag. Switched off: it has no attribute and no effect. */
+  @property({ attribute: false })
+  public override visible?: boolean;
+
   // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
   // initial value (undefined). Core's `dir` would return the computed direction instead.
-  /** The element's text direction, as set by the `dir` attribute or property. Not reflected. */
+  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
+  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
+  // runtime it returns whatever was set.
+  /**
+   * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
+   * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
+   */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
     return this.velcroDir as 'ltr' | 'rtl' | 'auto';
   }
-  public override set dir(value: 'ltr' | 'rtl' | 'auto') {
+  public override set dir(value: string) {
     this.velcroDir = value;
   }
 

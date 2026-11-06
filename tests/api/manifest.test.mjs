@@ -139,3 +139,10 @@ test('the React wrapper type test checks Shoelace props, rejects bad values and 
   assert.equal(config.compilerOptions.strict, true);
   assert.equal(config.compilerOptions.skipLibCheck, false);
 });
+
+test('the sl-tab-panel dir type test assigns a string-typed direction, as Shoelace declares dir: string', () => {
+  const source = readFileSync(path.join(pkgDir, 'type-tests/tab-panel-dir.tsx'), 'utf8');
+  assert.match(source, /declare const direction: string;/);
+  assert.match(source, /^element\.dir = direction;$/m);
+  assert.equal(source.match(/@ts-expect-error/g)?.length, 1);
+});
