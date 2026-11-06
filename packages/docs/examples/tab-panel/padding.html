@@ -1,0 +1,11 @@
+<div class="tab-panel-padding">
+  <sl-tab-panel name="padded" active>The default padding is 0; this panel sets --padding to 1rem.</sl-tab-panel>
+  <sl-tab-panel name="inactive">An inactive panel is not displayed.</sl-tab-panel>
+
+  <style>
+    .tab-panel-padding sl-tab-panel[active] {
+      --padding: 1rem;
+      border: 1px dashed var(--sl-color-neutral-400);
+    }
+  </style>
+</div>

@@ -81,6 +81,23 @@ test('sl-switch documents its core extensions truthfully: inert ones say so and 
   }
 });
 
+test('sl-tab-panel lists only Shoelace\'s API plus core\'s ready event: core\'s tab events, custom properties and part are not advertised', () => {
+  const panel = elements.get('sl-tab-panel');
+  assert.deepEqual((panel.events ?? []).map(e => e.name), ['ready']);
+  assert.equal(panel.events[0].inheritedFrom.package, '@charm-ux/core');
+  assert.deepEqual(panel.slots.map(s => s.name), ['']);
+  assert.deepEqual(panel.cssParts.map(p => p.name), ['base']);
+  assert.deepEqual(panel.cssProperties.map(p => p.name), ['--padding']);
+  assert.deepEqual(panel.attributes.map(a => a.name).sort(), ['active', 'dir', 'lang', 'name']);
+  // core's internal visible and tab are not declared members; dir and lang are declared as Shoelace's base element does.
+  const names = panel.members.map(m => m.name);
+  assert.ok(!names.includes('visible') && !names.includes('tab'));
+  for (const name of ['dir', 'lang']) {
+    assert.equal(panel.attributes.find(a => a.name === name).inheritedFrom, undefined, name);
+    assert.equal(panel.members.find(m => m.name === name).reflects, undefined, `${name} does not reflect`);
+  }
+});
+
 test('inherited slots, parts and CSS custom properties are exactly the per-component kept list (measured in tests/product/inherited-api.spec.mjs)', async () => {
   const { keptInherited } = await import('../../packages/velcro/custom-elements-manifest.config.mjs');
   for (const [tag, decl] of elements) {
