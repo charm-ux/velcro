@@ -206,12 +206,19 @@ test('React 19 wrapper for the popup sets camelCase props whose attribute is hyp
 test('React 19 wrapper for the popup: flip with fallback placements given as the prop, as the hyphenated attribute and directly', async ({ page }) => {
   const pageErrors = await mount(page);
   // The 60px-high, clipping popup root leaves no room above the anchor, so flip uses the fallbacks.
-  const placement = () => page.evaluate(async () => {
-    const el = document.getElementById('popup');
-    await el.updateComplete;
-    await new Promise(resolve => setTimeout(resolve, 50));
-    return el.getAttribute('data-current-placement');
+  // Positioned and auto-update quiet (no new sl-reposition across two frames), rather than a fixed wait.
+  await page.evaluate(() => {
+    window.positioned = async el => {
+      const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await el.updateComplete;
+      for (let n = -1, i = 0; (n !== window.repositions || !el.hasAttribute('data-current-placement')) && i < 20; i++) {
+        n = window.repositions;
+        await frame();
+      }
+      return el.getAttribute('data-current-placement');
+    };
   });
+  const placement = () => page.evaluate(() => window.positioned(document.getElementById('popup')));
   await page.evaluate(() => window.renderPopup({ flip: true, flipFallbackPlacements: 'right' }));
   const viaProp = await placement();
   // The same string assigned to the element property directly, outside React.
@@ -220,9 +227,10 @@ test('React 19 wrapper for the popup: flip with fallback placements given as the
     window.renderPopup({ flip: true });
     el.flipFallbackPlacements = 'right';
     await el.updateComplete;
+    // Cleared first, so the value read is from a computation with the direct assignment.
+    el.removeAttribute('data-current-placement');
     el.reposition();
-    await new Promise(resolve => setTimeout(resolve, 50));
-    return el.getAttribute('data-current-placement');
+    return window.positioned(el);
   });
   await page.evaluate(() => window.renderPopup({}));
   await page.evaluate(() => window.renderPopup({ flip: true, 'flip-fallback-placements': 'right' }));
@@ -231,6 +239,8 @@ test('React 19 wrapper for the popup: flip with fallback placements given as the
   // attribute is split into placements and its fallback is used.
   expect({ viaProp, direct, viaAttribute }).toEqual({ viaProp: direct, direct, viaAttribute: 'right' });
   expect(viaProp).not.toBe('right');
+  // Computed (the attribute is set), not left over: Floating UI receives the string's characters as placements.
+  expect(viaProp).toEqual(expect.any(String));
   expect(await page.evaluate(() => window.errors)).toEqual([]);
   expect(pageErrors).toEqual([]);
 });

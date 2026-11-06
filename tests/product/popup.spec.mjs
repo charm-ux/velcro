@@ -40,11 +40,15 @@ async function openExample(page, which = 'overview') {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
   // Litro's client router remounts the page component once after load, which reloads the iframes; wait for it to settle.
+  // Under load the old and the remounted iframe can both be present for a moment, so wait for exactly one.
   await page.goto(PAGE, { waitUntil: 'networkidle' });
+  const iframe = page.locator(`iframe[title="${TITLES[which]}"]`);
+  await expect(iframe).toHaveCount(1);
   const frame = page.frameLocator(`iframe[title="${TITLES[which]}"]`);
   await expect(frame.locator(IDS[which])).toBeAttached();
   await frame.locator(IDS[which]).evaluate(() => customElements.whenDefined('sl-popup'));
   await page.waitForLoadState('networkidle');
+  await expect(iframe).toHaveCount(1);
   return { frame, requests };
 }
 
@@ -610,9 +614,15 @@ test('upstream quirk: flipFallbackPlacements assigned as a string property is no
       else el.flipFallbackPlacements = 'right';
       for (const [k, v] of Object.entries({ active: '', flip: '', placement: 'top' })) el.setAttribute(k, v);
       el.innerHTML = '<span slot="anchor" style="display: inline-block; width: 100px; height: 40px; margin: 10px 0 0 150px"></span><div style="width: 80px; height: 20px"></div>';
+      let events = 0;
+      el.addEventListener('sl-reposition', () => events++);
       scroller.append(el);
       await el.updateComplete;
-      await new Promise(r => setTimeout(r, 50));
+      // Positioned, and auto-update quiet, rather than a fixed wait.
+      for (let n = -1, i = 0; (n !== events || !el.hasAttribute('data-current-placement')) && i < 20; i++) {
+        n = events;
+        await settle();
+      }
       out[how] = { value: el.flipFallbackPlacements, current: el.getAttribute('data-current-placement') };
       el.remove();
     }
@@ -622,6 +632,8 @@ test('upstream quirk: flipFallbackPlacements assigned as a string property is no
   expect(r.attribute).toEqual({ value: ['right'], current: 'right' });
   expect(r.property.value).toBe('right');
   expect(r.property.current).not.toBe('right');
+  // Computed (the attribute is set): Floating UI receives the string's characters as placements.
+  expect(r.property.current).toEqual(expect.any(String));
 });
 
 test('dir and lang are Shoelace\'s plain reactive properties: undefined by default, set from the attribute, never reflected', async ({ page }) => {
