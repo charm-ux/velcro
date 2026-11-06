@@ -64,6 +64,9 @@ export class VelcroIcon extends CoreIcon {
   // reflects: assigning it would change the attribute and reading it would give '' instead of undefined. Core declares
   // `dir` as a reactive property whose getter computes the direction (`ltr` or `rtl`) when it is unset or `auto`;
   // Shoelace's returns the value as set (undefined when unset), so the accessor is replaced.
+  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep core's
+  // declared type, because TypeScript does not let a subclass widen an inherited property's read type; at runtime it
+  // returns whatever was set.
   @property()
   public override lang!: string;
 
@@ -74,7 +77,7 @@ export class VelcroIcon extends CoreIcon {
     return this.shoelaceDir as 'ltr' | 'rtl' | 'auto';
   }
 
-  public override set dir(value: 'ltr' | 'rtl' | 'auto') {
+  public override set dir(value: string) {
     this.shoelaceDir = value;
   }
 

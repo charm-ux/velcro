@@ -29,7 +29,10 @@ artifact. The `deploy` job is the only one with `pages: write` and `id-token: wr
    `LICENSE` from the package's Bootstrap Icons, and `assets/images/sprite.svg`), bounded in entries, depth, file and
    total size. Symlinks, special files, maps, `sourceMappingURL`, archives, other images, other formats and unsafe names
    are rejected. Only `nitro.json` and
-   the byte-identical duplicate `_litro/THIRD_PARTY_NOTICES.md` are omitted. `404.html`, the runtime notices and an empty
+   the byte-identical duplicate `_litro/THIRD_PARTY_NOTICES.md` are omitted (the docs build no longer emits that
+   duplicate: Vite's public directory copy is disabled, so `public/` ships once, at the site root). Icon assets must
+   match the package's `SHA256SUMS` and pinned hashes. `tests/product/site-output.spec.mjs` runs the real prefixed
+   build through this walk. `404.html`, the runtime notices and an empty
    `.nojekyll` are added. Shipped bundle files must match the closure hashes exactly.
 4. The exact staged bytes and every outbound name are scanned with the repository's privacy rules (logical `site/<path>`
    labels) and the pinned Gitleaks engine, with no exclusions (Gitleaks scans a private mirror of the staged bytes in which
