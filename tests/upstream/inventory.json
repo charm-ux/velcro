@@ -242,6 +242,9 @@
     "<sl-icon> > svg sprite sheets > Should render nothing if the sprite hash is wrong",
     "<sl-icon> > svg sprite sheets > Should produce an error if the icon doesn't exist."
   ],
+  "mutation-observer": [
+    "<sl-mutation-observer> > should render a component"
+  ],
   "progress-bar": [
     "<sl-progress-bar> > when provided just a value parameter > should pass accessibility tests",
     "<sl-progress-bar> > when provided a title, and value parameter > should pass accessibility tests",

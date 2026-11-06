@@ -1,0 +1,58 @@
+<div class="mutation-child-list">
+  <sl-mutation-observer id="demo-observer" child-list>
+    <div class="buttons">
+      <sl-button id="demo-add" variant="primary">Add button</sl-button>
+    </div>
+  </sl-mutation-observer>
+
+  👆 Add and remove buttons and watch the log
+
+  <p>Mutation events: <output id="demo-count">0</output></p>
+  <pre id="demo-log"></pre>
+
+  <script>
+    const container = document.querySelector('.mutation-child-list');
+    const mutationObserver = container.querySelector('sl-mutation-observer');
+    const buttons = container.querySelector('.buttons');
+    const button = container.querySelector('sl-button[variant="primary"]');
+    const count = container.querySelector('#demo-count');
+    const log = container.querySelector('#demo-log');
+    let i = 0;
+    let events = 0;
+
+    // Add a button
+    button.addEventListener('click', () => {
+      const button = document.createElement('sl-button');
+      button.textContent = ++i;
+      buttons.append(button);
+    });
+
+    // Remove a button
+    buttons.addEventListener('click', event => {
+      const target = event.target.closest('sl-button:not([variant="primary"])');
+      event.stopPropagation();
+
+      if (target) {
+        target.remove();
+      }
+    });
+
+    // Report mutations
+    mutationObserver.addEventListener('sl-mutation', event => {
+      events += 1;
+      count.textContent = String(events);
+      log.textContent = event.detail.mutationList
+        .map(record => `${record.type}: ${record.addedNodes.length} added, ${record.removedNodes.length} removed`)
+        .join('\n');
+    });
+  </script>
+
+  <style>
+    .mutation-child-list .buttons {
+      display: flex;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+  </style>
+</div>

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 
-// Scope of these checks: Velcro's own badge, button, card, divider, format-bytes, format-date, format-number, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner and visually-hidden (everything the package root registers) register
+// Scope of these checks: Velcro's own badge, button, card, divider, format-bytes, format-date, format-number, mutation-observer, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner and visually-hidden (everything the package root registers) register
 // by defining their exported classes natively, in Chromium, alone or next to core's own button. They do NOT show that scope-dependent or nested core components work.
 // Needs the built library: `pnpm --filter @charm-ux/velcro run build` (verify:product does this first).
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -43,7 +43,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 // Everything the package root registers.
-const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-icon', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-visually-hidden'];
+const ALL_TAGS = ['sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-icon', 'sl-mutation-observer', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-visually-hidden'];
 
 const importAll = (page, ...names) => page.evaluate(async list => {
   const out = [];
@@ -105,7 +105,7 @@ for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spi
       const out = {};
       // Badge and divider have no class-only entry or Sl* alias in this batch, so their alias check is the class itself.
       for (const [tag, Cls, Alias] of [['sl-badge', m.VelcroBadge, m.VelcroBadge], ['sl-button', m.VelcroButton, m.SlButton],
-        ['sl-card', m.VelcroCard, m.SlCard], ['sl-divider', m.VelcroDivider, m.VelcroDivider], ['sl-format-bytes', m.VelcroFormatBytes, m.SlFormatBytes], ['sl-format-date', m.VelcroFormatDate, m.SlFormatDate], ['sl-format-number', m.VelcroFormatNumber, m.SlFormatNumber], ['sl-icon', m.VelcroIcon, m.SlIcon], ['sl-progress-bar', m.VelcroProgressBar, m.SlProgressBar],
+        ['sl-card', m.VelcroCard, m.SlCard], ['sl-divider', m.VelcroDivider, m.VelcroDivider], ['sl-format-bytes', m.VelcroFormatBytes, m.SlFormatBytes], ['sl-format-date', m.VelcroFormatDate, m.SlFormatDate], ['sl-format-number', m.VelcroFormatNumber, m.SlFormatNumber], ['sl-icon', m.VelcroIcon, m.SlIcon], ['sl-mutation-observer', m.VelcroMutationObserver, m.SlMutationObserver], ['sl-progress-bar', m.VelcroProgressBar, m.SlProgressBar],
         ['sl-progress-ring', m.VelcroProgressRing, m.SlProgressRing], ['sl-relative-time', m.VelcroRelativeTime, m.SlRelativeTime], ['sl-resize-observer', m.VelcroResizeObserver, m.SlResizeObserver],
         ['sl-skeleton', m.VelcroSkeleton, m.SlSkeleton],
         ['sl-spinner', m.VelcroSpinner, m.SlSpinner],
@@ -128,7 +128,7 @@ for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spi
             : tag === 'sl-format-number' ? el.shadowRoot?.textContent === '0'
             // An icon without a name or src draws nothing; its public surface is then the presentational host.
             : tag === 'sl-icon' ? el.getAttribute('aria-hidden') === 'true' && !el.shadowRoot?.querySelector('svg')
-            : tag === 'sl-visually-hidden' || tag === 'sl-resize-observer' ? !!el.shadowRoot?.querySelector('slot') : !!el.shadowRoot?.querySelector('[part~="base"]'),
+            : tag === 'sl-visually-hidden' || tag === 'sl-resize-observer' || tag === 'sl-mutation-observer' ? !!el.shadowRoot?.querySelector('slot') : !!el.shadowRoot?.querySelector('[part~="base"]'),
         };
       }
       return { out, defines: window.__defines.slice() };
@@ -260,9 +260,9 @@ test('the whole package root changes no core state: prefix, config, scope object
       for (const [k] of after[entriesKey]) if (!before[entriesKey].some(([k2]) => k2 === k)) problems.push(`${label} key added: ${k}`);
     }
     return { seeded: [before.tagEntries.length, before.baseEntries.length], problems, sameConfig: before.config === after.config,
-      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-icon', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-visually-hidden'].map(t => customElements.get(t) !== undefined) };
+      prefix: after.prefix, defined: ['sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-icon', 'sl-mutation-observer', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-visually-hidden'].map(t => customElements.get(t) !== undefined) };
   });
-  expect(r.defined).toEqual(Array(15).fill(true));
+  expect(r.defined).toEqual(Array(16).fill(true));
   expect(r.seeded[0]).toBeGreaterThan(0);
   expect(r.seeded[1]).toBeGreaterThan(0);
   expect(r.problems).toEqual([]);

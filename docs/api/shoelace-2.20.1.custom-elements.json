@@ -1602,6 +1602,191 @@
     },
     {
       "kind": "javascript-module",
+      "path": "components/mutation-observer/mutation-observer.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlMutationObserver",
+          "tagName": "sl-mutation-observer",
+          "summary": "The Mutation Observer component offers a thin, declarative interface to the [`MutationObserver API`](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver).",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "mutationObserver",
+              "privacy": "private",
+              "type": {
+                "text": "MutationObserver"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "attr",
+              "type": {
+                "text": "string"
+              },
+              "description": "Watches for changes to attributes. To watch only specific attributes, separate them by a space, e.g.\n`attr=\"class id title\"`. To watch all attributes, use `*`.",
+              "attribute": "attr",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "attrOldValue",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Indicates whether or not the attribute's previous value should be recorded when monitoring changes.",
+              "attribute": "attr-old-value",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "charData",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Watches for changes to the character data contained within the node.",
+              "attribute": "char-data",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "charDataOldValue",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Indicates whether or not the previous value of the node's text should be recorded.",
+              "attribute": "char-data-old-value",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "childList",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Watches for the addition or removal of new child nodes.",
+              "attribute": "child-list",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Disables the observer.",
+              "attribute": "disabled",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "handleMutation",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "startObserver",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "stopObserver",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "handleDisabledChange"
+            },
+            {
+              "kind": "method",
+              "name": "handleChange"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "attr",
+              "type": {
+                "text": "string"
+              },
+              "description": "Watches for changes to attributes. To watch only specific attributes, separate them by a space, e.g.\n`attr=\"class id title\"`. To watch all attributes, use `*`.",
+              "fieldName": "attr"
+            },
+            {
+              "name": "attr-old-value",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Indicates whether or not the attribute's previous value should be recorded when monitoring changes.",
+              "fieldName": "attrOldValue"
+            },
+            {
+              "name": "char-data",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Watches for changes to the character data contained within the node.",
+              "fieldName": "charData"
+            },
+            {
+              "name": "char-data-old-value",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Indicates whether or not the previous value of the node's text should be recorded.",
+              "fieldName": "charDataOldValue"
+            },
+            {
+              "name": "child-list",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Watches for the addition or removal of new child nodes.",
+              "fieldName": "childList"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Disables the observer.",
+              "fieldName": "disabled"
+            }
+          ],
+          "events": [
+            {
+              "name": "sl-mutation",
+              "type": {
+                "text": "{ mutationList: MutationRecord[] }"
+              },
+              "description": "Emitted when a mutation occurs."
+            }
+          ],
+          "slots": [
+            {
+              "description": "The content to watch for mutations.",
+              "name": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "components/progress-bar/progress-bar.js",
       "declarations": [
         {
