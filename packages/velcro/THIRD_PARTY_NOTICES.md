@@ -256,8 +256,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## @shoelace-style/animations 1.2.0 (MIT), with animate.css (MIT)
 
-- Source: the published `@shoelace-style/animations` 1.2.0 package (https://github.com/shoelace-style/animations),
-  the version Shoelace 2.20.1 depends on. Copyright (c) 2020 A Beautiful Site, LLC. The package generates its
+- Source: the published `@shoelace-style/animations` 1.2.0 npm package (https://github.com/shoelace-style/animations),
+  the version Shoelace 2.20.1's `package-lock.json` resolves, with npm integrity
+  `sha512-avvo1xxkLbv2dgtabdewBbqcJfV0e0zCwFqkPMnHFGbJbBHorRFfMAHh1NG9ymmXn0jW95ibUVH03E1NYXD6Gw==`. The record
+  `packages/velcro/src/components/animation/presets/SOURCE.json` pins that integrity, the sha256 of every file in the
+  tarball and a digest of its data; a test fails if the vendored data differs from the package's. Copyright (c) 2020
+  A Beautiful Site, LLC. The package generates its
   keyframes from animate.css (https://github.com/animate-css/animate.css; its build declares animate.css ^4.1.1) and
   ships animate.css's license as `dist/LICENSE`, Copyright (c) 2020 Daniel Eden.
 - Copied into: `packages/velcro/src/components/animation/presets/presets.ts`. The package's 98 animation modules

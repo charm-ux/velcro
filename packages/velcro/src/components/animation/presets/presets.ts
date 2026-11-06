@@ -6,6 +6,10 @@
 // of the package's dist/index.js, with each file's group as a comment, and type annotations are added. The keyframe
 // and easing values are unchanged. Shoelace 2.20.1 imports the package as a namespace
 // (`import * as animations from '@shoelace-style/animations'`); `../animations.ts` imports this module the same way.
+// Provenance: the npm tarball of @shoelace-style/animations 1.2.0 (the version Shoelace 2.20.1's package-lock.json
+// resolves), integrity sha512-avvo1xxkLbv2dgtabdewBbqcJfV0e0zCwFqkPMnHFGbJbBHorRFfMAHh1NG9ymmXn0jW95ibUVH03E1NYXD6Gw==.
+// SOURCE.json beside this file records it, every tarball file's sha256 and the digest of the data, and
+// tests/api/animation-presets.test.mjs fails if this file's data differs from the package's.
 
 // attention_seekers
 export const bounce: Keyframe[] = [
