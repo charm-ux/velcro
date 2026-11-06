@@ -63,7 +63,7 @@ test('workflow is pinned, read-only, full-history and has an always-running aggr
 
 test('product step keeps all command output private and still blocks on failure', () => {
   const job = /\n  product:\n([\s\S]*?)\n  required:/.exec(workflow)?.[1] ?? '';
-  const script = /- name: Product verification[^\n]*\n\s+run: \|\n((?:\s{10}.*\n?)+)/.exec(job)?.[1];
+  const script = /- name: Product verification[^\n]*\n(?:\s+timeout-minutes: \d+\n)?\s+run: \|\n((?:\s{10}.*\n?)+)/.exec(job)?.[1];
   assert.ok(script, 'actual product step must be testable');
   assert.doesNotMatch(script, /^\s*pnpm verify:product\s*$/m);
   for (const code of [0, 3]) {
@@ -128,3 +128,18 @@ for (const file of ['ci.yml', 'pages.yml']) {
     assert.deepEqual(run(browsers, [124]), { status: 1, out: 'browser setup: timed out\nbrowser setup: blocked; private evidence retained' });
   });
 }
+
+// Budget order for the browser run: Playwright's global timeout < the wrapper's kill of the browser step < the CI step bound < the job.
+test('product timeouts are ordered: global timeout < wrapper bound < step bound < job bound', () => {
+  const minutes = (text, re) => Number(re.exec(text)?.[1]);
+  const config = readFileSync(new URL('../product/playwright.config.mjs', import.meta.url), 'utf8');
+  const wrapper = readFileSync(new URL('../../scripts/verify-product.mjs', import.meta.url), 'utf8');
+  const global = minutes(config, /globalTimeout: (\d+) \* 60 \* 1000/);
+  const kill = minutes(wrapper, /(\d+) \* 60 \* 1000\);/);
+  for (const file of ['ci.yml', 'pages.yml']) {
+    const text = readFileSync(new URL(`../../.github/workflows/${file}`, import.meta.url), 'utf8');
+    const step = minutes(text, /- name: Product verification[^\n]*\n\s+timeout-minutes: (\d+)/);
+    const job = minutes(/\n  (?:product|build):\n([\s\S]*?)\n  (?:required|deploy):/.exec(text)?.[1] ?? '', /timeout-minutes: (\d+)/);
+    assert.ok(global < kill && kill < step && step < job, `${file}: ${global} < ${kill} < ${step} < ${job}`);
+  }
+});

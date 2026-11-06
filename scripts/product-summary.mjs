@@ -53,19 +53,22 @@ export function summarizeReport(report, { root } = {}) {
   for (const s of Array.isArray(report?.suites) ? report.suites : []) walk(s, tests);
   const per = Object.fromEntries(ENGINES.map(e => [e, { passed: 0, failed: 0, flaky: 0, skipped: 0 }]));
   const bad = [];
+  const skipped = [];
   for (const { spec, test } of tests) {
     const e = per[test.projectName];
     if (!e) continue;
     if (test.status === 'expected') e.passed++;
-    else if (test.status === 'skipped') e.skipped++;
+    else if (test.status === 'skipped') { e.skipped++; skipped.push({ spec, test }); }
     else if (test.status === 'flaky') { e.flaky++; bad.push({ spec, test }); }
     else { e.failed++; bad.push({ spec, test }); }
   }
   const lines = ENGINES.map(e => `${e} passed ${per[e].passed}, failed ${per[e].failed}, flaky ${per[e].flaky}, skipped ${per[e].skipped}`);
+  // Skipped and interrupted tests (for example after the global timeout) are listed after the failures, by title only.
+  bad.push(...skipped);
   const failingEngines = ENGINES.filter(e => per[e].failed || per[e].flaky);
   for (const { spec, test } of bad.slice(0, MAX_FAILURES)) {
     const where = `${redactLine(spec.file, root)}:${Number.isInteger(spec.line) ? spec.line : 0}`;
-    lines.push(redactLine(`${test.projectName} ${where} ${spec.title} | ${firstLine(test)}`, root));
+    lines.push(redactLine(`${test.projectName} ${where} ${spec.title} | ${test.status === 'skipped' ? 'skipped or interrupted' : firstLine(test)}`, root));
   }
   if (bad.length > MAX_FAILURES) lines.push(`... ${bad.length - MAX_FAILURES} more failing tests not listed`);
   return { lines, failingEngines };

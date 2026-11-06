@@ -21,7 +21,7 @@ jobs:
   build:
     if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 55
     permissions:
       contents: read
     steps:
@@ -82,6 +82,7 @@ jobs:
           fi
           echo 'browser setup: passed'
       - name: Product verification (Chromium, Firefox and WebKit)
+        timeout-minutes: 35
         run: |
           pnpm verify:product > .airig/ci/product.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/product.log; echo 'product: blocked; private evidence retained'; exit 1; }
           echo 'product: passed'

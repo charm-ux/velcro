@@ -277,8 +277,17 @@ test('summary: per engine counts, then one line per failing test with the first 
     'firefox passed 0, failed 1, flaky 0, skipped 0',
     'webkit passed 0, failed 0, flaky 0, skipped 1',
     'firefox x.spec.mjs:7 title 7 | error Error',
+    'webkit x.spec.mjs:1 title 1 | skipped or interrupted',
   ]);
   assert.deepEqual(failingEngines, ['firefox']);
+});
+
+test('summary: lists skipped and interrupted tests by title only, after the failures', () => {
+  const { lines } = summarizeReport(rep([
+    fake('webkit', 'skipped', 'Error: expect(received).toEqual(expected) // deep equality\n- Expected - 1', 5),
+    fake('webkit', 'unexpected', 'Error: boom', 6),
+  ]));
+  assert.deepEqual(lines.slice(3), ['webkit x.spec.mjs:6 title 6 | error Error', 'webkit x.spec.mjs:5 title 5 | skipped or interrupted']);
 });
 
 test('summary: is bounded to 40 failures and 200 characters per line', () => {

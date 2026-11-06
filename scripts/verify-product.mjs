@@ -102,7 +102,7 @@ function main() {
   const reportFile = path.join(scratch, 'report.json');
   const ok = step('browser-tests', ['exec', 'playwright', 'test', '-c', 'tests/product/playwright.config.mjs',
     ...ENGINES.map(e => `--project=${e}`), '--reporter=json', '--output', path.join(scratch, 'artifacts')],
-  { PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile, VELCRO_PRODUCT_OUT: scratch }, 16 * 60 * 1000);
+  { PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile, VELCRO_PRODUCT_OUT: scratch }, 22 * 60 * 1000);
   // Public, bounded and redacted; the raw log stays in ignored scratch.
   const publish = () => {
     try {

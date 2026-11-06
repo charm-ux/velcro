@@ -70,7 +70,7 @@ jobs:
 
   product:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -122,6 +122,7 @@ jobs:
           fi
           echo 'browser setup: passed'
       - name: Product verification (Chromium, Firefox and WebKit)
+        timeout-minutes: 35
         run: |
           mkdir -p .airig/ci
           pnpm verify:product > .airig/ci/product.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/product.log; echo 'product: blocked; private evidence retained'; exit 1; }

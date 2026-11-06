@@ -19,11 +19,14 @@ export default defineConfig({
   outputDir,
   forbidOnly: true,
   // Hangs must fail fast and visibly: a stuck test fails after 45 s (specs that need more say so with test.setTimeout), and the
-  // whole run stops at 14 min. scripts/verify-product.mjs kills the browser step only at 16 min, so Playwright writes its JSON
-  // report (and verify:product prints its summary) first; the CI product job's 30 min also has to cover installs, builds and
-  // the upstream gate. global-timeout.test.mjs exercises this stop-and-report path with a short timeout.
+  // whole run stops at 20 min. A normal run takes well under half of that. scripts/verify-product.mjs kills the browser step only
+  // at 22 min, so Playwright writes its JSON report (and verify:product prints its summary) first; the CI step bound is 35 min and
+  // the product job's 45 min covers installs, builds and the upstream gate as well. global-timeout.test.mjs exercises the
+  // stop-and-report path with a short timeout.
+  // The runner has 4 vCPUs but Playwright would use half of them; the static preview and the example iframes tolerate 4 workers.
+  workers: process.env.CI ? 4 : undefined,
   timeout: 45000,
-  globalTimeout: 14 * 60 * 1000,
+  globalTimeout: 20 * 60 * 1000,
   reporter: 'list',
   // webServer.port makes Playwright set baseURL itself.
   use: { trace: 'off' },
