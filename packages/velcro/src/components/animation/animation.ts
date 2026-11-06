@@ -250,6 +250,8 @@ export class VelcroAnimation extends CharmElement {
     const slot = await this.defaultSlot;
     const element = slot.assignedElements()[0] as HTMLElement | undefined;
 
+    // Upstream quirk: this returns before destroying the previous animation, so an unknown name, `none`, or clearing
+    // `keyframes` while the name has no preset leaves the previous animation running with its old keyframes and timing.
     if (!element || !keyframes) {
       return false;
     }
@@ -323,7 +325,12 @@ export class VelcroAnimation extends CharmElement {
     }
   }
 
-  /** Clears all keyframe effects caused by this animation and aborts its playback. */
+  // Upstream quirk: the cancel listener sets `play` to false, and the next update calls `pause()` on the now idle
+  // animation, which seeks it to time 0 and holds it there, so the first keyframe stays applied.
+  /**
+   * Cancels the animation and emits `sl-cancel`. As in Shoelace 2.20.1, the effect is not cleared: once `play` turns
+   * false the animation is paused at time 0, so its first keyframe stays applied.
+   */
   public cancel() {
     this.animation?.cancel();
   }
@@ -335,7 +342,8 @@ export class VelcroAnimation extends CharmElement {
     this.animation?.finish();
   }
 
-  protected override render() {
+  // Public, as in Shoelace (`render()` has no modifier there).
+  public override render() {
     return html` <slot @slotchange=${this.handleSlotChange}></slot> `;
   }
 }

@@ -72,6 +72,7 @@ test('copied or adapted upstream files carry a provenance header', () => {
     'packages/velcro/src/components/animation/animation.styles.ts',
     'packages/velcro/src/components/animation/animations.ts',
     'packages/velcro/src/components/animation/presets/presets.ts',
+    'packages/velcro/src/utilities/animation.ts',
     'packages/velcro/themes/light.css',
     'packages/velcro/themes/dark.css',
   ];

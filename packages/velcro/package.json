@@ -21,6 +21,10 @@
       "types": "./dist/components/animation/class.d.ts",
       "import": "./dist/components/animation/class.js"
     },
+    "./animation/animations": {
+      "types": "./dist/components/animation/animations.d.ts",
+      "import": "./dist/components/animation/animations.js"
+    },
     "./badge": {
       "types": "./dist/components/badge/index.d.ts",
       "import": "./dist/components/badge/index.js"
@@ -148,6 +152,10 @@
     "./visually-hidden/class": {
       "types": "./dist/components/visually-hidden/class.d.ts",
       "import": "./dist/components/visually-hidden/class.js"
+    },
+    "./utilities/animation": {
+      "types": "./dist/utilities/animation.d.ts",
+      "import": "./dist/utilities/animation.js"
     },
     "./themes/dark.css": "./themes/dark.css",
     "./themes/light.css": "./themes/light.css",

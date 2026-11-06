@@ -156,10 +156,13 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   handlers from `src/internal/watch.ts`, and the restore of reflected properties' initial values from
   `src/internal/shoelace-element.ts`), `packages/velcro/src/components/animation/animations.ts` (`getAnimationNames`
   and `getEasingNames`, adapted from `src/components/animation/animations.ts`),
+  `packages/velcro/src/utilities/animation.ts` (adapted from `src/utilities/animation.ts`),
   `packages/velcro/src/components/animation/animation.styles.ts` (styles concatenated from
   `src/styles/component.styles.ts` and `src/components/animation/animation.styles.ts`, rules unchanged) and the docs
   page and examples `packages/docs/pages/components/animation.ts` and `packages/docs/examples/animation/*.html`
-  (example markup and wording adapted from `docs/pages/components/animation.md`). The animation is built on the
+  (example markup and wording adapted from `docs/pages/components/animation.md`) and the React examples
+  `packages/docs/examples/animation/react/*.jsx` (copied from the same page's React examples; only the import lines
+  are changed to Velcro's React wrappers). The animation is built on the
   `@charm-ux/core` base element; no Shoelace runtime is included. The animation presets come from
   `@shoelace-style/animations` (next section).
 - Also used in: `tests/upstream/shoelace-2.20.1/` (test files only, never shipped): the upstream test files

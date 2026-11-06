@@ -39,7 +39,7 @@
               "kind": "method",
               "name": "cancel",
               "privacy": "public",
-              "description": "Clears all keyframe effects caused by this animation and aborts its playback.",
+              "description": "Cancels the animation and emits `sl-cancel`. As in Shoelace 2.20.1, the effect is not cleared: once `play` turns\nfalse the animation is paused at time 0, so its first keyframe stays applied.",
               "type": {
                 "text": "cancel() => void"
               }

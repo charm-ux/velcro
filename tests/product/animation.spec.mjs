@@ -1,5 +1,12 @@
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
+
+const velcroDir = fileURLToPath(new URL('../../packages/velcro/', import.meta.url));
 
 const PAGE = '/components/animation';
 const TITLES = ['Overview', 'Animations & Easings', 'Using Intersection Observer', 'Custom Keyframe Formats', 'Playing Animations on Demand'];
@@ -8,7 +15,9 @@ async function openExample(page, name = 'Overview') {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
   // Litro's client router remounts the page component once after load, which reloads the iframe; wait for it to settle.
+  // While it remounts (seen in WebKit) the old and new iframes can both be present for a moment.
   await page.goto(PAGE, { waitUntil: 'networkidle' });
+  await expect(page.locator(`iframe.example[title="Animation example: ${name}"]`)).toHaveCount(1);
   const frame = page.frameLocator(`iframe.example[title="Animation example: ${name}"]`);
   await expect(frame.locator('sl-animation').first()).toBeAttached();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-animation'));
@@ -66,6 +75,15 @@ test('docs page is prerendered with Velcro branding, prototype status, the utili
   expect(html).toContain('sl-select');
   expect(html).toContain('iterationsStart');
   expect(html).toContain('without changing the shared core prefix');
+  // Both module paths, the cancel() and unknown-name quirks, and the four React examples (from examples/animation/react).
+  expect(html).toContain('@charm-ux/velcro/utilities/animation');
+  expect(html).toContain('@charm-ux/velcro/animation/animations');
+  expect(html).toContain('fadeIn leaves the element at opacity 0');
+  expect(html).toContain('does not stop or replace the current animation');
+  expect(html).not.toContain('Clears all keyframe effects');
+  expect(html.match(/<summary>React<\/summary>/g)).toHaveLength(4);
+  expect(html.match(/import \{ VelcroAnimation as SlAnimation \} from &#39;@charm-ux\/velcro\/react\/VelcroAnimation\.js&#39;;/g)).toHaveLength(4);
+  expect(html).toContain('onSlFinish={() =&gt; setPlay(false)}');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
   expect(await (await request.get('/')).text()).toContain('/components/animation');
@@ -513,6 +531,83 @@ test.describe('upstream quirks', () => {
     });
     expect(r).toEqual({ a: false, b: [true, true], removed: false });
   });
+
+  test('cancel() leaves the canceled animation paused at time 0 with its first keyframe applied', async ({ page }) => {
+    const { frame } = await openExample(page);
+    const r = await run(frame, async () => {
+      const { make, settle, animationsOf, record } = window.__animation;
+      const el = await make('<sl-animation name="fadeIn" duration="5000" play><div></div></sl-animation>');
+      const [before] = animationsOf(el);
+      await settle();
+      const opacityPlaying = Number(getComputedStyle(el.firstElementChild).opacity);
+      const events = record(el);
+      el.cancel();
+      // The cancel event arrives on the next animation frame; play then turns false and the next update pauses the idle animation.
+      await new Promise(resolve => el.addEventListener('sl-cancel', resolve, { once: true }));
+      await el.updateComplete;
+      await settle();
+      const after = animationsOf(el);
+      const out = {
+        events,
+        play: el.play,
+        sameAnimation: after.length === 1 && after[0] === before,
+        playState: after[0]?.playState,
+        currentTime: after[0]?.currentTime,
+        elementCurrentTime: el.currentTime,
+        opacityPlaying: opacityPlaying > 0,
+        opacityAfterCancel: getComputedStyle(el.firstElementChild).opacity,
+      };
+      el.remove();
+      return out;
+    });
+    expect(r).toEqual({
+      events: ['sl-cancel'], play: false, sameAnimation: true, playState: 'paused', currentTime: 0, elementCurrentTime: 0,
+      opacityPlaying: true, opacityAfterCancel: '0',
+    });
+  });
+
+  test('setting an unknown name or name="none" leaves the previous animation running', async ({ page }) => {
+    const { frame } = await openExample(page);
+    const r = await run(frame, async () => {
+      const { make, settle, animationsOf, record } = window.__animation;
+      const el = await make('<sl-animation name="pulse" duration="5000" play><div></div></sl-animation>');
+      const [first] = animationsOf(el);
+      const events = record(el);
+      const out = {};
+      for (const name of ['nope', 'none']) {
+        el.name = name;
+        await el.updateComplete;
+        await settle();
+        const now = animationsOf(el);
+        out[name] = { same: now.length === 1 && now[0] === first, playState: now[0]?.playState, keyframes: now[0]?.effect.getKeyframes().length };
+      }
+      // play still controls the kept animation.
+      el.play = false;
+      await el.updateComplete;
+      out.paused = first.playState;
+      // Clearing custom keyframes while name is "none" does not stop the custom animation either.
+      const custom = await make('<sl-animation duration="5000" play><div></div></sl-animation>', a => {
+        a.keyframes = [{ opacity: 0 }, { opacity: 1 }];
+      });
+      const [customAnimation] = animationsOf(custom);
+      custom.keyframes = undefined;
+      await custom.updateComplete;
+      await settle();
+      const customNow = animationsOf(custom);
+      out.customCleared = { same: customNow.length === 1 && customNow[0] === customAnimation, playState: customNow[0]?.playState };
+      out.events = events;
+      el.remove();
+      custom.remove();
+      return out;
+    });
+    expect(r).toEqual({
+      nope: { same: true, playState: 'running', keyframes: 3 },
+      none: { same: true, playState: 'running', keyframes: 3 },
+      paused: 'paused',
+      customCleared: { same: true, playState: 'running' },
+      events: [],
+    });
+  });
 });
 
 test.describe('utilities and entry points', () => {
@@ -522,6 +617,76 @@ test.describe('utilities and entry points', () => {
       root: "export * from '@charm-ux/velcro';",
       animation: "export * from '@charm-ux/velcro/animation';",
       animationClass: "export * from '@charm-ux/velcro/animation/class';",
+      utilities: "export * from '@charm-ux/velcro/utilities/animation';",
+      animationsModule: "export * from '@charm-ux/velcro/animation/animations';",
+    });
+  });
+
+  test('./utilities/animation and ./animation/animations have the shapes of Shoelace\'s module paths and register nothing', async ({ page }) => {
+    await gotoBlank(page, outDir);
+    const r = await page.evaluate(async () => {
+      const tags = ['sl-animation', 'sl-button', 'sl-badge'];
+      const utilities = await import('/utilities.js');
+      const module = await import('/animationsModule.js');
+      const defined = tags.filter(t => customElements.get(t));
+      // A namespace object (in this consumer bundle, the bundler's), as Shoelace's `import * as animations` gives.
+      const { animations } = module;
+      const keys = Object.keys(animations);
+      const root = await import('/root.js');
+      return {
+        utilityExports: Object.keys(utilities).sort(),
+        moduleExports: Object.keys(module).sort(),
+        definedBeforeRegistering: defined,
+        same: [utilities, module].every(m => m.getAnimationNames === root.getAnimationNames && m.getEasingNames === root.getEasingNames),
+        namespace: {
+          tag: Object.prototype.toString.call(animations),
+          keys: keys.length,
+          sorted: keys.join() === [...keys].sort().join(),
+          easings: keys.includes('easings'),
+          names: keys.filter(k => k !== 'easings').join() === module.getAnimationNames().join(),
+          easingNames: Object.keys(animations.easings).join() === module.getEasingNames().join(),
+          bounce: animations.bounce.length,
+          bounceFirst: animations.bounce[0].offset,
+          easeInOutCubic: animations.easings.easeInOutCubic,
+        },
+        rootHasAnimations: 'animations' in root,
+      };
+    });
+    expect(r).toEqual({
+      utilityExports: ['getAnimationNames', 'getEasingNames'],
+      moduleExports: ['animations', 'getAnimationNames', 'getEasingNames'],
+      definedBeforeRegistering: [],
+      same: true,
+      namespace: {
+        tag: '[object Module]', keys: 99, sorted: true, easings: true, names: true, easingNames: true,
+        bounce: 9, bounceFirst: 0, easeInOutCubic: 'cubic-bezier(0.645, 0.045, 0.355, 1)',
+      },
+      rootHasAnimations: false,
+    });
+  });
+
+  test('the module entries resolve to declared files that import only the presets, never the component or core', () => {
+    const pkg = JSON.parse(readFileSync(path.join(velcroDir, 'package.json'), 'utf8'));
+    const graph = {};
+    for (const key of ['./utilities/animation', './animation/animations']) {
+      const { types, import: js } = pkg.exports[key];
+      expect(existsSync(path.join(velcroDir, types)), types).toBe(true);
+      const seen = [];
+      const visit = file => {
+        const rel = path.relative(path.join(velcroDir, 'dist'), file).split(path.sep).join('/');
+        if (seen.includes(rel)) return;
+        seen.push(rel);
+        for (const [, spec] of readFileSync(file, 'utf8').matchAll(/^(?:import|export)\b[^'"]*?from\s+['"]([^'"]+)['"]/gm)) {
+          expect(spec.startsWith('.'), `${rel} imports ${spec}`).toBe(true);
+          visit(path.join(path.dirname(file), spec));
+        }
+      };
+      visit(path.join(velcroDir, js));
+      graph[key] = seen.sort();
+    }
+    expect(graph).toEqual({
+      './utilities/animation': ['components/animation/animations.js', 'components/animation/presets/presets.js', 'utilities/animation.js'],
+      './animation/animations': ['components/animation/animations.js', 'components/animation/presets/presets.js'],
     });
   });
 
@@ -635,4 +800,149 @@ test('no upstream Shoelace runtime is requested or defined; all requests stay on
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);
   expect(await frame.locator('body').evaluate(() => Boolean(window.Shoelace || document.querySelector('script[src*="shoelace"]')))).toBe(false);
+});
+
+// Shoelace's four React examples, ported in packages/docs/examples/animation/react/*.jsx (the files the docs page shows),
+// bundled with React 19 and the generated wrappers, which are resolved through the package's real export map.
+test.describe('React examples', () => {
+  const reactDir = fileURLToPath(new URL('../../packages/docs/examples/animation/react/', import.meta.url));
+  const REACT_EXAMPLES = ['overview', 'intersection-observer', 'keyframes', 'on-demand'];
+  let bundle;
+
+  test.beforeAll(async () => {
+    const fromVelcro = createRequire(path.join(velcroDir, 'package.json'));
+    const fromDocs = createRequire(fileURLToPath(new URL('../../packages/docs/package.json', import.meta.url)));
+    const pkgDir = name => path.dirname(fromVelcro.resolve(`${name}/package.json`));
+    const { build } = await import(pathToFileURL(fromDocs.resolve('vite')).href);
+    const dir = mkdtempSync(path.join(tmpdir(), 'velcro-animation-react-'));
+    try {
+      // Each example file declares `App` without exporting it (as on Shoelace's page); the copy only appends the export.
+      for (const name of REACT_EXAMPLES) {
+        writeFileSync(path.join(dir, `${name}.jsx`), `${readFileSync(path.join(reactDir, `${name}.jsx`), 'utf8')}\nexport default App;\n`);
+      }
+      const entry = path.join(dir, 'entry.js');
+      writeFileSync(entry, `
+        import React from 'react';
+        import { flushSync } from 'react-dom';
+        import { createRoot } from 'react-dom/client';
+        ${REACT_EXAMPLES.map((name, i) => `import App${i} from './${name}.jsx';`).join('\n')}
+        const apps = { ${REACT_EXAMPLES.map((name, i) => `${JSON.stringify(name)}: App${i}`).join(', ')} };
+        window.errors = [];
+        addEventListener('error', e => window.errors.push(String(e.message)));
+        addEventListener('unhandledrejection', e => window.errors.push(String(e.reason)));
+        window.reactVersion = React.version;
+        window.renderExample = name => {
+          const host = document.createElement('div');
+          document.body.append(host);
+          flushSync(() => createRoot(host).render(React.createElement(apps[name])));
+        };
+      `);
+      const out = await build({
+        configFile: false, logLevel: 'silent', root: dir,
+        plugins: [{
+          name: 'velcro-package-exports',
+          async resolveId(id) {
+            if (!id.startsWith('@charm-ux/velcro/')) return null;
+            return (await this.resolve(id, path.join(fileURLToPath(new URL('../../packages/docs/', import.meta.url)), 'app.ts'), { skipSelf: true })) ?? null;
+          },
+        }],
+        resolve: { alias: { react: pkgDir('react'), 'react-dom': pkgDir('react-dom') } },
+        define: { 'process.env.NODE_ENV': '"production"' },
+        build: { write: false, minify: false, rollupOptions: { input: entry, output: { format: 'es', codeSplitting: false } } },
+      });
+      bundle = (Array.isArray(out) ? out[0] : out).output.find(o => o.type === 'chunk').code;
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  async function mount(page, name) {
+    const pageErrors = [];
+    page.on('pageerror', e => pageErrors.push(e.message));
+    await page.setContent('<!DOCTYPE html><html><body style="margin: 0"></body></html>');
+    await page.addScriptTag({ type: 'module', content: bundle });
+    await page.waitForFunction(() => typeof window.renderExample === 'function');
+    await page.evaluate(async n => {
+      window.renderExample(n);
+      await customElements.whenDefined('sl-animation');
+      await Promise.all([...document.querySelectorAll('sl-animation')].map(a => a.updateComplete));
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }, name);
+    return pageErrors;
+  }
+
+  const animationState = page => page.evaluate(() => [...document.querySelectorAll('sl-animation')].map(a => {
+    const [animation] = a.firstElementChild.getAnimations();
+    return { name: a.name, duration: a.duration, iterations: a.iterations, play: a.play, playState: animation?.playState ?? null };
+  }));
+
+  test('overview: the four presets play with duration 2000', async ({ page }) => {
+    const pageErrors = await mount(page, 'overview');
+    expect(await page.evaluate(() => window.reactVersion)).toBe('19.2.0');
+    expect(await animationState(page)).toEqual(['bounce', 'jello', 'heartBeat', 'flip'].map(name =>
+      ({ name, duration: 2000, iterations: Infinity, play: true, playState: 'running' })));
+    expect(await page.evaluate(() => document.querySelector('.animation-overview .box').getBoundingClientRect().width)).toBe(100);
+    expect(await page.evaluate(() => window.errors)).toEqual([]);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('intersection observer: the ref plays the animation in view and stops and rewinds it out of view', async ({ page }) => {
+    const pageErrors = await mount(page, 'intersection-observer');
+    await expect.poll(() => animationState(page)).toEqual([{ name: 'jackInTheBox', duration: 2000, iterations: 1, play: true, playState: 'running' }]);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    // The example sets currentTime = 0 right after play = false, and play only pauses on the next update, so the animation
+    // is paused about one frame after the start (as with Shoelace).
+    await expect.poll(() => page.evaluate(() => {
+      const el = document.querySelector('sl-animation');
+      const [animation] = el.firstElementChild.getAnimations();
+      return { play: el.play, playState: animation.playState, nearStart: el.currentTime < 100 };
+    })).toEqual({ play: false, playState: 'paused', nearStart: true });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect.poll(() => page.evaluate(() => document.querySelector('sl-animation').play)).toBe(true);
+    expect(await page.evaluate(() => window.errors)).toEqual([]);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('custom keyframes: the keyframes prop becomes the element property and the animation', async ({ page }) => {
+    const pageErrors = await mount(page, 'keyframes');
+    const r = await page.evaluate(() => {
+      const el = document.querySelector('sl-animation');
+      const [animation] = el.firstElementChild.getAnimations();
+      const frames = animation.effect.getKeyframes();
+      return {
+        property: el.keyframes.map(k => k.transform),
+        attribute: el.hasAttribute('keyframes'),
+        easing: el.easing,
+        timing: animation.effect.getTiming().easing,
+        frames: frames.map(k => [k.offset, k.easing]),
+        playState: animation.playState,
+      };
+    });
+    expect(r).toEqual({
+      property: ['rotate(0)', 'rotate(90deg)'], attribute: false, easing: 'ease-in-out', timing: 'ease-in-out',
+      frames: [[0, 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'], [1, 'cubic-bezier(0.25, 0.46, 0.45, 0.94)']], playState: 'running',
+    });
+    expect(await page.evaluate(() => window.errors)).toEqual([]);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('on demand: clicking the button plays rubberBand once and onSlFinish turns play off, every time', async ({ page }) => {
+    const pageErrors = await mount(page, 'on-demand');
+    await page.evaluate(() => {
+      window.events = [];
+      const el = document.querySelector('sl-animation');
+      for (const n of ['sl-start', 'sl-finish', 'sl-cancel']) el.addEventListener(n, () => window.events.push(n));
+    });
+    expect(await page.evaluate(() => document.querySelector('sl-animation').play)).toBe(false);
+    for (let round = 1; round <= 2; round++) {
+      await page.locator('sl-button').click();
+      await expect.poll(() => page.evaluate(() => document.querySelector('sl-animation').play)).toBe(true);
+      await expect.poll(() => page.evaluate(() => window.events.filter(e => e === 'sl-finish').length), { timeout: 5000 }).toBe(round);
+      await expect.poll(() => page.evaluate(() => document.querySelector('sl-animation').play)).toBe(false);
+    }
+    expect(await page.evaluate(() => window.events)).toEqual(['sl-start', 'sl-finish', 'sl-start', 'sl-finish']);
+    expect(await page.evaluate(() => document.querySelector('sl-animation').name)).toBe('rubberBand');
+    expect(await page.evaluate(() => window.errors)).toEqual([]);
+    expect(pageErrors).toEqual([]);
+  });
 });

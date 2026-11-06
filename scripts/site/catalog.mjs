@@ -81,6 +81,18 @@ const listFiles = dir => {
 const target = file => ({ types: `./dist/${file}.d.ts`, import: `./dist/${file}.js` });
 
 /**
+ * Optional non-registering module entries a component may expose, as counterparts of Shoelace's public module paths:
+ * export key -> [owning component, dist file]. Each is allowed only while its component is in the catalog, and only with
+ * exactly this target.
+ */
+export const MODULE_EXPORTS = Object.freeze({
+  // Shoelace's dist/components/animation/animations.js (the animations namespace and the two utilities).
+  './animation/animations': ['animation', 'components/animation/animations'],
+  // Shoelace's dist/utilities/animation.js (the two utilities).
+  './utilities/animation': ['animation', 'utilities/animation'],
+});
+
+/**
  * Export contract of packages/velcro: the fixed entries, ./<name> with exact targets for every catalog entry, and
  * ./<name>/class (exact targets) only for a catalog component. Any other key or target is a problem.
  */
@@ -99,9 +111,13 @@ export function checkExports(exportsMap, catalog) {
     const cls = `./${name}/class`;
     if (Object.hasOwn(exportsMap, cls) && !same(exportsMap[cls], target(`components/${name}/class`))) problems.push(`${name}: wrong class export targets`);
   }
+  for (const [key, [owner, file]] of Object.entries(MODULE_EXPORTS)) {
+    if (Object.hasOwn(exportsMap, key) && names.has(owner) && !same(exportsMap[key], target(file))) problems.push(`${owner}: wrong module export targets for ${key}`);
+  }
   for (const key of Object.keys(exportsMap)) {
     const m = /^\.\/([a-z0-9-]+)(\/class)?$/.exec(key);
     if (Object.hasOwn(fixed, key) || (m && names.has(m[1]))) continue;
+    if (Object.hasOwn(MODULE_EXPORTS, key) && names.has(MODULE_EXPORTS[key][0])) continue;
     problems.push(`package.json: unexpected export ${key}`);
   }
   return problems;
