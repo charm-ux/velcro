@@ -10,7 +10,7 @@ Shoelace members count when its own docs would list them (described and not priv
 whitespace, quote style and union order. Missing and mismatched entries form the ledger
 `docs/api/api-parity-ledger.json`, which may only shrink.
 
-Totals: 149 Shoelace entries compared, 134 matching, 15 mismatched, 0 missing; 15 Velcro-only and 56 inherited extras.
+Totals: 157 Shoelace entries compared, 142 matching, 15 mismatched, 0 missing; 16 Velcro-only and 58 inherited extras.
 
 | Component | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -21,6 +21,7 @@ Totals: 149 Shoelace entries compared, 134 matching, 15 mismatched, 0 missing; 1
 | `sl-format-bytes` | 3 | 3 | 0 | 0 | 1 | 2 |
 | `sl-format-date` | 12 | 2 | 10 | 0 | 1 | 2 |
 | `sl-format-number` | 10 | 5 | 5 | 0 | 1 | 2 |
+| `sl-mutation-observer` | 8 | 8 | 0 | 0 | 1 | 2 |
 | `sl-progress-bar` | 11 | 11 | 0 | 0 | 0 | 6 |
 | `sl-progress-ring` | 11 | 11 | 0 | 0 | 0 | 2 |
 | `sl-relative-time` | 4 | 4 | 0 | 0 | 1 | 2 |
@@ -189,6 +190,25 @@ Mismatched:
 - `property minimumFractionDigits`: type differs (shoelace "number", velcro "number | undefined")
 - `property minimumIntegerDigits`: type differs (shoelace "number", velcro "number | undefined")
 - `property minimumSignificantDigits`: type differs (shoelace "number", velcro "number | undefined")
+
+Velcro-only (own):
+
+- `property lang`
+
+Inherited extras:
+
+- `property dir` (from @charm-ux/core CharmElement)
+- `event ready` (from @charm-ux/core CharmElement)
+
+## `sl-mutation-observer`
+
+Missing:
+
+- None.
+
+Mismatched:
+
+- None.
 
 Velcro-only (own):
 

@@ -96,6 +96,16 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   (`src/internal/test.ts`, `src/internal/test/data-testid-helpers.ts`) are vendored unchanged for the conformance run
   (see `tests/upstream/`). The component extends the `@charm-ux/core` base element and uses the localization controller
   listed above; no Shoelace runtime or source files are included in the package.
+- Also used in: `packages/velcro/src/components/mutation-observer/mutation-observer.ts` (API documentation wording and
+  behavior: a `MutationObserver` over the element and its subtree, configured by `attr`, `attr-old-value`, `char-data`,
+  `char-data-old-value` and `child-list`, started and stopped by `disabled` and reporting through `sl-mutation`, adapted
+  from `src/components/mutation-observer/mutation-observer.component.ts`, and the restore of reflected properties'
+  initial values, adapted from `src/internal/shoelace-element.ts`) and
+  `packages/velcro/src/components/mutation-observer/mutation-observer.styles.ts` (styles adapted from
+  `src/components/mutation-observer/mutation-observer.styles.ts` and `src/styles/component.styles.ts`, declarations
+  unchanged), plus the docs page examples
+  adapted from `docs/pages/components/mutation-observer.md`. The component extends the `@charm-ux/core` base element;
+  no Shoelace runtime or source files are included.
 - Also used in: `packages/velcro/src/components/visually-hidden/visually-hidden.ts` (API documentation wording and the
   rendered structure, a default slot only, adapted from `src/components/visually-hidden/visually-hidden.component.ts`)
   and `packages/velcro/src/components/visually-hidden/visually-hidden.styles.ts` (styles adapted from

@@ -2,7 +2,7 @@
   "name": "@charm-ux/velcro",
   "version": "0.1.0",
   "private": true,
-  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, card, divider, format-bytes, format-date, format-number, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, split-panel and visually-hidden only).",
+  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, card, divider, format-bytes, format-date, format-number, mutation-observer, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, split-panel and visually-hidden only).",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
@@ -60,6 +60,14 @@
     "./format-number/class": {
       "types": "./dist/components/format-number/class.d.ts",
       "import": "./dist/components/format-number/class.js"
+    },
+    "./mutation-observer": {
+      "types": "./dist/components/mutation-observer/index.d.ts",
+      "import": "./dist/components/mutation-observer/index.js"
+    },
+    "./mutation-observer/class": {
+      "types": "./dist/components/mutation-observer/class.d.ts",
+      "import": "./dist/components/mutation-observer/class.js"
     },
     "./progress-bar": {
       "types": "./dist/components/progress-bar/index.d.ts",
