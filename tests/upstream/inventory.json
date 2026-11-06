@@ -1,4 +1,13 @@
 {
+  "animation": [
+    "<sl-animation> > renders",
+    "<sl-animation> > is accessible",
+    "<sl-animation> > emits the correct event on animation end",
+    "<sl-animation> > can be finished by hand",
+    "<sl-animation> > can be cancelled",
+    "<sl-animation> > animation start > does not start the animation by default",
+    "<sl-animation> > animation start > emits the correct event on animation start"
+  ],
   "badge": [
     "<sl-badge> > when provided no parameters > should pass accessibility tests with a role of status on the base part.",
     "<sl-badge> > when provided no parameters > should render the child content provided",

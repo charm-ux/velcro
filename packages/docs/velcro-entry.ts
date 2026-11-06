@@ -3,3 +3,7 @@
 import '@charm-ux/velcro/themes/light.css';
 import '@charm-ux/velcro/themes/dark.css';
 import '@charm-ux/velcro';
+
+// Shoelace's animation utilities, for the animation examples (an example document can import this entry again by its
+// script URL, which returns the same module instance).
+export { getAnimationNames, getEasingNames } from '@charm-ux/velcro';

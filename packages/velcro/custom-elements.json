@@ -4,6 +4,515 @@
   "modules": [
     {
       "kind": "javascript-module",
+      "path": "src/components/animation/animation.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Animate elements declaratively with nearly 100 baked-in presets, or roll your own with custom keyframes. Powered by\nthe [Web Animations API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API). API modelled on\nShoelace's `sl-animation`. There is no core counterpart, so it extends the core base element.\n\nVelcro extension inherited from the core base element: the non-bubbling `ready` event on first update.",
+          "name": "VelcroAnimation",
+          "slots": [
+            {
+              "description": "The element to animate. Avoid slotting in more than one element, as subsequent ones will be ignored. To animate multiple elements, either wrap them in a single container or use multiple `<sl-animation>` elements.",
+              "name": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "animation",
+              "type": {
+                "text": "Animation | undefined"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'animation'"
+            },
+            {
+              "kind": "method",
+              "name": "cancel",
+              "privacy": "public",
+              "description": "Clears all keyframe effects caused by this animation and aborts its playback.",
+              "type": {
+                "text": "cancel() => void"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "createAnimation",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "currentTime",
+              "type": {
+                "text": "CSSNumberish"
+              },
+              "privacy": "public",
+              "description": "Gets and sets the current animation time."
+            },
+            {
+              "kind": "field",
+              "name": "delay",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "public",
+              "default": "0",
+              "description": "The number of milliseconds to delay the start of the animation.",
+              "attribute": "delay"
+            },
+            {
+              "kind": "method",
+              "name": "destroyAnimation",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any\nstring can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.",
+              "attribute": "dir"
+            },
+            {
+              "kind": "field",
+              "name": "direction",
+              "type": {
+                "text": "PlaybackDirection"
+              },
+              "privacy": "public",
+              "default": "'normal'",
+              "description": "Determines the direction of playback as well as the behavior when reaching the end of an iteration.\n[Learn more](https://developer.mozilla.org/en-US/docs/Web/CSS/animation-direction)",
+              "attribute": "direction"
+            },
+            {
+              "kind": "field",
+              "name": "duration",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "public",
+              "default": "1000",
+              "description": "The number of milliseconds each iteration of the animation takes to complete.",
+              "attribute": "duration"
+            },
+            {
+              "kind": "field",
+              "name": "easing",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "'linear'",
+              "description": "The easing function to use for the animation. This can be a Shoelace easing function or a custom easing function\nsuch as `cubic-bezier(0, 1, .76, 1.14)`.",
+              "attribute": "easing"
+            },
+            {
+              "kind": "field",
+              "name": "endDelay",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "public",
+              "default": "0",
+              "description": "The number of milliseconds to delay after the active period of an animation sequence.",
+              "attribute": "end-delay"
+            },
+            {
+              "kind": "field",
+              "name": "fill",
+              "type": {
+                "text": "FillMode"
+              },
+              "privacy": "public",
+              "default": "'auto'",
+              "description": "Sets how the animation applies styles to its target before and after its execution.",
+              "attribute": "fill"
+            },
+            {
+              "kind": "method",
+              "name": "finish",
+              "privacy": "public",
+              "description": "Sets the playback time to the end of the animation corresponding to the current playback direction.",
+              "type": {
+                "text": "finish() => void"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "handleAnimationCancel",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "handleAnimationFinish",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "handleSlotChange",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "hasRecordedInitialProperties",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "hasStarted",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "initialReflectedProperties",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new Map<string, unknown>()"
+            },
+            {
+              "kind": "field",
+              "name": "iterations",
+              "privacy": "public",
+              "default": "Infinity",
+              "description": "The number of iterations to run before the animation completes. Defaults to `Infinity`, which loops.",
+              "attribute": "iterations"
+            },
+            {
+              "kind": "field",
+              "name": "iterationStart",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "public",
+              "default": "0",
+              "description": "The offset at which to start the animation, usually between 0 (start) and 1 (end).",
+              "attribute": "iteration-start"
+            },
+            {
+              "kind": "field",
+              "name": "keyframes",
+              "type": {
+                "text": "Keyframe[] | undefined"
+              },
+              "privacy": "public",
+              "description": "The keyframes to use for the animation. If this is set, `name` will be ignored."
+            },
+            {
+              "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "'none'",
+              "description": "The name of the built-in animation to use. For custom animations, use the `keyframes` prop.",
+              "attribute": "name"
+            },
+            {
+              "kind": "field",
+              "name": "play",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "public",
+              "default": "false",
+              "description": "Plays the animation. When omitted, the animation will be paused. This attribute will be automatically removed when\nthe animation finishes or gets canceled.",
+              "attribute": "play",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "playbackRate",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "public",
+              "default": "1",
+              "description": "Sets the animation's playback rate. The default is `1`, which plays the animation at a normal speed. Setting this\nto `2`, for example, will double the animation's speed. A negative value can be used to reverse the animation. This\nvalue can be changed without causing the animation to restart.",
+              "attribute": "playback-rate"
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "velcroDir",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "private"
+            }
+          ],
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Emitted when the animation is canceled.",
+              "name": "sl-cancel"
+            },
+            {
+              "description": "Emitted when the animation finishes.",
+              "name": "sl-finish"
+            },
+            {
+              "description": "Emitted when the animation starts or restarts.",
+              "name": "sl-start"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "delay",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The number of milliseconds to delay the start of the animation.",
+              "fieldName": "delay",
+              "propName": "delay"
+            },
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any\nstring can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.",
+              "fieldName": "dir",
+              "propName": "dir"
+            },
+            {
+              "name": "direction",
+              "type": {
+                "text": "PlaybackDirection"
+              },
+              "default": "'normal'",
+              "description": "Determines the direction of playback as well as the behavior when reaching the end of an iteration.\n[Learn more](https://developer.mozilla.org/en-US/docs/Web/CSS/animation-direction)",
+              "fieldName": "direction",
+              "propName": "direction"
+            },
+            {
+              "name": "duration",
+              "type": {
+                "text": "number"
+              },
+              "default": "1000",
+              "description": "The number of milliseconds each iteration of the animation takes to complete.",
+              "fieldName": "duration",
+              "propName": "duration"
+            },
+            {
+              "name": "easing",
+              "type": {
+                "text": "string"
+              },
+              "default": "'linear'",
+              "description": "The easing function to use for the animation. This can be a Shoelace easing function or a custom easing function\nsuch as `cubic-bezier(0, 1, .76, 1.14)`.",
+              "fieldName": "easing",
+              "propName": "easing"
+            },
+            {
+              "name": "end-delay",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The number of milliseconds to delay after the active period of an animation sequence.",
+              "fieldName": "endDelay",
+              "propName": "endDelay"
+            },
+            {
+              "name": "fill",
+              "type": {
+                "text": "FillMode"
+              },
+              "default": "'auto'",
+              "description": "Sets how the animation applies styles to its target before and after its execution.",
+              "fieldName": "fill",
+              "propName": "fill"
+            },
+            {
+              "name": "iteration-start",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The offset at which to start the animation, usually between 0 (start) and 1 (end).",
+              "fieldName": "iterationStart",
+              "propName": "iterationStart"
+            },
+            {
+              "name": "iterations",
+              "default": "Infinity",
+              "description": "The number of iterations to run before the animation completes. Defaults to `Infinity`, which loops.",
+              "fieldName": "iterations",
+              "propName": "iterations"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "fieldName": "lang",
+              "propName": "lang"
+            },
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "'none'",
+              "description": "The name of the built-in animation to use. For custom animations, use the `keyframes` prop.",
+              "fieldName": "name",
+              "propName": "name"
+            },
+            {
+              "name": "play",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Plays the animation. When omitted, the animation will be paused. This attribute will be automatically removed when\nthe animation finishes or gets canceled.",
+              "fieldName": "play",
+              "propName": "play"
+            },
+            {
+              "name": "playback-rate",
+              "type": {
+                "text": "number"
+              },
+              "default": "1",
+              "description": "Sets the animation's playback rate. The default is `1`, which plays the animation at a normal speed. Setting this\nto `2`, for example, will double the animation's speed. A negative value can be used to reverse the animation. This\nvalue can be changed without causing the animation to restart.",
+              "fieldName": "playbackRate",
+              "propName": "playbackRate"
+            }
+          ],
+          "superclass": {
+            "name": "CharmElement",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-animation",
+          "customElement": true,
+          "status": "prototype",
+          "modulePath": "src/components/animation/animation.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroAnimation",
+            "module": "src/components/animation/animation.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroAnimation",
+          "declaration": {
+            "name": "VelcroAnimation",
+            "module": "src/components/animation/animation.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/animation/animations.ts",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "getAnimationNames",
+          "return": {
+            "type": {
+              "text": "string[]"
+            }
+          },
+          "description": "Gets a list of all supported animation names."
+        },
+        {
+          "kind": "function",
+          "name": "getEasingNames",
+          "return": {
+            "type": {
+              "text": "string[]"
+            }
+          },
+          "description": "Gets a list of all supported easing function names."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "animations",
+          "declaration": {
+            "name": "animations",
+            "module": "src/components/animation/animations.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "getAnimationNames",
+          "declaration": {
+            "name": "getAnimationNames",
+            "module": "src/components/animation/animations.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "getEasingNames",
+          "declaration": {
+            "name": "getEasingNames",
+            "module": "src/components/animation/animations.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/components/badge/badge.ts",
       "declarations": [
         {

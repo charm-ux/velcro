@@ -28,6 +28,9 @@ export default defineConfig({
       // `app` is Litro's hydration/router bundle; `velcro` is the browser-only Velcro runtime that the
       // isolated example documents load. Keeping it a separate entry keeps it out of server rendering.
       input: { app: 'app.ts', velcro: 'velcro-entry.ts' },
+      // Keep the exports of entries that declare some: the animation examples import Shoelace's animation utilities
+      // (`getAnimationNames`, `getEasingNames`) from the `velcro` entry their document already loads.
+      preserveEntrySignatures: 'exports-only',
       output: {
         entryFileNames: '[name].js',
         assetFileNames: asset => (asset.names?.some(n => n.endsWith('.css')) ? '[name][extname]' : 'assets/[name]-[hash][extname]'),
