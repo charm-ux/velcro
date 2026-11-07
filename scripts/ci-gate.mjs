@@ -11,32 +11,36 @@ export function accepted(needs) {
   return named(needs) && JOBS.every(job => needs[job]?.result === 'success');
 }
 
-// A title or body edit skips the analysis jobs; the aggregate then repeats the latest completed `required` check run
-// that GitHub Actions recorded for the same head in another run of the workflow. `listing` is the check-runs response
-// for that head; an incomplete listing, a foreign app, another head or this run's own check run never counts.
-export function priorResult(listing, head, runId) {
-  const runs = listing?.check_runs;
-  if (!Array.isArray(runs) || runs.length !== listing.total_count) return undefined;
-  const own = `/actions/runs/${runId}/`;
-  const at = run => Date.parse(run.completed_at);
-  return runs
-    .filter(run => run.name === 'required' && run.app?.slug === 'github-actions' && run.status === 'completed'
-      && run.head_sha === head && typeof run.html_url === 'string' && !run.html_url.includes(own)
-      && Number.isFinite(at(run)))
-    .sort((a, b) => at(b) - at(a))[0]?.conclusion;
+// The run name ci.yml gives a full (analysis) pull request run; a title/body edit's run ends in `(repeat)` instead.
+export const fullRunTitle = (pr, base) => `CI pr ${pr} into ${base} (full)`;
+
+// A title or body edit skips the analysis jobs; the aggregate then repeats the newest full run of ci.yml for the same
+// head, PR and base branch. `listing` is that workflow's runs for the head. Newest means the highest run number
+// (creation order), never the latest completion, so a newer pending or failed run is never overtaken by an older one.
+export function latestFullRun(listing, { head, pr, base, run }) {
+  return listing.workflow_runs
+    .filter(r => Number.isSafeInteger(r.id) && String(r.id) !== run && r.path === '.github/workflows/ci.yml'
+      && r.event === 'pull_request' && r.head_sha === head && r.display_title === fullRunTitle(pr, base)
+      && Number.isSafeInteger(r.run_number))
+    .sort((a, b) => b.run_number - a.run_number)[0];
 }
 
-export function carried(needs, listing, head, runId) {
-  return named(needs) && /^[0-9a-f]{40}$/.test(head ?? '') && /^[0-9]+$/.test(runId ?? '')
-    && JOBS.every(job => needs[job]?.result === 'skipped') && priorResult(listing, head, runId) === 'success';
+export function carried(needs, listing, context) {
+  const { head, pr, base, run } = context;
+  const valid = /^[0-9a-f]{40}$/.test(head ?? '') && /^[1-9][0-9]*$/.test(pr ?? '') && /^[0-9]+$/.test(run ?? '')
+    && typeof base === 'string' && base !== '';
+  const latest = latestFullRun(listing, context);
+  return valid && named(needs) && JOBS.every(job => needs[job]?.result === 'skipped')
+    && latest?.status === 'completed' && latest.conclusion === 'success';
 }
 
 if (import.meta.main) {
   let green = false;
   try {
     const needs = JSON.parse(process.env.VELCRO_CI_NEEDS);
+    const { VELCRO_CI_HEAD: head, VELCRO_CI_PR: pr, VELCRO_CI_BASE: base, VELCRO_CI_RUN: run } = process.env;
     green = process.env.VELCRO_CI_CARRY === 'true'
-      ? carried(needs, JSON.parse(readFileSync(process.env.VELCRO_CI_PRIOR, 'utf8')), process.env.VELCRO_CI_HEAD, process.env.VELCRO_CI_RUN)
+      ? carried(needs, JSON.parse(readFileSync(process.env.VELCRO_CI_PRIOR, 'utf8')), { head, pr, base, run })
       : accepted(needs);
   } catch { /* fail closed */ }
   process.stdout.write(green ? 'ci-gate: all required jobs succeeded\n' : 'ci-gate: required evidence missing or unsuccessful\n');

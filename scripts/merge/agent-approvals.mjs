@@ -1,16 +1,19 @@
 // Sets the `agent-approvals` commit status that the merge queue requires, only for the exact head two agent reviews
 // approved. The binding is a JSON file kept outside the repository by the coordinator:
 //   { "head": "<full 40-hex OID>", "approvals": 2, "reviews": ["<report path relative to --root>", ...] }
-// Every listed report must sit inside --root, be a distinct regular file and start with the line `APPROVED`; there
-// must be at least two and exactly `approvals` of them. Anything else refuses before GitHub is contacted.
+// Every listed report must sit inside --root, be a distinct regular file, start with the line `APPROVED` and name the
+// approved head's full OID (so a report from an earlier round cannot be reused); there must be at least two and
+// exactly `approvals` of them. Anything else refuses before GitHub is contacted.
 //
 //   node scripts/merge/agent-approvals.mjs check     <binding.json> --head <oid> --root <dir>
 //   node scripts/merge/agent-approvals.mjs set       <binding.json> --head <oid> --root <dir> --repo <owner/name> --pr <n>
-//   node scripts/merge/agent-approvals.mjs set-group <binding.json> --head <oid> --root <dir> --repo <owner/name> --pr <n>
+//   node scripts/merge/agent-approvals.mjs set-group <binding.json> --head <oid> --root <dir> --repo <owner/name> --pr <n> --group <oid>
 //
 // `set` marks the open pull request's head (it must still be <oid>, based on main). `set-group` marks the merge-queue
-// commit GitHub built for that pull request and head (refs/heads/gh-readonly-queue/main/pr-<n>-<oid>), only when that
-// commit has main's current tip as its single parent and exactly the approved head's tree, so it lands nothing else.
+// commit GitHub built for that pull request and head (refs/heads/gh-readonly-queue/main/pr-<n>-<oid>), only when it is
+// the --group commit the caller scanned, has main's current tip as its single parent and exactly the approved head's
+// tree, so it lands nothing else. Neither marks a commit that already carries an `agent-approvals` status from another
+// account (a workflow token, for example), and each confirms afterwards that its own success is the newest one.
 // Output is fixed status lines with OIDs only: no paths, report text or GitHub responses.
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
@@ -44,8 +47,9 @@ export function validateBinding(binding, head, root) {
     if (!lstatSync(file).isFile()) refuse(`${label} is not a regular file`);
     if (seen.has(file)) refuse(`${label} repeats another report`);
     seen.add(file);
-    const first = readFileSync(file, 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/, 1)[0].trimEnd();
-    if (first !== 'APPROVED') refuse(`${label} does not start with APPROVED`);
+    const text = readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
+    if (text.split(/\r?\n/, 1)[0].trimEnd() !== 'APPROVED') refuse(`${label} does not start with APPROVED`);
+    if (!new RegExp(`(?<![0-9a-fA-F])${head}(?![0-9a-fA-F])`).test(text)) refuse(`${label} does not name the approved head`);
   });
   return reviews.length;
 }
@@ -71,22 +75,36 @@ function openPullOnMain(gh, repo, pr, head) {
   if (pull.base?.repo?.full_name !== repo || pull.head?.repo?.full_name !== repo) refuse('the pull request is not within the repository');
 }
 
+// The commit's `agent-approvals` statuses, all of them (GitHub lists up to 100 per page, newest first).
+function ours(gh, repo, sha) {
+  const listed = gh(['api', `repos/${repo}/commits/${sha}/statuses?per_page=100`]);
+  if (!Array.isArray(listed) || listed.length >= 100) refuse('the commit statuses could not be listed completely');
+  return listed.filter(entry => entry?.context === CONTEXT);
+}
+
+// Posts success only when every earlier `agent-approvals` status on the commit came from this account, then confirms
+// that the newest one is this account's success.
 function setStatus(gh, repo, sha) {
+  const login = gh(['api', 'user'])?.login;
+  if (typeof login !== 'string' || login === '') refuse('the GitHub account could not be resolved');
+  const foreign = entries => entries.some(entry => entry?.creator?.login !== login);
+  if (foreign(ours(gh, repo, sha))) refuse('another account already set agent-approvals on this commit');
   gh(['api', '--method', 'POST', `repos/${repo}/statuses/${sha}`,
     '-f', 'state=success', '-f', `context=${CONTEXT}`, '-f', `description=${DESCRIPTION}`]);
-  const combined = gh(['api', `repos/${repo}/commits/${sha}/status`]);
-  const status = Array.isArray(combined?.statuses) ? combined.statuses.find(entry => entry.context === CONTEXT) : undefined;
-  if (combined?.sha !== sha || status?.state !== 'success') refuse('GitHub did not record the status');
+  const after = ours(gh, repo, sha);
+  const newest = after.filter(entry => Number.isSafeInteger(entry?.id)).sort((a, b) => b.id - a.id)[0];
+  if (foreign(after) || newest?.state !== 'success') refuse('GitHub did not record the status');
 }
 
 // The merge-queue commit for this pull request and head: one exact ref, a single parent that is main's current tip,
 // the approved head's tree, and a head that already contains that tip. Returns the merge-group commit OID.
-function mergeGroup(gh, repo, pr, head) {
+function mergeGroup(gh, repo, pr, head, expected) {
   const name = `refs/heads/gh-readonly-queue/main/pr-${pr}-${head}`;
   const refs = gh(['api', `repos/${repo}/git/matching-refs/${name.slice('refs/'.length)}`]);
   const exact = Array.isArray(refs) ? refs.filter(ref => ref?.ref === name) : [];
   if (exact.length !== 1 || exact[0].object?.type !== 'commit' || !OID.test(exact[0].object.sha ?? '')) refuse('no merge-queue commit for the approved head');
   const group = exact[0].object.sha;
+  if (group !== expected) refuse('the merge-queue commit is not the scanned commit');
   const main = gh(['api', `repos/${repo}/git/ref/heads/main`])?.object?.sha;
   if (!OID.test(main ?? '')) refuse('main could not be resolved');
   const built = gh(['api', `repos/${repo}/commits/${group}`]);
@@ -106,19 +124,21 @@ function options(args) {
   const flags = {};
   for (let index = 0; index < rest.length; index += 2) {
     const [flag, value] = [rest[index], rest[index + 1]];
-    if (!/^--(?:head|root|repo|pr)$/.test(flag) || value === undefined || Object.hasOwn(flags, flag.slice(2))) refuse('usage');
+    if (!/^--(?:head|root|repo|pr|group)$/.test(flag) || value === undefined || Object.hasOwn(flags, flag.slice(2))) refuse('usage');
     flags[flag.slice(2)] = value;
   }
   const remote = command === 'set' || command === 'set-group';
   if (!(command === 'check' || remote) || !file || !flags.head || !flags.root) refuse('usage');
   if (remote && !(/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(flags.repo ?? '') && /^[1-9][0-9]*$/.test(flags.pr ?? ''))) refuse('usage');
   if (!remote && (flags.repo !== undefined || flags.pr !== undefined)) refuse('usage');
+  if ((command === 'set-group') !== (flags.group !== undefined)) refuse('usage');
+  if (flags.group !== undefined && !OID.test(flags.group)) refuse('usage');
   return { command, file, ...flags };
 }
 
 export function main(args, { gh = ghRunner, write = text => process.stdout.write(text) } = {}) {
   try {
-    const { command, file, head, root, repo, pr } = options(args);
+    const { command, file, head, root, repo, pr, group: scanned } = options(args);
     const count = validateBinding(readBinding(file), head, root);
     if (command === 'check') {
       write(`agent-approvals: ${count} approvals bind ${head}\n`);
@@ -128,7 +148,7 @@ export function main(args, { gh = ghRunner, write = text => process.stdout.write
       write(`agent-approvals: success set on ${head}\n`);
     } else {
       openPullOnMain(gh, repo, pr, head);
-      const group = mergeGroup(gh, repo, pr, head);
+      const group = mergeGroup(gh, repo, pr, head, scanned);
       setStatus(gh, repo, group);
       write(`agent-approvals: success set on merge group ${group} for ${head}\n`);
     }

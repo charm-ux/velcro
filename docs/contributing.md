@@ -156,13 +156,17 @@ range, and only for one exact head:
   approves nothing. Applying any other label, or changing the PR's base, also re-runs
   CI (including the product job) without approval, and that run becomes the head's
   latest result, so re-apply the approval label afterwards. A title or body edit runs
-  no checks: `required` repeats the head's latest completed `required` result from an
-  earlier run, so it neither clears a blocked head nor approves one.
+  no checks: `required` repeats the result of the newest full run for the same PR,
+  base branch and head (next sections), so it neither clears a blocked head nor
+  approves one, and a newer unapproved run is never overtaken by an older approved one.
 - A merge group has no approval channel. GitHub builds the group's commit itself, so
-  it is a new head that no label can name, and its scan of `main..group` is capped
-  like any other. Squashing never adds changed files, so a PR within the budget
-  always fits; a PR approved over 1,000 entries cannot pass the merge queue. The
-  owner decides how to land it (for example by splitting it); agents stop and report.
+  it is a new head that no label can name, and its scan of `main..group` has its own
+  1,000-entry cap. No approval carries over to it. The queued commit is one squashed
+  commit, whose changed files are at most those of the PR's range (often fewer, since
+  repeated edits to a file count once), so a PR within the budget always fits. A PR
+  whose squashed commit itself exceeds 1,000 entries cannot pass the merge queue,
+  even when its PR range was approved. The owner decides how to land it (for example
+  by splitting it); agents stop and report.
 - A post-merge run on `main` has no approval channel, so an approved range over
   1,000 entries fails there too. It does not gate Pages, which scans full history,
   and clears on the next push to `main` (a small range again).
@@ -276,28 +280,47 @@ on its head and again on the commit the queue builds:
   so what is tested is exactly what lands.
 - `agent-approvals`: a commit status the coordinator sets with
   `scripts/merge/agent-approvals.mjs` after two agent reviews approved that exact
-  head. It never comes from a workflow: no workflow may hold `statuses: write`
-  (tested). Outside workflows, only accounts with write access to the repository
-  (the owner) can set commit statuses.
+  head.
+
+What `agent-approvals` proves is limited. The ruleset accepts it from any source,
+because a user token's status has no app to pin. So any account with write access
+can set it, and so can a workflow that requests `statuses: write`. That includes a
+workflow that a same-repository PR adds or edits: its `pull_request` run, and its
+`merge_group` run, use the PR's workflow files. Fork PRs are capped to read-only
+tokens. The committed workflows request no such permission (a test checks the
+current files), but that cannot bind a future PR. Two things stand behind the
+status:
+
+- The coordinator is the only one who enqueues. Before marking a commit, the script
+  refuses if that commit already carries an `agent-approvals` status from any other
+  account (a `github-actions[bot]` token, for example). Afterwards it confirms that
+  the newest status for that context is its own success.
+- Every change under `.github/workflows` is a protected change. It needs the
+  independent human review (above) before it is merged. The CI policy step only
+  reports such changes; detection is not approval.
 
 The coordinator keeps a binding for each PR outside the repository:
 `{ "head": "<full OID>", "approvals": 2, "reviews": ["<report>", ...] }`, with
 report paths relative to a root it names. The script refuses unless the head is
 the exact full OID it was asked to mark, there are at least two reports and exactly
 `approvals` of them, and each report is a distinct regular file inside the root
-whose first line is `APPROVED`. It prints fixed lines with OIDs only.
+whose first line is `APPROVED` and which names the approved head's full OID, so a
+report from an earlier round is never reused for a new head. Reviewers therefore
+state the full head OID they reviewed. The binding itself is the coordinator's
+attestation: the script cannot prove who wrote a report. It prints fixed lines with
+OIDs only.
 
 ```sh
 node scripts/merge/agent-approvals.mjs check <binding> --head <oid> --root <dir>
 node scripts/merge/agent-approvals.mjs set <binding> --head <oid> --root <dir> --repo <owner/name> --pr <n>
-node scripts/merge/agent-approvals.mjs set-group <binding> --head <oid> --root <dir> --repo <owner/name> --pr <n>
+node scripts/merge/agent-approvals.mjs set-group <binding> --head <oid> --root <dir> --repo <owner/name> --pr <n> --group <oid>
 ```
 
 `set` marks the PR head, after confirming the PR is open, not a draft, targets
 `main` from the same repository and still has that head. It also lets the PR join
 the queue. `set-group` marks the queue's commit for that PR and head, the
-`gh-readonly-queue/main/pr-<n>-<oid>` branch, only when that commit has the current
-`main` tip as its single parent and exactly the approved head's tree, and the head
+`gh-readonly-queue/main/pr-<n>-<oid>` branch, only when that commit is the `--group`
+commit the caller scanned, has the current `main` tip as its single parent and exactly the approved head's tree, and the head
 already contains that tip. The queued commit therefore lands nothing but the
 approved content. A push to the PR removes it from the queue and needs a new
 binding. A queue rebuild has a new commit, which `set-group` must check again.
@@ -308,7 +331,7 @@ title, `set`, then enqueue it bound to the head (GraphQL `enqueuePullRequest` wi
 `expectedHeadOid`). When the group branch appears, fetch it and run
 `node scripts/security/git-privacy.mjs history <main>..<group>` on that exact commit,
 which checks its author, committer and message as well as its content. Then run
-`set-group`. If the guard fails, dequeue instead (`dequeuePullRequest`). After
+`set-group --group <group>`, which refuses if the queue has since rebuilt the entry. If the guard fails, dequeue instead (`dequeuePullRequest`). After
 GitHub reports `MERGED`, confirm the merge commit is the group commit that was
 marked. Never use an admin merge or a ruleset bypass to skip the queue.
 
@@ -328,6 +351,12 @@ repository ruleset (`POST /repos/{owner}/{repo}/rulesets`) with these fields:
 | rule `required_status_checks` | `required_status_checks: [{ "context": "required", "integration_id": 15368 }, { "context": "agent-approvals" }]`. 15368 is GitHub Actions. `agent-approvals` has no `integration_id` ("any source"), because it is a commit status from the owner's token, not an app. Also `strict_required_status_checks_policy: false`, because the queue tests on the latest `main`, and `do_not_enforce_on_create: false` |
 | rule `merge_queue` | `merge_method: "SQUASH"`, `grouping_strategy: "ALLGREEN"`, `max_entries_to_build: 1`, `min_entries_to_merge: 1`, `max_entries_to_merge: 1`, `min_entries_to_merge_wait_minutes: 0`, `check_response_timeout_minutes: 60` |
 
+Set the Actions workflow permissions
+(`PUT /repos/{owner}/{repo}/actions/permissions/workflow`) to
+`default_workflow_permissions: "read"` and `can_approve_pull_request_reviews: false`.
+This narrows the default token. A workflow can still request `statuses: write`
+explicitly, which is why workflow changes need human review (above).
+
 Then delete the classic branch protection on `main`
 (`DELETE /repos/{owner}/{repo}/branches/main/protection`). Its review requirement
 and strict up-to-date check would conflict, and the owner's review bypass would
@@ -345,12 +374,20 @@ CI pins actions, Node and pnpm; public-npm frozen install remains required. The
 `site` and `security` with successful results. Missing, skipped, failed or cancelled jobs
 block. CI runs on pushes to `main`, on PRs and on merge-queue `merge_group` events.
 The one exception is a PR title or body edit, which changes neither head nor base.
-There every analysis job is skipped and `required` repeats the latest completed
-`required` check run that GitHub Actions recorded for the same head in another
-run. It reads that with `checks: read`, the only permission beyond read-only
-contents. It blocks if no earlier result exists, the listing is incomplete or
-unreadable, or any job was not skipped. GitHub counts a skipped required check as
-passing, so `required` itself is never skipped. Security scans PR objects with engines from the base checkout, not
+There every analysis job is skipped and `required` repeats the result of an earlier
+run. A PR run's name records its PR number, base branch and mode:
+`CI pr <n> into <base> (full)`, or `(repeat)` for an edit. `required` lists this
+workflow's `pull_request` runs for the head, keeps only full runs for this PR and
+base branch, and takes the newest by run number, which is creation order, never
+completion time. It passes only if that run completed successfully, and it prints
+the run it repeats. A newer full run that is pending or failed therefore blocks.
+That includes a retarget or label run, or a re-run in progress, even when an older
+run succeeded later. A run for another base, another PR or a repeat run is never
+evidence. Listing runs needs `actions: read`, the only permission beyond read-only
+contents. It also blocks if no such run exists, the listing is unreadable, or any
+job was not skipped. GitHub counts a skipped required check as passing, so
+`required` itself is never skipped. When the base branch's tip moves, CI does not
+re-run, with or without edits; the merge queue re-tests on the current `main`. Security scans PR objects with engines from the base checkout, not
 candidate-modified engines; a base lacking the guard fails closed.
 
 Protected changes are reported for a separate, mandatory human merge/publication

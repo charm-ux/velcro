@@ -19,7 +19,7 @@ function layout(t) {
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(path.join(root, 'reviews/r2/reports'), { recursive: true });
   mkdirSync(path.join(root, 'approvals'));
-  const report = (name, text) => { writeFileSync(path.join(root, 'reviews/r2/reports', name), text); return `reviews/r2/reports/${name}`; };
+  const report = (name, text = `APPROVED\n\nReviewed ${head}.\n`) => { writeFileSync(path.join(root, 'reviews/r2/reports', name), text); return `reviews/r2/reports/${name}`; };
   const binding = (value, name = '7.json') => {
     const file = path.join(root, 'approvals', name);
     writeFileSync(file, typeof value === 'string' ? value : JSON.stringify(value));
@@ -28,13 +28,16 @@ function layout(t) {
   return { root, report, binding };
 }
 
-// A scripted GitHub: answers by request, records every call. `overrides` replaces answers by request key.
-function github(overrides = {}) {
+// A scripted GitHub: answers by request, records every call, and keeps each commit's statuses (newest first) so a POST
+// is visible to the next listing. `overrides` replaces answers by request key; `statuses` seeds earlier statuses.
+const me = 'owner-fixture';
+function github(overrides = {}, { statuses = {}, afterPost = () => {} } = {}) {
   const calls = [];
+  const lists = { [head]: [...(statuses[head] ?? [])], [group]: [...(statuses[group] ?? [])] };
+  let id = 100;
   const answers = {
+    user: { login: me },
     [`repos/${repo}/pulls/7`]: { state: 'open', draft: false, head: { sha: head, repo: { full_name: repo } }, base: { ref: 'main', repo: { full_name: repo } } },
-    [`repos/${repo}/commits/${head}/status`]: { sha: head, statuses: [{ context: CONTEXT, state: 'success' }] },
-    [`repos/${repo}/commits/${group}/status`]: { sha: group, statuses: [{ context: 'other', state: 'success' }, { context: CONTEXT, state: 'success' }] },
     [`repos/${repo}/git/matching-refs/heads/gh-readonly-queue/main/pr-7-${head}`]: [{ ref: `refs/heads/gh-readonly-queue/main/pr-7-${head}`, object: { type: 'commit', sha: group } }],
     [`repos/${repo}/git/ref/heads/main`]: { object: { sha: main$ } },
     [`repos/${repo}/commits/${group}`]: { sha: group, parents: [{ sha: main$ }], commit: { tree: { sha: tree } } },
@@ -44,8 +47,15 @@ function github(overrides = {}) {
   };
   const gh = args => {
     calls.push(args.join(' '));
-    if (args[1] === '--method') return { state: 'success' };
+    if (args[1] === '--method') {
+      const sha = args[3].split('/').pop();
+      lists[sha].unshift({ id: id++, context: CONTEXT, state: 'success', creator: { login: me } });
+      afterPost(lists[sha]);
+      return { state: 'success' };
+    }
     const key = args[1];
+    const listing = /^repos\/[^/]+\/[^/]+\/commits\/([0-9a-f]{40})\/statuses\?per_page=100$/.exec(key);
+    if (listing && !Object.hasOwn(answers, key)) return lists[listing[1]];
     if (!Object.hasOwn(answers, key)) throw new Error(`unexpected request ${key}`);
     if (answers[key] instanceof Error) throw answers[key];
     return answers[key];
@@ -59,17 +69,18 @@ const run = (args, gh) => { const out = []; const code = main(args, { gh, write:
 
 test('check accepts two distinct APPROVED reports bound to the exact head', t => {
   const { root, report, binding } = layout(t);
-  const reviews = [report('opus.md', 'APPROVED\n\n# Review\n'), report('sol.md', '\uFEFFAPPROVED \r\n## Findings\n')];
+  const reviews = [report('opus.md', `APPROVED\n\n# Review\nHead reviewed: ${head} (base ${main$}).\n`),
+    report('sol.md', `\uFEFFAPPROVED \r\n## Findings\nReviewed \`${main$}..${head}\`.\n`)];
   const file = binding({ head, approvals: 2, reviews, owner: 'notes are ignored' });
   assert.deepEqual(run(['check', file, '--head', head, '--root', root]), { code: 0, out: `agent-approvals: 2 approvals bind ${head}` });
-  const three = binding({ head, approvals: 3, reviews: [...reviews, report('third.md', 'APPROVED\n')] }, 'three.json');
+  const three = binding({ head, approvals: 3, reviews: [...reviews, report('third.md')] }, 'three.json');
   assert.equal(run(['check', three, '--head', head, '--root', root]).code, 0);
 });
 
 test('check refuses anything short of two approvals for the exact head, without naming paths', t => {
   const { root, report, binding } = layout(t);
-  const a = report('opus.md', 'APPROVED\n');
-  const b = report('sol.md', 'APPROVED\n');
+  const a = report('opus.md');
+  const b = report('sol.md');
   const cases = [
     [{ head, approvals: 2, reviews: [a, b] }, 'd'.repeat(40), 'the binding names a different head'],
     [{ head: head.slice(0, 12), approvals: 2, reviews: [a, b] }, head, 'the binding names a different head'],
@@ -82,11 +93,16 @@ test('check refuses anything short of two approvals for the exact head, without 
     [{ head, approvals: 2, reviews: [a, b, a] }, head, 'the binding must list exactly one report per approval'],
     [{ head, approvals: 2, reviews: [a, a] }, head, 'report 2 repeats another report'],
     [{ head, approvals: 2, reviews: [a, 'reviews/r2/reports/./opus.md'] }, head, 'report 2 repeats another report'],
-    [{ head, approvals: 2, reviews: [a, report('changes.md', 'CHANGES_NEEDED\n')] }, head, 'report 2 does not start with APPROVED'],
-    [{ head, approvals: 2, reviews: [a, report('late.md', '# Review\nAPPROVED\n')] }, head, 'report 2 does not start with APPROVED'],
-    [{ head, approvals: 2, reviews: [a, report('prefixed.md', 'APPROVED_WITH_NOTES\n')] }, head, 'report 2 does not start with APPROVED'],
-    [{ head, approvals: 2, reviews: [a, report('indented.md', ' APPROVED\n')] }, head, 'report 2 does not start with APPROVED'],
-    [{ head, approvals: 2, reviews: [a, report('empty.md', '')] }, head, 'report 2 does not start with APPROVED'],
+    [{ head, approvals: 2, reviews: [a, report('changes.md', `CHANGES_NEEDED\n${head}\n`)] }, head, 'report 2 does not start with APPROVED'],
+    // A report must name the approved head in full: an earlier round's report, a short OID or a longer hex run fails.
+    [{ head, approvals: 2, reviews: [a, report('nohead.md', 'APPROVED\n\nLooks good.\n')] }, head, 'report 2 does not name the approved head'],
+    [{ head, approvals: 2, reviews: [a, report('short.md', `APPROVED\n@ ${head.slice(0, 7)}\n`)] }, head, 'report 2 does not name the approved head'],
+    [{ head, approvals: 2, reviews: [a, report('older.md', `APPROVED\nHead reviewed: ${'d'.repeat(40)}\n`)] }, head, 'report 2 does not name the approved head'],
+    [{ head, approvals: 2, reviews: [a, report('longer.md', `APPROVED\n${head}0\n`)] }, head, 'report 2 does not name the approved head'],
+    [{ head, approvals: 2, reviews: [a, report('late.md', `# Review\nAPPROVED\n${head}\n`)] }, head, 'report 2 does not start with APPROVED'],
+    [{ head, approvals: 2, reviews: [a, report('prefixed.md', `APPROVED_WITH_NOTES\n${head}\n`)] }, head, 'report 2 does not start with APPROVED'],
+    [{ head, approvals: 2, reviews: [a, report('indented.md', ` APPROVED\n${head}\n`)] }, head, 'report 2 does not start with APPROVED'],
+    [{ head, approvals: 2, reviews: [a, report('empty.md', `\n${head}\n`)] }, head, 'report 2 does not start with APPROVED'],
     [{ head, approvals: 2, reviews: [a, 'reviews/r2/reports/missing.md'] }, head, 'report 2 is missing'],
     [{ head, approvals: 2, reviews: [a, path.join(root, b)] }, head, 'report 2 is not a relative path'],
     [{ head, approvals: 2, reviews: [a, ''] }, head, 'report 2 is not a relative path'],
@@ -97,7 +113,7 @@ test('check refuses anything short of two approvals for the exact head, without 
   // A report reached through a link that leaves the root, and an approved report outside the root.
   const outside = mkdtempSync(path.join(tmpdir(), 'velcro-outside-'));
   t.after(() => rmSync(outside, { recursive: true, force: true }));
-  writeFileSync(path.join(outside, 'x.md'), 'APPROVED\n');
+  writeFileSync(path.join(outside, 'x.md'), `APPROVED\n${head}\n`);
   symlinkSync(path.join(outside, 'x.md'), path.join(root, 'reviews/r2/reports/linked.md'));
   cases.push([{ head, approvals: 2, reviews: [a, 'reviews/r2/reports/linked.md'] }, head, 'report 2 is outside the report root']);
   cases.push([{ head, approvals: 2, reviews: [a, path.relative(root, path.join(outside, 'x.md'))] }, head, 'report 2 is outside the report root']);
@@ -113,7 +129,7 @@ test('check refuses anything short of two approvals for the exact head, without 
 
 test('usage errors refuse before reading anything', t => {
   const { root, report, binding } = layout(t);
-  const file = binding({ head, approvals: 2, reviews: [report('a.md', 'APPROVED\n'), report('b.md', 'APPROVED\n')] });
+  const file = binding({ head, approvals: 2, reviews: [report('a.md'), report('b.md')] });
   for (const args of [
     [], ['check'], ['check', file], ['check', file, '--head', head], ['approve', file, '--head', head, '--root', root],
     ['check', file, '--head', head, '--root', root, '--repo', repo],
@@ -122,7 +138,12 @@ test('usage errors refuse before reading anything', t => {
     ['set', file, '--head', head, '--root', root], ['set', file, '--head', head, '--root', root, '--repo', repo],
     ['set', file, '--head', head, '--root', root, '--repo', 'bad repo', '--pr', '7'],
     ['set', file, '--head', head, '--root', root, '--repo', repo, '--pr', '07'],
-    ['set-group', file, '--head', head, '--root', root, '--repo', repo, '--pr', '-1'],
+    ['set-group', file, '--head', head, '--root', root, '--repo', repo, '--pr', '-1', '--group', group],
+    // set-group needs the scanned queue commit; nothing else accepts one.
+    ['set-group', file, '--head', head, '--root', root, '--repo', repo, '--pr', '7'],
+    ['set-group', file, '--head', head, '--root', root, '--repo', repo, '--pr', '7', '--group', group.slice(0, 12)],
+    ['set', file, '--head', head, '--root', root, '--repo', repo, '--pr', '7', '--group', group],
+    ['check', file, '--head', head, '--root', root, '--group', group],
   ]) {
     const { gh, calls } = github();
     assert.deepEqual(run(args, gh), { code: 1, out: 'agent-approvals: refused (usage)' }, args.join(' '));
@@ -132,13 +153,13 @@ test('usage errors refuse before reading anything', t => {
 
 test('set marks only the open pull request whose head is the approved head', t => {
   const { root, report, binding } = layout(t);
-  const good = binding({ head, approvals: 2, reviews: [report('a.md', 'APPROVED\n'), report('b.md', 'APPROVED\n')] });
+  const good = binding({ head, approvals: 2, reviews: [report('a.md'), report('b.md')] });
   const args = file => ['set', file, '--head', head, '--root', root, '--repo', repo, '--pr', '7'];
   const ok = github();
   assert.deepEqual(run(args(good), ok.gh), { code: 0, out: `agent-approvals: success set on ${head}` });
   assert.deepEqual(posts(ok.calls), [post(head)]);
   // An invalid binding never reaches GitHub.
-  const bad = binding({ head, approvals: 2, reviews: [report('c.md', 'APPROVED\n'), report('d.md', 'CHANGES_NEEDED\n')] }, 'bad.json');
+  const bad = binding({ head, approvals: 2, reviews: [report('c.md'), report('d.md', 'CHANGES_NEEDED\n')] }, 'bad.json');
   const none = github();
   assert.equal(run(args(bad), none.gh).code, 1);
   assert.deepEqual(none.calls, []);
@@ -154,17 +175,45 @@ test('set marks only the open pull request whose head is the approved head', t =
     assert.deepEqual(run(args(good), gh), { code: 1, out: `agent-approvals: refused (${reason})` });
     assert.deepEqual(posts(calls), []);
   }
-  // A status GitHub did not record, or a failed request, is a refusal too.
-  for (const answer of [{ sha: head, statuses: [] }, { sha: head, statuses: [{ context: CONTEXT, state: 'pending' }] }, new Error('down')]) {
-    const { gh } = github({ [`repos/${repo}/commits/${head}/status`]: answer });
-    assert.equal(run(args(good), gh).code, 1);
+  // Earlier statuses from this account do not stop it; the newest is its own success.
+  const own = { id: 5, context: CONTEXT, state: 'success', creator: { login: me } };
+  const again = github({}, { statuses: { [head]: [own, { id: 4, context: 'other', state: 'failure', creator: { login: 'github-actions[bot]' } }] } });
+  assert.equal(run(args(good), again.gh).code, 0);
+  // An agent-approvals status from any other account (a workflow token, another writer) means the context was minted
+  // elsewhere: refuse, and post nothing.
+  for (const creator of [{ login: 'github-actions[bot]' }, { login: 'other-fixture' }, null]) {
+    const foreign = { id: 6, context: CONTEXT, state: 'pending', creator };
+    const { gh, calls } = github({}, { statuses: { [head]: [own, foreign] } });
+    assert.deepEqual(run(args(good), gh), { code: 1, out: 'agent-approvals: refused (another account already set agent-approvals on this commit)' });
+    assert.deepEqual(posts(calls), []);
   }
+  // After posting, a newer status from another account, a newest status that is not success, an unlistable or
+  // possibly truncated listing, an unresolvable account or a failed request all refuse.
+  const after = [
+    list => list.unshift({ id: 999, context: CONTEXT, state: 'success', creator: { login: 'github-actions[bot]' } }),
+    list => list.unshift({ id: 999, context: CONTEXT, state: 'failure', creator: { login: me } }),
+    list => list.splice(0, list.length),
+    // An older foreign status that appears while posting (the newest is still this account's success).
+    list => list.push({ id: 1, context: CONTEXT, state: 'success', creator: { login: 'github-actions[bot]' } }),
+  ];
+  for (const afterPost of after) assert.equal(run(args(good), github({}, { afterPost }).gh).code, 1);
+  const full = Array.from({ length: 100 }, (_, i) => ({ id: i + 1, context: 'other', state: 'success', creator: { login: me } }));
+  for (const [overrides, reason] of [
+    [{ [`repos/${repo}/commits/${head}/statuses?per_page=100`]: full }, 'the commit statuses could not be listed completely'],
+    [{ [`repos/${repo}/commits/${head}/statuses?per_page=100`]: {} }, 'the commit statuses could not be listed completely'],
+    [{ user: {} }, 'the GitHub account could not be resolved'],
+  ]) {
+    const { gh, calls } = github(overrides);
+    assert.deepEqual(run(args(good), gh), { code: 1, out: `agent-approvals: refused (${reason})` });
+    assert.deepEqual(posts(calls), []);
+  }
+  assert.equal(run(args(good), github({ user: new Error('down') }).gh).code, 1);
 });
 
 test('set-group marks only the merge-queue commit that lands exactly the approved tree on main', t => {
   const { root, report, binding } = layout(t);
-  const good = binding({ head, approvals: 2, reviews: [report('a.md', 'APPROVED\n'), report('b.md', 'APPROVED\n')] });
-  const args = ['set-group', good, '--head', head, '--root', root, '--repo', repo, '--pr', '7'];
+  const good = binding({ head, approvals: 2, reviews: [report('a.md'), report('b.md')] });
+  const args = ['set-group', good, '--head', head, '--root', root, '--repo', repo, '--pr', '7', '--group', group];
   const ok = github();
   assert.deepEqual(run(args, ok.gh), { code: 0, out: `agent-approvals: success set on merge group ${group} for ${head}` });
   assert.deepEqual(posts(ok.calls), [post(group)]);
@@ -191,11 +240,20 @@ test('set-group marks only the merge-queue commit that lands exactly the approve
     assert.deepEqual(run(args, gh), { code: 1, out: `agent-approvals: refused (${reason})` }, reason);
     assert.deepEqual(posts(calls), []);
   }
+  // The queue rebuilt the entry after the caller scanned it: the current queue commit is not the scanned one.
+  const rebuilt = github();
+  assert.deepEqual(run([...args.slice(0, -1), 'f'.repeat(40)], rebuilt.gh),
+    { code: 1, out: 'agent-approvals: refused (the merge-queue commit is not the scanned commit)' });
+  assert.deepEqual(posts(rebuilt.calls), []);
+  // A queue commit that already carries a foreign agent-approvals status is not marked.
+  const minted = github({}, { statuses: { [group]: [{ id: 3, context: CONTEXT, state: 'success', creator: { login: 'github-actions[bot]' } }] } });
+  assert.deepEqual(run(args, minted.gh), { code: 1, out: 'agent-approvals: refused (another account already set agent-approvals on this commit)' });
+  assert.deepEqual(posts(minted.calls), []);
 });
 
 test('the command line keeps GitHub output private and posts nothing on refusal', t => {
   const { root, report, binding } = layout(t);
-  const good = binding({ head, approvals: 2, reviews: [report('a.md', 'APPROVED\n'), report('b.md', 'APPROVED\n')] });
+  const good = binding({ head, approvals: 2, reviews: [report('a.md'), report('b.md')] });
   const bin = path.join(root, 'bin');
   mkdirSync(bin);
   const log = path.join(root, 'gh.log');
@@ -205,13 +263,16 @@ test('the command line keeps GitHub output private and posts nothing on refusal'
     '#!/bin/sh', `echo "$*" >> "${log}"`, `echo "trace ${secret}" >&2`,
     '[ "$GH_MODE" = fail ] && exit 1',
     'case "$*" in',
+    `  *"--method POST"*) touch "${log}.posted"; echo '{"state":"success"}' ;;`,
     `  *pulls/7) echo '{"state":"open","draft":false,"head":{"sha":"${head}","repo":{"full_name":"${repo}"}},"base":{"ref":"main","repo":{"full_name":"${repo}"}}}' ;;`,
-    `  *"/status") echo '{"sha":"${head}","statuses":[{"context":"${CONTEXT}","state":"success"}]}' ;;`,
-    `  *) echo '{"state":"success"}' ;;`,
+    `  "api user") echo '{"login":"${me}"}' ;;`,
+    `  *"/statuses?per_page=100") if [ -f "${log}.posted" ]; then echo '[{"id":1,"context":"${CONTEXT}","state":"success","creator":{"login":"${me}"}}]'; else echo '[]'; fi ;;`,
+    `  *) exit 1 ;;`,
     'esac', '',
   ].join('\n'), { mode: 0o755 });
   const cli = (args, mode = '') => {
     rmSync(log, { force: true });
+    rmSync(`${log}.posted`, { force: true });
     const r = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8',
       env: { ...process.env, GH_MODE: mode, PATH: `${bin}${path.delimiter}${process.env.PATH}` } });
     const calls = (() => { try { return readFileSync(log, 'utf8').trim().split('\n'); } catch { return []; } })();

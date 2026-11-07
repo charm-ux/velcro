@@ -1,13 +1,16 @@
 name: CI
+# A pull request run's name binds it to its PR, base branch and mode: `full` runs the analysis jobs, `repeat` (a title
+# or body edit) only repeats the latest full run's result for the same head, PR and base (see the required job).
+run-name: ${{ github.event_name == 'pull_request' && format('CI pr {0} into {1} ({2})', github.event.pull_request.number, github.event.pull_request.base.ref, github.event.action == 'edited' && !github.event.changes.base && 'repeat' || 'full') || format('CI {0} {1}', github.event_name, github.sha) }}
 on:
   push:
     branches: [main]
   pull_request:
     # labeled: the approver's history-scan-approved label re-runs the checks for the exact head it was applied to.
     # edited: a base change (retarget) re-runs every job, so no earlier result stands for the new base. A title or body
-    # edit changes neither the head nor the base: the analysis jobs are skipped and `required` repeats the latest
-    # completed `required` result of an earlier run for the same head (none: blocked), so an edit neither clears nor
-    # approves anything.
+    # edit changes neither the head nor the base: the analysis jobs are skipped and `required` repeats the result of
+    # the newest full run of this workflow for the same PR, base branch and head (pending or none: blocked), so an
+    # edit neither clears nor approves anything.
     types: [opened, synchronize, reopened, labeled, edited]
   # The merge queue tests the exact commit that lands on main: main (the group's base) plus the squashed pull request.
   merge_group:
@@ -67,6 +70,8 @@ jobs:
           persist-credentials: false
       # On PRs and merge groups only base-owned engines may certify candidate Git
       # objects. An initial base without these controls fails: bootstrap needs local review.
+      # A merge group's base is main only while the queue builds one entry at a time
+      # (max_entries_to_build: 1, docs/contributing.md); behind another group it is that group.
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha }}
@@ -82,7 +87,8 @@ jobs:
       # applied by the login in the VELCRO_HISTORY_APPROVER repository variable (unset: nobody can approve) and
       # approves only the head of that labeled run. Later pushes, retargets and runs started by any other label or
       # edit are not approved until the label is re-applied. A merge group has no approval channel: its squashed
-      # commit is a new head, so an approved PR over the budget cannot pass the queue (docs/contributing.md).
+      # commit is a new head with its own cap, so one whose squash exceeds the budget cannot pass the queue
+      # (docs/contributing.md).
       # Content is then scanned file by changed file for commits new to the event base (on main: since the previous
       # main tip; in a merge group: since its base), unless that is the budget range just scanned; metadata of the
       # full ancestry always is. Without a base that is the fetched main or its ancestor (first push, PR into another
@@ -178,15 +184,16 @@ jobs:
           node scripts/site/prepare.mjs --base /velcro --out .airig/site/run --expect-sha "$SOURCE_SHA"
 
   # Always runs. Ordinarily every expected job must have succeeded. On a title or body edit (the analysis jobs are
-  # skipped) it instead repeats the latest completed `required` result recorded by GitHub Actions for the same head in
-  # an earlier run; with none, or with any expected job not skipped, it blocks. Reading check runs needs `checks: read`.
+  # skipped) it instead repeats the newest full run of this workflow for the same head, PR and base branch, chosen by
+  # run number (creation order), never by completion time: it passes only when that run completed successfully, so a
+  # pending or failed newer run blocks and repeat runs are never evidence. Listing runs needs `actions: read`.
   required:
     if: ${{ always() }}
     needs: [verify, product, site, security]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
-      checks: read
+      actions: read
     steps:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -197,6 +204,8 @@ jobs:
           VELCRO_CI_NEEDS: ${{ toJSON(needs) }}
           VELCRO_CI_CARRY: ${{ github.event_name == 'pull_request' && github.event.action == 'edited' && !github.event.changes.base && 'true' || '' }}
           VELCRO_CI_HEAD: ${{ github.event.pull_request.head.sha }}
+          VELCRO_CI_PR: ${{ github.event.pull_request.number }}
+          VELCRO_CI_BASE: ${{ github.event.pull_request.base.ref }}
           VELCRO_CI_RUN: ${{ github.run_id }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -204,7 +213,7 @@ jobs:
           VELCRO_CI_PRIOR=
           if [ "$VELCRO_CI_CARRY" = true ]; then
             VELCRO_CI_PRIOR="$RUNNER_TEMP/required-prior.json"
-            gh api "repos/$REPO/commits/$VELCRO_CI_HEAD/check-runs?check_name=required&filter=all&per_page=100" > "$VELCRO_CI_PRIOR" 2> "$RUNNER_TEMP/required-prior.log" || : > "$VELCRO_CI_PRIOR"
+            gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$VELCRO_CI_HEAD&event=pull_request&per_page=100" > "$VELCRO_CI_PRIOR" 2> "$RUNNER_TEMP/required-prior.log" || : > "$VELCRO_CI_PRIOR"
           fi
           export VELCRO_CI_PRIOR
           node --input-type=module -e '
@@ -216,18 +225,17 @@ jobs:
               const named = n !== null && typeof n === "object" && !Array.isArray(n)
                 && Object.keys(n).sort().join(",") === "product,security,site,verify";
               if (process.env.VELCRO_CI_CARRY === "true") {
-                const head = process.env.VELCRO_CI_HEAD;
-                const own = `/actions/runs/${process.env.VELCRO_CI_RUN}/`;
-                const listed = JSON.parse(readFileSync(process.env.VELCRO_CI_PRIOR, "utf8"));
-                const runs = listed.check_runs;
-                const at = r => Date.parse(r.completed_at);
-                const prior = runs.length === listed.total_count && runs
-                  .filter(r => r.name === "required" && r.app?.slug === "github-actions" && r.status === "completed"
-                    && r.head_sha === head && typeof r.html_url === "string" && !r.html_url.includes(own)
-                    && Number.isFinite(at(r)))
-                  .sort((a, b) => at(b) - at(a))[0];
-                good = named && /^[0-9a-f]{40}$/.test(head) && /^[0-9]+$/.test(process.env.VELCRO_CI_RUN)
-                  && jobs.every(k => n[k]?.result === "skipped") && prior?.conclusion === "success";
+                const { VELCRO_CI_HEAD: head, VELCRO_CI_PR: pr, VELCRO_CI_BASE: base, VELCRO_CI_RUN: run } = process.env;
+                const valid = /^[0-9a-f]{40}$/.test(head) && /^[1-9][0-9]*$/.test(pr) && /^[0-9]+$/.test(run)
+                  && typeof base === "string" && base !== "";
+                const title = `CI pr ${pr} into ${base} (full)`;
+                const latest = JSON.parse(readFileSync(process.env.VELCRO_CI_PRIOR, "utf8")).workflow_runs
+                  .filter(r => Number.isSafeInteger(r.id) && String(r.id) !== run && r.path === ".github/workflows/ci.yml" && r.event === "pull_request"
+                    && r.head_sha === head && r.display_title === title && Number.isSafeInteger(r.run_number))
+                  .sort((a, b) => b.run_number - a.run_number)[0];
+                if (valid && latest) console.log(`required: repeats run ${latest.id}`);
+                good = valid && named && jobs.every(k => n[k]?.result === "skipped")
+                  && latest?.status === "completed" && latest.conclusion === "success";
               } else {
                 good = named && jobs.every(k => n[k]?.result === "success");
               }

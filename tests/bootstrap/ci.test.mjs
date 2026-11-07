@@ -21,7 +21,7 @@ const inlineAggregate = /node --input-type=module -e '([\s\S]*?)'/.exec(workflow
 // Runs the workflow's inline aggregate and the local oracle with the same environment; they must agree.
 const aggregate = (value, extra = {}) => {
   const env = { ...process.env, VELCRO_CI_NEEDS: JSON.stringify(value), ...extra };
-  for (const key of ['VELCRO_CI_CARRY', 'VELCRO_CI_PRIOR', 'VELCRO_CI_HEAD', 'VELCRO_CI_RUN']) if (!(key in extra)) delete env[key];
+  for (const key of ['VELCRO_CI_CARRY', 'VELCRO_CI_PRIOR', 'VELCRO_CI_HEAD', 'VELCRO_CI_PR', 'VELCRO_CI_BASE', 'VELCRO_CI_RUN']) if (!(key in extra)) delete env[key];
   const options = { env, encoding: 'utf8' };
   const script = spawnSync(process.execPath, [gate.pathname], options).status;
   const actual = spawnSync(process.execPath, ['--input-type=module', '-e', inlineAggregate], options).status;
@@ -51,59 +51,83 @@ test('aggregate requires every named job and only successful results', () => {
   assert.equal(run(skipped), 1);
 });
 
-// A title or body edit: the analysis jobs are skipped and the aggregate repeats the latest completed `required` result
-// that GitHub Actions recorded for the same head in another run. Everything else blocks.
-test('title/body-edit aggregate repeats only the latest earlier required result for the same head', () => {
+// A title or body edit: the analysis jobs are skipped and the aggregate repeats the newest full run of ci.yml for the
+// same head, PR and base branch (by run number, never completion time). Everything else blocks.
+test('title/body-edit aggregate repeats only the newest full run for the same head, PR and base', () => {
   const head = 'c'.repeat(40);
   const runId = '4242';
   const skipped = { verify: { result: 'skipped' }, product: { result: 'skipped' }, site: { result: 'skipped' }, security: { result: 'skipped' } };
-  const checkRun = (overrides = {}) => ({ name: 'required', app: { slug: 'github-actions' }, status: 'completed',
-    conclusion: 'success', head_sha: head, html_url: 'https://github.com/fixture-org/fixture/actions/runs/17/job/9',
-    completed_at: '2026-01-01T00:00:00Z', ...overrides });
+  const wfRun = (overrides = {}) => ({ id: 17, run_number: 5, path: '.github/workflows/ci.yml', event: 'pull_request',
+    head_sha: head, display_title: 'CI pr 7 into main (full)', status: 'completed', conclusion: 'success', ...overrides });
   const dir = mkdtempSync(path.join(tmpdir(), 'velcro-carry-'));
   try {
     let n = 0;
     const carry = (needs, listing, extra = {}) => {
       const file = path.join(dir, `prior-${n++}.json`);
       writeFileSync(file, typeof listing === 'string' ? listing : JSON.stringify(listing));
-      return aggregate(needs, { VELCRO_CI_CARRY: 'true', VELCRO_CI_PRIOR: file, VELCRO_CI_HEAD: head, VELCRO_CI_RUN: runId, ...extra });
+      return aggregate(needs, { VELCRO_CI_CARRY: 'true', VELCRO_CI_PRIOR: file, VELCRO_CI_HEAD: head, VELCRO_CI_PR: '7',
+        VELCRO_CI_BASE: 'main', VELCRO_CI_RUN: runId, ...extra });
     };
-    const list = (...runs) => ({ total_count: runs.length, check_runs: runs });
-    assert.equal(carry(skipped, list(checkRun())), 0);
-    // The latest completed earlier result decides, whatever the listing order.
-    const older = checkRun({ conclusion: 'failure', completed_at: '2025-12-31T00:00:00Z' });
-    const newer = checkRun({ conclusion: 'failure', completed_at: '2026-01-02T00:00:00Z' });
-    assert.equal(carry(skipped, list(older, checkRun())), 0);
-    assert.equal(carry(skipped, list(checkRun(), newer)), 1);
-    assert.equal(carry(skipped, list(newer, checkRun())), 1);
-    // Only completed, successful runs of `required` from GitHub Actions for this head in another run count.
-    for (const bad of [
-      { conclusion: 'failure' }, { conclusion: 'cancelled' }, { conclusion: 'skipped' }, { conclusion: 'neutral' },
-      { conclusion: null, status: 'in_progress' }, { status: 'queued' }, { name: 'required-extra' }, { name: 'verify' },
-      { app: { slug: 'another-app' } }, { app: null }, { head_sha: 'd'.repeat(40) },
-      { html_url: `https://github.com/fixture-org/fixture/actions/runs/${runId}/job/1` }, { html_url: null }, { completed_at: null },
-    ]) assert.equal(carry(skipped, list(checkRun(bad))), 1, JSON.stringify(bad));
-    // This run's own result never counts, even when it is the latest.
-    assert.equal(carry(skipped, list(checkRun({ completed_at: '2025-01-01T00:00:00Z' }),
-      checkRun({ conclusion: 'failure', html_url: `https://github.com/fixture-org/fixture/actions/runs/${runId}/job/2` }))), 0);
-    // No earlier result, an incomplete or unreadable listing, or a malformed head or run id blocks.
+    const list = (...runs) => ({ total_count: runs.length, workflow_runs: runs });
+    assert.equal(carry(skipped, list(wfRun())), 0);
+    // The newest full run by run number decides, whatever its completion time or the listing order.
+    const newerFailed = wfRun({ id: 18, run_number: 6, conclusion: 'failure' });
+    assert.equal(carry(skipped, list(wfRun(), newerFailed)), 1);
+    assert.equal(carry(skipped, list(newerFailed, wfRun())), 1);
+    assert.equal(carry(skipped, list(wfRun({ id: 16, run_number: 4, conclusion: 'failure' }), wfRun())), 0);
+    // An older approved run that finishes after a newer failed one never revives success.
+    assert.equal(carry(skipped, list(wfRun({ updated_at: '2026-01-02T00:00:00Z' }), { ...newerFailed, updated_at: '2026-01-01T00:00:00Z' })), 1);
+    // A newer full run still pending (a retarget, push or label run) blocks, even with an earlier success.
+    for (const status of ['queued', 'in_progress', 'waiting', 'requested', 'pending']) {
+      assert.equal(carry(skipped, list(wfRun(), wfRun({ id: 18, run_number: 6, status, conclusion: null }))), 1, status);
+    }
+    // A re-run attempt of the newest full run in progress blocks; its completed success counts.
+    assert.equal(carry(skipped, list(wfRun({ run_attempt: 2, status: 'in_progress', conclusion: null }))), 1);
+    // While a re-run is in progress the run may still show the previous attempt's conclusion: only status counts.
+    assert.equal(carry(skipped, list(wfRun({ run_attempt: 2, status: 'in_progress', conclusion: 'success' }))), 1);
+    assert.equal(carry(skipped, list(wfRun({ run_attempt: 2, status: 'queued', conclusion: 'success' }))), 1);
+    assert.equal(carry(skipped, list(wfRun({ run_attempt: 2 }))), 0);
+    for (const conclusion of ['failure', 'cancelled', 'skipped', 'neutral', 'timed_out', 'action_required', 'stale', null]) {
+      assert.equal(carry(skipped, list(wfRun({ conclusion }))), 1, String(conclusion));
+    }
+    // Evidence for another base branch, another PR, a repeat run, another workflow, event or head is not evidence here,
+    // and never hides the absence of evidence for this PR and base.
+    for (const other of [
+      { display_title: 'CI pr 7 into release (full)' }, { display_title: 'CI pr 8 into main (full)' },
+      { display_title: 'CI pr 7 into main (repeat)' }, { display_title: 'CI pr 7 into main' }, { display_title: 'Fix the title' },
+      { path: '.github/workflows/pages.yml' }, { path: '.github/workflows/ci.yml@main' }, { event: 'push' }, { event: 'merge_group' },
+      { head_sha: 'd'.repeat(40) }, { id: Number(runId) }, { id: '17' }, { run_number: '5' }, { run_number: null },
+    ]) {
+      assert.equal(carry(skipped, list(wfRun(other))), 1, JSON.stringify(other));
+      // A newer failed run for another base, PR or mode does not shadow this PR's own success either.
+      assert.equal(carry(skipped, list(wfRun(), wfRun({ id: 19, run_number: 9, conclusion: 'failure', ...other }))), 0, JSON.stringify(other));
+    }
+    // Retargeted: the earlier base's success never stands for the new base, and the new base's pending run blocks.
+    assert.equal(carry(skipped, list(wfRun()), { VELCRO_CI_BASE: 'release' }), 1);
+    assert.equal(carry(skipped, list(wfRun(), wfRun({ id: 18, run_number: 6, display_title: 'CI pr 7 into release (full)', status: 'in_progress', conclusion: null })),
+      { VELCRO_CI_BASE: 'release' }), 1);
+    assert.equal(carry(skipped, list(wfRun(), wfRun({ id: 18, run_number: 6, display_title: 'CI pr 7 into release (full)' })),
+      { VELCRO_CI_BASE: 'release' }), 0);
+    // The same head in another PR is not this PR's evidence.
+    assert.equal(carry(skipped, list(wfRun()), { VELCRO_CI_PR: '8' }), 1);
+    // No full run, an unreadable listing, or malformed inputs block.
     assert.equal(carry(skipped, list()), 1);
-    assert.equal(carry(skipped, { total_count: 2, check_runs: [checkRun()] }), 1);
-    assert.equal(carry(skipped, { check_runs: [checkRun()] }), 1);
+    assert.equal(carry(skipped, { check_runs: [wfRun()] }), 1);
     assert.equal(carry(skipped, ''), 1);
     assert.equal(carry(skipped, '{'), 1);
-    assert.equal(carry(skipped, list(checkRun()), { VELCRO_CI_HEAD: '' }), 1);
-    assert.equal(carry(skipped, list(checkRun({ head_sha: head.toUpperCase() })), { VELCRO_CI_HEAD: head.toUpperCase() }), 1);
-    assert.equal(carry(skipped, list(checkRun()), { VELCRO_CI_RUN: '' }), 1);
+    for (const extra of [{ VELCRO_CI_HEAD: '' }, { VELCRO_CI_HEAD: head.toUpperCase() }, { VELCRO_CI_RUN: '' }, { VELCRO_CI_PR: '' },
+      { VELCRO_CI_PR: '07' }, { VELCRO_CI_BASE: '' }]) {
+      assert.equal(carry(skipped, list(wfRun({ head_sha: extra.VELCRO_CI_HEAD ?? head })), extra), 1, JSON.stringify(extra));
+    }
     // Every expected job must have been skipped: a job that ran (whatever its result) or a missing job blocks.
     for (const job of ['verify', 'product', 'site', 'security']) {
       for (const result of ['success', 'failure', 'cancelled', '', null]) {
-        assert.equal(carry({ ...skipped, [job]: { result } }, list(checkRun())), 1, `${job} ${result}`);
+        assert.equal(carry({ ...skipped, [job]: { result } }, list(wfRun())), 1, `${job} ${result}`);
       }
       const { [job]: _omitted, ...missing } = skipped;
-      assert.equal(carry(missing, list(checkRun())), 1);
+      assert.equal(carry(missing, list(wfRun())), 1);
     }
-    assert.equal(carry({ ...skipped, extra: { result: 'skipped' } }, list(checkRun())), 1);
+    assert.equal(carry({ ...skipped, extra: { result: 'skipped' } }, list(wfRun())), 1);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -119,8 +143,8 @@ test('workflow is pinned, read-only, full-history and has an always-running aggr
   assert.match(jobOf(text, 'product'), /^ {4}uses: \.\/\.github\/workflows\/product\.yml\n {4}with:\n {6}ref: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}$/m);
   // Only the aggregate may read anything beyond contents, and only check runs; nothing may write.
   assert.doesNotMatch(text, /: write|write-all|read-all/);
-  assert.deepEqual([...text.matchAll(/^ {4}permissions:\n((?: {6}.*\n)+)/gm)].map(m => m[1]), ['      checks: read\n']);
-  assert.match(jobOf(text, 'required'), /^ {4}permissions:\n {6}checks: read\n/m);
+  assert.deepEqual([...text.matchAll(/^ {4}permissions:\n((?: {6}.*\n)+)/gm)].map(m => m[1]), ['      actions: read\n']);
+  assert.match(jobOf(text, 'required'), /^ {4}permissions:\n {6}actions: read\n/m);
   assert.doesNotMatch(text, /\bpaths(-ignore)?:/);
   assert.doesNotMatch(text, /upload-artifact|pull_request_target|secrets\./);
   assert.match(text, /Report protected changes requiring independent human review/);
@@ -323,11 +347,11 @@ test('product timeouts are ordered: global timeout < wrapper bound < step bound 
 });
 
 // Evaluates the GitHub Actions expression subset these workflows use, with GitHub's semantics: single-quoted string
-// literals, context paths (a missing property is null), `!`, `==`/`!=` (strings compare case-insensitively, other
+// literals, `format()`, context paths (a missing property is null), `!`, `==`/`!=` (strings compare case-insensitively, other
 // mixed types compare as numbers, so null and '' are equal), and `&&`/`||`, which return an operand value, plus
 // parentheses. Precedence: `!` > comparison > `&&` > `||`. Anything else is rejected.
 function evaluate(expression, context) {
-  const tokens = expression.match(/'[^']*'|[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*|==|!=|&&|\|\||!|\(|\)|\S/g);
+  const tokens = expression.match(/'[^']*'|[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*|==|!=|&&|\|\||!|\(|\)|,|\S/g);
   let at = 0;
   const truthy = v => !(v === false || v === null || v === undefined || v === '' || v === 0 || Number.isNaN(v));
   const number = v => (v === null || v === undefined ? 0 : typeof v === 'boolean' ? Number(v) : typeof v === 'string' ? (v.trim() === '' ? 0 : Number(v)) : NaN);
@@ -343,6 +367,16 @@ function evaluate(expression, context) {
     if (token === '!') return !truthy(primary());
     if (/^'[^']*'$/.test(token)) return token.slice(1, -1);
     if (token === 'true' || token === 'false') return token === 'true';
+    // format('…{0}…', a, b): GitHub's string formatting; values render as strings, numbers in decimal.
+    if (token === 'format' && tokens[at] === '(') {
+      at++;
+      const values = [or()];
+      while (tokens[at] === ',') { at++; values.push(or()); }
+      assert.equal(tokens[at++], ')');
+      const [template, ...rest] = values;
+      assert.equal(typeof template, 'string');
+      return template.replace(/\{(\d+)\}/g, (_, i) => { assert.ok(Number(i) < rest.length); return String(rest[Number(i)] ?? ''); });
+    }
     assert.match(token, /^(?:github|vars|needs|inputs)(?:\.[A-Za-z_][\w-]*)+$/, `unsupported expression token ${token}`);
     return token.split('.').reduce((node, key) => (node == null || !Object.hasOwn(node, key) ? null : node[key]), context);
   };
@@ -395,8 +429,29 @@ test('a title or body edit skips every analysis job and only then switches the a
     assert.equal(carries(github), expected ? '' : 'true', label);
   }
   // In carry mode the aggregate reads the PR head; nothing else in the run changes.
-  assert.match(jobOf(workflow, 'required'), /VELCRO_CI_HEAD: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
-  assert.match(jobOf(workflow, 'required'), /gh api "repos\/\$REPO\/commits\/\$VELCRO_CI_HEAD\/check-runs\?check_name=required&filter=all&per_page=100"/);
+  const required = jobOf(workflow, 'required');
+  assert.match(required, /VELCRO_CI_HEAD: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
+  assert.match(required, /VELCRO_CI_PR: \$\{\{ github\.event\.pull_request\.number \}\}/);
+  assert.match(required, /VELCRO_CI_BASE: \$\{\{ github\.event\.pull_request\.base\.ref \}\}/);
+  assert.match(required, /gh api "repos\/\$REPO\/actions\/workflows\/ci\.yml\/runs\?head_sha=\$VELCRO_CI_HEAD&event=pull_request&per_page=100"/);
+});
+
+// The run name binds a pull request run to its PR, base branch and mode; the aggregate's evidence lookup relies on it.
+test('a pull request run is named for its PR, base branch and mode, as the aggregate expects', async () => {
+  const { fullRunTitle } = await import(gate.href);
+  const name = /^run-name: \$\{\{ (.*) \}\}$/m.exec(workflow)?.[1] ?? '';
+  assert.ok(name, 'run-name must be testable');
+  const pr = (action, changes) => ({ ...prEvent(action, changes ? { changes } : {}),
+    event: { ...prEvent(action, changes ? { changes } : {}).event,
+      pull_request: { number: 7, head: { sha: head }, base: { sha: 'b'.repeat(40), ref: 'main' } } } });
+  for (const action of ['opened', 'synchronize', 'reopened', 'labeled']) assert.equal(evaluate(name, { github: pr(action) }), fullRunTitle(7, 'main'));
+  assert.equal(evaluate(name, { github: pr('edited', { base: { ref: { from: 'release' } } }) }), fullRunTitle(7, 'main'));
+  assert.equal(evaluate(name, { github: pr('edited', { title: { from: 'old' } }) }), 'CI pr 7 into main (repeat)');
+  assert.equal(evaluate(name, { github: pr('edited', { body: { from: 'old' } }) }), 'CI pr 7 into main (repeat)');
+  assert.equal(evaluate(name, { github: pushEvent }), `CI push ${head}`);
+  assert.equal(evaluate(name, { github: mergeGroupEvent }), `CI merge_group ${head}`);
+  // The aggregate builds the same title from its environment.
+  assert.match(inlineAggregate, /const title = `CI pr \$\{pr\} into \$\{base\} \(full\)`;/);
 });
 
 test('the aggregate reads the earlier result only in carry mode and fails closed when it cannot', () => {
@@ -404,8 +459,8 @@ test('the aggregate reads the earlier result only in carry mode and fails closed
   assert.ok(script, 'actual aggregate step must be testable');
   const skipped = { verify: { result: 'skipped' }, product: { result: 'skipped' }, site: { result: 'skipped' }, security: { result: 'skipped' } };
   const good = { verify: { result: 'success' }, product: { result: 'success' }, site: { result: 'success' }, security: { result: 'success' } };
-  const listing = { total_count: 1, check_runs: [{ name: 'required', app: { slug: 'github-actions' }, status: 'completed', conclusion: 'success',
-    head_sha: head, html_url: 'https://github.com/fixture-org/fixture/actions/runs/17/job/9', completed_at: '2026-01-01T00:00:00Z' }] };
+  const listing = { total_count: 1, workflow_runs: [{ id: 17, run_number: 5, path: '.github/workflows/ci.yml', event: 'pull_request',
+    head_sha: head, display_title: 'CI pr 7 into main (full)', status: 'completed', conclusion: 'success' }] };
   const run = (carry, needs, ghCode) => {
     const dir = mkdtempSync(path.join(tmpdir(), 'velcro-required-'));
     try {
@@ -413,17 +468,18 @@ test('the aggregate reads the earlier result only in carry mode and fails closed
       writeFileSync(path.join(dir, 'listing.json'), JSON.stringify(listing));
       writeFileSync(path.join(dir, 'bin/gh'), `#!/bin/sh\necho "$*" >> "${dir}/gh.log"\ncat "${dir}/listing.json"\nexit ${ghCode}\n`, { mode: 0o755 });
       const r = spawnSync('sh', ['-e', '-c', script], { cwd: dir, encoding: 'utf8', env: { ...process.env, RUNNER_TEMP: dir,
-        VELCRO_CI_NEEDS: JSON.stringify(needs), VELCRO_CI_CARRY: carry, VELCRO_CI_HEAD: head, VELCRO_CI_RUN: '4242', REPO: 'fixture-org/fixture',
-        PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } });
+        VELCRO_CI_NEEDS: JSON.stringify(needs), VELCRO_CI_CARRY: carry, VELCRO_CI_HEAD: head, VELCRO_CI_PR: '7', VELCRO_CI_BASE: 'main',
+        VELCRO_CI_RUN: '4242', REPO: 'fixture-org/fixture', PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } });
       const calls = (() => { try { return readFileSync(path.join(dir, 'gh.log'), 'utf8').trim().split('\n'); } catch { return []; } })();
       return { status: r.status, out: `${r.stdout}${r.stderr}`.trim(), calls };
     } finally { rmSync(dir, { recursive: true, force: true }); }
   };
   assert.deepEqual(run('', good, 0), { status: 0, out: 'required: passed', calls: [] });
   assert.deepEqual(run('', skipped, 0), { status: 1, out: 'required: blocked', calls: [] });
-  const call = [`api repos/fixture-org/fixture/commits/${head}/check-runs?check_name=required&filter=all&per_page=100`];
-  assert.deepEqual(run('true', skipped, 0), { status: 0, out: 'required: passed', calls: call });
-  assert.deepEqual(run('true', good, 0), { status: 1, out: 'required: blocked', calls: call });
+  const call = [`api repos/fixture-org/fixture/actions/workflows/ci.yml/runs?head_sha=${head}&event=pull_request&per_page=100`];
+  // The repeated result names the run it came from.
+  assert.deepEqual(run('true', skipped, 0), { status: 0, out: 'required: repeats run 17\nrequired: passed', calls: call });
+  assert.deepEqual(run('true', good, 0), { status: 1, out: 'required: repeats run 17\nrequired: blocked', calls: call });
   // A failed lookup blocks (the partial output is discarded).
   assert.deepEqual(run('true', skipped, 1), { status: 1, out: 'required: blocked', calls: call });
 });
@@ -519,7 +575,8 @@ test('security scans the published range and only the configured approver label 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('no workflow can write commit statuses or check runs, and only CI defines the required job', () => {
+// Covers the committed workflows only: a future PR's workflow changes are protected changes for human review.
+test('the committed workflows request no status or check writes, and only CI defines the required job', () => {
   const dir = new URL('../../.github/workflows/', import.meta.url);
   const files = readdirSync(dir).filter(name => /\.ya?ml$/.test(name)).sort();
   assert.deepEqual(files, ['ci.yml', 'pages.yml', 'product.yml']);
