@@ -20,7 +20,7 @@ later Firefox and WebKit lane can reuse it.
 
 Shoelace 2.20.1 ships no test file for resize-observer, so it has no row here.
 
-Totals: 345 tests, 345 passed, 0 failed.
+Totals: 347 tests, 347 passed, 0 failed.
 
 | Component | Tests | Passed | Failed |
 | --- | ---: | ---: | ---: |
@@ -33,6 +33,7 @@ Totals: 345 tests, 345 passed, 0 failed.
 | format-date | 40 | 40 | 0 |
 | format-number | 39 | 39 | 0 |
 | icon | 14 | 14 | 0 |
+| include | 2 | 2 | 0 |
 | mutation-observer | 1 | 1 | 0 |
 | popup | 2 | 2 | 0 |
 | progress-bar | 8 | 8 | 0 |

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 
 const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
-  'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'twenty-one'];
+  'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'twenty-one', 'twenty-two'];
 
 test('the README lists every catalog component and gives the catalog count', () => {
   const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');

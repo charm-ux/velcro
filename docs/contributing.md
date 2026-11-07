@@ -21,6 +21,10 @@ under `dist/components/<name>/`; `./<name>/class` is optional) to `packages/velc
   routes all derive from it.
 - `tests/product/<name>.spec.mjs`: the browser spec. The generated skeleton fails until it is replaced with real checks.
 
+A module that Shoelace publishes next to a component (for example `dist/components/include/request.js`) is exported by its full key and only
+if `MODULE_EXPORTS` in `scripts/site/catalog.mjs` lists it: once its component is in the catalog the entry is required, with exactly its
+listed targets, and the gate rejects any other `./<name>/<subpath>`.
+
 The page's API tables are not hand-written: `apiReference('sl-<name>')` (`packages/docs/src/api.ts`) renders them from
 `packages/velcro/custom-elements.json`, the Custom Elements Manifest built from the component's JSDoc (`@tag`, `@status`,
 `@slot`, `@csspart`, `@cssproperty [--name=default]`, `@event`) plus the API inherited from `@charm-ux/core`. After
