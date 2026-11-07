@@ -40,6 +40,10 @@ import styles from './switch.styles.js';
  * @event sl-focus - Emitted when the control gains focus.
  * @event sl-invalid - Emitted when the form control has been checked for validity and its constraints aren't satisfied.
  *
+ * @inheritedEventDropped change - Never emitted: Shoelace's `sl-change` is emitted instead.
+ * @inheritedEventDropped input - Never emitted by the switch: Shoelace's `sl-input` is emitted instead (as in Shoelace,
+ * the host still receives the platform's composed `input` event from its inner checkbox on a click).
+ *
  * @csspart base - The component's base wrapper.
  * @csspart control - The control that houses the switch's thumb.
  * @csspart thumb - The switch's thumb.

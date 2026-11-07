@@ -1,0 +1,11 @@
+{
+  "files": {
+    "src/components/divider/divider.test.ts": "46964f3f8daec69c70332660fc607aa38f4546acee0326a0b9b8d81438c75da4"
+  },
+  "tests": [
+    "<sl-divider> > defaults  > passes accessibility test",
+    "<sl-divider> > defaults  > default properties",
+    "<sl-divider> > vertical property change  > aria-orientation is updated"
+  ],
+  "knownFailures": []
+}

@@ -1,0 +1,16 @@
+{
+  "files": {
+    "src/components/progress-bar/progress-bar.test.ts": "5c7294f8182d478068a64c9add8d175f42c4c4589a5a3ebf43356cb176a1bf58"
+  },
+  "tests": [
+    "<sl-progress-bar> > when provided just a value parameter > should pass accessibility tests",
+    "<sl-progress-bar> > when provided a title, and value parameter > should pass accessibility tests",
+    "<sl-progress-bar> > when provided a title, and value parameter > uses the value parameter on the base, as aria-valuenow",
+    "<sl-progress-bar> > when provided a title, and value parameter > appends a % to the value, and uses it as the  the value parameter to determine the width on the \"indicator\" part",
+    "<sl-progress-bar> > when provided an indeterminate parameter > should pass accessibility tests",
+    "<sl-progress-bar> > when provided an indeterminate parameter > should append a progress-bar--indeterminate class to the \"base\" part.",
+    "<sl-progress-bar> > when provided a ariaLabel, and value parameter > should pass accessibility tests",
+    "<sl-progress-bar> > when provided a ariaLabelledBy, and value parameter > should pass accessibility tests"
+  ],
+  "knownFailures": []
+}

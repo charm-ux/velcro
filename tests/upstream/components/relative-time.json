@@ -1,0 +1,33 @@
+{
+  "files": {
+    "src/components/relative-time/relative-time.test.ts": "b6c54d4a521cf0cf7e751f14186724138c22cc8579c5df7bab0ee81bd89f2d17"
+  },
+  "tests": [
+    "sl-relative-time > should pass accessibility tests",
+    "sl-relative-time > does not display a time element on invalid time string",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a Date object: 1 minute ago",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a String object: 1 minute ago",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a Date object: 1 hour ago",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a String object: 1 hour ago",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a Date object: yesterday",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a String object: yesterday",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a Date object: 4 days ago",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a String object: 4 days ago",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a Date object: last week",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a String object: last week",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a Date object: last month",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a String object: last month",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a Date object: last year",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a String object: last year",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a Date object: in 1 minute",
+    "sl-relative-time > handles time correctly > shows the correct relative time given a String object: in 1 minute",
+    "sl-relative-time > handles time correctly > always shows numeric if requested via numeric property",
+    "sl-relative-time > handles time correctly > shows human readable form if appropriate and numeric property is auto",
+    "sl-relative-time > handles time correctly > shows the set date with the proper attributes at the time object",
+    "sl-relative-time > handles time correctly > allows to use a short form of the unit",
+    "sl-relative-time > handles time correctly > allows to use a long form of the unit",
+    "sl-relative-time > handles time correctly > is formatted according to the requested locale",
+    "sl-relative-time > handles time correctly > keeps the component in sync if requested"
+  ],
+  "knownFailures": []
+}

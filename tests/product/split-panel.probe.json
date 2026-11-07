@@ -1,0 +1,3 @@
+{
+  "content": "<div slot=\"start\">a</div><div slot=\"end\">b</div>"
+}

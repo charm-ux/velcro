@@ -1,14 +1,41 @@
 // Normalized API model of a custom element declaration from a Custom Elements Manifest. The docs API tables and the
 // Shoelace API parity check both read it, so a page and the parity report always describe the same API.
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
+// Built by the package's `analyze` step and ignored: it is derived from the component sources, so it is never committed.
 export const velcroManifestPath = 'packages/velcro/custom-elements.json';
 export const shoelaceManifestPath = 'docs/api/shoelace-2.20.1.custom-elements.json';
 
 export const readJson = (rel, root = repoRoot) => JSON.parse(readFileSync(path.join(root, rel), 'utf8'));
+
+const analyzed = new Map();
+/**
+ * Velcro's Custom Elements Manifest analyzed from the current sources (the package's own analyzer configuration) into a
+ * temporary directory, so source checks never depend on a build. Cached per process.
+ */
+export function analyzeVelcro(root = repoRoot) {
+  if (analyzed.has(root)) return analyzed.get(root);
+  const pkgDir = path.join(root, 'packages/velcro');
+  const out = mkdtempSync(path.join(tmpdir(), 'velcro-cem-'));
+  try {
+    const cem = path.join(pkgDir, 'node_modules/@custom-elements-manifest/analyzer/cem.js');
+    // The analyzer joins --outdir to its working directory, so it takes a relative path.
+    const res = spawnSync(process.execPath, [cem, 'analyze', '--outdir', path.relative(pkgDir, out)], {
+      cwd: pkgDir, encoding: 'utf8', env: { ...process.env, VELCRO_CEM_REACT_OUTDIR: path.join(out, 'react') },
+    });
+    if (res.status !== 0) throw new Error(`manifest analyzer failed (exit ${res.status})`);
+    const manifest = JSON.parse(readFileSync(path.join(out, 'custom-elements.json'), 'utf8'));
+    analyzed.set(root, manifest);
+    return manifest;
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
+}
 
 export function customElements(manifest) {
   const out = new Map();

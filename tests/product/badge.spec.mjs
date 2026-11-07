@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { reactWrapperPage } from './support/react.mjs';
 
 const PAGE = '/components/badge';
 
@@ -282,4 +283,26 @@ test('no upstream Shoelace runtime is requested or defined; all requests stay on
   const defined = await frame.locator('body').evaluate(() => ['sl-dialog', 'sl-icon-button'].filter(tag => customElements.get(tag)));
   expect(defined).toEqual([]);
   expect(await frame.locator('body').evaluate(() => Boolean(window.Shoelace || document.querySelector('script[src*="shoelace"]')))).toBe(false);
+});
+
+// The component-local React harness (tests/product/support/react.mjs): a component checks its own wrapper here, not in
+// the shared react.spec.mjs.
+const mountReact = reactWrapperPage(test);
+
+test('React 19 wrapper renders the badge with its props and children, and updates and clears them', async ({ page }) => {
+  const pageErrors = await mountReact(page);
+  const read = () => page.evaluate(async () => {
+    const el = document.getElementById('wrapped');
+    await el.updateComplete;
+    return { tag: el.localName, variant: el.variant, pill: el.pill, text: el.textContent };
+  });
+  expect(await page.evaluate(() => window.reactVersion)).toBe('19.2.0');
+  await page.evaluate(() => window.renderWrapper('VelcroBadge', { variant: 'success', pill: true }, 'Hi'));
+  expect(await read()).toEqual({ tag: 'sl-badge', variant: 'success', pill: true, text: 'Hi' });
+  await page.evaluate(() => window.renderWrapper('VelcroBadge', { variant: 'danger' }, 'Hi'));
+  expect(await read()).toEqual({ tag: 'sl-badge', variant: 'danger', pill: false, text: 'Hi' });
+  await page.evaluate(() => window.renderWrapper(null));
+  expect(await page.evaluate(() => document.getElementById('wrapped'))).toBeNull();
+  expect(await page.evaluate(() => window.errors)).toEqual([]);
+  expect(pageErrors).toEqual([]);
 });

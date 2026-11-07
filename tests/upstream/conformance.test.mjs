@@ -1,46 +1,106 @@
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { DOCS, INVENTORY, LEDGER, VENDOR, checkVendor, declaredTests, evaluate, keyResults, scoreboard, upstreamSkips } from '../../scripts/upstream-conformance.mjs';
+import { DOCS, PIN, RECORDS, VENDOR, checkVendor, declaredTests, evaluate, keyResults, readInventory, readLedger, readRecords,
+  scoreboard, upstreamSkips, vendoredComponents } from '../../scripts/upstream-conformance.mjs';
+import { readCatalog } from '../../scripts/site/catalog.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const components = readdirSync(new URL(`../../${VENDOR}/src/components/`, import.meta.url)).sort();
-const ledger = JSON.parse(readFileSync(new URL(`../../${LEDGER}`, import.meta.url), 'utf8'));
+const components = vendoredComponents(root);
+const records = readRecords(root);
+const ledger = readLedger(root);
+const inventory = readInventory(root);
 
 test('vendored Shoelace test files are byte-identical to the pinned upstream files', () => {
   assert.deepEqual(checkVendor(root), []);
   const manifest = JSON.parse(readFileSync(new URL(`../../${VENDOR}/UPSTREAM.json`, import.meta.url), 'utf8'));
-  assert.equal(manifest.commit, 'fb59fda70ed737c92611051b49bc7e3a5fed5dc5');
-  for (const c of components) assert.ok(manifest.files[`src/components/${c}/${c}.test.ts`], c);
+  assert.equal(manifest.commit, PIN.commit);
+  assert.equal(PIN.commit, 'fb59fda70ed737c92611051b49bc7e3a5fed5dc5');
   assert.ok(manifest.files['LICENSE.md']);
+  assert.ok(!Object.keys(manifest.files).some(f => f.startsWith('src/components/')), 'component test files are pinned in their records');
+  for (const c of components) assert.ok(records[c].files[`src/components/${c}/${c}.test.ts`], c);
 });
 
-test('every vendored component has a Velcro registering entry', () => {
-  const pkg = JSON.parse(readFileSync(new URL('../../packages/velcro/package.json', import.meta.url), 'utf8'));
-  for (const c of components) assert.ok(pkg.exports[`./${c}`], c);
-});
-
-test('the ledger names known components with a title and a one-line reason per entry, and docs list them', () => {
-  const docs = readFileSync(new URL(`../../${DOCS}`, import.meta.url), 'utf8');
-  for (const [c, entries] of Object.entries(ledger)) {
-    assert.ok(components.includes(c), c);
-    assert.equal(new Set(entries.map(e => e.title)).size, entries.length, `duplicate titles in ${c}`);
-    for (const e of entries) {
-      assert.ok(e.title && e.reason.trim() && !e.reason.includes('\n'), `${c}: ${e.title}`);
-      assert.ok(docs.includes(e.title.replaceAll('|', '\\|')), `docs miss ${c}: ${e.title}`);
-    }
+test('the vendor check fails on an edited, extra or unpinned file, a foreign pin and a conflicting pin', () => {
+  const scratch = mkdtempSync(path.join(tmpdir(), 'velcro-upstream-'));
+  try {
+    const copy = () => {
+      rmSync(path.join(scratch, 'tests'), { recursive: true, force: true });
+      cpSync(path.join(root, 'tests/upstream'), path.join(scratch, 'tests/upstream'), { recursive: true });
+    };
+    const record = name => path.join(scratch, RECORDS, `${name}.json`);
+    const edit = (name, change) => {
+      const value = JSON.parse(readFileSync(record(name), 'utf8'));
+      change(value);
+      writeFileSync(record(name), JSON.stringify(value));
+    };
+    copy();
+    assert.deepEqual(checkVendor(scratch), []);
+    writeFileSync(path.join(scratch, VENDOR, 'src/components/badge/badge.test.ts'), '// edited\n', { flag: 'a' });
+    assert.deepEqual(checkVendor(scratch), ['modified: src/components/badge/badge.test.ts']);
+    copy();
+    writeFileSync(path.join(scratch, VENDOR, 'src/components/badge/extra.ts'), '');
+    assert.deepEqual(checkVendor(scratch), ['vendored file set differs from the pinned hashes']);
+    copy();
+    rmSync(record('badge'));
+    assert.deepEqual(checkVendor(scratch), ['no record for badge', 'vendored file set differs from the pinned hashes']);
+    copy();
+    writeFileSync(record('nope'), '{"files":{}}');
+    assert.deepEqual(checkVendor(scratch), ['record without a vendored component: nope']);
+    copy();
+    edit('badge', v => { v.files['src/components/card/card.test.ts'] = records.card.files['src/components/card/card.test.ts']; });
+    assert.deepEqual(checkVendor(scratch), ["record for badge pins another component's file"]);
+    copy();
+    edit('badge', v => { v.files['LICENSE.md'] = '0'.repeat(64); });
+    assert.deepEqual(checkVendor(scratch), ['conflicting pins: LICENSE.md', 'modified: LICENSE.md']);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
   }
 });
 
-const inventory = JSON.parse(readFileSync(new URL(`../../${INVENTORY}`, import.meta.url), 'utf8'));
+test('every vendored component is a catalog component with a registering entry', () => {
+  const pkg = JSON.parse(readFileSync(new URL('../../packages/velcro/package.json', import.meta.url), 'utf8'));
+  const names = readCatalog(root).map(c => c.name);
+  for (const c of components) {
+    assert.ok(names.includes(c), c);
+    assert.ok(pkg.exports[`./${c}`], c);
+  }
+});
 
-test('the pinned inventory covers every vendored component, is unique, and contains every ledgered title', () => {
+test('records are well formed: known failures name inventory titles with a one-line reason', () => {
+  assert.deepEqual(Object.keys(records), components);
+  for (const [c, record] of Object.entries(records)) {
+    assert.deepEqual(Object.keys(record), ['files', 'tests', 'knownFailures'], c);
+    const entries = record.knownFailures;
+    assert.ok(Array.isArray(entries), c);
+    assert.equal(new Set(entries.map(e => e.title)).size, entries.length, `duplicate titles in ${c}`);
+    for (const e of entries) {
+      assert.ok(e.title && e.reason.trim() && !e.reason.includes('\n'), `${c}: ${e.title}`);
+      assert.ok(record.tests.includes(e.title), `${c}: ${e.title}`);
+    }
+  }
+  const docs = readFileSync(new URL(`../../${DOCS}`, import.meta.url), 'utf8');
+  assert.match(docs, /tests\/upstream\/components\/<name>\.json/);
+  assert.doesNotMatch(docs, /^\| [a-z-]+ \| \d/m, 'the conformance page carries no per-component table');
+});
+
+test('each inventory is unique and lists every test its vendored file declares with a literal title', () => {
   assert.deepEqual(Object.keys(inventory).sort(), components);
-  assert.equal(Object.values(inventory).flat().length, 348);
   for (const [c, titles] of Object.entries(inventory)) {
+    assert.ok(titles.length > 0, c);
     assert.equal(new Set(titles).size, titles.length, c);
-    for (const e of ledger[c] ?? []) assert.ok(titles.includes(e.title), `${c}: ${e.title}`);
+    const source = readFileSync(path.join(root, VENDOR, 'src/components', c, `${c}.test.ts`), 'utf8');
+    const seen = new Map();
+    for (const { title } of declaredTests(source)) {
+      if (title === null) continue;
+      const n = (seen.get(title) ?? 0) + 1;
+      seen.set(title, n);
+      const key = n === 1 ? title : `${title} [#${n}]`;
+      assert.ok(titles.includes(key), `${c}: declared test missing from the inventory: ${key}`);
+    }
   }
 });
 
@@ -109,7 +169,7 @@ test('a skip passes only when the vendored upstream file itself marks that exact
   const real = upstreamSkips(root, components);
   assert.deepEqual(Object.keys(real), ['icon']);
   assert.deepEqual(real.icon.skipped, ["<sl-icon> > svg sprite sheets > Should produce an error if the icon doesn't exist."]);
-  assert.deepEqual([...real.icon.declared].sort(), [...JSON.parse(readFileSync(new URL(`../../${INVENTORY}`, import.meta.url), 'utf8')).icon].sort());
+  assert.deepEqual([...real.icon.declared].sort(), [...inventory.icon].sort());
 });
 
 test('the declaration scan follows describe nesting and ignores comments, strings and dynamic titles', () => {

@@ -19,8 +19,9 @@ shipped with it. This file alone never certifies an artifact: where a built arti
 - Also used in: `docs/api/shoelace-2.20.1.custom-elements.json`, a subset of the Custom Elements Manifest that Shoelace's
   own analyzer configuration (`custom-elements-manifest.config.js`, without its IDE-integration output plugins) generates
   from the `v2.20.1` tag, commit `fb59fda70ed737c92611051b49bc7e3a5fed5dc5`: API names, types, defaults and descriptions
-  of the components Velcro implements, read by the API parity check (`scripts/api/parity.mjs`) and summarized in
-  `docs/api-parity.md`. No Shoelace runtime or source files are included.
+  of every Shoelace 2.20.1 component, read by the API parity check (`scripts/api/parity.mjs`) for the components Velcro
+  implements and summarized per component in `docs/api/parity/<name>.md`. No Shoelace runtime or source files are
+  included.
 - Used in: `packages/velcro/src/components/button/button.ts` (API documentation wording, the rendered structure: a
   `base` `<button>` or `<a>` with `button` / `button--*` class names around the prefix, label and suffix slots, caret
   and spinner, the click, focus, validation and form-submission behavior, adapted from
@@ -219,10 +220,13 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   are changed to Velcro's React wrappers). The animation is built on the
   `@charm-ux/core` base element; no Shoelace runtime is included. The animation presets come from
   `@shoelace-style/animations` (next section).
+- Components added later record their Shoelace use in their own `packages/velcro/src/components/<name>/NOTICE.md`
+  (one list entry like those above); the package and site copies of this file include those entries here.
+<!-- component notices: packages/velcro/src/components/<name>/NOTICE.md -->
 - Also used in: `tests/upstream/shoelace-2.20.1/` (test files only, never shipped): the upstream test files
-  `src/components/<name>/<name>.test.ts` for each implemented component and the helper
-  `src/internal/test/form-control-base-tests.ts`, copied unmodified from commit
-  `fb59fda70ed737c92611051b49bc7e3a5fed5dc5` with the upstream `LICENSE.md` and a hash manifest (`UPSTREAM.json`).
+  `src/components/<name>/<name>.test.ts` for each implemented component and the helpers under `src/internal/`,
+  copied unmodified from commit `fb59fda70ed737c92611051b49bc7e3a5fed5dc5` with the upstream `LICENSE.md` and hash
+  manifests (`UPSTREAM.json` for the shared files, `tests/upstream/components/<name>.json` for each test file).
   They run against Velcro as a conformance check; nothing from them is included in any package or site.
 - The 2.20.1 release carries no NOTICE file. Its license text, verbatim:
 

@@ -19,3 +19,10 @@ playwright-report/
 .DS_Store
 .cache/
 .tmp/
+
+# Derived at build time from the catalog and the component folders (scripts/sync.mjs, the manifest analyzer); never
+# committed, so parallel component branches never edit them
+packages/velcro/src/index.ts
+packages/velcro/custom-elements.json
+packages/velcro/THIRD_PARTY_NOTICES.md
+packages/docs/public/THIRD_PARTY_NOTICES.md

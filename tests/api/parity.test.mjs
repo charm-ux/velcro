@@ -1,11 +1,13 @@
 // Shoelace API parity gate: the gaps between Shoelace 2.20.1's documented API and Velcro's manifest must equal the
-// committed ledger, which may only shrink, and the committed report must be current.
+// committed ledger, which may only shrink, and the committed per-component reports must be current.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { compare, currentParity, ledgerPath, normalize, readLedger, renderReport, reportPath } from '../../scripts/api/parity.mjs';
+import { checkReports, compare, currentParity, ledgerPath, normalize, readLedger, renderSummary, reportDir, reportPath }
+  from '../../scripts/api/parity.mjs';
 import { customElements, readJson, repoRoot, shoelaceManifestPath } from '../../scripts/api/model.mjs';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 import { SHOELACE } from '../../scripts/api/shoelace-subset.mjs';
@@ -32,14 +34,37 @@ test('the ledger only shrinks relative to origin/main', () => {
   assert.deepEqual(ledger.filter(g => !base.includes(g)), [], 'entries added to the ledger');
 });
 
-test('docs/api-parity.md is the current generated report (run `node scripts/api/parity.mjs report`)', () => {
-  assert.equal(readFileSync(path.join(repoRoot, reportPath), 'utf8'), renderReport(parity));
+test('every catalog component has its current generated report, and nothing else does (run `pnpm sync`)', () => {
+  assert.deepEqual(checkReports(repoRoot, parity), []);
+  const index = readFileSync(path.join(repoRoot, reportPath), 'utf8');
+  assert.match(index, /docs\/api\/parity\/<name>\.md/);
+  assert.doesNotMatch(index, /sl-[a-z]/, 'the shared index names no component');
+  assert.match(renderSummary(parity), /^Totals: \d+ Shoelace entries compared/);
 });
 
-test('the Shoelace subset covers exactly the catalog components and carries its provenance', () => {
+test('the report check fails on a stale, missing or orphaned report', () => {
+  const scratch = mkdtempSync(path.join(tmpdir(), 'velcro-parity-'));
+  try {
+    for (const f of ['docs/api', 'packages/docs/catalog.jsonl']) cpSync(path.join(repoRoot, f), path.join(scratch, f), { recursive: true });
+    assert.deepEqual(checkReports(scratch, parity), []);
+    writeFileSync(path.join(scratch, reportDir, 'badge.md'), 'edited\n');
+    rmSync(path.join(scratch, reportDir, 'card.md'));
+    writeFileSync(path.join(scratch, reportDir, 'nope.md'), '');
+    assert.deepEqual(checkReports(scratch, parity).sort(), [
+      `${reportDir}/badge.md: stale (run \`pnpm sync\`)`,
+      `${reportDir}/card.md: missing (run \`pnpm sync\`)`,
+      `${reportDir}/nope.md: no catalog component (run \`pnpm sync\`)`,
+    ]);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('the Shoelace subset covers every Shoelace component, so every catalog component, and carries its provenance', () => {
   const upstream = readJson(shoelaceManifestPath);
-  const tags = readCatalog(repoRoot).map(c => c.tag).sort();
-  assert.deepEqual([...customElements(upstream).keys()].sort(), tags);
+  const tags = [...customElements(upstream).keys()];
+  assert.equal(tags.length, 58, 'Shoelace 2.20.1 has 58 components');
+  for (const { tag } of readCatalog(repoRoot)) assert.ok(tags.includes(tag), tag);
   const p = upstream['x-provenance'];
   assert.equal(p.version, '2.20.1');
   assert.equal(p.commit, SHOELACE.commit);

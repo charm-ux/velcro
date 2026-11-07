@@ -1,0 +1,14 @@
+{
+  "files": {
+    "src/components/progress-ring/progress-ring.test.ts": "761ba747e3aa1f6c6815b12b1786ca4b0960e1f596c7bf1a04ad35d8a128f3ea"
+  },
+  "tests": [
+    "<sl-progress-ring> > when provided just a value parameter > should pass accessibility tests",
+    "<sl-progress-ring> > when provided a title, and value parameter > should pass accessibility tests",
+    "<sl-progress-ring> > when provided a title, and value parameter > uses the value parameter on the base, as aria-valuenow",
+    "<sl-progress-ring> > when provided a title, and value parameter > translates the value parameter to a percentage, and uses translation on the base, as percentage css variable",
+    "<sl-progress-ring> > when provided a ariaLabel, and value parameter > should pass accessibility tests",
+    "<sl-progress-ring> > when provided a ariaLabelledBy, and value parameter > should pass accessibility tests"
+  ],
+  "knownFailures": []
+}
