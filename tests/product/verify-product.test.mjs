@@ -53,15 +53,19 @@ test('report must carry the expected errors array and config forbids focused tes
 // Subprocess negative controls against a throwaway fixture root (copy of the CLI).
 const realRoot = path.resolve(new URL('../..', import.meta.url).pathname);
 const SENTINEL = 'sentinel-private-value';
-// The fake builds leave small output trees as the real ones do: the library dist, the project-site output and its closure
-// record, and the root site output.
+// The fake builds leave small output trees as the real ones do: the library dist and the files it derives outside it, the
+// project-site output, its closure record and the site's notice copy, and the root site output.
 const PREFIXED_BUILD = `case "$*" in
   *"@charm-ux/velcro run build"*)
-  mkdir -p packages/velcro/dist/react
+  mkdir -p packages/velcro/dist/react packages/velcro/src
   echo 'export {}' > packages/velcro/dist/index.js
-  echo 'export {}' > packages/velcro/dist/react/index.js ;;
+  echo 'export {}' > packages/velcro/dist/react/index.js
+  echo 'export {}' > packages/velcro/src/index.ts
+  echo '{}' > packages/velcro/custom-elements.json
+  echo '# Notices' > packages/velcro/THIRD_PARTY_NOTICES.md ;;
   *"@velcro/docs run build:prefixed"*)
-  mkdir -p packages/docs/dist/static-prefixed/_litro packages/docs/dist/closure
+  mkdir -p packages/docs/dist/static-prefixed/_litro packages/docs/dist/closure packages/docs/public
+  echo '# Notices' > packages/docs/public/THIRD_PARTY_NOTICES.md
   echo '<p>page</p>' > packages/docs/dist/static-prefixed/index.html
   echo 'export {}' > packages/docs/dist/static-prefixed/_litro/app.js
   echo '{"schema":1}' > packages/docs/dist/closure/client-closure-velcro.json ;;
@@ -85,7 +89,7 @@ function fixture(setup) {
   mkdirSync(path.join(dir, 'security'));
   copyFileSync(path.join(realRoot, 'security/policy.json'), path.join(dir, 'security/policy.json'));
   writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ packageManager: 'pnpm@9.15.9' }));
-  writeFileSync(path.join(dir, '.gitignore'), '.airig/\nnode_modules/\ncalls.log\n*.marker\npackages/docs/dist/\npackages/velcro/dist/\n');
+  writeFileSync(path.join(dir, '.gitignore'), '.airig/\nnode_modules/\ncalls.log\n*.marker\npackages/docs/dist/\npackages/velcro/dist/\npackages/velcro/src/index.ts\npackages/velcro/custom-elements.json\npackages/velcro/THIRD_PARTY_NOTICES.md\npackages/docs/public/THIRD_PARTY_NOTICES.md\n');
   spawnSync('git', ['init', '-q'], { cwd: dir });
   // Fake pnpm: reports the pinned version; other behavior is supplied per case.
   writeFileSync(path.join(dir, 'bin/pnpm'), '#!/bin/sh\nif [ "$1" = "--version" ]; then echo 9.15.9; fi\n' + PREFIXED_BUILD + (setup?.shim ?? ''), { mode: 0o755 });
@@ -430,7 +434,7 @@ test('CI stages: build only builds and prints the digest; a shard, upstream and 
   } finally { cleanup(dir); }
 });
 
-// Every change to the shared build output after the build stage, in either dist tree, and a different commit.
+// Every change to the shared build output after the build stage, in either dist tree or a derived file, and a different commit.
 const OUTPUT_CHANGES = {
   'prefixed site file changed': d => writeFileSync(path.join(d, 'packages/docs/dist/static-prefixed/index.html'), '<p>changed</p>\n'),
   'root site file changed': d => writeFileSync(path.join(d, 'packages/docs/dist/static/index.html'), '<p>changed</p>\n'),
@@ -439,6 +443,8 @@ const OUTPUT_CHANGES = {
   'library file added': d => writeFileSync(path.join(d, 'packages/velcro/dist/extra.js'), 'export {}\n'),
   'library file removed': d => rmSync(path.join(d, 'packages/velcro/dist/index.js')),
   'library tree missing': d => rmSync(path.join(d, 'packages/velcro/dist'), { recursive: true }),
+  'derived manifest changed': d => writeFileSync(path.join(d, 'packages/velcro/custom-elements.json'), '{"x":1}\n'),
+  'derived barrel missing': d => rmSync(path.join(d, 'packages/velcro/src/index.ts')),
   'another commit': d => {
     writeFileSync(path.join(d, 'tracked.txt'), 'next\n');
     spawnSync('git', ['-C', d, '-c', 'user.name=t', '-c', `user.email=${['t', 'users.noreply.github.com'].join('@')}`, 'commit', '-qam', 'y']);

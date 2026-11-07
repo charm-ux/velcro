@@ -1,0 +1,13 @@
+{
+  "files": {
+    "src/components/tab-panel/tab-panel.test.ts": "7c91761589a7c5249443bb618d8f6bc3a0af03c3a56aee60cc55a2b85792cf0d"
+  },
+  "tests": [
+    "<sl-tab-panel> > passes accessibility test",
+    "<sl-tab-panel> > default properties",
+    "<sl-tab-panel> > properties should reflect",
+    "<sl-tab-panel> > changing active should always update aria-hidden role",
+    "<sl-tab-panel> > passed id should be used"
+  ],
+  "knownFailures": []
+}

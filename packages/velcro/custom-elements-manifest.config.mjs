@@ -1,10 +1,12 @@
 // Custom Elements Manifest for Velcro. Members inherited from @charm-ux/core are resolved from core's shipped manifest
 // and keep an `inheritedFrom` that names the core class and package, so the docs and wrappers show the full API.
-// The manifest is committed and shipped at the package root; the React wrappers and JSX types are build output in
-// dist/react. The drift test redirects them with `--outdir` and VELCRO_CEM_REACT_OUTDIR.
+// The manifest is build output shipped at the package root (ignored, never committed); the React wrappers and JSX types
+// are build output in dist/react. Source checks (scripts/api/model.mjs analyzeVelcro) redirect them with `--outdir` and
+// VELCRO_CEM_REACT_OUTDIR.
 import { createRequire } from 'node:module';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { cemSorterPlugin } from '@wc-toolkit/cem-sorter';
 import { jsxTypesPlugin } from '@wc-toolkit/jsx-types';
 import { reactWrapperPlugin } from '@wc-toolkit/react-wrappers';
@@ -21,24 +23,51 @@ const reactDir = process.env.VELCRO_CEM_REACT_OUTDIR || path.join('dist', 'react
 /**
  * Every Velcro component renders its own shadow template, so most of core's template-bound API (slots, parts, and the
  * CSS custom properties its component styles read) does not apply to a Velcro element. Only the inherited entries
- * listed here are kept: they still take effect, because the component keeps core's styles and their selectors still
+ * a component declares with @inheritedKept (below) are kept: they still take effect, because the component keeps core's styles and their selectors still
  * match its template (including :active and [disabled] rules whose specificity beats Velcro's).
  * tests/product/inherited-api.spec.mjs measures this in the browser for every component and fails
- * when this list and the measured effect differ.
+ * when these declarations and the measured effect differ.
  */
 // sl-button renders Shoelace's styles instead of core's button styles, so none of core's --button-* properties apply.
-export const keptInherited = {};
+//
+// Each component declares its own exceptions with JSDoc tags on its class, so adding a component never edits a shared
+// table here:
+//   @inheritedKept <slots|cssParts|cssProperties> <name> - <why it still takes effect>
+//   @inheritedEventDropped <event> - <why the element never emits it>
+const TAG_LINE = /^\s*\*\s*@(inheritedKept|inheritedEventDropped)\s+(.*)$/;
+const KEPT_KEYS = ['slots', 'cssParts', 'cssProperties'];
 
+/** { [className]: { kept: { slots, cssParts, cssProperties }, droppedEvents } } from the component sources. */
+export function inheritanceDeclarations(componentsDir = fileURLToPath(new URL('./src/components/', import.meta.url))) {
+  const out = {};
+  for (const dir of readdirSync(componentsDir, { withFileTypes: true }).filter(e => e.isDirectory())) {
+    for (const file of readdirSync(path.join(componentsDir, dir.name)).filter(f => f.endsWith('.ts'))) {
+      const text = readFileSync(path.join(componentsDir, dir.name, file), 'utf8');
+      for (const [, doc, name] of text.matchAll(/\/\*\*((?:[^*]|\*(?!\/))*)\*\/\s*export (?:default )?class (\w+)/g)) {
+        for (const line of doc.split('\n')) {
+          const m = TAG_LINE.exec(line);
+          if (!m) continue;
+          const entry = (out[name] ??= { kept: { slots: [], cssParts: [], cssProperties: [] }, droppedEvents: [] });
+          const words = m[2].split(/\s+/);
+          if (m[1] === 'inheritedEventDropped') entry.droppedEvents.push(words[0]);
+          else if (KEPT_KEYS.includes(words[0]) && words[1]) entry.kept[words[0]].push(words[1]);
+          else throw new Error(`${dir.name}/${file}: @inheritedKept needs one of ${KEPT_KEYS.join(', ')} and a name`);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+const declarations = inheritanceDeclarations();
+/** Inherited slots, parts and CSS custom properties each class keeps: { [className]: { slots, cssParts, cssProperties } }. */
+export const keptInherited = Object.fromEntries(Object.entries(declarations).map(([name, d]) => [name, d.kept]));
 /**
- * Inherited core events a Velcro element does not emit. sl-switch emits Shoelace's sl-change and sl-input instead of
- * core's `change` and `input` events (as in Shoelace, the host still receives the platform's composed `input` event
- * from its inner checkbox on a click). sl-tab-panel never emits core's tab-show, tab-hide, tab-after-show and
- * tab-after-hide: they come from core's internal `visible` property, which belongs to core's own tabs and is inert here.
+ * Inherited core events each class never emits: { [className]: [event] }. For example sl-switch emits Shoelace's
+ * sl-change and sl-input instead of core's `change` and `input`, and sl-tab-panel never emits core's tab-show family.
  */
-export const droppedInheritedEvents = {
-  VelcroSwitch: ['change', 'input'],
-  VelcroTabPanel: ['tab-show', 'tab-hide', 'tab-after-show', 'tab-after-hide'],
-};
+export const droppedInheritedEvents = Object.fromEntries(Object.entries(declarations)
+  .filter(([, d]) => d.droppedEvents.length).map(([name, d]) => [name, d.droppedEvents]));
 
 function velcroInheritance() {
   return {

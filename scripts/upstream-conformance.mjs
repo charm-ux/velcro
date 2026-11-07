@@ -1,7 +1,9 @@
 // Runs Shoelace 2.20.1's own test files (tests/upstream/shoelace-2.20.1, vendored unmodified) against Velcro in Chromium.
-// Writes a machine-readable scoreboard under ignored .airig/upstream/, regenerates docs/conformance.md with --write-docs,
-// and gates the result against tests/upstream/known-failures.json: any failure not in the ledger fails, and so does any
-// ledgered test that now passes (the ledger may only shrink). Raw runner output stays in the ignored scratch folder.
+// Writes a machine-readable scoreboard under ignored .airig/upstream/ and gates the result against each component's
+// pinned record, tests/upstream/components/<name>.json: its vendored files' hashes, its complete test inventory and its
+// known failures. Any failure not recorded fails, and so does any recorded failure that now passes (the known failures
+// may only shrink). One record per component, so parallel component branches never edit the same file. Raw runner
+// output stays in the ignored scratch folder.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
@@ -9,31 +11,162 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const VENDOR = 'tests/upstream/shoelace-2.20.1';
-export const LEDGER = 'tests/upstream/known-failures.json';
+export const RECORDS = 'tests/upstream/components';
 export const DOCS = 'docs/conformance.md';
-export const INVENTORY = 'tests/upstream/inventory.json';
+export const PIN = Object.freeze({ version: '2.20.1', commit: 'fb59fda70ed737c92611051b49bc7e3a5fed5dc5' });
 
 function walk(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap(e =>
     e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
 }
 
-// Returns a list of problems: vendored files must match the recorded upstream hashes exactly, with nothing extra or missing.
+/** The vendored components: one directory per upstream test file under the vendored src/components/. */
+export const vendoredComponents = root => readdirSync(path.join(root, VENDOR, 'src/components')).sort();
+
+/**
+ * Every component record, by name: { files: { <vendored path>: sha256 }, tests: [title], knownFailures: [{ title, reason }] }.
+ * Records for names that are not vendored components are returned too, so callers can reject them.
+ */
+export function readRecords(root) {
+  const dir = path.join(root, RECORDS);
+  const records = {};
+  for (const f of existsSync(dir) ? readdirSync(dir).sort() : []) {
+    records[f.replace(/\.json$/, '')] = f.endsWith('.json') ? JSON.parse(readFileSync(path.join(dir, f), 'utf8')) : null;
+  }
+  return records;
+}
+
+/** The pinned inventory, { component: [title] }, assembled from the records. */
+export const readInventory = root => Object.fromEntries(Object.entries(readRecords(root)).map(([c, r]) => [c, r?.tests]));
+
+/** The known failures, { component: [{ title, reason }] }, for components that have any. */
+export const readLedger = root => Object.fromEntries(Object.entries(readRecords(root))
+  .filter(([, r]) => r?.knownFailures?.length).map(([c, r]) => [c, r.knownFailures]));
+
+export function writeRecord(root, component, record) {
+  const { files = {}, tests = [], knownFailures = [] } = record;
+  writeFileSync(path.join(root, RECORDS, `${component}.json`), `${JSON.stringify({ files, tests, knownFailures }, null, 2)}\n`);
+}
+
+// Returns a list of problems: vendored files must match the recorded upstream hashes exactly, with nothing extra or
+// missing. The shared files (the license and src/internal/ helpers) are pinned in the vendored UPSTREAM.json; each
+// component's record pins its own test file (and may pin a helper it brings, with the same hash wherever it is pinned).
 export function checkVendor(root) {
   const base = path.join(root, VENDOR);
   const manifest = JSON.parse(readFileSync(path.join(base, 'UPSTREAM.json'), 'utf8'));
   const problems = [];
-  if (manifest.version !== '2.20.1' || manifest.commit !== 'fb59fda70ed737c92611051b49bc7e3a5fed5dc5') problems.push('pin changed');
+  if (manifest.version !== PIN.version || manifest.commit !== PIN.commit) problems.push('pin changed');
+  const pinned = new Map(Object.entries(manifest.files ?? {}));
+  const components = vendoredComponents(root);
+  const records = readRecords(root);
+  for (const name of Object.keys(records)) if (!components.includes(name)) problems.push(`record without a vendored component: ${name}`);
+  for (const c of components) {
+    const files = records[c]?.files;
+    if (!files || typeof files !== 'object') { problems.push(`no record for ${c}`); continue; }
+    if (!files[`src/components/${c}/${c}.test.ts`]) problems.push(`record for ${c} does not pin its test file`);
+    for (const [f, hash] of Object.entries(files)) {
+      if (f.startsWith('src/components/') && !f.startsWith(`src/components/${c}/`)) problems.push(`record for ${c} pins another component's file`);
+      if (pinned.has(f) && pinned.get(f) !== hash) problems.push(`conflicting pins: ${f}`);
+      pinned.set(f, hash);
+    }
+  }
   const actual = walk(base).map(f => path.relative(base, f).split(path.sep).join('/')).filter(f => f !== 'UPSTREAM.json').sort();
-  const expected = Object.keys(manifest.files).sort();
-  if (actual.join('\n') !== expected.join('\n')) problems.push('vendored file set differs from UPSTREAM.json');
+  const expected = [...pinned.keys()].sort();
+  if (actual.join('\n') !== expected.join('\n')) problems.push('vendored file set differs from the pinned hashes');
   for (const f of expected) {
     const file = path.join(base, f);
     if (!existsSync(file)) continue;
     const hash = createHash('sha256').update(readFileSync(file)).digest('hex');
-    if (hash !== manifest.files[f]) problems.push(`modified: ${f}`);
+    if (hash !== pinned.get(f)) problems.push(`modified: ${f}`);
   }
   return problems;
+}
+
+/** The shared pins (license, src/internal/ helpers) from the vendored UPSTREAM.json, { path: sha256 }. */
+export const readSharedPins = root => JSON.parse(readFileSync(path.join(root, VENDOR, 'UPSTREAM.json'), 'utf8')).files ?? {};
+
+const gitShow = (root, ref, rel) => {
+  const r = spawnSync('git', ['-C', root, 'show', `${ref}:${rel}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: 16 * 1024 * 1024 });
+  return r.status === 0 ? r.stdout : null;
+};
+
+/**
+ * The records and shared pins at `ref`, or null when `ref` does not exist. The default baseline is where this branch
+ * meets origin/main (their merge base), so components that landed on main since the branch started are not required here.
+ * A baseline from before the per-component records (one inventory.json, known-failures.json and all pins in
+ * UPSTREAM.json) is read into the same shape.
+ */
+export function readBaseline(root, ref) {
+  if (ref === undefined) {
+    const base = spawnSync('git', ['-C', root, 'merge-base', 'HEAD', 'origin/main'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    if (base.status !== 0) return null;
+    ref = base.stdout.trim();
+  }
+  if (spawnSync('git', ['-C', root, 'rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { stdio: 'ignore' }).status !== 0) return null;
+  const upstream = gitShow(root, ref, `${VENDOR}/UPSTREAM.json`);
+  if (!upstream) return { records: {}, shared: {} };
+  const pins = JSON.parse(upstream).files ?? {};
+  const listing = spawnSync('git', ['-C', root, 'ls-tree', '--name-only', ref, `${RECORDS}/`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  const names = listing.status === 0 ? listing.stdout.split('\n').filter(f => f.endsWith('.json')) : [];
+  if (names.length) {
+    const records = Object.fromEntries(names.map(f => [path.basename(f, '.json'), JSON.parse(gitShow(root, ref, f))]));
+    return { records, shared: pins };
+  }
+  const inventory = JSON.parse(gitShow(root, ref, 'tests/upstream/inventory.json') ?? '{}');
+  const failures = JSON.parse(gitShow(root, ref, 'tests/upstream/known-failures.json') ?? '{}');
+  const own = c => f => f.startsWith(`src/components/${c}/`);
+  const records = Object.fromEntries(Object.entries(inventory).map(([c, tests]) => [c, {
+    files: Object.fromEntries(Object.entries(pins).filter(([f]) => own(c)(f))), tests, knownFailures: failures[c] ?? [] }]));
+  return { records, shared: Object.fromEntries(Object.entries(pins).filter(([f]) => !f.startsWith('src/components/'))) };
+}
+
+/**
+ * Problems with the records relative to the baseline. While a component's pinned files and the shared pins are unchanged,
+ * its test inventory must stay exactly the baseline's and its known failures may only shrink: the vendored source did not
+ * change, so a shorter inventory can only mean a runner or reporter dropped outcomes (dynamic titles included, which the
+ * literal-title check cannot see), and a new known failure a regression. A record may change them only together with the
+ * vendored files it pins. Records not in the baseline (new components) are not constrained here.
+ */
+export function checkBaseline(records, shared, baseline) {
+  if (!baseline) return ['no baseline (fetch origin/main)'];
+  const problems = [];
+  const same = (a = {}, b = {}) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+  const sharedSame = same(shared, baseline.shared);
+  for (const [c, base] of Object.entries(baseline.records)) {
+    const record = records[c];
+    if (!record) { problems.push(`${c}: record removed`); continue; }
+    if (!sharedSame || !same(record.files, base.files)) continue;
+    const tests = [...(record.tests ?? [])].sort();
+    const baseTests = [...(base.tests ?? [])].sort();
+    if (tests.join('\n') !== baseTests.join('\n')) problems.push(`${c}: test inventory differs from the baseline although its vendored files are unchanged`);
+    const known = new Set((base.knownFailures ?? []).map(f => f.title));
+    for (const f of record.knownFailures ?? []) if (!known.has(f.title)) problems.push(`${c}: known failure added: ${f.title}`);
+  }
+  return problems;
+}
+
+/**
+ * The records rewritten from a run's scoreboard (only components that reported results): with `inventory`, each record's
+ * tests become the reported titles; with `ledger`, its known failures become the reported failures. Removing a title from
+ * an existing inventory is refused unless `allowRemoval` (for a re-vendored test file): a run that silently stopped
+ * generating tests must not shrink the record it is checked against.
+ */
+export function updateRecords(records, board, components, { inventory = false, ledger = false, allowRemoval = false } = {}) {
+  const out = {};
+  const problems = [];
+  for (const [c, b] of Object.entries(board)) {
+    if (!components.includes(c)) continue;
+    const record = { ...(records[c] ?? {}) };
+    if (inventory) {
+      const removed = (record.tests ?? []).filter(t => !b.titles.includes(t));
+      if (removed.length && !allowRemoval) problems.push(`${c}: the run would remove ${removed.length} inventory title(s), e.g. ${removed[0]}`);
+      record.tests = b.titles;
+    }
+    if (ledger) record.knownFailures = b.failures.map(f => ({ title: f.title, reason: f.reason || 'fails' }));
+    out[c] = record;
+  }
+  return { records: out, problems };
 }
 
 // Repeated titles within a component (shared helper suites registered after an await have no suite path) get an
@@ -203,70 +336,6 @@ export function evaluate(board, ledger, inventory, components, skips = {}) {
   return { ok: !problems.length && !unexpected.length && !fixed.length, unexpected, fixed, problems };
 }
 
-export function renderDocs(board, ledger) {
-  const total = Object.values(board).reduce((a, c) => ({ passed: a.passed + c.passed, failed: a.failed + c.failed }), { passed: 0, failed: 0 });
-  const lines = [
-    '# Shoelace conformance',
-    '',
-    'Velcro runs Shoelace 2.20.1\'s own component test files, vendored unmodified in',
-    `\`${VENDOR}/\` (upstream commit \`fb59fda70ed737c92611051b49bc7e3a5fed5dc5\`, MIT), against`,
-    'Velcro\'s components in Chromium. A resolver plugin points each test\'s Shoelace library import',
-    '(`dist/shoelace.js`) at Velcro\'s package root, which registers every component, and a test\'s own',
-    '`./<name>.js` at Velcro\'s registering entry for that component; no test is edited, and Velcro skips none.',
-    'A test that upstream itself marks `it.skip` in its vendored file is reported as skipped, and the gate allows',
-    'only those (listed below). Run it with `pnpm test:upstream`.',
-    '',
-    'The complete pinned list of expected tests per component (repeated titles carry a `[#n]` suffix) is',
-    '`tests/upstream/inventory.json`; a run must report exactly those outcomes, with nothing missing or extra.',
-    'Every failing test is listed in `tests/upstream/known-failures.json` with a one-line reason. The',
-    '`verify:product` gate fails on any missing or extra outcome, on any load or session (infrastructure) failure,',
-    'which can never be ledgered, on any failure that is not in the ledger and on any ledgered test that now',
-    'passes, so the ledger can only shrink. This page is regenerated by `pnpm test:upstream -- --write-docs`.',
-    '',
-    'The gate covers Chromium only. The runner config takes a browser list (`VELCRO_UPSTREAM_BROWSERS`) so a',
-    'later Firefox and WebKit lane can reuse it.',
-    '',
-    'Shoelace 2.20.1 ships no test file for resize-observer, so it has no row here.',
-    '',
-    `Totals: ${total.passed + total.failed} tests, ${total.passed} passed, ${total.failed} failed.`,
-    '',
-    '| Component | Tests | Passed | Failed |',
-    '| --- | ---: | ---: | ---: |',
-    ...Object.entries(board).map(([c, r]) => `| ${c} | ${r.passed + r.failed} | ${r.passed} | ${r.failed} |`),
-    '',
-    ...(Object.values(board).some(r => r.skipped) ? [
-      '## Skipped upstream', '',
-      'Skipped in the vendored upstream file itself (`it.skip`), not counted above:', '',
-      ...Object.entries(board).flatMap(([c, r]) => (r.skips ?? []).map(t => `- ${c}: \`${t}\``)),
-      ''] : []),
-    '## Failing tests',
-    ''
-  ];
-  for (const [c, r] of Object.entries(board)) {
-    if (!r.failed) continue;
-    lines.push(`### ${c}`, '');
-    const reasons = new Map((ledger?.[c] ?? []).map(e => [e.title, e.reason]));
-    for (const f of r.failures) lines.push(`- ${f.title.replaceAll('|', '\\|')}: ${(reasons.get(f.title) ?? f.reason).replaceAll('|', '\\|')}`);
-    lines.push('');
-  }
-  lines.push('Harness notes: the runner page loads Velcro\'s light theme where upstream loads Shoelace\'s, uses upstream\'s',
-    'mocha settings (3 s timeout, one retry), and adds two guards so one failure cannot discard a whole file\'s',
-    'results: real form submission and navigation by `form.submit()` are suppressed, and an assertion that carries a',
-    'sinon spy is reported instead of crashing the runner. Neither guard can turn a failing assertion into a pass.',
-    'Upstream\'s icon sprite sheet tests load `/docs/assets/images/sprite.svg`, which Shoelace\'s docs build generates',
-    'from Bootstrap Icons; the runner serves that one path from the same Bootstrap Icons sprite that Velcro\'s docs',
-    'site ships (`packages/docs/public/assets/images/sprite.svg`).', '',
-    '## Dependency note: inflation override', '',
-    'The test runner\'s dev server pulls in `inflation` through `co-body` (range `^2.0.0`). The root `package.json`',
-    'pins it to 2.0.0 with a pnpm override because the published integrity hash of 2.1.0 is falsely reported by',
-    'the repository privacy scanner (an opaque base64 hash, not workstation data; the same value appears in',
-    'Shoelace\'s own lockfile). This is an interim workaround: it affects development and test tooling only, not',
-    'Velcro\'s package dependencies, but it holds back normal updates of that package. The intended fix is a narrow',
-    'scanner change that recognizes validated lockfile integrity fields, which needs separate human review as a',
-    'protected change; remove the override once that lands.', '');
-  return lines.join('\n');
-}
-
 function main() {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const args = new Set(process.argv.slice(2));
@@ -294,24 +363,33 @@ function main() {
     { VELCRO_UPSTREAM_JSON: json });
   if (r.error || r.signal) return fail('runner did not complete; evidence retained in ignored scratch');
   if (!existsSync(json) || statSync(json).mtimeMs < startedAt) return fail('missing or stale results');
-  const components = readdirSync(path.join(root, VENDOR, 'src/components')).sort();
+  const components = vendoredComponents(root);
   const board = scoreboard(keyResults(JSON.parse(readFileSync(json, 'utf8'))));
   const summary = Object.fromEntries(Object.entries(board).map(([c, { titles, ...rest }]) => [c, rest]));
   writeFileSync(path.join(root, '.airig/upstream/scoreboard.json'), `${JSON.stringify(summary, null, 2)}\n`, { mode: 0o600 });
-  const ledgerFile = path.join(root, LEDGER);
-  if (args.has('--write-ledger')) {
-    const ledger = Object.fromEntries(Object.entries(board).filter(([, b]) => b.failed)
-      .map(([c, b]) => [c, b.failures.map(f => ({ title: f.title, reason: f.reason || 'fails' }))]));
-    writeFileSync(ledgerFile, `${JSON.stringify(ledger, null, 2)}\n`);
+  // --write-inventory and --write-ledger rewrite only the records of the components that reported results.
+  if (args.has('--write-inventory') && Object.values(board).some(b => b.infrastructure.length)) {
+    return fail('refusing to write an inventory from a run with infrastructure failures');
   }
-  const inventoryFile = path.join(root, INVENTORY);
-  if (args.has('--write-inventory')) {
-    if (Object.values(board).some(b => b.infrastructure.length)) return fail('refusing to write an inventory from a run with infrastructure failures');
-    writeFileSync(inventoryFile, `${JSON.stringify(Object.fromEntries(Object.entries(board).map(([c, b]) => [c, b.titles])), null, 2)}\n`);
+  const write = { inventory: args.has('--write-inventory'), ledger: args.has('--write-ledger'),
+    allowRemoval: args.has('--allow-inventory-removal') };
+  if (write.inventory || write.ledger) {
+    const { records, problems } = updateRecords(readRecords(root), board, components, write);
+    for (const p of problems) say(`problem: ${p}`);
+    if (problems.length) return fail('refusing to write the records (see the problems; --allow-inventory-removal for a re-vendored test file)');
+    for (const [c, record] of Object.entries(records)) writeRecord(root, c, record);
   }
-  const ledger = JSON.parse(readFileSync(ledgerFile, 'utf8'));
-  const inventory = JSON.parse(readFileSync(inventoryFile, 'utf8'));
-  if (args.has('--write-docs')) writeFileSync(path.join(root, DOCS), renderDocs(board, ledger));
+  // While a component's vendored files are unchanged from the baseline (the merge base with origin/main), its inventory
+  // may not change and its known failures may only shrink (checkBaseline; also a source gate in
+  // tests/upstream/conformance.test.mjs). Skipped where origin/main is not fetched.
+  const base = readBaseline(root);
+  if (base) {
+    const drift = checkBaseline(readRecords(root), readSharedPins(root), base);
+    for (const p of drift) say(`problem: ${p}`);
+    if (drift.length) return fail('blocked (the component records differ from the baseline although the vendored files do not)');
+  }
+  const ledger = readLedger(root);
+  const inventory = readInventory(root);
   let passed = 0, failed = 0;
   for (const [c, b] of Object.entries(board)) { passed += b.passed; failed += b.failed; say(`${c} ${b.passed} passed, ${b.failed} failed`); }
   say(`total ${passed + failed}, passed ${passed}, failed ${failed}; scoreboard in ignored .airig/upstream/`);
@@ -319,7 +397,7 @@ function main() {
   for (const p of result.problems) say(`problem: ${p}`);
   for (const u of result.unexpected) say(`unexpected failure: ${u}`);
   for (const f of result.fixed) say(`now passes, remove from ledger: ${f}`);
-  if (!result.ok) return fail('blocked (results differ from tests/upstream/known-failures.json)');
+  if (!result.ok) return fail(`blocked (results differ from the component records in ${RECORDS}/)`);
   say('passed (every failure is ledgered and every ledgered test still fails)');
 }
 

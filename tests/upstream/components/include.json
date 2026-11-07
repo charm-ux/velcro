@@ -1,0 +1,10 @@
+{
+  "files": {
+    "src/components/include/include.test.ts": "92d2a75d37295280322b35ac9302dd163410219c164b606ed1335dc34b52d898"
+  },
+  "tests": [
+    "<sl-include> > should load content and emit sl-load",
+    "<sl-include> > should emit sl-error when content cannot be loaded"
+  ],
+  "knownFailures": []
+}

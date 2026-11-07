@@ -1,29 +1,29 @@
-// The committed Custom Elements Manifest must be exactly what the analyzer produces from the current source, and it
-// must carry the full API: Velcro's own members and those inherited from @charm-ux/core, each with its origin.
+// Velcro's Custom Elements Manifest, analyzed fresh from the current source (it is build output, never committed), must
+// carry the full API: Velcro's own members and those inherited from @charm-ux/core, each with its origin. Checks that
+// concern one component live in tests/api/components/<name>.mjs (one file per component, so adding a component never
+// edits this file); each exports a function that registers its tests with this file's shared analysis.
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import test, { after } from 'node:test';
-import { customElements, readJson, repoRoot, velcroManifestPath } from '../../scripts/api/model.mjs';
+import test from 'node:test';
+import { analyzeVelcro, customElements, repoRoot } from '../../scripts/api/model.mjs';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 
 const pkgDir = path.join(repoRoot, 'packages/velcro');
-const tmp = mkdtempSync(path.join(tmpdir(), 'velcro-cem-'));
-after(() => rmSync(tmp, { recursive: true, force: true }));
-const manifest = readJson(velcroManifestPath);
+const manifest = analyzeVelcro();
 const elements = customElements(manifest);
+const componentChecks = readdirSync(new URL('./components/', import.meta.url)).filter(f => f.endsWith('.mjs')).sort();
 
-test('the committed manifest matches a fresh analysis of the source (run `pnpm --filter @charm-ux/velcro run analyze`)', () => {
-  const cli = path.join(pkgDir, 'node_modules/@custom-elements-manifest/analyzer/cem.js');
-  // The analyzer joins --outdir onto its working directory, so it must be relative.
-  const r = spawnSync(process.execPath, [cli, 'analyze', '--outdir', path.relative(pkgDir, tmp)], { cwd: pkgDir,
-    encoding: 'utf8', timeout: 300000, env: { ...process.env, VELCRO_CEM_REACT_OUTDIR: path.join(tmp, 'react') } });
-  assert.equal(r.status, 0, 'analyzer failed');
-  const fresh = readFileSync(path.join(tmp, 'custom-elements.json'), 'utf8');
-  assert.equal(fresh, readFileSync(path.join(repoRoot, velcroManifestPath), 'utf8'));
+test('per-component manifest checks belong to catalog components', () => {
+  const names = readCatalog(repoRoot).map(c => c.name);
+  for (const f of componentChecks) assert.ok(names.includes(f.replace(/\.mjs$/, '')), f);
 });
+
+for (const f of componentChecks) {
+  const register = (await import(new URL(`./components/${f}`, import.meta.url))).default;
+  assert.equal(typeof register, 'function', f);
+  register(test, { manifest, elements, pkgDir });
+}
 
 test('every catalog component is in the manifest with its sl- tag, status and core superclass', () => {
   const catalog = readCatalog(repoRoot);
@@ -59,77 +59,7 @@ test('inherited core members, attributes and events are present and name their c
   }
 });
 
-test('sl-switch documents its core extensions truthfully: inert ones say so and no label slot is advertised', () => {
-  const sw = elements.get('sl-switch');
-  const member = name => sw.members.find(m => m.name === name);
-  for (const name of ['invalid', 'labelPosition', 'autofocus']) {
-    assert.match(member(name).description, /^Velcro extension \(core\), inert:/, name);
-    assert.equal(member(name).inheritedFrom, undefined, `${name} is redeclared with the switch's own description`);
-  }
-  for (const name of ['readonly', 'label', 'hideLabel', 'errorMessage']) {
-    assert.match(member(name).description, /^Velcro extension \(core\):/, name);
-  }
-  const text = JSON.stringify(sw);
-  assert.doesNotMatch(text, /`label` slot/);
-  assert.deepEqual(sw.slots.map(s => s.name).sort(), ['', 'help-text']);
-  // dir and lang as Shoelace's base element declares them; core's computed dir is not inherited.
-  for (const name of ['dir', 'lang']) {
-    const attr = sw.attributes.find(a => a.name === name);
-    assert.ok(attr, name);
-    assert.equal(attr.inheritedFrom, undefined, name);
-    assert.equal(member(name).reflects, undefined, `${name} does not reflect`);
-  }
-});
-
-test('sl-tab-panel lists only Shoelace\'s API plus core\'s ready event: core\'s tab events, custom properties and part are not advertised', () => {
-  const panel = elements.get('sl-tab-panel');
-  assert.deepEqual((panel.events ?? []).map(e => e.name), ['ready']);
-  assert.equal(panel.events[0].inheritedFrom.package, '@charm-ux/core');
-  assert.deepEqual(panel.slots.map(s => s.name), ['']);
-  assert.deepEqual(panel.cssParts.map(p => p.name), ['base']);
-  assert.deepEqual(panel.cssProperties.map(p => p.name), ['--padding']);
-  assert.deepEqual(panel.attributes.map(a => a.name).sort(), ['active', 'dir', 'lang', 'name']);
-  // core's internal visible and tab are not declared members; dir and lang are declared as Shoelace's base element does.
-  const names = panel.members.map(m => m.name);
-  assert.ok(!names.includes('visible') && !names.includes('tab'));
-  for (const name of ['dir', 'lang']) {
-    assert.equal(panel.attributes.find(a => a.name === name).inheritedFrom, undefined, name);
-    assert.equal(panel.members.find(m => m.name === name).reflects, undefined, `${name} does not reflect`);
-  }
-});
-
-test('sl-include lists only Shoelace\'s API plus core\'s ready event, with no slot, part or custom property', () => {
-  const include = elements.get('sl-include');
-  assert.deepEqual(include.events.map(e => e.name).sort(), ['ready', 'sl-error', 'sl-load']);
-  assert.equal(include.events.find(e => e.name === 'ready').inheritedFrom.package, '@charm-ux/core');
-  assert.equal(include.events.find(e => e.name === 'sl-error').type.text, '{ status: number }');
-  assert.deepEqual(include.attributes.map(a => a.name).sort(), ['allow-scripts', 'dir', 'lang', 'mode', 'src']);
-  assert.deepEqual(include.slots ?? [], []);
-  assert.deepEqual(include.cssParts ?? [], []);
-  assert.deepEqual(include.cssProperties ?? [], []);
-  // Nothing reflects (as in Shoelace), and dir and lang are declared as Shoelace's base element declares them.
-  for (const member of include.members.filter(m => m.kind === 'field')) assert.notEqual(member.reflects, true, member.name);
-  for (const name of ['dir', 'lang']) assert.equal(include.attributes.find(a => a.name === name).inheritedFrom, undefined, name);
-  // The public methods are Shoelace's: handleSrcChange (public upstream, undescribed) and the private executeScript.
-  assert.equal(include.members.find(m => m.name === 'handleSrcChange').privacy ?? 'public', 'public');
-  assert.equal(include.members.find(m => m.name === 'executeScript').privacy, 'private');
-});
-
-test('the request helper module is exported and documented in the manifest as requestInclude', () => {
-  const mod = manifest.modules.find(m => m.path === 'src/components/include/request.ts');
-  assert.ok(mod, 'request module');
-  assert.deepEqual(mod.exports.map(e => e.name), ['requestInclude']);
-});
-
-test('the sl-include type test covers dir, the React wrapper props and the request helper', () => {
-  const source = readFileSync(path.join(pkgDir, 'type-tests/include.tsx'), 'utf8');
-  assert.match(source, /^element\.dir = direction;$/m);
-  for (const prop of ['src', 'mode', 'allowScripts', 'onSlLoad', 'onSlError']) assert.match(source, new RegExp(`\\b${prop}:`), prop);
-  assert.match(source, /requestInclude\('\/fragment\.html', 'no-cors'\)/);
-  assert.equal(source.match(/@ts-expect-error/g)?.length, 2);
-});
-
-test('inherited slots, parts and CSS custom properties are exactly the per-component kept list (measured in tests/product/inherited-api.spec.mjs)', async () => {
+test('inherited slots, parts and CSS custom properties are exactly what each class declares with @inheritedKept (measured in tests/product/inherited-api.spec.mjs)', async () => {
   const { keptInherited } = await import('../../packages/velcro/custom-elements-manifest.config.mjs');
   for (const [tag, decl] of elements) {
     for (const key of ['slots', 'cssParts', 'cssProperties']) {
@@ -142,6 +72,17 @@ test('inherited slots, parts and CSS custom properties are exactly the per-compo
   assert.ok(!(elements.get('sl-button').cssProperties ?? []).some(p => p.inheritedFrom));
   assert.deepEqual(elements.get('sl-button').cssParts.map(p => p.name).sort(),
     ['base', 'button-control', 'caret', 'label', 'prefix', 'spinner', 'suffix']);
+});
+
+test('inherited core events a class declares with @inheritedEventDropped are not listed, and only those are dropped', async () => {
+  const { droppedInheritedEvents, inheritanceDeclarations } = await import('../../packages/velcro/custom-elements-manifest.config.mjs');
+  assert.ok(Object.keys(droppedInheritedEvents).length > 0);
+  const byClass = new Map([...elements.values()].map(d => [d.name, d]));
+  for (const [name, events] of Object.entries(droppedInheritedEvents)) {
+    const listed = (byClass.get(name)?.events ?? []).map(e => e.name);
+    for (const e of events) assert.ok(!listed.includes(e), `${name} ${e}`);
+  }
+  assert.throws(() => inheritanceDeclarations(path.join(repoRoot, 'tests/api/fixtures/bad-inheritance')), /@inheritedKept needs/);
 });
 
 test('the package ships the manifest and the React wrappers', () => {
@@ -169,26 +110,6 @@ test('the React wrapper type test checks Shoelace props, rejects bad values and 
   assert.deepEqual(config.include, ['dist/react/*.d.ts', 'type-tests/*.tsx']);
   assert.equal(config.compilerOptions.strict, true);
   assert.equal(config.compilerOptions.skipLibCheck, false);
-});
-
-test('the sl-animation API type test checks Shoelace\'s public members and module entries through the export map', () => {
-  const source = readFileSync(path.join(pkgDir, 'type-tests/animation-api.tsx'), 'utf8');
-  for (const entry of ['animation/class', 'animation/animations', 'utilities/animation']) {
-    assert.match(source, new RegExp(`from '@charm-ux/velcro/${entry}';`), entry);
-  }
-  assert.match(source, /Pick<VelcroAnimation, ShoelacePublicMembers> = element;/);
-  for (const member of ['defaultSlot', 'currentTime', 'handleAnimationChange', 'handlePlayChange', 'handlePlaybackRateChange', 'cancel', 'finish', 'render']) {
-    assert.match(source, new RegExp(`\\| '${member}'$`, 'm'), member);
-  }
-  assert.match(source, /^const rendered: unknown = element\.render\(\);$/m);
-  assert.equal(source.match(/@ts-expect-error/g)?.length, 2);
-});
-
-test('the sl-icon dir type test assigns a string-typed direction, as Shoelace declares dir: string', () => {
-  const source = readFileSync(path.join(pkgDir, 'type-tests/icon-dir.tsx'), 'utf8');
-  assert.match(source, /declare const direction: string;/);
-  assert.match(source, /^element\.dir = direction;$/m);
-  assert.equal(source.match(/@ts-expect-error/g)?.length, 1);
 });
 
 test('the React wrapper fix manages hyphenated-attribute props as element properties, on one line or wrapped', async () => {
@@ -220,31 +141,4 @@ test('the React wrapper fix manages hyphenated-attribute props as element proper
   assert.doesNotMatch(out, /snap-threshold|maximum-fraction-digits|help-text/);
   assert.match(out, /\.\.\.\(tabIndex === undefined \? \{\} : \{ tabindex: tabIndex \}\),/);
   assert.match(out, /ref: createForwardedRefHandler\(ref, forwardedRef\),/);
-});
-
-test('sl-menu-label lists only Shoelace\'s API plus core\'s ready event, with one default slot and the base part', () => {
-  const label = elements.get('sl-menu-label');
-  assert.deepEqual((label.events ?? []).map(e => e.name), ['ready']);
-  assert.equal(label.events[0].inheritedFrom.package, '@charm-ux/core');
-  assert.deepEqual(label.slots.map(s => s.name), ['']);
-  assert.deepEqual(label.cssParts.map(p => p.name), ['base']);
-  assert.deepEqual(label.cssProperties ?? [], []);
-  assert.deepEqual(label.attributes.map(a => a.name).sort(), ['dir', 'lang']);
-  // Nothing reflects (as in Shoelace), and dir and lang are declared as Shoelace's base element declares them.
-  for (const member of label.members.filter(m => m.kind === 'field')) assert.notEqual(member.reflects, true, member.name);
-  for (const name of ['dir', 'lang']) assert.equal(label.attributes.find(a => a.name === name).inheritedFrom, undefined, name);
-});
-
-test('the sl-menu-label dir type test assigns a string-typed direction, as Shoelace declares dir: string', () => {
-  const source = readFileSync(path.join(pkgDir, 'type-tests/menu-label-dir.tsx'), 'utf8');
-  assert.match(source, /declare const direction: string;/);
-  assert.match(source, /^element\.dir = direction;$/m);
-  assert.equal(source.match(/@ts-expect-error/g)?.length, 1);
-});
-
-test('the sl-tab-panel dir type test assigns a string-typed direction, as Shoelace declares dir: string', () => {
-  const source = readFileSync(path.join(pkgDir, 'type-tests/tab-panel-dir.tsx'), 'utf8');
-  assert.match(source, /declare const direction: string;/);
-  assert.match(source, /^element\.dir = direction;$/m);
-  assert.equal(source.match(/@ts-expect-error/g)?.length, 1);
 });

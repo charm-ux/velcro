@@ -1,0 +1,12 @@
+{
+  "files": {
+    "src/components/spinner/spinner.test.ts": "f8e1af48a7227d43eb91937a2cd8b240edb1612e50955dcbfb185784e2638bda"
+  },
+  "tests": [
+    "<sl-spinner> > when provided no parameters > should pass accessibility tests",
+    "<sl-spinner> > when provided no parameters > should have a role of \"status\".",
+    "<sl-spinner> > when provided no parameters > should use \"transform: rotate(x)\" instead of \"rotate: x\" when animating",
+    "<sl-spinner> > when provided no parameters > should have flex:none to prevent flex re-sizing"
+  ],
+  "knownFailures": []
+}

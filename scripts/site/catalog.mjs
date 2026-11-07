@@ -1,6 +1,8 @@
-// The component catalog: packages/docs/catalog.jsonl, one JSON object per line, sorted by name. It is the single list that
-// drives the docs navigation, the home page, the required site pages and the browser routes. Read strictly: any unexpected
-// shape, name, duplicate, ordering or size fails closed with a short code (never the offending content).
+// The component catalog: packages/docs/catalog.jsonl, one JSON object per line. It is the single list that drives the
+// docs navigation, the home page, the required site pages, the browser routes and every derived list (scripts/sync.mjs).
+// Read strictly: any unexpected shape, name, duplicate or size fails closed with a short code (never the offending
+// content). Line order is not significant: entries are returned sorted by name, so two branches that each add a line
+// merge cleanly (.gitattributes merges the file with git's union driver).
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +27,7 @@ const fail = code => { throw new CatalogError(code); };
 
 export const defaultRoot = fileURLToPath(new URL('../../', import.meta.url));
 
-/** Parses catalog text. Returns frozen entries [{ name, title, tag, example }] in file order. */
+/** Parses catalog text. Returns frozen entries [{ name, title, tag, example }] sorted by name. */
 export function parseCatalog(text) {
   if (typeof text !== 'string' || text.length === 0) fail('catalog-empty');
   if (Buffer.byteLength(text) > CATALOG_LIMITS.maxBytes) fail('catalog-too-large');
@@ -47,11 +49,10 @@ export function parseCatalog(text) {
     if (!TAG.test(tag) || tag !== `sl-${name}`) fail('catalog-tag');
     if (!SELECTOR.test(example)) fail('catalog-example');
     if (seen.has(name)) fail('catalog-duplicate');
-    if (entries.length > 0 && !(entries[entries.length - 1].name < name)) fail('catalog-unsorted');
     seen.add(name);
     entries.push(Object.freeze({ name, title, tag, example }));
   }
-  return Object.freeze(entries);
+  return Object.freeze(entries.sort((a, b) => (a.name < b.name ? -1 : 1)));
 }
 
 export function readCatalog(root = defaultRoot) {
@@ -170,7 +171,8 @@ export function checkExports(exportsMap, catalog) {
 
 /**
  * Coverage gate: returns a list of problems (empty means complete). Every component directory needs a catalog entry and
- * every entry needs its component directory, docs page, example using its tag, product spec, package export and barrel line.
+ * every entry needs its component directory, docs page, example using its tag, product spec and package export. The
+ * package root barrel (src/index.ts) is generated from the catalog at build time (scripts/sync.mjs), so it has no gate.
  */
 export function checkCoverage(root = defaultRoot) {
   const problems = [];
@@ -185,8 +187,6 @@ export function checkCoverage(root = defaultRoot) {
   for (const f of listFiles(path.join(root, 'packages/docs/pages/components'))) {
     if (f.endsWith('.ts') && !names.has(f.slice(0, -3))) problems.push(`${f.slice(0, -3)}: docs page has no catalog entry`);
   }
-  let barrel = [];
-  try { barrel = readFileSync(path.join(root, 'packages/velcro/src/index.ts'), 'utf8').split('\n'); } catch { problems.push('src/index.ts: unreadable'); }
   for (const { name, tag, example } of catalog) {
     if (!dirs.includes(name)) problems.push(`${name}: catalog entry has no component directory`);
     if (!existsSync(path.join(root, `packages/docs/pages/components/${name}.ts`))) problems.push(`${name}: missing docs page`);
@@ -202,7 +202,6 @@ export function checkCoverage(root = defaultRoot) {
     if (!matcher) problems.push(`${name}: example selector ${example} is unsupported`);
     else if (!sources.some(t => matcher.test(t))) problems.push(`${name}: example selector ${example} matches nothing in its examples`);
     if (!existsSync(path.join(root, `tests/product/${name}.spec.mjs`))) problems.push(`${name}: missing product spec`);
-    if (!barrel.includes(`export * from './components/${name}/index.js';`)) problems.push(`${name}: missing index export`);
   }
   return problems;
 }

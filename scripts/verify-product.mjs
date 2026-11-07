@@ -195,8 +195,8 @@ function main() {
     }
   }
   if (stage === 'all' || stage === 'upstream') {
-    // Shoelace's own test files against the built library; gated by tests/upstream/known-failures.json.
-    if (!step('upstream-conformance', ['run', 'test:upstream', '--no-build'])) return fail('blocked (upstream conformance differs from the known-failures ledger)');
+    // Shoelace's own test files against the built library; gated by the component records in tests/upstream/components/.
+    if (!step('upstream-conformance', ['run', 'test:upstream', '--no-build'])) return fail('blocked (upstream conformance differs from the component records in tests/upstream/components/)');
     if (stage === 'upstream') {
       if (!unchanged()) return fail('blocked (tested site changed during verification)');
       process.stdout.write('verify:product: passed (upstream conformance)\n');

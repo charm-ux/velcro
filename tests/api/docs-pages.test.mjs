@@ -5,10 +5,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
-import { apiModel, customElements, readJson, repoRoot, velcroManifestPath } from '../../scripts/api/model.mjs';
+import { analyzeVelcro, apiModel, customElements, repoRoot } from '../../scripts/api/model.mjs';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 
 const catalog = readCatalog(repoRoot);
+const declaresDir = name => /^\s+public override (?:get|set) dir\(/m
+  .test(readFileSync(path.join(repoRoot, 'packages/velcro/src/components', name, `${name}.ts`), 'utf8'));
 const API_IDS = ['attributes', 'methods', 'events', 'slots', 'parts', 'css-properties'];
 
 test('every component page renders apiReference for its own tag and hand-writes no API section', () => {
@@ -24,15 +26,16 @@ test('every component page renders apiReference for its own tag and hand-writes 
 test('the docs API data generator emits the manifest model of every catalog component', async () => {
   const generator = readFileSync(path.join(repoRoot, 'packages/docs/scripts/generate-examples.mjs'), 'utf8');
   assert.match(generator, /apiModel\(decl\)/);
-  const elements = customElements(readJson(velcroManifestPath));
+  const elements = customElements(analyzeVelcro());
   const button = apiModel(elements.get('sl-button'));
   assert.ok(button.properties.some(p => p.name === 'toggle' && p.origin === 'from @charm-ux/core CoreButton'));
   assert.ok(button.properties.some(p => p.name === 'variant' && p.origin === '' && p.reflects && p.attribute === 'variant'));
   assert.ok(button.methods.some(m => m.name === 'click'));
-  for (const { tag } of catalog) {
+  for (const { name, tag } of catalog) {
     const model = apiModel(elements.get(tag));
-    // sl-animation, sl-icon, sl-include, sl-menu-label, sl-switch, sl-popup and sl-tab-panel declare dir themselves, as Shoelace's base element does (not core's computed direction).
-    const dirOrigin = ['sl-animation', 'sl-icon', 'sl-include', 'sl-menu-label', 'sl-switch', 'sl-popup', 'sl-tab-panel'].includes(tag) ? (o => o === '') : (o => o.startsWith('from @charm-ux/core'));
+    // A component that declares dir itself (as Shoelace's base element does, not core's computed direction) owns it;
+    // the others inherit core's. Read from the component source, so the expectation needs no per-component list.
+    const dirOrigin = declaresDir(name) ? (o => o === '') : (o => o.startsWith('from @charm-ux/core'));
     assert.ok(model.properties.some(p => p.name === 'dir' && dirOrigin(p.origin)), `${tag}: dir origin`);
   }
 });

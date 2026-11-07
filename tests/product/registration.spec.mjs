@@ -1,12 +1,14 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
+import { velcroManifestPath } from '../../scripts/api/model.mjs';
+import { readCatalog } from '../../scripts/site/catalog.mjs';
 
-// Scope of these checks: Velcro's own animation, badge, button, card, divider, format-bytes, format-date, format-number, icon, include, menu-label, mutation-observer, popup, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, split-panel, switch, tab-panel and visually-hidden (everything the package root registers) register
+// Scope of these checks: every catalog component (packages/docs/catalog.jsonl; everything the package root registers) registers
 // by defining their exported classes natively, in each engine of the product suite, alone or next to core's own button. The switch is the one scope-dependent core
 // component: it runs on Velcro's local scope resolver (its generic checks are in registration-helper.spec.mjs); nested core components are not shown to work.
 // Needs the built library: `pnpm --filter @charm-ux/velcro run build` (verify:product does this first).
@@ -46,7 +48,38 @@ test.beforeEach(async ({ page }) => {
 });
 
 // Everything the package root registers.
-const ALL_TAGS = ['sl-animation', 'sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-icon', 'sl-include', 'sl-menu-label', 'sl-mutation-observer', 'sl-popup', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-split-panel', 'sl-switch', 'sl-tab-panel', 'sl-visually-hidden'];
+const CATALOG = readCatalog(root);
+const ALL_TAGS = CATALOG.map(c => c.tag).sort();
+const pascal = name => name.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join('');
+// Badge and divider have no Sl* alias (their class is the alias); every later component ships one.
+const NO_ALIAS = ['sl-badge', 'sl-divider'];
+// How each element shows it rendered. By default, from its manifest: its `base` part when it declares one, else a slot
+// when it declares slots. An element with neither needs an entry here (no "any shadow element" default: the test must
+// name what the component's public surface is). These elements expose a different public surface:
+const SURFACE = {
+  // The divider renders nothing in its shadow root (its public surface is the host separator role); format-bytes and
+  // format-number render only text (their public surface is the formatted string).
+  'sl-divider': { role: 'separator' },
+  'sl-format-bytes': { text: '0 byte' },
+  'sl-format-date': { selector: 'time[datetime]' },
+  'sl-relative-time': { selector: 'time' },
+  'sl-format-number': { text: '0' },
+  // An icon without a name or src draws nothing; its public surface is then the presentational host.
+  'sl-icon': { icon: true },
+  'sl-split-panel': { selector: '[part~="divider"]' },
+  'sl-include': { selector: 'slot' },
+};
+const declared = new Map(JSON.parse(readFileSync(path.join(root, velcroManifestPath), 'utf8')).modules
+  .flatMap(m => m.declarations ?? []).filter(d => d.tagName).map(d => [d.tagName, d]));
+const surface = tag => {
+  if (SURFACE[tag]) return SURFACE[tag];
+  if (declared.get(tag)?.cssParts?.some(p => p.name === 'base')) return { selector: '[part~="base"]' };
+  if (declared.get(tag)?.slots?.length) return { selector: 'slot' };
+  throw new Error(`${tag} declares no base part and no slot: add its public surface to SURFACE in registration.spec.mjs`);
+};
+const COMPONENTS = CATALOG.map(({ name, tag }) => ({
+  tag, cls: `Velcro${pascal(name)}`, alias: NO_ALIAS.includes(tag) ? `Velcro${pascal(name)}` : `Sl${pascal(name)}`, surface: surface(tag),
+}));
 
 const importAll = (page, ...names) => page.evaluate(async list => {
   const out = [];
@@ -105,45 +138,28 @@ test('class-only entries define nothing and leave core state alone, and construc
 for (const order of [['buttonClass', 'button'], ['button', 'buttonClass'], ['spinnerClass', 'root'], ['root', 'spinnerClass'], ['progressBarClass', 'root'], ['root', 'progressBarClass'], ['switchClass', 'switch'], ['switch', 'root']]) {
   test(`identity and construction hold for import order ${order.join(' then ')}`, async ({ page }) => {
     await importAll(page, ...order);
-    const r = await page.evaluate(async () => {
+    const r = await page.evaluate(async components => {
       const m = await import('/root.js');
       const out = {};
-      // Badge and divider have no class-only entry or Sl* alias in this batch, so their alias check is the class itself.
-      for (const [tag, Cls, Alias] of [['sl-animation', m.VelcroAnimation, m.SlAnimation], ['sl-badge', m.VelcroBadge, m.VelcroBadge], ['sl-button', m.VelcroButton, m.SlButton],
-        ['sl-card', m.VelcroCard, m.SlCard], ['sl-divider', m.VelcroDivider, m.VelcroDivider], ['sl-format-bytes', m.VelcroFormatBytes, m.SlFormatBytes], ['sl-format-date', m.VelcroFormatDate, m.SlFormatDate], ['sl-format-number', m.VelcroFormatNumber, m.SlFormatNumber], ['sl-icon', m.VelcroIcon, m.SlIcon], ['sl-mutation-observer', m.VelcroMutationObserver, m.SlMutationObserver], ['sl-popup', m.VelcroPopup, m.SlPopup], ['sl-progress-bar', m.VelcroProgressBar, m.SlProgressBar],
-        ['sl-progress-ring', m.VelcroProgressRing, m.SlProgressRing], ['sl-relative-time', m.VelcroRelativeTime, m.SlRelativeTime], ['sl-resize-observer', m.VelcroResizeObserver, m.SlResizeObserver],
-        ['sl-skeleton', m.VelcroSkeleton, m.SlSkeleton],
-        ['sl-spinner', m.VelcroSpinner, m.SlSpinner],
-        ['sl-split-panel', m.VelcroSplitPanel, m.SlSplitPanel],
-        ['sl-switch', m.VelcroSwitch, m.SlSwitch],
-        ['sl-include', m.VelcroInclude, m.SlInclude],
-        ['sl-menu-label', m.VelcroMenuLabel, m.SlMenuLabel],
-        ['sl-tab-panel', m.VelcroTabPanel, m.SlTabPanel],
-        ['sl-visually-hidden', m.VelcroVisuallyHidden, m.SlVisuallyHidden]]) {
+      for (const { tag, cls, alias, surface } of components) {
+        const Cls = m[cls];
         const el = new Cls();
         document.body.append(el);
         await el.updateComplete;
         out[tag] = {
           registered: customElements.get(tag) === Cls,
-          alias: Alias === Cls,
+          alias: m[alias] === Cls,
           instance: el instanceof Cls,
           localName: el.localName,
           viaCreate: document.createElement(tag) instanceof Cls,
-          // The divider renders nothing in its shadow root (its public surface is the host separator role); format-bytes and format-number render
-          // only text (its public surface is the formatted string).
-          rendered: tag === 'sl-divider' ? el.getAttribute('role') === 'separator'
-            : tag === 'sl-format-bytes' ? el.shadowRoot?.textContent === '0 byte'
-            : tag === 'sl-format-date' ? !!el.shadowRoot?.querySelector('time[datetime]')
-            : tag === 'sl-relative-time' ? !!el.shadowRoot?.querySelector('time')
-            : tag === 'sl-format-number' ? el.shadowRoot?.textContent === '0'
-            // An icon without a name or src draws nothing; its public surface is then the presentational host.
-            : tag === 'sl-icon' ? el.getAttribute('aria-hidden') === 'true' && !el.shadowRoot?.querySelector('svg')
-            : tag === 'sl-split-panel' ? !!el.shadowRoot?.querySelector('[part~="divider"]')
-            : tag === 'sl-visually-hidden' || tag === 'sl-include' || tag === 'sl-resize-observer' || tag === 'sl-mutation-observer' || tag === 'sl-popup' || tag === 'sl-animation' ? !!el.shadowRoot?.querySelector('slot') : !!el.shadowRoot?.querySelector('[part~="base"]'),
+          rendered: surface.role ? el.getAttribute('role') === surface.role
+            : surface.text !== undefined ? el.shadowRoot?.textContent === surface.text
+            : surface.icon ? el.getAttribute('aria-hidden') === 'true' && !el.shadowRoot?.querySelector('svg')
+            : !!el.shadowRoot?.querySelector(surface.selector),
         };
       }
       return { out, defines: window.__defines.slice() };
-    });
+    }, COMPONENTS);
     const expected = { registered: true, alias: true, instance: true, viaCreate: true, rendered: true };
     for (const tag of ALL_TAGS) expect(r.out[tag], tag).toEqual({ ...expected, localName: tag });
     expect(Object.keys(r.out).sort()).toEqual(ALL_TAGS);
@@ -245,7 +261,7 @@ for (const order of ['velcro first', 'core first']) {
 // Whole-root isolation: importing the package root (all registering entries) must not change core's prefix,
 // project config, scope object or either scope Map, compared by identity and by entry (so same-size value changes show).
 test('the whole package root changes no core state: prefix, config, scope object and both scope maps', async ({ page }) => {
-  const r = await page.evaluate(async () => {
+  const r = await page.evaluate(async tags => {
     await import('/coreButton.js'); // seeds both scope maps with real entries so changes are observable
     const { project } = await import('/coreProject.js');
     const capture = () => {
@@ -271,7 +287,7 @@ test('the whole package root changes no core state: prefix, config, scope object
       for (const [k] of after[entriesKey]) if (!before[entriesKey].some(([k2]) => k2 === k)) problems.push(`${label} key added: ${k}`);
     }
     return { seeded: [before.tagEntries.length, before.baseEntries.length], problems, sameConfig: before.config === after.config,
-      prefix: after.prefix, defined: ['sl-animation', 'sl-badge', 'sl-button', 'sl-card', 'sl-divider', 'sl-format-bytes', 'sl-format-date', 'sl-format-number', 'sl-icon', 'sl-include', 'sl-menu-label', 'sl-mutation-observer', 'sl-popup', 'sl-progress-bar', 'sl-progress-ring', 'sl-relative-time', 'sl-resize-observer', 'sl-skeleton', 'sl-spinner', 'sl-split-panel', 'sl-switch', 'sl-tab-panel', 'sl-visually-hidden'].map(t => customElements.get(t) !== undefined),
+      prefix: after.prefix, defined: tags.map(t => customElements.get(t) !== undefined),
       // The switch is the scope-dependent component: creating and connecting one must not touch core's scope either.
       switchMarker: await (async () => {
         const el = document.createElement('sl-switch');
@@ -281,8 +297,8 @@ test('the whole package root changes no core state: prefix, config, scope object
         el.remove();
         return found;
       })() };
-  });
-  expect(r.defined).toEqual(Array(23).fill(true));
+  }, ALL_TAGS);
+  expect(r.defined).toEqual(ALL_TAGS.map(() => true));
   expect(r.switchMarker).toBe(false);
   expect(r.seeded[0]).toBeGreaterThan(0);
   expect(r.seeded[1]).toBeGreaterThan(0);
