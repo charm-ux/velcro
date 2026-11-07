@@ -1,0 +1,7 @@
+{
+  "note": "A tab panel is display: none until active, and a probe with no box cannot be pointed at.",
+  "content": "Panel",
+  "attrs": {
+    "active": ""
+  }
+}

@@ -104,7 +104,7 @@ function main() {
   if (c) process.stdout.write(`verify:product: tests ${c.total}, passed ${c.passed}, failed ${c.failed}, flaky ${c.flaky}, skipped ${c.skipped}\n`);
   if (!result.ok) return fail(`blocked (${result.reason})`);
   // Shoelace's own test files against the built library; gated by tests/upstream/known-failures.json.
-  if (!step('upstream-conformance', ['run', 'test:upstream', '--no-build'])) return fail('blocked (upstream conformance differs from the known-failures ledger)');
+  if (!step('upstream-conformance', ['run', 'test:upstream', '--no-build'])) return fail('blocked (upstream conformance differs from the component records in tests/upstream/components/)');
   // Success evidence only if the tested bytes are still exactly the captured bytes.
   let after;
   try { after = snapshotTested(root); } catch { return fail('blocked (tested site could not be re-read)'); }

@@ -1,0 +1,5 @@
+# Line-per-record files that parallel component branches each add one line to. Git's built-in union merge keeps the
+# lines of both sides instead of reporting a conflict when two branches insert at the same place. Readers do not depend
+# on line order: the catalog is sorted on read, and the package export map is checked as a set (scripts/sync.mjs).
+packages/docs/catalog.jsonl merge=union
+packages/velcro/package.json merge=union

@@ -1,0 +1,9 @@
+{
+  "files": {
+    "src/components/mutation-observer/mutation-observer.test.ts": "36abf8ac46f6045fd7211ef44e4beb7ab935139c54c92a61ba207e0dcd5c0a26"
+  },
+  "tests": [
+    "<sl-mutation-observer> > should render a component"
+  ],
+  "knownFailures": []
+}

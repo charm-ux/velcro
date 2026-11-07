@@ -1,0 +1,4 @@
+{
+  "note": "Includes the slotted icon rules of core's button styles.",
+  "content": "<svg slot=\"prefix\" viewBox=\"0 0 10 10\"></svg><svg viewBox=\"0 0 10 10\"></svg>Label<span slot=\"suffix\">s</span>"
+}

@@ -49,7 +49,6 @@ function fixture(mutate = () => {}) {
   };
   put('packages/docs/catalog.jsonl', '{"name":"alpha","title":"Alpha","tag":"sl-alpha","example":"#demo-default"}\n');
   put('packages/velcro/src/components/alpha/index.ts', 'export {};\n');
-  put('packages/velcro/src/index.ts', "export * from './components/alpha/index.js';\n");
   put('packages/velcro/package.json', JSON.stringify({ exports: baseExports(['alpha']) }));
   put('packages/docs/pages/components/alpha.ts', 'export {};\n');
   put('packages/docs/examples/alpha/basic.html', '<sl-alpha id="demo-default"></sl-alpha>\n');
@@ -80,7 +79,6 @@ const negatives = [
   ['an orphan docs page', ({ put }) => put('packages/docs/pages/components/orphan.ts', 'export {};\n'), 'orphan: docs page has no catalog entry'],
   ['an example selector that matches nothing', ({ put }) => put('packages/docs/catalog.jsonl', '{"name":"alpha","title":"Alpha","tag":"sl-alpha","example":"#nope"}\n'), 'alpha: example selector #nope matches nothing in its examples'],
   ['an unsupported example selector', ({ put }) => put('packages/docs/catalog.jsonl', '{"name":"alpha","title":"Alpha","tag":"sl-alpha","example":".cls"}\n'), 'alpha: example selector .cls is unsupported'],
-  ['a missing barrel export', ({ put }) => put('packages/velcro/src/index.ts', ''), 'alpha: missing index export'],
   ['a missing catalog file', ({ remove }) => remove('packages/docs/catalog.jsonl'), 'catalog: catalog-unreadable'],
 ];
 for (const [label, mutate, expected] of negatives) {
@@ -172,7 +170,6 @@ test('a complete additional component passes the combined source contracts', () 
   const dir = fixture(({ put }) => {
     put('packages/docs/catalog.jsonl', '{"name":"alpha","title":"Alpha","tag":"sl-alpha","example":"#demo-default"}\n{"name":"beta-box","title":"Beta Box","tag":"sl-beta-box","example":"sl-beta-box"}\n');
     put('packages/velcro/src/components/beta-box/index.ts', 'export {};\n');
-    put('packages/velcro/src/index.ts', "export * from './components/alpha/index.js';\nexport * from './components/beta-box/index.js';\n");
     put('packages/velcro/package.json', JSON.stringify({ exports: { ...baseExports(['alpha', 'beta-box']), './beta-box/class': tgt('components/beta-box/class') } }));
     put('packages/docs/pages/components/beta-box.ts', 'export {};\n');
     put('packages/docs/examples/beta-box/basic.html', '<sl-beta-box></sl-beta-box>\n');
@@ -219,7 +216,9 @@ test('catalog parsing fails closed on every malformed shape', () => {
   bad(ok.replace('"tag":"sl-a"', '"tag":"sl-b"'), 'catalog-tag');
   bad(ok.replace('"#x"', '"a b"'), 'catalog-example');
   bad(ok + ok, 'catalog-duplicate');
-  bad('{"name":"b","title":"B","tag":"sl-b","example":"#x"}\n' + ok, 'catalog-unsorted');
+  // Line order is free (a union merge of two branches may leave added lines out of order); entries come back sorted.
+  assert.deepEqual(parseCatalog('{"name":"b","title":"B","tag":"sl-b","example":"#x"}\n' + ok).map(e => e.name), ['a', 'b']);
+  bad('{"name":"b","title":"B","tag":"sl-b","example":"#x"}\n' + ok + '{"name":"b","title":"B","tag":"sl-b","example":"#y"}\n', 'catalog-duplicate');
   const many = Array.from({ length: CATALOG_LIMITS.maxEntries + 1 }, (_, i) => {
     const name = `c${String(i).padStart(3, '0')}`;
     return JSON.stringify({ name, title: name, tag: `sl-${name}`, example: '#x' });

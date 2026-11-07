@@ -11,7 +11,7 @@ const pkgDir = path.join(root, 'packages/velcro');
 const requireFromRoot = createRequire(path.join(root, 'package.json'));
 const plopBin = path.join(path.dirname(requireFromRoot.resolve('plop/package.json')), 'bin/plop.js');
 
-// Runs the real generator against a copy of the plopfile, templates, barrel and catalog in ignored scratch, laid out like the
+// Runs the real generator against a copy of the plopfile, templates and catalog in ignored scratch, laid out like the
 // repository (<repo>/packages/velcro, <repo>/packages/docs, <repo>/tests/product). Returns the package directory.
 function scratch() {
   mkdirSync(path.join(root, '.airig'), { recursive: true });
@@ -25,7 +25,6 @@ function scratch() {
   cpSync(path.join(pkgDir, 'plop-templates'), path.join(dir, 'plop-templates'), { recursive: true });
   mkdirSync(path.join(dir, 'src/utilities'), { recursive: true });
   cpSync(path.join(pkgDir, 'src/utilities/registration.ts'), path.join(dir, 'src/utilities/registration.ts'));
-  writeFileSync(path.join(dir, 'src/index.ts'), "export * from './components/button/index.js';\n");
   return dir;
 }
 
@@ -78,19 +77,30 @@ test('generated scaffold type-checks against core and the helper', () => {
   assert.equal(r.status, 0, 'scaffold did not type-check');
 });
 
-test('repeat generation adds the barrel export once and never overwrites existing files', () => {
+test('repeat generation never overwrites existing files, and the generator edits no shared list but the catalog', () => {
   const dir = scratch();
-  generate(dir, 'divider');
+  const repo = path.join(dir, '../..');
+  const out = generate(dir, 'divider');
+  // The barrel and the package exports are derived (build time and `pnpm sync`), so the generator never writes them.
+  assert.ok(!existsSync(path.join(dir, 'src/index.ts')));
+  assert.ok(!existsSync(path.join(dir, 'package.json')));
+  assert.match(out, /pnpm sync/);
   const files = ['divider.ts', 'divider.styles.ts', 'index.ts', 'class.ts'].map(f => `src/components/divider/${f}`);
   for (const f of files) writeFileSync(path.join(dir, f), `// hand edited ${f}\n`);
   generate(dir, 'divider');
   for (const f of files) assert.equal(read(dir, f), `// hand edited ${f}\n`);
-  const lines = read(dir, 'src/index.ts').split('\n').filter(Boolean);
-  assert.deepEqual(lines, [
-    "export * from './components/button/index.js';",
-    "export * from './components/divider/index.js';",
-  ]);
   assert.ok(existsSync(path.join(dir, 'src/components/divider/class.ts')));
+  const written = walk(repo).map(f => path.relative(repo, f).split(path.sep).join('/'))
+    .filter(f => !f.startsWith('packages/velcro/plop') && f !== 'packages/velcro/src/utilities/registration.ts').sort();
+  assert.deepEqual(written, [
+    'packages/docs/catalog.jsonl',
+    'packages/docs/examples/divider/basic.html',
+    'packages/docs/pages/components/divider.ts',
+    'packages/docs/showcase/divider.html',
+    ...files.map(f => `packages/velcro/${f}`),
+    'tests/product/divider.spec.mjs',
+  ].sort());
+  assert.match(read(repo, 'packages/docs/showcase/divider.html'), /<sl-divider><\/sl-divider>/);
 });
 
 test('generator also scaffolds the docs page, an example, a failing spec skeleton and a sorted catalog entry', () => {
@@ -116,7 +126,8 @@ test('repeat generation leaves the catalog, page, example and spec untouched', (
   const dir = scratch();
   const repo = path.join(dir, '../..');
   generate(dir, 'divider');
-  const files = ['packages/docs/pages/components/divider.ts', 'packages/docs/examples/divider/basic.html', 'tests/product/divider.spec.mjs'];
+  const files = ['packages/docs/pages/components/divider.ts', 'packages/docs/examples/divider/basic.html', 'packages/docs/showcase/divider.html',
+    'tests/product/divider.spec.mjs'];
   for (const f of files) writeFileSync(path.join(repo, f), `// hand edited ${f}\n`);
   const catalog = read(repo, 'packages/docs/catalog.jsonl');
   generate(dir, 'divider');

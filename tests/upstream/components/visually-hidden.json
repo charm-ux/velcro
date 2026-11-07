@@ -1,0 +1,10 @@
+{
+  "files": {
+    "src/components/visually-hidden/visually-hidden.test.ts": "8b4762b04e3b2fd52b91d6d9a31d1abe4913b4d3bd62087a689c2950e4e91fef"
+  },
+  "tests": [
+    "<sl-visually-hidden> > should render but not display visually hidden content",
+    "<sl-visually-hidden> > should show visually hidden content when focused"
+  ],
+  "knownFailures": []
+}

@@ -2,11 +2,13 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 /**
  * Minimal Velcro component generator, following the plop convention used by @charm-ux/core.
- * It also scaffolds the docs page, one example, a failing product spec skeleton and the sorted catalog entry
+ * It also scaffolds the docs page, one example, a showcase snippet, a failing product spec skeleton and the catalog entry
  * (packages/docs/catalog.jsonl), which the coverage gate (tests/bootstrap/catalog.test.mjs) requires for every component.
  * It scaffolds the same shape as button/spinner: the class, a `class.ts` that registers no element, with the `Sl*` alias, and a
- * registering `index.ts` that uses the native-registry helper. It does not add the package.json `exports` entries
- * (add `./<name>` and `./<name>/class` by hand) and does not certify that the component works with Velcro's registration.
+ * registering `index.ts` that uses the native-registry helper. Everything else is derived from the catalog and the
+ * component folder: the package root barrel at build time, and the package.json `exports` entries and the API parity
+ * report by `pnpm sync` (run it from the repository root after generating). It does not certify that the component works
+ * with Velcro's registration.
  */
 export default function (plop) {
   plop.setGenerator('Velcro component', {
@@ -65,6 +67,12 @@ export default function (plop) {
         path: '../../tests/product/{{kebabCase name}}.spec.mjs',
         templateFile: 'plop-templates/product-spec.mjs.hbs',
       },
+      {
+        type: 'add',
+        skipIfExists: true,
+        path: '../docs/showcase/{{kebabCase name}}.html',
+        templateFile: 'plop-templates/showcase.html.hbs',
+      },
       // Idempotent, sorted catalog entry (one JSON object per line).
       answers => {
         const name = plop.getHelper('kebabCase')(answers.name);
@@ -77,15 +85,7 @@ export default function (plop) {
         writeFileSync(file, `${lines.join('\n')}\n`);
         return `added: catalog entry ${name}`;
       },
-      // Idempotent barrel export (plop's own `append` does not see a match on the first line).
-      answers => {
-        const line = `export * from './components/${plop.getHelper('kebabCase')(answers.name)}/index.js';`;
-        const file = new URL('src/index.ts', import.meta.url);
-        const current = existsSync(file) ? readFileSync(file, 'utf8') : '';
-        if (current.split('\n').includes(line)) return `exists: ${line}`;
-        writeFileSync(file, `${current}${current && !current.endsWith('\n') ? '\n' : ''}${line}\n`);
-        return `added: ${line}`;
-      },
+      () => 'next: run `pnpm sync` from the repository root to add the package exports and the API parity report',
     ],
   });
 }

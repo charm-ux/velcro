@@ -1,0 +1,10 @@
+{
+  "files": {
+    "src/components/popup/popup.test.ts": "9f2180cd3dc1256ae038a5a7babee3dcf1d00571fa7a2a580de45091889a52ab"
+  },
+  "tests": [
+    "<sl-popup> > should render a component",
+    "<sl-popup> > should properly handle positioning when active changes"
+  ],
+  "knownFailures": []
+}
