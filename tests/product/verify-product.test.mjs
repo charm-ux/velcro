@@ -516,3 +516,15 @@ test('summary: the failing assertion line is added only when it is in the test\'
   for (const line of [0, -1, 1.5, '645', undefined]) assert.equal(summary(at(runnerFile, line)), 'firefox split-panel.spec.mjs:4 title 4 | matcher toBe');
   assert.equal(summary(fake('firefox', 'unexpected', 'Error: boom', 4)), 'firefox x.spec.mjs:4 title 4 | error Error');
 });
+
+test('summary: a test timeout names the line of the call that was still pending, from a later error', () => {
+  const runnerFile = ['', 'runner', 'work', 'velcro', 'tests', 'product', 'button.spec.mjs'].join('/');
+  const timedOut = errors => ({ title: 'renders', file: 'button.spec.mjs', line: 37,
+    tests: [{ projectName: 'webkit', status: 'unexpected', results: [{ status: 'timedOut', error: errors[0], errors }] }] });
+  const first = { message: 'Test timeout of 45000ms exceeded.' };
+  const pending = file => ({ message: 'Error: locator.boundingBox: Test timeout of 45000ms exceeded.\nCall log:\n  - waiting', location: { file, line: 40, column: 3 } });
+  const summary = errors => summarizeReport(rep([timedOut(errors)])).lines.at(-1);
+  assert.equal(summary([first, pending(runnerFile)]), 'webkit button.spec.mjs:37 renders | test timeout, line 40');
+  assert.equal(summary([first, pending(['', 'runner', 'work', 'support', 'helper.mjs'].join('/'))]), 'webkit button.spec.mjs:37 renders | test timeout');
+  assert.equal(summary([first]), 'webkit button.spec.mjs:37 renders | test timeout');
+});

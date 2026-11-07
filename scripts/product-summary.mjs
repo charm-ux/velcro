@@ -39,17 +39,20 @@ function category(message) {
   return 'failure';
 }
 
-// The failing assertion's line, only for a location in the test's own spec file (a repository file named by its base name).
+// The failing line, only for a location in the test's own spec file (a repository file named by its base name): the first
+// error's own location, else the first later error's (a test timeout's first error has none; a later one names the call
+// that was still pending).
 const base = file => String(file ?? '').split(/[\\/]/).pop();
-const atLine = (error, specFile) => {
-  const loc = error?.location;
-  return loc && Number.isInteger(loc.line) && loc.line > 0 && base(specFile) && base(loc.file) === base(specFile) ? `, line ${loc.line}` : '';
+const inSpec = (loc, specFile) => loc && Number.isInteger(loc.line) && loc.line > 0 && base(specFile) && base(loc.file) === base(specFile);
+const atLine = (errors, specFile) => {
+  const loc = errors.map(e => e?.location).find(l => inSpec(l, specFile));
+  return loc ? `, line ${loc.line}` : '';
 };
 const firstLine = (t, specFile) => {
   const results = Array.isArray(t.results) ? t.results : [];
   for (const r of [...results].reverse()) {
-    const error = r?.error ?? r?.errors?.[0];
-    if (typeof error?.message === 'string') return `${category(error.message)}${atLine(error, specFile)}`;
+    const errors = [r?.error, ...(Array.isArray(r?.errors) ? r.errors : [])].filter(Boolean);
+    if (typeof errors[0]?.message === 'string') return `${category(errors[0].message)}${atLine(errors, specFile)}`;
   }
   return 'no error recorded';
 };
