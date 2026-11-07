@@ -656,8 +656,9 @@ test('slots: a custom divider handle is slotted and nested split panels work ind
   await drag(page, outer, outerWidth / 2, outerWidth / 4);
   expect(await position(outer)).toBeCloseTo(25, 0);
   expect(await inner.evaluate(el => el.position)).toBe(innerBefore);
-  const innerBox = await inner.boundingBox();
-  expect(innerBox.height).toBe(400);
+  // Measured in the panel's own document: Playwright's bounding box crosses the iframe boundary, and Firefox lays out in
+  // 1/60 px units, so the fractional frame offset can leave that height a fraction off 400 although the panel is 400px.
+  expect(await inner.evaluate(el => el.getBoundingClientRect().height)).toBe(400);
   await drag(page, inner, 200, 100, { vertical: true });
   expect(await position(inner)).toBeCloseTo(25, 0);
   expect(await position(outer)).toBeCloseTo(25, 0);
