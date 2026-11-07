@@ -21,7 +21,14 @@ editing a shared list:
 The `verify:product` gate fails on any missing or extra outcome, on any load or session (infrastructure) failure,
 which can never be recorded as known, on any failure that is not recorded and on any recorded failure that now
 passes, so the known failures can only shrink. `pnpm test:upstream -- --write-inventory` and `--write-ledger` rewrite
-the records of the components that reported results.
+the records of the components that reported results; `--write-inventory` refuses to remove a title from a record
+unless `--allow-inventory-removal` is given (for a re-vendored test file).
+
+Many upstream titles are generated (template literals, loops, the shared form-control helper), so the literal-title
+scan cannot see all of them. The records are therefore also held to their baseline, the merge base with `origin/main`
+(`checkBaseline`, in the source tests and in `test:upstream`): while a component's pinned files and the shared pins
+are unchanged, its inventory must equal the baseline's and its known failures may only shrink. A record changes them
+only together with the vendored files it pins.
 
 The gate covers Chromium only. The runner config takes a browser list (`VELCRO_UPSTREAM_BROWSERS`) so a
 later Firefox and WebKit lane can reuse it.

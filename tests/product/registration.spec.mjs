@@ -54,7 +54,8 @@ const pascal = name => name.split('-').map(w => w[0].toUpperCase() + w.slice(1))
 // Badge and divider have no Sl* alias (their class is the alias); every later component ships one.
 const NO_ALIAS = ['sl-badge', 'sl-divider'];
 // How each element shows it rendered. By default, from its manifest: its `base` part when it declares one, else a slot
-// when it declares slots, else any shadow element. These elements expose a different public surface:
+// when it declares slots. An element with neither needs an entry here (no "any shadow element" default: the test must
+// name what the component's public surface is). These elements expose a different public surface:
 const SURFACE = {
   // The divider renders nothing in its shadow root (its public surface is the host separator role); format-bytes and
   // format-number render only text (their public surface is the formatted string).
@@ -70,8 +71,12 @@ const SURFACE = {
 };
 const declared = new Map(JSON.parse(readFileSync(path.join(root, velcroManifestPath), 'utf8')).modules
   .flatMap(m => m.declarations ?? []).filter(d => d.tagName).map(d => [d.tagName, d]));
-const surface = tag => SURFACE[tag] ?? { selector: declared.get(tag)?.cssParts?.some(p => p.name === 'base') ? '[part~="base"]'
-  : declared.get(tag)?.slots?.length ? 'slot' : '*' };
+const surface = tag => {
+  if (SURFACE[tag]) return SURFACE[tag];
+  if (declared.get(tag)?.cssParts?.some(p => p.name === 'base')) return { selector: '[part~="base"]' };
+  if (declared.get(tag)?.slots?.length) return { selector: 'slot' };
+  throw new Error(`${tag} declares no base part and no slot: add its public surface to SURFACE in registration.spec.mjs`);
+};
 const COMPONENTS = CATALOG.map(({ name, tag }) => ({
   tag, cls: `Velcro${pascal(name)}`, alias: NO_ALIAS.includes(tag) ? `Velcro${pascal(name)}` : `Sl${pascal(name)}`, surface: surface(tag),
 }));

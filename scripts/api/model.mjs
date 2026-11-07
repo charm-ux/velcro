@@ -24,11 +24,13 @@ export function analyzeVelcro(root = repoRoot) {
   const out = mkdtempSync(path.join(tmpdir(), 'velcro-cem-'));
   try {
     const cem = path.join(pkgDir, 'node_modules/@custom-elements-manifest/analyzer/cem.js');
-    // The analyzer joins --outdir to its working directory, so it takes a relative path.
+    // The analyzer joins --outdir to its working directory, so it takes a relative path. Bounded: a stuck analyzer fails
+    // the check instead of hanging it, and it never reads stdin.
     const res = spawnSync(process.execPath, [cem, 'analyze', '--outdir', path.relative(pkgDir, out)], {
-      cwd: pkgDir, encoding: 'utf8', env: { ...process.env, VELCRO_CEM_REACT_OUTDIR: path.join(out, 'react') },
+      cwd: pkgDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 300000, killSignal: 'SIGKILL',
+      env: { ...process.env, VELCRO_CEM_REACT_OUTDIR: path.join(out, 'react') },
     });
-    if (res.status !== 0) throw new Error(`manifest analyzer failed (exit ${res.status})`);
+    if (res.error || res.status !== 0) throw new Error(`manifest analyzer failed (${res.error?.code ?? `exit ${res.status}`})`);
     const manifest = JSON.parse(readFileSync(path.join(out, 'custom-elements.json'), 'utf8'));
     analyzed.set(root, manifest);
     return manifest;

@@ -12,7 +12,8 @@ values or weaken gates to accommodate a registry problem.
 
 A component branch adds the component's own files, **one line** in `packages/docs/catalog.jsonl` and its changeset.
 It edits no shared list: everything that used to be one is derived from the catalog and the component folders, so
-parallel component branches merge with `main` without conflicts. `pnpm generate` (in `packages/velcro`) scaffolds the
+parallel component branches merge with `main` without conflicts when merged with local git (see "Parallel component
+branches" below for the supported way to update a pull request). `pnpm generate` (in `packages/velcro`) scaffolds the
 component and the pieces below; fill them in, then run `pnpm sync` from the repository root.
 
 The component's own files:
@@ -21,8 +22,10 @@ The component's own files:
   alias) and the registering `index.ts`. Every `.ts` file there except `index.ts` and `class.ts` states its provenance
   in its header: `THIRD_PARTY_NOTICES.md` for adapted Shoelace material, otherwise that it includes no Shoelace source.
   `NOTICE.md` (optional) is the component's entry for `THIRD_PARTY_NOTICES.md`: a Markdown list item, like those in
-  the root file's Shoelace section, naming the files in this folder that adapt Shoelace material. The package and site
-  copies of the notices are assembled from the root file and these fragments at build time.
+  the root file's Shoelace section, naming the files in this folder that adapt Shoelace material. Every file it names
+  must exist and cite `THIRD_PARTY_NOTICES.md` in its header, unless the entry marks it `(written for Velcro`
+  (`checkProvenance` in `scripts/sync.mjs`). The package and site copies of the notices are assembled from the root
+  file and these fragments at build time.
 - `packages/docs/pages/components/<name>.ts`: the docs page.
 - `packages/docs/examples/<name>/*.html`: at least one example that uses `<sl-<name>>`.
 - `packages/docs/showcase/<name>.html`: the home page snippet, which uses `<sl-<name>>`.
@@ -50,8 +53,30 @@ Derived from the catalog and the component folders, never edited by hand:
   copies of `THIRD_PARTY_NOTICES.md`: build output, ignored by git.
 - The docs navigation, home page, required site pages, browser routes and the tests' component lists.
 
-`pnpm sync -- check` (also run by `tests/bootstrap/sync.test.mjs` in `verify:source`) fails when a committed derived
-file is stale; `pnpm sync` is the fix for every such failure, including after a merge.
+`pnpm sync check` (also run by `tests/bootstrap/sync.test.mjs` in `verify:source`) fails when a committed derived
+file is stale; `pnpm sync` is the fix for a stale file, including after a merge. A key that appears twice in
+`package.json` is different: a union merge kept both sides of a line two branches edited, and only a person can tell
+which side is right, so `pnpm sync check` reports it and `pnpm sync` refuses to run until it is resolved by hand.
+
+### Parallel component branches
+
+The union merge is applied by local git, which reads `.gitattributes` from the working tree. A merge done on the hosting
+platform (a pull request's mergeability check, its "Update branch" button, its conflict editor or a merge queue) may not
+apply it, and then shows the catalog and `package.json` as conflicting once another component lands. The supported way
+to bring a component branch up to date is local:
+
+```sh
+git -C <worktree> fetch origin
+git -C <worktree> merge origin/main     # union-merges the catalog and package.json
+pnpm sync                               # refuses on union-merge damage; resolve that by hand
+git -C <worktree> diff origin/main -- packages/docs/catalog.jsonl packages/velcro/package.json
+```
+
+The last diff must show only this component's catalog line and export lines. Then run the full verification and the
+security checks for the exact resulting head, and push it; `main` is then an ancestor of the branch, so the platform's
+own merge is a fast-forward or trivial merge with nothing to conflict. Do not use the web "Update branch" button or
+conflict editor for these files, and run any merge queue with a group size of one (or update locally between merges).
+The union attributes are a merge convenience, never an approval: every gate still runs on the merged head.
 
 A module that Shoelace publishes next to a component (for example `dist/components/include/request.js`) is exported by its full key and only
 if `MODULE_EXPORTS` in `scripts/site/catalog.mjs` lists it: once its component is in the catalog the entry is required, with exactly its

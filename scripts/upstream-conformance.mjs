@@ -82,6 +82,93 @@ export function checkVendor(root) {
   return problems;
 }
 
+/** The shared pins (license, src/internal/ helpers) from the vendored UPSTREAM.json, { path: sha256 }. */
+export const readSharedPins = root => JSON.parse(readFileSync(path.join(root, VENDOR, 'UPSTREAM.json'), 'utf8')).files ?? {};
+
+const gitShow = (root, ref, rel) => {
+  const r = spawnSync('git', ['-C', root, 'show', `${ref}:${rel}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: 16 * 1024 * 1024 });
+  return r.status === 0 ? r.stdout : null;
+};
+
+/**
+ * The records and shared pins at `ref`, or null when `ref` does not exist. The default baseline is where this branch
+ * meets origin/main (their merge base), so components that landed on main since the branch started are not required here.
+ * A baseline from before the per-component records (one inventory.json, known-failures.json and all pins in
+ * UPSTREAM.json) is read into the same shape.
+ */
+export function readBaseline(root, ref) {
+  if (ref === undefined) {
+    const base = spawnSync('git', ['-C', root, 'merge-base', 'HEAD', 'origin/main'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    if (base.status !== 0) return null;
+    ref = base.stdout.trim();
+  }
+  if (spawnSync('git', ['-C', root, 'rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { stdio: 'ignore' }).status !== 0) return null;
+  const upstream = gitShow(root, ref, `${VENDOR}/UPSTREAM.json`);
+  if (!upstream) return { records: {}, shared: {} };
+  const pins = JSON.parse(upstream).files ?? {};
+  const listing = spawnSync('git', ['-C', root, 'ls-tree', '--name-only', ref, `${RECORDS}/`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  const names = listing.status === 0 ? listing.stdout.split('\n').filter(f => f.endsWith('.json')) : [];
+  if (names.length) {
+    const records = Object.fromEntries(names.map(f => [path.basename(f, '.json'), JSON.parse(gitShow(root, ref, f))]));
+    return { records, shared: pins };
+  }
+  const inventory = JSON.parse(gitShow(root, ref, 'tests/upstream/inventory.json') ?? '{}');
+  const failures = JSON.parse(gitShow(root, ref, 'tests/upstream/known-failures.json') ?? '{}');
+  const own = c => f => f.startsWith(`src/components/${c}/`);
+  const records = Object.fromEntries(Object.entries(inventory).map(([c, tests]) => [c, {
+    files: Object.fromEntries(Object.entries(pins).filter(([f]) => own(c)(f))), tests, knownFailures: failures[c] ?? [] }]));
+  return { records, shared: Object.fromEntries(Object.entries(pins).filter(([f]) => !f.startsWith('src/components/'))) };
+}
+
+/**
+ * Problems with the records relative to the baseline. While a component's pinned files and the shared pins are unchanged,
+ * its test inventory must stay exactly the baseline's and its known failures may only shrink: the vendored source did not
+ * change, so a shorter inventory can only mean a runner or reporter dropped outcomes (dynamic titles included, which the
+ * literal-title check cannot see), and a new known failure a regression. A record may change them only together with the
+ * vendored files it pins. Records not in the baseline (new components) are not constrained here.
+ */
+export function checkBaseline(records, shared, baseline) {
+  if (!baseline) return ['no baseline (fetch origin/main)'];
+  const problems = [];
+  const same = (a = {}, b = {}) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+  const sharedSame = same(shared, baseline.shared);
+  for (const [c, base] of Object.entries(baseline.records)) {
+    const record = records[c];
+    if (!record) { problems.push(`${c}: record removed`); continue; }
+    if (!sharedSame || !same(record.files, base.files)) continue;
+    const tests = [...(record.tests ?? [])].sort();
+    const baseTests = [...(base.tests ?? [])].sort();
+    if (tests.join('\n') !== baseTests.join('\n')) problems.push(`${c}: test inventory differs from the baseline although its vendored files are unchanged`);
+    const known = new Set((base.knownFailures ?? []).map(f => f.title));
+    for (const f of record.knownFailures ?? []) if (!known.has(f.title)) problems.push(`${c}: known failure added: ${f.title}`);
+  }
+  return problems;
+}
+
+/**
+ * The records rewritten from a run's scoreboard (only components that reported results): with `inventory`, each record's
+ * tests become the reported titles; with `ledger`, its known failures become the reported failures. Removing a title from
+ * an existing inventory is refused unless `allowRemoval` (for a re-vendored test file): a run that silently stopped
+ * generating tests must not shrink the record it is checked against.
+ */
+export function updateRecords(records, board, components, { inventory = false, ledger = false, allowRemoval = false } = {}) {
+  const out = {};
+  const problems = [];
+  for (const [c, b] of Object.entries(board)) {
+    if (!components.includes(c)) continue;
+    const record = { ...(records[c] ?? {}) };
+    if (inventory) {
+      const removed = (record.tests ?? []).filter(t => !b.titles.includes(t));
+      if (removed.length && !allowRemoval) problems.push(`${c}: the run would remove ${removed.length} inventory title(s), e.g. ${removed[0]}`);
+      record.tests = b.titles;
+    }
+    if (ledger) record.knownFailures = b.failures.map(f => ({ title: f.title, reason: f.reason || 'fails' }));
+    out[c] = record;
+  }
+  return { records: out, problems };
+}
+
 // Repeated titles within a component (shared helper suites registered after an await have no suite path) get an
 // occurrence suffix so every test has a stable, unique key.
 export function keyResults(results) {
@@ -284,13 +371,22 @@ function main() {
   if (args.has('--write-inventory') && Object.values(board).some(b => b.infrastructure.length)) {
     return fail('refusing to write an inventory from a run with infrastructure failures');
   }
-  const records = readRecords(root);
-  for (const [c, b] of Object.entries(board)) {
-    if (!components.includes(c)) continue;
-    const record = { ...(records[c] ?? {}) };
-    if (args.has('--write-inventory')) record.tests = b.titles;
-    if (args.has('--write-ledger')) record.knownFailures = b.failures.map(f => ({ title: f.title, reason: f.reason || 'fails' }));
-    if (args.has('--write-inventory') || args.has('--write-ledger')) writeRecord(root, c, record);
+  const write = { inventory: args.has('--write-inventory'), ledger: args.has('--write-ledger'),
+    allowRemoval: args.has('--allow-inventory-removal') };
+  if (write.inventory || write.ledger) {
+    const { records, problems } = updateRecords(readRecords(root), board, components, write);
+    for (const p of problems) say(`problem: ${p}`);
+    if (problems.length) return fail('refusing to write the records (see the problems; --allow-inventory-removal for a re-vendored test file)');
+    for (const [c, record] of Object.entries(records)) writeRecord(root, c, record);
+  }
+  // While a component's vendored files are unchanged from the baseline (the merge base with origin/main), its inventory
+  // may not change and its known failures may only shrink (checkBaseline; also a source gate in
+  // tests/upstream/conformance.test.mjs). Skipped where origin/main is not fetched.
+  const base = readBaseline(root);
+  if (base) {
+    const drift = checkBaseline(readRecords(root), readSharedPins(root), base);
+    for (const p of drift) say(`problem: ${p}`);
+    if (drift.length) return fail('blocked (the component records differ from the baseline although the vendored files do not)');
   }
   const ledger = readLedger(root);
   const inventory = readInventory(root);

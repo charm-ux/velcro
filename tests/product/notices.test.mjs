@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { NOTICE_COPIES, NOTICE_MARKER, assembleNotices } from '../../scripts/sync.mjs';
+import { NOTICE_COPIES, NOTICE_MARKER, assembleNotices, checkProvenance } from '../../scripts/sync.mjs';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 
 const repo = fileURLToPath(new URL('../../', import.meta.url));
@@ -20,7 +20,7 @@ test('third-party notices keep the upstream license texts; the shipped copies ar
   assert.match(root, /UNLICENSED/);
   assert.equal(root.split('\n').filter(l => l === NOTICE_MARKER).length, 1, 'one component notice marker');
   // The package and site copies are the root file plus every component's NOTICE.md (built, never committed; the built
-  // copies are compared byte for byte in tests/product/notices.spec.mjs).
+  // copies are compared byte for byte in tests/product/derived-output.spec.mjs).
   const shipped = assembleNotices(repo);
   assert.ok(!shipped.includes(NOTICE_MARKER));
   for (const line of root.split('\n').filter(l => l !== NOTICE_MARKER)) assert.ok(shipped.includes(line), line);
@@ -95,29 +95,31 @@ test('copied or adapted upstream files carry a provenance header', () => {
   assert.doesNotMatch(read('packages/docs/app.ts'), /verify-scaffolded-apps\.mjs. fails the build/);
 });
 
-test('every component source file states its provenance in its header', () => {
-  // Each catalog component's TypeScript files (but the index.ts and class.ts re-export entries) either point to
-  // THIRD_PARTY_NOTICES.md for the Shoelace material they adapt, or state that they include no Shoelace source.
-  const walk = dir => readdirSync(dir, { withFileTypes: true }).flatMap(e =>
-    e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
-  let checked = 0;
-  for (const { name } of readCatalog(repo)) {
-    for (const file of walk(path.join(repo, COMPONENTS, name))) {
-      if (!file.endsWith('.ts') || ['index.ts', 'class.ts'].includes(path.basename(file))) continue;
-      const rel = path.relative(repo, file).split(path.sep).join('/');
-      const header = readFileSync(file, 'utf8').slice(0, 900);
-      assert.match(header, /THIRD_PARTY_NOTICES\.md|No Shoelace source is included|written for Velcro/, rel);
-      if (/\b(adapted|copied|ported) from\b/i.test(header)) assert.match(header, /THIRD_PARTY_NOTICES\.md/, rel);
-      checked++;
-    }
-  }
-  assert.ok(checked >= 40, `${checked} component files checked`);
-  // A component's notice fragment names files in its own folder only.
-  for (const { name } of readCatalog(repo)) {
-    const fragment = path.join(repo, COMPONENTS, name, 'NOTICE.md');
-    if (!existsSync(fragment)) continue;
-    const paths = [...readFileSync(fragment, 'utf8').matchAll(/`(packages\/velcro\/src\/[^`]+)`/g)].map(m => m[1]);
-    assert.ok(paths.length > 0, `${name}/NOTICE.md names the files it covers`);
-    for (const p of paths) assert.ok(p.startsWith(`${COMPONENTS}/${name}/`), `${name}/NOTICE.md: ${p}`);
+test('every component source file states its provenance, and every file the notices name exists and cites them', () => {
+  // scripts/sync.mjs checkProvenance: component headers, NOTICE.md scope, and the files the shipped notices name.
+  assert.deepEqual(checkProvenance(repo), []);
+  const cited = assembleNotices(repo).split('\n').flatMap(l => [...l.matchAll(/`(packages\/velcro\/src\/components\/[^`<>*]+\.ts)`(?! \(written for Velcro)/g)].map(m => m[1]));
+  assert.ok(cited.length >= 30, `${cited.length} component files named by the notices must cite them`);
+});
+
+test('negative controls: a dropped citation, a missing named file and a fragment outside its folder are problems', () => {
+  const scratch = mkdtempSync(path.join(tmpdir(), 'velcro-provenance-'));
+  try {
+    for (const f of ['THIRD_PARTY_NOTICES.md', 'packages/docs/catalog.jsonl', COMPONENTS]) cpSync(path.join(repo, f), path.join(scratch, f), { recursive: true });
+    assert.deepEqual(checkProvenance(scratch), []);
+    const badge = `${COMPONENTS}/badge/badge.ts`;
+    const original = readFileSync(path.join(scratch, badge), 'utf8');
+    // The notices still say badge.ts adapts Shoelace material, so a header that claims otherwise is caught.
+    writeFileSync(path.join(scratch, badge), `// Badge, written for Velcro.\n${original.replace(/^(\/\/.*\n)+/, '')}`);
+    assert.deepEqual(checkProvenance(scratch), [`${badge}: named in the notices but its header does not cite THIRD_PARTY_NOTICES.md`]);
+    writeFileSync(path.join(scratch, badge), original.replace(/THIRD_PARTY_NOTICES\.md/g, 'the notices'));
+    assert.ok(checkProvenance(scratch).includes(`${badge}: no provenance statement in its header`));
+    writeFileSync(path.join(scratch, badge), original);
+    writeFileSync(path.join(scratch, `${COMPONENTS}/badge/NOTICE.md`), `- \`${COMPONENTS}/badge/gone.ts\` adapts Shoelace's badge.\n`);
+    assert.deepEqual(checkProvenance(scratch), [`THIRD_PARTY_NOTICES.md: names a missing file ${COMPONENTS}/badge/gone.ts`]);
+    writeFileSync(path.join(scratch, `${COMPONENTS}/badge/NOTICE.md`), `- \`${COMPONENTS}/card/card.ts\` adapts Shoelace's card.\n`);
+    assert.deepEqual(checkProvenance(scratch), [`${COMPONENTS}/badge/NOTICE.md: names another folder's file ${COMPONENTS}/card/card.ts`]);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
   }
 });

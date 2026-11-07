@@ -4,8 +4,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { DOCS, PIN, RECORDS, VENDOR, checkVendor, declaredTests, evaluate, keyResults, readInventory, readLedger, readRecords,
-  scoreboard, upstreamSkips, vendoredComponents } from '../../scripts/upstream-conformance.mjs';
+import { DOCS, PIN, RECORDS, VENDOR, checkBaseline, checkVendor, declaredTests, evaluate, keyResults, readBaseline, readInventory,
+  readLedger, readRecords, readSharedPins, scoreboard, updateRecords, upstreamSkips, vendoredComponents }
+  from '../../scripts/upstream-conformance.mjs';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -102,6 +103,66 @@ test('each inventory is unique and lists every test its vendored file declares w
       assert.ok(titles.includes(key), `${c}: declared test missing from the inventory: ${key}`);
     }
   }
+});
+
+// The literal-title scan cannot see generated titles (template literals, loops, the shared form-control helper), so the
+// inventory is also held to the baseline (the merge base with origin/main): while a component's vendored files are
+// unchanged, its inventory may not change and its known failures may only shrink.
+const baseRecords = readBaseline(root);
+
+test('the records equal the baseline\'s wherever the vendored files are unchanged', () => {
+  assert.ok(baseRecords, 'origin/main is required for the inventory baseline (fetch it)');
+  assert.deepEqual(checkBaseline(records, readSharedPins(root), baseRecords), []);
+});
+
+test('the baseline is read from the records, or from the single inventory and ledger files before them', t => {
+  // 2d4b1bf is the last main commit with tests/upstream/inventory.json and known-failures.json.
+  const legacy = readBaseline(root, '2d4b1bfc56bc521032a6d82ee5c325b9f669cd6b');
+  if (!legacy) return t.skip('legacy commit not available in this clone');
+  assert.deepEqual(Object.keys(legacy.records).sort(), components);
+  assert.deepEqual(checkBaseline(records, readSharedPins(root), legacy), []);
+  for (const c of components) assert.deepEqual(legacy.records[c].files, records[c].files, c);
+  assert.equal(readBaseline(root, 'refs/heads/no-such-ref-velcro'), null);
+});
+
+test('negative control: a run that stops generating tests cannot regenerate a shorter inventory past the gates', () => {
+  // badge's vendored file generates part of its suite from a loop with a template-literal title.
+  const c = 'badge';
+  const source = readFileSync(path.join(root, VENDOR, 'src/components', c, `${c}.test.ts`), 'utf8');
+  const literal = new Set(declaredTests(source).map(d => d.title).filter(Boolean));
+  const generated = records[c].tests.filter(t => !literal.has(t));
+  assert.ok(generated.length >= 5, 'badge has generated tests');
+  // The run reports every literal test and none of the generated ones.
+  const board = { [c]: { titles: records[c].tests.filter(t => literal.has(t)), failures: [] } };
+  // 1. The writer refuses to drop the titles.
+  const refused = updateRecords(records, board, components, { inventory: true });
+  assert.deepEqual(refused.problems, [`${c}: the run would remove ${generated.length} inventory title(s), e.g. ${generated[0]}`]);
+  // 2. Forced, the shortened inventory agrees with the shortened run and passes the literal-title check, but the
+  //    baseline check blocks it because badge.test.ts did not change.
+  const forced = updateRecords(records, board, components, { inventory: true, allowRemoval: true });
+  assert.deepEqual(forced.problems, []);
+  const shortened = { ...records, ...forced.records };
+  assert.deepEqual(checkBaseline(shortened, readSharedPins(root), baseRecords),
+    [`${c}: test inventory differs from the baseline although its vendored files are unchanged`]);
+  // 3. Changing the pinned test file (re-vendoring) is what lifts the constraint for that component.
+  const revendored = { ...shortened, [c]: { ...shortened[c], files: { [`src/components/${c}/${c}.test.ts`]: 'f'.repeat(64) } } };
+  assert.deepEqual(checkBaseline(revendored, readSharedPins(root), baseRecords), []);
+});
+
+test('the baseline check fails on an added known failure, a removed record and a missing baseline', () => {
+  const failing = { ...records, card: { ...records.card, knownFailures: [{ title: records.card.tests[0], reason: 'regressed' }] } };
+  assert.deepEqual(checkBaseline(failing, readSharedPins(root), baseRecords), [`card: known failure added: ${records.card.tests[0]}`]);
+  const { card, ...withoutCard } = records;
+  assert.ok(card);
+  assert.deepEqual(checkBaseline(withoutCard, readSharedPins(root), baseRecords), ['card: record removed']);
+  // A changed shared helper may change any generated suite, so it lifts the constraint for every component.
+  const shared = { ...readSharedPins(root), 'LICENSE.md': '0'.repeat(64) };
+  assert.deepEqual(checkBaseline(failing, shared, baseRecords), []);
+  assert.deepEqual(checkBaseline(records, readSharedPins(root), null), ['no baseline (fetch origin/main)']);
+  // The writer only removes with the flag, and writes known failures as reported.
+  const board = { card: { titles: records.card.tests, failures: [{ title: records.card.tests[0], reason: '' }] } };
+  assert.deepEqual(updateRecords(records, board, components, { ledger: true }).records.card.knownFailures,
+    [{ title: records.card.tests[0], reason: 'fails' }]);
 });
 
 const r = (component, title, passed, extra = {}) => ({ component, title, passed, skipped: false, ...extra });
