@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+
+test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/card';
 
@@ -7,10 +10,12 @@ async function openExample(page) {
   page.on('request', request => requests.push(request.url()));
   // Litro's client router remounts the page component once after load, which reloads the iframe; wait for it to settle.
   await page.goto(PAGE, { waitUntil: 'networkidle' });
+  // The client router replaces the prerendered page once; until it has settled there can be two example iframes.
+  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-basic')).toBeVisible();
   await frame.locator('#demo-basic').evaluate(() => customElements.whenDefined('sl-card'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 
@@ -75,7 +80,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the ready
   // The host hidden and box-sizing differences from Shoelace's shared base styles are listed as gaps.
   expect(html).toContain('The host hidden attribute hides the card');
   expect(html).toContain('box-sizing: border-box on the host and on every element in the shadow tree');
-  expect(html).toContain('no Firefox, WebKit, RTL or localization check');
+  expect(html).toContain('no RTL or localization check');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
   expect(await (await request.get('/')).text()).toContain('/components/card');

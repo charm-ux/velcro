@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+
+test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/split-panel';
 const PANELS = '<div slot="start" style="height: 100%">a</div><div slot="end" style="height: 100%">b</div>';
@@ -12,7 +15,7 @@ async function openExample(page, name = 'Overview') {
   const frame = page.frameLocator(`iframe.example[title="Split Panel example: ${name}"]`).first();
   await expect(frame.locator('sl-split-panel').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-split-panel'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 
@@ -391,9 +394,18 @@ test('mouse drag: moves the divider to the pointer (horizontal, vertical, end pr
   await drag(page, host, 200, 100);
   near(await position(host), 25);
   near((await state(host)).start[2], 98);
-  await drag(page, host, 100, 9999);
+  // Clamping: drag past each edge of the host, to 1px inside the example frame's own edges. Past the frame, Firefox sends
+  // the pointer moves of a press that started in the frame to the parent document (Chromium and WebKit keep them in the
+  // frame), and the drag listens on the frame's document.
+  const edges = await host.evaluate(el => {
+    const left = el.getBoundingClientRect().left;
+    return { before: 1 - left, after: document.documentElement.clientWidth - 1 - left, width: el.getBoundingClientRect().width };
+  });
+  expect(edges.before).toBeLessThan(0);
+  expect(edges.after).toBeGreaterThan(edges.width);
+  await drag(page, host, 100, edges.after);
   expect(await position(host)).toBe(100);
-  await drag(page, host, 398, -500);
+  await drag(page, host, 398, edges.before);
   expect(await position(host)).toBe(0);
   const end = await mount(frame, { primary: 'end', position: '25' });
   await drag(page, end, 300, 250);
@@ -630,8 +642,12 @@ test('slots: a custom divider handle is slotted and nested split panels work ind
   // ::part(divider) styles apply, and keyboard focus recolors the divider through the shadow styles.
   const color = () => host.evaluate(el => getComputedStyle(el.shadowRoot.querySelector('.divider')).backgroundColor);
   expect(await color()).toBe('rgb(219, 39, 119)');
-  await host.locator('.divider').focus();
+  // Keyboard focus, as in the focus test below: Tab first, so the last interaction is a keyboard one (Firefox does not
+  // always treat script focus as :focus-visible otherwise), then script focus if Tab landed elsewhere.
+  await page.keyboard.press('Tab');
+  if (!(await host.evaluate(el => el.shadowRoot.activeElement !== null))) await host.locator('.divider').focus();
   await page.keyboard.press('ArrowRight');
+  expect(await host.evaluate(el => [document.hasFocus(), el.shadowRoot.activeElement?.classList.contains('divider')])).toEqual([true, true]);
   expect(await color()).toBe('rgb(2, 132, 199)');
   const nested = await openExample(page, 'Nested Split Panels');
   const panels = nested.frame.locator('sl-split-panel');
@@ -643,8 +659,9 @@ test('slots: a custom divider handle is slotted and nested split panels work ind
   await drag(page, outer, outerWidth / 2, outerWidth / 4);
   expect(await position(outer)).toBeCloseTo(25, 0);
   expect(await inner.evaluate(el => el.position)).toBe(innerBefore);
-  const innerBox = await inner.boundingBox();
-  expect(innerBox.height).toBe(400);
+  // Measured in the panel's own document: Playwright's bounding box crosses the iframe boundary, and Firefox lays out in
+  // 1/60 px units, so the fractional frame offset can leave that height a fraction off 400 although the panel is 400px.
+  expect(await inner.evaluate(el => el.getBoundingClientRect().height)).toBe(400);
   await drag(page, inner, 200, 100, { vertical: true });
   expect(await position(inner)).toBeCloseTo(25, 0);
   expect(await position(outer)).toBeCloseTo(25, 0);
@@ -705,7 +722,7 @@ test('forced colors: the divider keeps a visible outline', async ({ page }) => {
   await page.emulateMedia({ forcedColors: 'active' });
   const { frame } = await openExample(page);
   const emulated = await frame.locator('body').evaluate(() => matchMedia('(forced-colors: active)').matches);
-  test.skip(!emulated, 'This engine does not emulate forced colors');
+  expect(emulated, 'forced colors are emulated in every engine of the product suite').toBe(true);
   const host = await mount(frame);
   const outline = await host.evaluate(el => {
     const cs = getComputedStyle(el.shadowRoot.querySelector('.divider'));
@@ -784,17 +801,33 @@ test('moving the element in the DOM keeps resizing and measuring working', async
   near(await position(host), 37.5);
 });
 
-test('touch: dragging the divider with a touch moves it (Chromium)', async ({ page, browserName }) => {
-  test.skip(browserName !== 'chromium', 'Touch input is injected through the DevTools protocol');
+// Chromium gets real touch input through the DevTools protocol. Playwright cannot inject a touch move in Firefox or WebKit,
+// so there the test dispatches the sequence a touch produces: pointerdown and touchstart on the divider, then touch-type
+// pointer events. The same end position is required in every engine.
+test('touch: dragging the divider with a touch moves it (real touch input in Chromium, its event sequence elsewhere)', async ({ page, browserName }) => {
   const { frame } = await openExample(page);
   const host = await mount(frame);
   await host.scrollIntoViewIfNeeded();
-  const box = await host.boundingBox();
-  const session = await page.context().newCDPSession(page);
-  const touch = (type, x) => session.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y: box.y + 60 }] });
-  await touch('touchStart', box.x + 200);
-  for (const dx of [190, 170, 150, 130, 110, 100]) await touch('touchMove', box.x + dx);
-  await touch('touchEnd', 0);
+  const moves = [190, 170, 150, 130, 110, 100];
+  if (browserName === 'chromium') {
+    const box = await host.boundingBox();
+    const session = await page.context().newCDPSession(page);
+    const touch = (type, x) => session.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y: box.y + 60 }] });
+    await touch('touchStart', box.x + 200);
+    for (const dx of moves) await touch('touchMove', box.x + dx);
+    await touch('touchEnd', 0);
+  } else {
+    await host.evaluate((el, moves) => {
+      const divider = el.shadowRoot.querySelector('.divider');
+      const box = el.getBoundingClientRect();
+      const init = { bubbles: true, composed: true, cancelable: true };
+      const pointer = (type, dx) => divider.dispatchEvent(new PointerEvent(type, { ...init, pointerType: 'touch', pointerId: 2, isPrimary: true, clientX: box.left + dx, clientY: box.top + 60 }));
+      pointer('pointerdown', 200);
+      divider.dispatchEvent(new Event('touchstart', init));
+      for (const dx of moves) pointer('pointermove', dx);
+      pointer('pointerup', moves.at(-1));
+    }, moves);
+  }
   await host.evaluate(el => el.updateComplete);
   near(await position(host), 25);
 });

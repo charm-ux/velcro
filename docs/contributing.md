@@ -80,11 +80,22 @@ verify in parallel.
 - `pnpm verify` runs `verify:source` then `verify:product`. `verify:product`
   builds the library, statically builds the docs (which generates the type inputs),
   type-checks the docs, then runs the
-  Chromium-only Playwright suite (at least eight tests, no failures, flakes or
-  skips, fresh report required). Raw output stays in ignored `.airig/product/`.
-  Install the browser once with `pnpm exec playwright install chromium` (add
-  `--with-deps` on Linux); it is never installed automatically. Firefox/WebKit are
-  not covered.
+  Playwright suite in Chromium, Firefox and WebKit (at least eight tests in each
+  engine, the same number per engine, no failures, flakes or skips, fresh report
+  required). Raw output stays in ignored `.airig/product/`; on a browser failure only
+  engine counts and, per failing test, the engine, spec file and line, title and
+  failure category (matcher name or error class) are printed, never messages,
+  values or page content.
+  Install the browsers once with `pnpm exec playwright install chromium firefox
+  webkit` (add `--with-deps` on Linux); they are never installed automatically.
+  Tests must not rely on Chromium-only behavior (computed-style serialization,
+  clipboard permissions, link Tab stops on macOS WebKit); where an engine
+  genuinely differs, branch on `browserName` in the test and say why.
+  Tests run fully parallel, so none may depend on another test's order or state.
+  CI builds once and runs each engine in four Playwright shards plus the
+  upstream gate as separate jobs (`.github/workflows/product.yml`), through
+  `verify:product --stage build|browser|upstream|evidence`; locally, run
+  `verify:product` without arguments.
 - `pnpm verify:source`: pinned tools, complete executable hook files, real scanner,
   meaningful tests with zero skips, and the actual proposed index. Raw test output
   stays under ignored `.airig/verify/`; summaries contain no raw tool errors.
@@ -201,7 +212,11 @@ symlinks, submodules, runtime material, tags and broad ref pushes are not certif
 Content is bounded and secret-scanned with numbered text names so stock path
 exclusions cannot hide lockfiles or other source files. This is not a general
 release-archive processor. Build/pack output is local-only, not publication-approved.
-No package, site, test output, or workflow artifact is uploaded by this increment.
+No package or test output is uploaded. CI uploads one workflow artifact, `product-build`:
+the library and docs build output that the later CI jobs test, kept for one day. It is
+scanned with the privacy rules and the pinned Gitleaks engine first, and only the
+scanned bytes are uploaded (`scripts/ci/scan-build-output.mjs`). The Pages workflow
+also uploads the prepared site for deployment (`docs/deployment.md`).
 
 ## Hooks are explicit and shared
 
@@ -285,8 +300,8 @@ is a blocker; do not broaden the exception to make a generated commit pass.
 ## CI and trust limitations
 
 CI pins actions, Node and pnpm; public-npm frozen install remains required. The
-`required` aggregate runs with `always()` and accepts exactly `verify`, `product` and
-`security` with successful results. Missing, skipped, failed or cancelled jobs
+`required` aggregate runs with `always()` and accepts exactly `verify`, `product`,
+`site` and `security` with successful results. Missing, skipped, failed or cancelled jobs
 block. Security scans PR objects with engines from the base checkout, not
 candidate-modified engines; a base lacking the guard fails closed.
 

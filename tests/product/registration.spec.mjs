@@ -9,7 +9,7 @@ import { velcroManifestPath } from '../../scripts/api/model.mjs';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 
 // Scope of these checks: every catalog component (packages/docs/catalog.jsonl; everything the package root registers) registers
-// by defining their exported classes natively, in Chromium, alone or next to core's own button. The switch is the one scope-dependent core
+// by defining their exported classes natively, in each engine of the product suite, alone or next to core's own button. The switch is the one scope-dependent core
 // component: it runs on Velcro's local scope resolver (its generic checks are in registration-helper.spec.mjs); nested core components are not shown to work.
 // Needs the built library: `pnpm --filter @charm-ux/velcro run build` (verify:product does this first).
 const root = fileURLToPath(new URL('../../', import.meta.url));

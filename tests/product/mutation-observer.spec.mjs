@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+
+test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/mutation-observer';
 const TITLES = { overview: 'Mutation Observer example: Overview', 'child-list': 'Mutation Observer example: Child List' };
@@ -11,7 +14,7 @@ async function openExample(page, which = 'overview') {
   const frame = page.frameLocator(`iframe[title="${TITLES[which]}"]`);
   await expect(frame.locator('#demo-observer')).toBeAttached();
   await frame.locator('#demo-observer').evaluate(() => customElements.whenDefined('sl-mutation-observer'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 

@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+
+test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/popup';
 const TITLES = {
@@ -47,9 +50,23 @@ async function openExample(page, which = 'overview') {
   const frame = page.frameLocator(`iframe[title="${TITLES[which]}"]`);
   await expect(frame.locator(IDS[which])).toBeAttached();
   await frame.locator(IDS[which]).evaluate(() => customElements.whenDefined('sl-popup'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   await expect(iframe).toHaveCount(1);
+  // WebKit runs no animation frames in an iframe outside the viewport, and the helpers below wait for frames.
+  await iframe.scrollIntoViewIfNeeded();
   return { frame, requests };
+}
+
+// Another example on the page openExample already loaded (every example is its own iframe there, so the page does not
+// need to be loaded again): waits for it like openExample does and scrolls it into view.
+async function switchExample(page, which) {
+  const iframe = page.locator(`iframe[title="${TITLES[which]}"]`);
+  await expect(iframe).toHaveCount(1);
+  const frame = page.frameLocator(`iframe[title="${TITLES[which]}"]`);
+  await expect(frame.locator(IDS[which])).toBeAttached();
+  await frame.locator(IDS[which]).evaluate(() => customElements.whenDefined('sl-popup'));
+  await iframe.scrollIntoViewIfNeeded();
+  return { frame };
 }
 
 // Runs `body` (the text of an async function body) inside the example document, with helpers in scope:
@@ -730,6 +747,7 @@ test('upstream quirk: active set to false and back to true before an update star
 });
 
 test('ported examples: activating, placement, distance, skidding, arrows, sync, strategy and flip fallbacks', async ({ page }) => {
+  // One page load for all eight examples (each is its own iframe on the page).
   const geometry = (frame, id) => frame.locator(id).evaluate(el => {
     const a = el.querySelector('[slot="anchor"]').getBoundingClientRect();
     const p = el.popup.getBoundingClientRect();
@@ -743,19 +761,19 @@ test('ported examples: activating, placement, distance, skidding, arrows, sync, 
   await frame.locator('sl-switch').click();
   await expect.poll(() => geometry(frame, IDS.activating)).toMatchObject({ placement: null, display: 'none' });
 
-  ({ frame } = await openExample(page, 'placement'));
+  ({ frame } = await switchExample(page, 'placement'));
   await frame.locator('select').selectOption('left-end');
   await expect.poll(() => geometry(frame, IDS.placement)).toMatchObject({ placement: 'left-end' });
 
-  ({ frame } = await openExample(page, 'distance'));
+  ({ frame } = await switchExample(page, 'distance'));
   await frame.locator('input[type="range"]').fill('20');
   await expect.poll(() => geometry(frame, IDS.distance)).toMatchObject({ placement: 'top', gapTop: 20, centerX: 0 });
 
-  ({ frame } = await openExample(page, 'skidding'));
+  ({ frame } = await switchExample(page, 'skidding'));
   await frame.locator('input[type="range"]').fill('-30');
   await expect.poll(() => geometry(frame, IDS.skidding)).toMatchObject({ placement: 'top', gapTop: 0, centerX: -30 });
 
-  ({ frame } = await openExample(page, 'arrows'));
+  ({ frame } = await switchExample(page, 'arrows'));
   const arrowState = () => frame.locator(IDS.arrows).evaluate(el => {
     const arrow = el.shadowRoot.querySelector('[part="arrow"]');
     return { placement: el.getAttribute('data-current-placement'), arrowPlacement: el.arrowPlacement, arrow: !!arrow,
@@ -768,7 +786,7 @@ test('ported examples: activating, placement, distance, skidding, arrows, sync, 
   await frame.locator('sl-switch[name="arrow"]').click();
   await expect.poll(arrowState).toEqual({ placement: 'bottom-start', arrowPlacement: 'end', arrow: false, color: null });
 
-  ({ frame } = await openExample(page, 'sync'));
+  ({ frame } = await switchExample(page, 'sync'));
   // The anchor is 150px plus a 2px border on each side.
   await expect.poll(() => geometry(frame, IDS.sync)).toMatchObject({ w: 154, h: 50 });
   await frame.locator('select').selectOption('both');
@@ -776,7 +794,7 @@ test('ported examples: activating, placement, distance, skidding, arrows, sync, 
   await frame.locator('select').selectOption('');
   await expect.poll(() => geometry(frame, IDS.sync)).toMatchObject({ w: 50, h: 50 });
 
-  ({ frame } = await openExample(page, 'strategy'));
+  ({ frame } = await switchExample(page, 'strategy'));
   const strategy = () => frame.locator(IDS.strategy).evaluate(el => {
     const container = el.closest('.overflow').getBoundingClientRect();
     const p = el.popup.getBoundingClientRect();
@@ -791,7 +809,7 @@ test('ported examples: activating, placement, distance, skidding, arrows, sync, 
   await frame.locator('sl-switch').click();
   await expect.poll(strategy).toEqual({ strategy: 'absolute', position: 'absolute', aboveContainer: true, visible: false });
 
-  ({ frame } = await openExample(page, 'flip-fallbacks'));
+  ({ frame } = await switchExample(page, 'flip-fallbacks'));
   const placement = () => frame.locator(IDS['flip-fallbacks']).getAttribute('data-current-placement');
   await expect.poll(placement).toBe('top');
   await frame.locator('.popup-flip-fallbacks .overflow').evaluate(el => (el.scrollTop = 220));

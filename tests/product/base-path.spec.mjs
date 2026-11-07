@@ -7,11 +7,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 import { startPreview } from '../../packages/docs/scripts/preview.mjs';
-import { collectRequestFailures } from './request-failures.mjs';
-import { stubCdn } from './support/cdn.mjs';
+import { collectRequestFailures, LOAD_FAILED } from './request-failures.mjs';
+import { guardCdn } from './support/cdn.mjs';
 
-// The icon page's CDN icon library examples are answered locally (support/cdn.mjs); no test reaches a CDN.
-test.beforeEach(async ({ page }) => { await stubCdn(page); });
+// The icon page loads its CDN icon library examples only on request; no test here asks, and none reaches a CDN (support/cdn.mjs).
+let cdnRequests = [];
+test.beforeEach(async ({ page }) => { cdnRequests = guardCdn(page); });
+test.afterEach(() => { expect(cdnRequests, 'no request reaches the CDN').toEqual([]); });
 
 const dist = fileURLToPath(new URL('../../packages/docs/dist/', import.meta.url));
 const layouts = [
@@ -48,13 +50,19 @@ for (const { name, dir, base } of layouts) {
     const url = route => `${origin}${base}${route}`;
 
     for (const route of routes) {
-      test(`${route}: renders on the client route and loads only prefixed assets`, async ({ page }) => {
+      test(`${route}: renders on the client route and loads only prefixed assets`, async ({ page, browserName }) => {
         const seen = [];
         const failures = collectRequestFailures(page);
         const errors = [];
         page.on('request', request => seen.push(new URL(request.url())));
-        page.on('pageerror', error => errors.push(error.message));
-        page.on('console', message => message.type() === 'error' && errors.push(message.text()));
+        // WebKit reports a ResizeObserver delivery that was deferred to the next frame as a window error. Velcro's resize-observer
+        // example (not Shoelace's, which only logs) rewrites the count and size text from its sl-resize handler, which changes
+        // the layout around the observed box and triggers it. It is the browser's defined, non-actionable notice, so only that
+        // exact message is ignored, only in WebKit and only on that component's route; every other error still fails the test.
+        const benign = message => browserName === 'webkit' && route === '/components/resize-observer'
+          && message === 'ResizeObserver loop completed with undelivered notifications.';
+        page.on('pageerror', error => benign(error.message) || errors.push(error.message));
+        page.on('console', message => message.type() === 'error' && !benign(message.text()) && errors.push(message.text()));
 
         // networkidle: Litro's router remounts the page once after load, which reloads the example iframe.
         await page.goto(url(route), { waitUntil: 'networkidle' });
@@ -73,7 +81,10 @@ for (const { name, dir, base } of layouts) {
         expect(own.filter(u => !u.pathname.startsWith(`${base}/`)).map(u => u.pathname)).toEqual([]);
         expect(own.some(u => u.pathname === `${base}/_litro/app.js`)).toBe(true);
         expect(failures()).toEqual([]);
-        expect(errors).toEqual([]);
+        // Firefox also reports a script load that the router's remount cancelled (an excused abort above) as a console
+        // error; only that exact report, for a URL whose request was such an abort, is set aside.
+        const cancelled = failures.cancelled();
+        expect(errors.filter(message => !cancelled.has(LOAD_FAILED.exec(message)?.[1]))).toEqual([]);
         // The page the client router rendered (it swaps in a client-rendered element; it does not hydrate the prerendered
         // one) carries the same prefixed links as the prerendered HTML.
         const hrefs = await page.locator('litro-outlet a[href]').evaluateAll(links => links.map(a => a.getAttribute('href')));

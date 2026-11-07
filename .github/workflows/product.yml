@@ -1,0 +1,265 @@
+# Product verification, called by CI (every PR and push to main) and by Pages (main). The build job builds the library
+# and the docs once, scans that output and shares it with the later jobs as a workflow artifact; it also prints the build
+# digest (every file of packages/velcro/dist and packages/docs/dist, bound to the commit). Each browser shard (one engine, one
+# Playwright shard) and the upstream gate check that digest on the downloaded output before and after their checks, and
+# nothing rebuilds it. The caller records publication evidence only in a job that needs this whole workflow to succeed.
+# Raw output stays in each runner's ignored .airig/; only fixed status lines and verify:product's bounded, redacted summary
+# are printed.
+name: Product
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to verify
+        type: string
+        required: true
+    outputs:
+      digest:
+        description: Build digest (every file of both dist trees, bound to the commit)
+        value: ${{ jobs.build.outputs.digest }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
+        with:
+          version: 9.15.9
+          run_install: false
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+      - name: Public frozen dependency install
+        run: |
+          mkdir -p .airig/ci
+          pnpm install --frozen-lockfile --prefer-offline --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
+          echo 'install: passed'
+      - name: Build the library and the docs once
+        id: build
+        run: |
+          mkdir -p .airig/ci
+          pnpm verify:product --stage build > .airig/ci/product-build.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/product-build.log; echo 'product build: blocked; private evidence retained'; exit 1; }
+          digest=$(sed -n 's/^verify:product: build digest \([0-9a-f]\{64\}\)$/\1/p' .airig/ci/product-build.log)
+          [ "${#digest}" = 64 ] || { echo 'product build: blocked (no build digest)'; exit 1; }
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "product build: passed (build digest $digest)"
+      - run: node scripts/security/gitleaks.mjs install
+      # A signed-in user can download a public repository's workflow artifacts: every shared byte is scanned first. The scan
+      # checks the build digest, then stages exactly the bytes it scanned (velcro/dist and docs/dist) for the upload; the
+      # later jobs check the same digest on what they download into packages/.
+      - name: Scan the build output and stage the scanned bytes for sharing
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: node scripts/ci/scan-build-output.mjs --expect-digest "$DIGEST"
+      - name: Share the scanned build output with the later jobs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: product-build
+          path: .airig/ci/product-build
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 1
+
+  browser:
+    name: browser (${{ matrix.engine }}, shard ${{ matrix.shard }} of 4)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    # Browsers live in the ignored workspace scratch, so they can be cached by a workspace-relative path.
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.airig/ms-playwright
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, firefox, webkit]
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
+        with:
+          version: 9.15.9
+          run_install: false
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+      - name: Public frozen dependency install
+        run: |
+          mkdir -p .airig/ci
+          pnpm install --frozen-lockfile --prefer-offline --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
+          echo 'install: passed'
+      # The lockfile pins the Playwright version, and with it the browser builds.
+      - name: Cache the Playwright browser
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .airig/ms-playwright
+          key: playwright-${{ runner.os }}-${{ matrix.engine }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install system dependencies for the engine (disposable runner)
+        timeout-minutes: 12
+        env:
+          ENGINE: ${{ matrix.engine }}
+          DEBIAN_FRONTEND: noninteractive
+          NEEDRESTART_MODE: a
+        run: |
+          mkdir -p .airig/ci
+          echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
+          # A stalled mirror connection must time out and retry instead of hanging the download.
+          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' | sudo tee "$(apt-config shell d Dir::Etc::parts/d | sed "s/^d='//; s/'$//")80-velcro-ci" > .airig/ci/apt-config.log
+          ok=0
+          for attempt in 1 2; do
+            code=0
+            timeout -k 10 330 pnpm exec playwright install-deps "$ENGINE" > .airig/ci/browser-deps-$attempt.log 2>&1 || code=$?
+            if [ "$code" = 0 ]; then ok=1; break; fi
+            if [ "$code" = 124 ] || [ "$code" = 137 ]; then echo "browser system dependencies: attempt $attempt timed out"; else echo "browser system dependencies: attempt $attempt failed (exit code $code)"; fi
+          done
+          [ "$ok" = 1 ] || { echo 'browser system dependencies: blocked; private evidence retained'; exit 1; }
+          echo 'browser system dependencies: passed'
+      - name: Install the engine (disposable runner; a no-op on a cache hit)
+        timeout-minutes: 12
+        env:
+          ENGINE: ${{ matrix.engine }}
+        run: |
+          mkdir -p .airig/ci
+          code=0
+          timeout -k 10 480 pnpm exec playwright install "$ENGINE" > .airig/ci/browser.log 2>&1 || code=$?
+          if [ "$code" != 0 ]; then
+            if [ "$code" = 124 ] || [ "$code" = 137 ]; then echo 'browser setup: timed out'; else echo "browser setup: failed (exit code $code)"; fi
+            echo 'browser setup: blocked; private evidence retained'
+            exit 1
+          fi
+          echo 'browser setup: passed'
+      - name: Download the build output
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: product-build
+          path: packages
+      - name: Product verification (one engine, one shard)
+        timeout-minutes: 35
+        env:
+          ENGINE: ${{ matrix.engine }}
+          SHARD: ${{ matrix.shard }}/4
+          DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          mkdir -p .airig/ci
+          pnpm verify:product --stage browser --engine "$ENGINE" --shard "$SHARD" --expect-digest "$DIGEST" > .airig/ci/product.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/product.log; echo 'product: blocked; private evidence retained'; exit 1; }
+          echo 'product: passed'
+
+  upstream:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Browsers live in the ignored workspace scratch, so they can be cached by a workspace-relative path.
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.airig/ms-playwright
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
+        with:
+          version: 9.15.9
+          run_install: false
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+      - name: Public frozen dependency install
+        run: |
+          mkdir -p .airig/ci
+          pnpm install --frozen-lockfile --prefer-offline --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
+          echo 'install: passed'
+      # Shoelace's own tests run in Chromium; this shares the Chromium shards' browser cache.
+      - name: Cache the Playwright browser
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .airig/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install system dependencies for the engine (disposable runner)
+        timeout-minutes: 12
+        env:
+          ENGINE: chromium
+          DEBIAN_FRONTEND: noninteractive
+          NEEDRESTART_MODE: a
+        run: |
+          mkdir -p .airig/ci
+          echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
+          # A stalled mirror connection must time out and retry instead of hanging the download.
+          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' | sudo tee "$(apt-config shell d Dir::Etc::parts/d | sed "s/^d='//; s/'$//")80-velcro-ci" > .airig/ci/apt-config.log
+          ok=0
+          for attempt in 1 2; do
+            code=0
+            timeout -k 10 330 pnpm exec playwright install-deps "$ENGINE" > .airig/ci/browser-deps-$attempt.log 2>&1 || code=$?
+            if [ "$code" = 0 ]; then ok=1; break; fi
+            if [ "$code" = 124 ] || [ "$code" = 137 ]; then echo "browser system dependencies: attempt $attempt timed out"; else echo "browser system dependencies: attempt $attempt failed (exit code $code)"; fi
+          done
+          [ "$ok" = 1 ] || { echo 'browser system dependencies: blocked; private evidence retained'; exit 1; }
+          echo 'browser system dependencies: passed'
+      - name: Install the engine (disposable runner; a no-op on a cache hit)
+        timeout-minutes: 12
+        env:
+          ENGINE: chromium
+        run: |
+          mkdir -p .airig/ci
+          code=0
+          timeout -k 10 480 pnpm exec playwright install "$ENGINE" > .airig/ci/browser.log 2>&1 || code=$?
+          if [ "$code" != 0 ]; then
+            if [ "$code" = 124 ] || [ "$code" = 137 ]; then echo 'browser setup: timed out'; else echo "browser setup: failed (exit code $code)"; fi
+            echo 'browser setup: blocked; private evidence retained'
+            exit 1
+          fi
+          echo 'browser setup: passed'
+      - name: Download the build output
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: product-build
+          path: packages
+      - name: Upstream conformance (Shoelace's own tests against the built library)
+        timeout-minutes: 15
+        env:
+          DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          mkdir -p .airig/ci
+          pnpm verify:product --stage upstream --expect-digest "$DIGEST" > .airig/ci/upstream.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/upstream.log; echo 'upstream: blocked; private evidence retained'; exit 1; }
+          echo 'upstream: passed'

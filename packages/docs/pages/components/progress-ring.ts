@@ -15,12 +15,12 @@ export const pageData = definePageData(async () => ({
 const gaps = [
   'There is no core progress ring: the component extends core\'s base element directly, so no core behavior is reused.',
   'The default accessible name (used when label is empty) is the localized "progress" term, as in Shoelace: "Progress" in English, the fallback. It follows the element\'s lang, then the document\'s, and re-renders when either changes or a translation is registered.',
-  'A translation is registered by importing @charm-ux/velcro/translations/<code> (Shoelace\'s 29 files, which register themselves) or by calling registerTranslation from @charm-ux/velcro/utilities/localize, as with Shoelace\'s utilities/localize. The translated text is Shoelace\'s and was not reviewed by Velcro; localized output was checked in Chromium only. See the Localization page.',
+  'A translation is registered by importing @charm-ux/velcro/translations/<code> (Shoelace\'s 29 files, which register themselves) or by calling registerTranslation from @charm-ux/velcro/utilities/localize, as with Shoelace\'s utilities/localize. The translated text is Shoelace\'s and was not reviewed by Velcro; localized output was checked in Chromium, Firefox and WebKit. See the Localization page.',
   'value is not clamped or validated: aria-valuenow and the drawn arc follow whatever number is set, as in Shoelace. Whether a given screen reader announces the progressbar was not tested.',
   'The Shoelace docs example that pairs the ring with sl-icon circle buttons is ported with plain buttons, as before Velcro had sl-icon (not yet updated to use it). The React examples are not ported.',
   'The indicator transition is not reduced or stopped for prefers-reduced-motion, as in Shoelace; this is recorded as parity, not as an accessibility endorsement.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported. Server-side rendering is not supported.',
-  'Geometry and styles were checked by computed-style assertions in Chromium only; there is no pixel comparison against Shoelace, and no Firefox, WebKit (including the Safari workaround for the dash offset) or RTL check.',
+  'Geometry and styles were checked by computed-style assertions in Chromium, Firefox and WebKit; there is no pixel comparison against Shoelace, and no RTL check. Playwright\'s WebKit is not Safari: the Safari-specific dash-offset workaround and whether the transition animates in Safari itself are not checked.',
   'Both the light and dark themes exist (dark values are token-checked against Shoelace 2.20.1; dark rendering of this component is not screenshot-checked), and the theme should be loaded: the ring reads --sl-color-neutral-200 and --sl-color-primary-600 (with built-in fallbacks).',
 ];
 

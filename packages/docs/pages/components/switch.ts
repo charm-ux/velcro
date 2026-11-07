@@ -34,7 +34,7 @@ const gaps = [
   'As in Shoelace, the element is not form-associated: it does not appear in form.elements and is not disabled by a disabled <fieldset>. Its value is added in the form\'s formdata event. A switch attached to a form replaces the form\'s checkValidity() and reportValidity() with versions that also check Velcro controls (restored when the last one detaches), and sets data-valid / data-invalid / data-optional / data-required / data-user-valid / data-user-invalid attributes on itself.',
   'The validity, validationMessage, checkValidity(), reportValidity(), setCustomValidity(), click(), focus() and blur() members use the rendered inner checkbox, so, as in Shoelace, they throw when called before the first render.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. The core switch reads its scope while it is constructed; Velcro gives it a local scope that resolves core tags to sl-* names, never touches core\'s shared scope, and fails loudly if a declared dependency has no registered Velcro counterpart. The switch renders no other component. Server-side rendering is not supported.',
-  'Shoelace\'s own switch tests run against Velcro and all pass. Rendering is checked by computed-style assertions in Chromium; there is no pixel comparison against Shoelace, and no Firefox or WebKit run. Dark rendering is not screenshot-checked.',
+  'Shoelace\'s own switch tests run against Velcro and all pass. Rendering is checked by computed-style assertions in Chromium, Firefox and WebKit; there is no pixel comparison against Shoelace. Dark rendering is not screenshot-checked.',
 ];
 
 @customElement('page-components-switch')

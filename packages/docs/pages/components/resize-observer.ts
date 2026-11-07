@@ -14,10 +14,10 @@ export const pageData = definePageData(async () => ({
 const gaps = [
   'The Shoelace documentation example logs event.detail to the console; the ported example writes the first entry\'s content size and an event count into the page instead, so it can be checked. The Shoelace React example is not ported.',
   'The component extends the core base element, so it also dispatches core\'s non-bubbling "ready" event on first update, which Shoelace does not. Core also keeps its "dir" property and its base styles (including a hidden-attribute rule).',
-  'Observation was checked in Chromium with the example only: the initial report, resize reports, disabling, re-enabling, slot changes and disconnecting. Nested or flattened slots and elements slotted into the observer from another shadow root were not tested.',
+  'Observation was checked in Chromium, Firefox and WebKit with the example only: the initial report, resize reports, disabling, re-enabling, slot changes and disconnecting. Nested or flattened slots and elements slotted into the observer from another shadow root were not tested.',
   'The element has no role and exposes nothing to assistive technology; no screen reader testing was done.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported. Server-side rendering is not supported.',
-  'Rendering was checked by computed-style assertions in Chromium only; there is no Firefox, WebKit or RTL check.',
+  'Rendering was checked by computed-style assertions in Chromium, Firefox and WebKit; there is no RTL check.',
   'Both the light and dark themes exist. The component needs no theme tokens; the example uses --sl-input-border-color, which is defined by both themes.',
 ];
 

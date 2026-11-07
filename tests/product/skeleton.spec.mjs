@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+
+test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/skeleton';
 
@@ -7,10 +10,12 @@ async function openExample(page, name = 'Overview', readyId = '#demo-avatar') {
   page.on('request', request => requests.push(request.url()));
   // Litro's client router remounts the page component once after load, which reloads the iframes; wait for it to settle.
   await page.goto(PAGE, { waitUntil: 'networkidle' });
+  // The client router replaces the prerendered page once; until it has settled there can be two copies of each example iframe.
+  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
   const frame = page.frameLocator(`iframe.example[title="Skeleton example: ${name}"]`);
   await expect(frame.locator(readyId)).toBeAttached();
   await frame.locator(readyId).evaluate(() => customElements.whenDefined('sl-skeleton'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 
@@ -45,7 +50,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the Shoel
   for (const heading of ['Effects', 'Paragraphs', 'Avatars', 'Custom shapes', 'Custom colors']) expect(html).toContain(heading);
   expect(html).toContain('without changing the shared core prefix');
   expect(html).toContain('prefers-reduced-motion');
-  expect(html).toContain('no Firefox, WebKit, RTL or localization check');
+  expect(html).toContain('no RTL or localization check');
   expect(html).toContain('<code>indicator</code>');
   expect(html).toContain('inherits the core <code>ready</code> event');
   expect(html).toContain('It does not bubble, is not composed');

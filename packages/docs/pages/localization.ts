@@ -170,7 +170,7 @@ export class LocalizationPage extends LitElement {
 
       <h2 id="not-implemented">Not implemented or unverified</h2>
       <ul>
-        <li>Checked in Chromium only; there is no Firefox or WebKit check. The text of the 29 translation files is Shoelace's and was not
+        <li>Checked in Chromium, Firefox and WebKit. The text of the 29 translation files is Shoelace's and was not
           reviewed by Velcro.</li>
       </ul>
     `);

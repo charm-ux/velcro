@@ -41,7 +41,7 @@ const gaps = [
   'dir and lang are declared as Shoelace\'s base element declares them: reactive, not reflected and undefined until set. Core\'s computed dir is not used.',
   'TypeScript types for dir are narrower than Shoelace\'s dir: string. At runtime dir is stored and returned as set, and the setter accepts any string, so element.dir = someString compiles (type-tests/animation-dir.tsx checks it). The read type stays core\'s \'ltr\' | \'rtl\' | \'auto\', because a subclass cannot widen an inherited getter\'s type, and everything generated from it follows: the manifest and the API table below, the React wrapper\'s dir prop, and the JSX dir and prop:dir types. Fixing this needs a change in @charm-ux/core and is deferred.',
   'Like Shoelace, the component does nothing for prefers-reduced-motion: a page that wants to honor it has to leave play off or choose another animation.',
-  'The element is checked by product tests and by Shoelace\'s animation tests, both gated in Chromium only. The product tests also passed in WebKit in a local run that is not part of the gate. There is no Firefox check, no RTL or screen reader check, and no pixel comparison with Shoelace.',
+  'The element is checked by product tests in Chromium, Firefox and WebKit, and by Shoelace\'s animation tests in Chromium. There is no RTL or screen reader check, and no pixel comparison with Shoelace.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Server-side rendering is not supported.',
   'The component renders nothing of its own and has no theme tokens, so it works with both themes. The examples\' boxes use --sl-color-primary-600, which both themes define.',
 ];
