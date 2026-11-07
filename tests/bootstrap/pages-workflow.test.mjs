@@ -8,6 +8,8 @@ const text = readFileSync(new URL('../../.github/workflows/pages.yml', import.me
 const ci = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
 const code = text.replace(/^\s*#.*$/gm, '');
 const job = name => new RegExp(`\\n  ${name}:\\n([\\s\\S]*?)(?=\\n  [a-z-]+:\\n|$)`).exec(code)?.[1] ?? '';
+const checks = job('checks');
+const product = job('product');
 const build = job('build');
 const deploy = job('deploy');
 
@@ -50,23 +52,29 @@ test('the trigger check rejects forbidden variants', () => {
   assert.notDeepEqual(triggerProblems(`${code}\n  token: \${{ secrets.X }}\n`), [], 'a secret');
 });
 
-test('build and deployment are main-only push/dispatch jobs and use the exact SHA', () => {
-  for (const j of [build, deploy]) assert.match(j, /if: \$\{\{ \(github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch'\) && github\.ref == 'refs\/heads\/main' \}\}/);
-  assert.match(build, /ref: \$\{\{ github\.sha \}\}/);
-  assert.match(build, /persist-credentials: false/);
+test('every job is a main-only push/dispatch job and uses the exact SHA', () => {
+  assert.deepEqual([...code.slice(code.indexOf('\njobs:\n')).matchAll(/\n {2}([a-z-]+):\n/g)].map(m => m[1]), ['checks', 'product', 'build', 'deploy']);
+  for (const j of [checks, product, build, deploy]) assert.match(j, /if: \$\{\{ \(github\.event_name == 'push' \|\| github\.event_name == 'workflow_dispatch'\) && github\.ref == 'refs\/heads\/main' \}\}/);
+  for (const j of [checks, build]) {
+    assert.match(j, /ref: \$\{\{ github\.sha \}\}/);
+    assert.match(j, /persist-credentials: false/);
+  }
+  assert.match(product, /uses: \.\/\.github\/workflows\/product\.yml\n {4}with:\n {6}ref: \$\{\{ github\.sha \}\}\n/);
   assert.match(build, /--expect-sha "\$GITHUB_SHA"/);
 });
 
 test('every action is pinned to a full commit SHA', () => {
   const uses = [...code.matchAll(/uses: (\S+)/g)].map(m => m[1]);
   assert.ok(uses.length >= 5);
-  for (const u of uses) assert.match(u, /^[\w.-]+\/[\w.-]+@[a-f0-9]{40}$/, u);
+  for (const u of uses) assert.match(u, /^(?:\.\/\.github\/workflows\/product\.yml|[\w.-]+\/[\w.-]+@[a-f0-9]{40})$/, u);
 });
 
 test('only the deploy job has write or OIDC permissions, and it runs only the pinned deployment action', () => {
   assert.match(code, /\npermissions: \{\}\n/);
-  assert.match(build, /permissions:\n {6}contents: read\n/);
-  assert.doesNotMatch(build, /: write|id-token/);
+  for (const j of [checks, product, build]) {
+    assert.match(j, /permissions:\n {6}contents: read\n/);
+    assert.doesNotMatch(j, /: write|id-token/);
+  }
   assert.equal([...code.matchAll(/\b[a-z-]+: write/g)].length, 2, 'exactly pages and id-token');
   assert.match(deploy, /pages: write\n\s+id-token: write/);
   assert.deepEqual([...deploy.matchAll(/uses: (\S+)/g)].map(m => m[1].split('@')[0]), ['actions/deploy-pages']);
@@ -80,24 +88,30 @@ test('deployment concurrency never cancels a running deployment', () => {
 });
 
 test('verification and site preparation come strictly before the single artifact upload', () => {
+  // The upload job needs the checks (history scan, source verification) and every product job (product.yml).
+  assert.match(build, /^ {4}needs: \[checks, product\]\n/m);
+  for (const gate of ['--frozen-lockfile', 'git-privacy.mjs history HEAD', 'pnpm verify:source']) assert.ok(checks.includes(gate), `checks runs ${gate}`);
+  assert.match(checks, /fetch-depth: 0/);
   const at = s => build.indexOf(s);
   const upload = at('actions/upload-pages-artifact@');
   assert.ok(upload > 0);
   assert.equal([...code.matchAll(/upload-pages-artifact|upload-artifact/g)].length, 1);
-  for (const gate of ['--frozen-lockfile', 'git-privacy.mjs history HEAD', 'pnpm verify:source', 'pnpm verify:product', 'scripts/site/prepare.mjs']) {
+  for (const gate of ['--frozen-lockfile', 'actions/download-artifact@', 'pnpm verify:product --stage evidence --expect-digest "$DIGEST"', 'scripts/site/prepare.mjs']) {
     assert.ok(at(gate) > 0 && at(gate) < upload, `${gate} must precede the upload`);
   }
-  assert.ok(at('pnpm verify:product') < at('scripts/site/prepare.mjs'));
+  assert.match(build, /DIGEST: \$\{\{ needs\.product\.outputs\.digest \}\}/);
+  assert.ok(at('actions/download-artifact@') < at('pnpm verify:product --stage evidence'));
+  assert.ok(at('pnpm verify:product --stage evidence') < at('scripts/site/prepare.mjs'));
   assert.ok(build.includes(`path: ${AIRIG}/site/run/site\n`));
-  assert.doesNotMatch(build, /build:prefixed|\bbuild\b.*docs/, 'the tested output is never rebuilt after verification');
-  assert.doesNotMatch(build, /continue-on-error|\|\| true|--no-verify/);
+  assert.doesNotMatch(build, /build:prefixed|\bbuild\b.*docs|--stage build|run build/, 'the tested output is never rebuilt after verification');
+  assert.doesNotMatch(code, /continue-on-error|\|\| true|--no-verify/);
 });
 
 test('main CI checks site preparation on every PR without uploading, and keeps its gates', () => {
-  const product = /\n  product:\n([\s\S]*?)\n  required:/.exec(ci)?.[1] ?? '';
-  assert.ok(product.includes(`scripts/site/prepare.mjs --base /velcro --out ${AIRIG}/site/run --expect-sha "$SOURCE_SHA"`));
-  assert.doesNotMatch(product, /build:prefixed/, 'no rebuild between the browser checks and preparation');
-  assert.ok(product.indexOf('pnpm verify:product') < product.indexOf('scripts/site/prepare.mjs'));
+  const site = /\n  site:\n([\s\S]*?)\n  required:/.exec(ci)?.[1] ?? '';
+  assert.ok(site.includes(`scripts/site/prepare.mjs --base /velcro --out ${AIRIG}/site/run --expect-sha "$SOURCE_SHA"`));
+  assert.doesNotMatch(site, /build:prefixed|--stage build/, 'no rebuild between the browser checks and preparation');
+  assert.ok(site.indexOf('pnpm verify:product --stage evidence') < site.indexOf('scripts/site/prepare.mjs'));
   assert.doesNotMatch(ci, /upload-artifact|upload-pages|deploy-pages|pages: write|id-token/);
-  assert.match(ci, /needs: \[verify, product, security\]/);
+  assert.match(ci, /needs: \[verify, product, site, security\]/);
 });

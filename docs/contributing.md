@@ -21,6 +21,10 @@ under `dist/components/<name>/`; `./<name>/class` is optional) to `packages/velc
   routes all derive from it.
 - `tests/product/<name>.spec.mjs`: the browser spec. The generated skeleton fails until it is replaced with real checks.
 
+A module that Shoelace publishes next to a component (for example `dist/components/include/request.js`) is exported by its full key and only
+if `MODULE_EXPORTS` in `scripts/site/catalog.mjs` lists it: once its component is in the catalog the entry is required, with exactly its
+listed targets, and the gate rejects any other `./<name>/<subpath>`.
+
 The page's API tables are not hand-written: `apiReference('sl-<name>')` (`packages/docs/src/api.ts`) renders them from
 `packages/velcro/custom-elements.json`, the Custom Elements Manifest built from the component's JSDoc (`@tag`, `@status`,
 `@slot`, `@csspart`, `@cssproperty [--name=default]`, `@event`) plus the API inherited from `@charm-ux/core`. After
@@ -51,6 +55,11 @@ verify in parallel.
   Tests must not rely on Chromium-only behavior (computed-style serialization,
   clipboard permissions, link Tab stops on macOS WebKit); where an engine
   genuinely differs, branch on `browserName` in the test and say why.
+  Tests run fully parallel, so none may depend on another test's order or state.
+  CI builds once and runs each engine in three Playwright shards plus the
+  upstream gate as separate jobs (`.github/workflows/product.yml`), through
+  `verify:product --stage build|browser|upstream|evidence`; locally, run
+  `verify:product` without arguments.
 - `pnpm verify:source`: pinned tools, complete executable hook files, real scanner,
   meaningful tests with zero skips, and the actual proposed index. Raw test output
   stays under ignored `.airig/verify/`; summaries contain no raw tool errors.

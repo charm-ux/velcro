@@ -1,0 +1,11 @@
+<p style="margin-top: 0">This text comes from another HTML document on this site, requested when the include loaded.</p>
+<p>
+  Included files are requested with <code>window.fetch()</code> and inserted into the element's light DOM, so they can be
+  styled like any other content of the page.
+</p>
+<p class="include-script-status">The script in this file has not run: it only runs when the include has <code>allow-scripts</code>.</p>
+
+<script>
+  document.currentScript.parentNode.querySelector('.include-script-status').textContent =
+    'The script in this file ran, because the include has allow-scripts.';
+</script>

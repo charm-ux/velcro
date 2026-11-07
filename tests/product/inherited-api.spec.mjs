@@ -22,6 +22,7 @@ const CONTENT = {
   'sl-card': '<div slot="header">h</div>Body<div slot="footer">f</div>',
   'sl-progress-bar': 'Label',
   'sl-progress-ring': 'Label',
+  'sl-include': '<div>x</div>',
   'sl-mutation-observer': '<div>x</div>',
   'sl-popup': '<span slot="anchor">a</span><div>x</div>',
   'sl-resize-observer': '<div>x</div>',

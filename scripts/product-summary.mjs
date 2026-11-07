@@ -48,10 +48,10 @@ const firstLine = t => {
 };
 
 // Returns the summary lines (without the "verify:product:" prefix handling; the caller adds it).
-export function summarizeReport(report, { root } = {}) {
+export function summarizeReport(report, { root, engines = ENGINES } = {}) {
   const tests = [];
   for (const s of Array.isArray(report?.suites) ? report.suites : []) walk(s, tests);
-  const per = Object.fromEntries(ENGINES.map(e => [e, { passed: 0, failed: 0, flaky: 0, skipped: 0 }]));
+  const per = Object.fromEntries(engines.map(e => [e, { passed: 0, failed: 0, flaky: 0, skipped: 0 }]));
   const bad = [];
   const skipped = [];
   for (const { spec, test } of tests) {
@@ -62,10 +62,10 @@ export function summarizeReport(report, { root } = {}) {
     else if (test.status === 'flaky') { e.flaky++; bad.push({ spec, test }); }
     else { e.failed++; bad.push({ spec, test }); }
   }
-  const lines = ENGINES.map(e => `${e} passed ${per[e].passed}, failed ${per[e].failed}, flaky ${per[e].flaky}, skipped ${per[e].skipped}`);
+  const lines = engines.map(e => `${e} passed ${per[e].passed}, failed ${per[e].failed}, flaky ${per[e].flaky}, skipped ${per[e].skipped}`);
   // Skipped and interrupted tests (for example after the global timeout) are listed after the failures, by title only.
   bad.push(...skipped);
-  const failingEngines = ENGINES.filter(e => per[e].failed || per[e].flaky);
+  const failingEngines = engines.filter(e => per[e].failed || per[e].flaky);
   for (const { spec, test } of bad.slice(0, MAX_FAILURES)) {
     const where = `${redactLine(spec.file, root)}:${Number.isInteger(spec.line) ? spec.line : 0}`;
     lines.push(redactLine(`${test.projectName} ${where} ${spec.title} | ${test.status === 'skipped' ? 'skipped or interrupted' : firstLine(test)}`, root));

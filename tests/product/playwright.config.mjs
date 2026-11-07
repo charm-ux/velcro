@@ -18,6 +18,9 @@ export default defineConfig({
   testMatch: '*.spec.mjs',
   outputDir,
   forbidOnly: true,
+  // Tests, not files, are the unit of scheduling, so CI's shards (`--shard`, one engine each; see .github/workflows/product.yml)
+  // split even the long files evenly. No spec depends on the order of its tests or on another test's state.
+  fullyParallel: true,
   // Hangs must fail fast and visibly: a stuck test fails after 45 s (specs that need more say so with test.setTimeout), and the
   // whole run stops at 28 min. With 519 tests per engine, a CI run of the three engines ran past 20 min (WebKit, run last, still
   // had 22 tests to go). scripts/verify-product.mjs kills the browser step only at 30 min, so Playwright writes its JSON report

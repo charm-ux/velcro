@@ -7,6 +7,14 @@ import { test } from 'node:test';
 
 const gate = new URL('../../scripts/ci-gate.mjs', import.meta.url);
 const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
+const product = readFileSync(new URL('../../.github/workflows/product.yml', import.meta.url), 'utf8');
+// A job's body, up to the next job of the same file (comment lines between jobs are dropped first).
+const jobOf = (text, name) => new RegExp(`\\n  ${name}:\\n([\\s\\S]*?)(?=\\n  [a-z-]+:\\n|$)`).exec(text.replace(/^ {2}#.*\n/gm, ''))?.[1] ?? '';
+// The run script of a named step in a job body.
+const stepRun = (body, name) => {
+  const at = body.indexOf(`- name: ${name}`);
+  return at < 0 ? undefined : /\brun: \|\n((?:\s{10}.*\n?)+)/.exec(body.slice(at))?.[1];
+};
 test('aggregate requires every named job and only successful results', () => {
   const inline = /node --input-type=module -e '([\s\S]*?)'/.exec(workflow)?.[1];
   assert.ok(inline, 'actual workflow aggregate must be testable');
@@ -17,9 +25,9 @@ test('aggregate requires every named job and only successful results', () => {
     assert.equal(actual, script, 'workflow aggregate and local oracle diverged');
     return script;
   };
-  const good = { verify: { result: 'success' }, product: { result: 'success' }, security: { result: 'success' } };
+  const good = { verify: { result: 'success' }, product: { result: 'success' }, site: { result: 'success' }, security: { result: 'success' } };
   assert.equal(run(good), 0);
-  for (const job of ['verify', 'product', 'security']) {
+  for (const job of ['verify', 'product', 'site', 'security']) {
     for (const result of ['failure', 'cancelled', 'skipped', 'pending', '', null, undefined]) {
       assert.equal(run({ ...good, [job]: { result } }), 1);
     }
@@ -29,7 +37,7 @@ test('aggregate requires every named job and only successful results', () => {
     assert.equal(run({ ...good, [job]: null }), 1);
   }
   assert.equal(run({ verify: { result: 'success' } }), 1);
-  assert.equal(run([good.verify, good.product, good.security]), 1);
+  assert.equal(run([good.verify, good.product, good.site, good.security]), 1);
   assert.equal(run({}), 1);
   assert.equal(run({ ...good, extra: { result: 'success' } }), 1);
 });
@@ -40,61 +48,158 @@ test('workflow is pinned, read-only, full-history and has an always-running aggr
   assert.match(text, /fetch-depth: 0/);
   assert.match(text, /persist-credentials: false/);
   assert.match(text, /if: \$\{\{ always\(\) \}\}/);
-  assert.match(text, /needs: \[verify, product, security\]/);
+  assert.match(text, /needs: \[verify, product, site, security\]/);
   assert.match(text, /--frozen-lockfile/);
   assert.match(text, /registry\.npmjs\.org/);
-  const job = /\n  product:\n([\s\S]*?)\n  required:/.exec(text)?.[1] ?? '';
-  assert.match(job, /playwright install-deps chromium firefox webkit/);
-  assert.match(job, /playwright install chromium firefox webkit/);
-  assert.match(job, /DEBIAN_FRONTEND: noninteractive/);
-  assert.equal([...job.matchAll(/timeout-minutes: 12/g)].length, 2, 'each browser install step is bounded');
-  assert.match(job, /Acquire::Retries "5"[\s\S]*Acquire::http::Timeout "30"[\s\S]*Acquire::https::Timeout "30"/);
-  assert.match(job, /80-velcro-ci/);
-  assert.match(job, /for attempt in 1 2; do\n\s+code=0\n\s+timeout -k 10 330 pnpm exec playwright install-deps chromium firefox webkit/);
-  assert.equal([...job.matchAll(/timeout -k 10 480 pnpm exec playwright install chromium/g)].length, 1);
-  assert.match(job, /--frozen-lockfile/);
-  assert.match(job, /pnpm verify:product/);
+  assert.match(jobOf(text, 'product'), /^ {4}uses: \.\/\.github\/workflows\/product\.yml\n {4}with:\n {6}ref: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}$/m);
   assert.doesNotMatch(text, /\bpaths(-ignore)?:|\n {2}product:\n {4}if:/);
   assert.doesNotMatch(text, /upload-artifact|pull_request_target|secrets\./);
   assert.match(text, /Report protected changes requiring independent human review/);
   assert.doesNotMatch(text, /Block protected policy changes|continue-on-error/);
-  for (const match of text.matchAll(/uses: (\S+)/g)) assert.match(match[1], /@[a-f0-9]{40}$/);
+  for (const match of text.matchAll(/uses: (\S+)/g)) assert.match(match[1], /^(?:\.\/\.github\/workflows\/product\.yml|[\w.-]+\/[\w.-]+@[a-f0-9]{40})$/);
 });
 
-test('product step keeps all command output private and still blocks on failure', () => {
-  const job = /\n  product:\n([\s\S]*?)\n  required:/.exec(workflow)?.[1] ?? '';
-  const script = /- name: Product verification[^\n]*\n(?:\s+timeout-minutes: \d+\n)?\s+run: \|\n((?:\s{10}.*\n?)+)/.exec(job)?.[1];
-  assert.ok(script, 'actual product step must be testable');
-  assert.doesNotMatch(script, /^\s*pnpm verify:product\s*$/m);
-  for (const code of [0, 3]) {
+test('product workflow: one build, every engine in N shards (1..N), the upstream gate, all on the build digest', () => {
+  const text = product;
+  assert.match(text, /^on:\n {2}workflow_call:\n/m);
+  assert.doesNotMatch(text, /^ {2}(?:push|pull_request|pull_request_target|workflow_dispatch|schedule):/m, 'reusable only');
+  assert.match(text, /\npermissions:\n {2}contents: read\n/);
+  assert.doesNotMatch(text, /: write|id-token|secrets\.|continue-on-error|\|\| true/);
+  for (const match of text.matchAll(/uses: (\S+)/g)) assert.match(match[1], /^[\w.-]+\/[\w.-]+@[a-f0-9]{40}$/, match[1]);
+  const jobs = [...text.replace(/^ {2}#.*\n/gm, '').matchAll(/\n {2}([a-z-]+):\n/g)].map(m => m[1]);
+  assert.deepEqual(jobs, ['build', 'browser', 'upstream']);
+  for (const name of jobs) {
+    const body = jobOf(text, name);
+    assert.doesNotMatch(body, /^ {4}if:/m, `${name} is never skipped`);
+    assert.match(body, /ref: \$\{\{ inputs\.ref \}\}\n\s+persist-credentials: false/);
+    assert.match(body, /pnpm install --frozen-lockfile --prefer-offline --registry=https:\/\/registry\.npmjs\.org\//);
+    assert.match(body, /uses: actions\/cache@[a-f0-9]{40}\n\s+with:\n\s+path: \$\{\{ steps\.pnpm-store\.outputs\.path \}\}\n\s+key: pnpm-store-\$\{\{ runner\.os \}\}-\$\{\{ hashFiles\('pnpm-lock\.yaml'\) \}\}/);
+  }
+  const build = jobOf(text, 'build');
+  const browser = jobOf(text, 'browser');
+  const upstream = jobOf(text, 'upstream');
+  // Build once: the build stage, its digest as the job output, the scan, then the single upload of the output.
+  assert.match(text, /outputs:\n {6}digest:\n {8}description: [^\n]+\n {8}value: \$\{\{ jobs\.build\.outputs\.digest \}\}/);
+  assert.match(build, /outputs:\n {6}digest: \$\{\{ steps\.build\.outputs\.digest \}\}/);
+  const at = s => build.indexOf(s);
+  assert.ok(at('pnpm verify:product --stage build') > 0);
+  assert.ok(at('pnpm verify:product --stage build') < at('node scripts/ci/scan-build-output.mjs'));
+  assert.ok(at('node scripts/ci/scan-build-output.mjs') < at('actions/upload-artifact@'));
+  assert.equal([...text.matchAll(/upload-artifact|upload-pages/g)].length, 1, 'only the build job uploads, once');
+  assert.match(build, /name: product-build\n\s+path: \|\n\s+packages\/velcro\/dist\n\s+packages\/docs\/dist\n\s+if-no-files-found: error\n\s+include-hidden-files: true\n\s+retention-days: 1\n/);
+  // Every later job downloads that output and checks the build digest; nothing rebuilds it.
+  for (const [name, body] of [['browser', browser], ['upstream', upstream]]) {
+    assert.match(body, /needs: build\n/);
+    assert.match(body, /uses: actions\/download-artifact@[a-f0-9]{40}\n\s+with:\n\s+name: product-build\n\s+path: packages\n/);
+    assert.match(body, /DIGEST: \$\{\{ needs\.build\.outputs\.digest \}\}/);
+    assert.match(body, /--expect-digest "\$DIGEST"/);
+    assert.doesNotMatch(body, /--stage build|run build|build:prefixed|scan-build-output/, `${name} never rebuilds`);
+  }
+  // The matrix covers each engine once and shards 1..N of the same N the shard argument uses; no leg is dropped early.
+  const matrix = /strategy:\n {6}fail-fast: false\n {6}matrix:\n {8}engine: \[([^\]]*)\]\n {8}shard: \[([^\]]*)\]\n/.exec(browser);
+  assert.ok(matrix, 'fail-fast off, exactly the engine and shard axes');
+  assert.deepEqual(matrix[1].split(', '), ['chromium', 'firefox', 'webkit']);
+  const shards = matrix[2].split(', ').map(Number);
+  const total = Number(/SHARD: \$\{\{ matrix\.shard \}\}\/(\d+)\n/.exec(browser)?.[1]);
+  assert.deepEqual(shards, Array.from({ length: total }, (_, i) => i + 1));
+  assert.match(browser, new RegExp(`name: browser \\(\\$\\{\\{ matrix\\.engine \\}\\}, shard \\$\\{\\{ matrix\\.shard \\}\\} of ${total}\\)`));
+  assert.doesNotMatch(browser, /include:|exclude:/);
+  assert.match(browser, /pnpm verify:product --stage browser --engine "\$ENGINE" --shard "\$SHARD" --expect-digest "\$DIGEST"/);
+  assert.match(browser, /ENGINE: \$\{\{ matrix\.engine \}\}/);
+  assert.match(browser, /key: playwright-\$\{\{ runner\.os \}\}-\$\{\{ matrix\.engine \}\}-\$\{\{ hashFiles\('pnpm-lock\.yaml'\) \}\}/);
+  assert.match(upstream, /pnpm verify:product --stage upstream --expect-digest "\$DIGEST"/);
+  assert.match(upstream, /key: playwright-\$\{\{ runner\.os \}\}-chromium-\$\{\{ hashFiles\('pnpm-lock\.yaml'\) \}\}/);
+  for (const body of [browser, upstream]) {
+    assert.match(body, /^ {4}env:\n {6}PLAYWRIGHT_BROWSERS_PATH: \$\{\{ github\.workspace \}\}\/\.airig\/ms-playwright\n/m);
+    assert.match(body, /uses: actions\/cache@[a-f0-9]{40}\n\s+with:\n\s+path: \.airig\/ms-playwright\n/);
+    assert.match(body, /DEBIAN_FRONTEND: noninteractive/);
+    assert.equal([...body.matchAll(/timeout-minutes: 12/g)].length, 2, 'each browser install step is bounded');
+    assert.match(body, /Acquire::Retries "5"[\s\S]*Acquire::http::Timeout "30"[\s\S]*Acquire::https::Timeout "30"/);
+    assert.match(body, /80-velcro-ci/);
+    assert.match(body, /for attempt in 1 2; do\n\s+code=0\n\s+timeout -k 10 330 pnpm exec playwright install-deps "\$ENGINE"/);
+    assert.equal([...body.matchAll(/timeout -k 10 480 pnpm exec playwright install "\$ENGINE"/g)].length, 1);
+  }
+});
+
+test('CI records evidence only after every product job, then checks site preparation without uploading', () => {
+  const site = jobOf(workflow, 'site');
+  assert.match(site, /^ {4}needs: product\n/m);
+  assert.doesNotMatch(site, /^ {4}if:/m);
+  const at = s => site.indexOf(s);
+  assert.ok(at('actions/download-artifact@') > 0);
+  assert.match(site, /DIGEST: \$\{\{ needs\.product\.outputs\.digest \}\}/);
+  assert.ok(at('actions/download-artifact@') < at('pnpm verify:product --stage evidence --expect-digest "$DIGEST"'));
+  assert.ok(at('pnpm verify:product --stage evidence') < at('scripts/site/prepare.mjs'));
+  assert.doesNotMatch(site, /--stage build|run build|build:prefixed/, 'no rebuild between the browser checks and preparation');
+});
+
+const stepCases = [
+  ['browser verification', jobOf(product, 'browser'), 'Product verification (one engine, one shard)', 'product', 'product.log', 'verify:product: webkit passed 1\n'],
+  ['upstream gate', jobOf(product, 'upstream'), "Upstream conformance (Shoelace's own tests against the built library)", 'upstream', 'upstream.log', 'verify:product: webkit passed 1\n'],
+  ['CI evidence', jobOf(workflow, 'site'), 'Record the tested-bytes evidence', 'evidence', 'evidence.log', 'verify:product: webkit passed 1\n'],
+];
+for (const [label, body, name, prefix, log, published] of stepCases) {
+  test(`${label} step keeps all command output private and still blocks on failure`, () => {
+    const script = stepRun(body, name);
+    assert.ok(script, 'actual step must be testable');
+    assert.doesNotMatch(script, /^\s*pnpm verify:product\s*$/m);
+    for (const code of [0, 3]) {
+      const dir = mkdtempSync(path.join(tmpdir(), 'velcro-ci-'));
+      try {
+        mkdirSync(path.join(dir, 'bin'));
+        mkdirSync(path.join(dir, '.airig/ci'), { recursive: true });
+        // Sensitive-looking text is generated at runtime, never committed.
+        const secret = ['', 'home', 'u' + 'ser', 'work'].join('/');
+        writeFileSync(path.join(dir, 'bin/pnpm'),
+          `#!/bin/sh\necho "cwd ${secret}"\necho "verify:product: webkit passed 1"\necho "SyntaxError at ${secret}/x.mjs:1" >&2\nexit ${code}\n`, { mode: 0o755 });
+        const r = spawnSync('sh', ['-e', '-c', script], { cwd: dir, encoding: 'utf8',
+          env: { ...process.env, ENGINE: 'webkit', SHARD: '1/3', DIGEST: 'a'.repeat(64), PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } });
+        const out = `${r.stdout}${r.stderr}`;
+        assert.equal(r.status, code === 0 ? 0 : 1);
+        assert.equal(out.trim(), code === 0 ? `${prefix}: passed` : `${published}${prefix}: blocked; private evidence retained`);
+        assert.match(readFileSync(path.join(dir, '.airig/ci', log), 'utf8'), /SyntaxError/);
+      } finally { rmSync(dir, { recursive: true, force: true }); }
+    }
+  });
+}
+
+test('build step publishes only the digest, keeps all command output private and blocks on failure or a missing digest', () => {
+  const script = stepRun(jobOf(product, 'build'), 'Build the library and the docs once');
+  assert.ok(script, 'actual build step must be testable');
+  const digest = 'b'.repeat(64);
+  for (const [code, digestLine, status, expected] of [
+    [0, `verify:product: tested digest ${digest}`, 0, `product build: passed (tested digest ${digest})`],
+    [0, 'verify:product: tested digest short', 1, 'product build: blocked (no tested digest)'],
+    [3, '', 1, 'verify:product: webkit passed 1\nproduct build: blocked; private evidence retained'],
+  ]) {
     const dir = mkdtempSync(path.join(tmpdir(), 'velcro-ci-'));
     try {
       mkdirSync(path.join(dir, 'bin'));
-      // Sensitive-looking text is generated at runtime, never committed.
       const secret = ['', 'home', 'u' + 'ser', 'work'].join('/');
       writeFileSync(path.join(dir, 'bin/pnpm'),
-        `#!/bin/sh\necho "cwd ${secret}"\necho "verify:product: webkit passed 1"\necho "SyntaxError at ${secret}/x.mjs:1" >&2\nexit ${code}\n`, { mode: 0o755 });
+        `#!/bin/sh\necho "cwd ${secret}"\necho "verify:product: webkit passed 1"\necho "${digestLine}"\necho "SyntaxError at ${secret}/x.mjs:1" >&2\nexit ${code}\n`, { mode: 0o755 });
       const r = spawnSync('sh', ['-e', '-c', script], { cwd: dir, encoding: 'utf8',
-        env: { ...process.env, PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } });
+        env: { ...process.env, GITHUB_OUTPUT: path.join(dir, 'output'), PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } });
       const out = `${r.stdout}${r.stderr}`;
-      assert.equal(r.status, code === 0 ? 0 : 1);
-      assert.equal(out.trim(), code === 0 ? 'product: passed' : 'verify:product: webkit passed 1\nproduct: blocked; private evidence retained');
-      assert.match(readFileSync(path.join(dir, '.airig/ci/product.log'), 'utf8'), /SyntaxError/);
+      assert.equal(r.status, status, out);
+      assert.equal(out.trim(), expected);
+      const output = (() => { try { return readFileSync(path.join(dir, 'output'), 'utf8'); } catch { return ''; } })();
+      assert.equal(output, status === 0 ? `digest=${digest}\n` : '');
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }
 });
 
-// The install steps of both workflows, run for real against stand-in commands. Raw installer output (which can carry runner
-// paths, URLs and package-manager stacks) must stay in the private log; only fixed status lines may be printed.
-for (const file of ['ci.yml', 'pages.yml']) {
-  const text = readFileSync(new URL(`../../.github/workflows/${file}`, import.meta.url), 'utf8');
+// The install steps of the product jobs, run for real against stand-in commands. Raw installer output (which can carry
+// runner paths, URLs and package-manager stacks) must stay in the private log; only fixed status lines may be printed.
+for (const file of ['browser', 'upstream']) {
+  const body = jobOf(product, file);
   const stepScript = name => {
-    const at = text.indexOf(`- name: ${name}`);
-    assert.ok(at > 0, `${file}: ${name}`);
-    return /\brun: \|\n((?:\s{10}.*\n?)+)/.exec(text.slice(at))?.[1];
+    const script = stepRun(body, name);
+    assert.ok(script, `${file}: ${name}`);
+    return script;
   };
-  const deps = stepScript('Install system dependencies for Chromium, Firefox and WebKit (disposable runner)');
-  const browsers = stepScript('Install Chromium, Firefox and WebKit (disposable runner)');
+  const deps = stepScript('Install system dependencies for the engine (disposable runner)');
+  const browsers = stepScript('Install the engine (disposable runner; a no-op on a cache hit)');
   // Stand-ins: sudo swallows its input, apt-config names a directory, timeout passes the command through, and pnpm prints
   // runtime-generated sensitive-looking text to both streams, then behaves as scripted (exit codes per call in $PNPM_CODES).
   const run = (script, codes) => {
@@ -109,7 +214,7 @@ for (const file of ['ci.yml', 'pages.yml']) {
       writeFileSync(path.join(dir, 'codes'), codes.join('\n') + '\n');
       put('pnpm', ['n=$([ -f count ] && cat count || echo 0); n=$((n+1)); echo $n > count', `echo "raw ${secret}"`, `echo "stack ${secret}" >&2`, 'code=$(sed -n "${n}p" codes)', 'exit ${code:-0}'].join('\n'));
       const r = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', script], { cwd: dir, encoding: 'utf8',
-        env: { ...process.env, PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } });
+        env: { ...process.env, ENGINE: 'webkit', PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } });
       const out = `${r.stdout}${r.stderr}`;
       assert.doesNotMatch(out, new RegExp(secret.replaceAll(/[.*+?^${}()|[\]\\/]/g, '\\$&')), 'raw installer output leaked');
       assert.doesNotMatch(out, /\braw\b|\bstack\b/);
@@ -136,12 +241,10 @@ test('product timeouts are ordered: global timeout < wrapper bound < step bound 
   const wrapper = readFileSync(new URL('../../scripts/verify-product.mjs', import.meta.url), 'utf8');
   const global = minutes(config, /globalTimeout: (\d+) \* 60 \* 1000/);
   const kill = minutes(wrapper, /(\d+) \* 60 \* 1000\);/);
-  for (const file of ['ci.yml', 'pages.yml']) {
-    const text = readFileSync(new URL(`../../.github/workflows/${file}`, import.meta.url), 'utf8');
-    const step = minutes(text, /- name: Product verification[^\n]*\n\s+timeout-minutes: (\d+)/);
-    const job = minutes(/\n  (?:product|build):\n([\s\S]*?)\n  (?:required|deploy):/.exec(text)?.[1] ?? '', /timeout-minutes: (\d+)/);
-    assert.ok(global < kill && kill < step && step < job, `${file}: ${global} < ${kill} < ${step} < ${job}`);
-  }
+  const browser = jobOf(product, 'browser');
+  const step = minutes(browser, /- name: Product verification[^\n]*\n\s+timeout-minutes: (\d+)/);
+  const job = minutes(browser, /^ {4}timeout-minutes: (\d+)/m);
+  assert.ok(global < kill && kill < step && step < job, `${global} < ${kill} < ${step} < ${job}`);
 });
 
 // Evaluates the approval expression's GitHub Actions grammar subset exactly:

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { evaluateReport } from '../../scripts/verify-product.mjs';
+import { evaluateReport, parseArgs } from '../../scripts/verify-product.mjs';
 import { MAX_FAILURES, MAX_LINE, redactLine, summarizeReport } from '../../scripts/product-summary.mjs';
 
 const ENGINES = ['chromium', 'firefox', 'webkit'];
@@ -88,8 +88,8 @@ function stubPlaywright(dir) {
   writeFileSync(path.join(pkg, 'package.json'), JSON.stringify({ name: '@playwright/test', type: 'module', exports: './index.js' }));
   writeFileSync(path.join(pkg, 'index.js'), 'export const chromium = { executablePath: () => process.execPath };\nexport const firefox = chromium;\nexport const webkit = chromium;\n');
 }
-function runCli(dir, expectFail = true, extraEnv = {}, strict = true) {
-  const r = spawnSync(process.execPath, [path.join(dir, 'scripts/verify-product.mjs')], {
+function runCli(dir, expectFail = true, extraEnv = {}, strict = true, argv = []) {
+  const r = spawnSync(process.execPath, [path.join(dir, 'scripts/verify-product.mjs'), ...argv], {
     cwd: dir, encoding: 'utf8', timeout: 60000,
     env: { ...process.env, ...extraEnv, PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` },
   });
@@ -347,5 +347,108 @@ test('CLI prints the bounded summary when the browser tests fail, and nothing pr
     assert.match(out, /verify:product: firefox passed 0, failed 1, flaky 0, skipped 0\n/);
     assert.match(out, /verify:product: firefox a\.spec\.mjs:3 t \| error Error\n/);
     assert.doesNotMatch(out, /second/);
+  } finally { cleanup(dir); }
+});
+
+// --- CI stages -----------------------------------------------------------------------------------------------------------
+const DIGEST = /^verify:product: tested digest ([0-9a-f]{64})$/m;
+
+test('stage arguments: only the documented forms are accepted', () => {
+  const d = 'a'.repeat(64);
+  assert.deepEqual(parseArgs([]), { stage: 'all' });
+  assert.deepEqual(parseArgs(['--stage', 'build']), { stage: 'build' });
+  assert.deepEqual(parseArgs(['--stage', 'browser', '--engine', 'webkit', '--shard', '2/3', '--expect-digest', d]), { stage: 'browser', digest: d, engine: 'webkit', shard: '2/3' });
+  assert.deepEqual(parseArgs(['--stage', 'upstream', '--expect-digest', d]), { stage: 'upstream', digest: d });
+  assert.deepEqual(parseArgs(['--stage', 'evidence', '--expect-digest', d]), { stage: 'evidence', digest: d });
+  for (const bad of [
+    ['--stage'], ['--stage', 'all'], ['--stage', 'build', '--expect-digest', d], ['--stage', 'build', '--engine', 'webkit'],
+    ['--stage', 'upstream'], ['--stage', 'evidence', '--expect-digest', 'A'.repeat(64)], ['--stage', 'evidence', '--expect-digest', d.slice(1)],
+    ['--stage', 'upstream', '--expect-digest', d, '--engine', 'webkit'], ['--stage', 'evidence', '--expect-digest', d, '--shard', '1/3'],
+    ['--stage', 'browser', '--engine', 'webkit', '--expect-digest', d], ['--stage', 'browser', '--shard', '1/3', '--expect-digest', d],
+    ['--stage', 'browser', '--engine', 'opera', '--shard', '1/3', '--expect-digest', d],
+    ...['0/3', '4/3', '1/0', '1', '1/3/3', 'a/3', '01/3', '1/100'].map(shard => ['--stage', 'browser', '--engine', 'webkit', '--shard', shard, '--expect-digest', d]),
+    ['--stage', 'build', '--stage', 'build'], ['--engine', 'webkit'], ['--grep', 'x'], ['build'],
+  ]) assert.throws(() => parseArgs(bad), /usage/, bad.join(' '));
+});
+
+test('a shard report counts only its own engine; a test of another engine fails it', () => {
+  const one = (n, engine = 'webkit') => ({ ...mk(0), stats: { ...mk(0).stats, expected: n },
+    suites: [{ specs: Array.from({ length: n }, () => ({ tests: [{ projectName: engine, status: 'expected', results: [{ status: 'passed' }] }] })) }] });
+  assert.equal(evaluateReport(one(8), { startedAt, engines: ['webkit'] }).ok, true);
+  assert.equal(evaluateReport(one(7), { startedAt, engines: ['webkit'] }).ok, false);
+  assert.equal(evaluateReport(one(8), { startedAt }).ok, false, 'all three engines are required without a restriction');
+  const mixed = one(8); mixed.suites[0].specs[0].tests[0].projectName = 'chromium';
+  assert.equal(evaluateReport(mixed, { startedAt, engines: ['webkit'] }).ok, false);
+  const skipped = one(8); skipped.stats.skipped = 1; skipped.suites[0].specs[0].tests[0].status = 'skipped';
+  assert.equal(evaluateReport(skipped, { startedAt, engines: ['webkit'] }).ok, false);
+});
+
+// Fake Playwright for the stages: records its arguments and reports eight passing tests of each requested project.
+const stageShim = orderShim.replace(/ {2}\*"exec playwright"\*\)[\s\S]*?;;\n/, `  *"exec playwright"*) echo "browser $*" >> calls.log
+    node -e 'const ps=process.argv.slice(1).filter(a=>a.startsWith("--project=")).map(a=>a.slice(10));const t=[];for(let i=0;i<8;i++)for(const p of ps)t.push({projectName:p,status:"expected",results:[{status:"passed"}]});
+      require("fs").writeFileSync(process.env.PLAYWRIGHT_JSON_OUTPUT_NAME,JSON.stringify({errors:[],suites:[{specs:t.map(x=>({tests:[x]}))}],
+      stats:{startTime:new Date().toISOString(),expected:t.length,unexpected:0,flaky:0,skipped:0}}))' -- "$@" ;;
+`);
+const calls = dir => readFileSync(path.join(dir, 'calls.log'), 'utf8').trim().split('\n');
+
+test('CI stages: build only builds and prints the digest; a shard, upstream and evidence run on that output, nothing else', () => {
+  const dir = fixture({ prepare: d => { stubPlaywright(d); gitInit(d); }, shim: stageShim });
+  try {
+    const built = runCli(dir, false, {}, true, ['--stage', 'build']);
+    assert.deepEqual(calls(dir), ['library', 'prefixed LITRO_BASE_PATH=[/velcro]', 'build LITRO_BASE_PATH=[]', 'typecheck LITRO_BASE_PATH=[]']);
+    const digest = DIGEST.exec(built)?.[1];
+    assert.ok(digest, built);
+    assert.throws(() => readFileSync(path.join(dir, EVIDENCE)), /ENOENT/);
+
+    rmSync(path.join(dir, 'calls.log'));
+    const shard = runCli(dir, false, {}, true, ['--stage', 'browser', '--engine', 'webkit', '--shard', '2/3', '--expect-digest', digest]);
+    assert.deepEqual(calls(dir).map(l => l.replace(/ --output \S+/, '')), ['browser exec playwright test -c tests/product/playwright.config.mjs --project=webkit --shard=2/3 --reporter=json']);
+    assert.match(shard, /tests 8, passed 8, failed 0, flaky 0, skipped 0\nverify:product: per engine webkit 8\nverify:product: passed \(webkit, shard 2\/3\)\n/);
+    assert.throws(() => readFileSync(path.join(dir, EVIDENCE)), /ENOENT/);
+
+    rmSync(path.join(dir, 'calls.log'));
+    assert.match(runCli(dir, false, {}, true, ['--stage', 'upstream', '--expect-digest', digest]), /passed \(upstream conformance\)/);
+    assert.deepEqual(calls(dir), ['upstream']);
+    assert.throws(() => readFileSync(path.join(dir, EVIDENCE)), /ENOENT/);
+
+    rmSync(path.join(dir, 'calls.log'));
+    assert.match(runCli(dir, false, {}, true, ['--stage', 'evidence', '--expect-digest', digest]), /evidence recorded for the tested site/);
+    assert.throws(() => readFileSync(path.join(dir, 'calls.log')), /ENOENT/, 'the evidence stage runs nothing');
+    const ev = JSON.parse(readFileSync(path.join(dir, EVIDENCE), 'utf8'));
+    assert.deepEqual([ev.status, ev.files.map(f => f.rel)], ['passed', ['_litro/app.js', 'index.html']]);
+  } finally { cleanup(dir); }
+});
+
+test('CI stages: output that differs from the build stage digest blocks before any check and leaves no evidence', () => {
+  const dir = fixture({ prepare: d => { stubPlaywright(d); gitInit(d); }, shim: stageShim });
+  try {
+    const digest = DIGEST.exec(runCli(dir, false, {}, true, ['--stage', 'build']))[1];
+    writeFileSync(path.join(dir, 'packages/docs/dist/static-prefixed/index.html'), '<p>changed</p>\n');
+    rmSync(path.join(dir, 'calls.log'));
+    for (const argv of [['--stage', 'browser', '--engine', 'chromium', '--shard', '1/3', '--expect-digest', digest], ['--stage', 'upstream', '--expect-digest', digest], ['--stage', 'evidence', '--expect-digest', digest]]) {
+      assert.match(runCli(dir, true, {}, true, argv), /blocked \(tested site differs from the build stage output\)/);
+    }
+    assert.throws(() => readFileSync(path.join(dir, 'calls.log')), /ENOENT/);
+    assert.throws(() => readFileSync(path.join(dir, EVIDENCE)), /ENOENT/);
+  } finally { cleanup(dir); }
+});
+
+test('CI stages: the evidence stage refuses a dirty source tree', () => {
+  const dir = fixture({ prepare: d => { stubPlaywright(d); gitInit(d); }, shim: stageShim });
+  try {
+    const digest = DIGEST.exec(runCli(dir, false, {}, true, ['--stage', 'build']))[1];
+    writeFileSync(path.join(dir, 'tracked.txt'), 'changed\n');
+    assert.match(runCli(dir, true, {}, true, ['--stage', 'evidence', '--expect-digest', digest]), /blocked \(source not clean and unchanged; no evidence recorded\)/);
+    assert.throws(() => readFileSync(path.join(dir, EVIDENCE)), /ENOENT/);
+  } finally { cleanup(dir); }
+});
+
+test('CLI rejects unknown or malformed stage arguments without running anything', () => {
+  const dir = fixture({ prepare: stubPlaywright, shim: stageShim });
+  try {
+    for (const argv of [['--stage', 'browser', '--engine', 'webkit', '--expect-digest', 'a'.repeat(64)], ['--grep', 'x'], ['--stage', 'build', '--expect-digest', 'a'.repeat(64)]]) {
+      assert.match(runCli(dir, true, {}, true, argv), /^verify:product: usage: /);
+    }
+    assert.throws(() => readFileSync(path.join(dir, 'calls.log')), /ENOENT/);
   } finally { cleanup(dir); }
 });

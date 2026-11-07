@@ -1,6 +1,7 @@
 // Raw build/browser output stays private in a fresh ignored folder; only counts, status and (on browser failures) the bounded,
 // redacted metadata lines of scripts/product-summary.mjs are printed.
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,8 +18,9 @@ function collect(suite, out) {
   for (const child of suite?.suites ?? []) collect(child, out);
 }
 
-// Returns { ok, counts, reason }. Fails closed on anything unexpected or stale.
-export function evaluateReport(report, { startedAt, minTests = MIN_TESTS } = {}) {
+// Returns { ok, counts, reason }. Fails closed on anything unexpected or stale. `engines` is the set the run was asked for
+// (one engine for a CI shard); a test of any other engine fails the report.
+export function evaluateReport(report, { startedAt, minTests = MIN_TESTS, engines = ENGINES } = {}) {
   const fail = reason => ({ ok: false, reason, counts: null });
   if (report === null || typeof report !== 'object' || Array.isArray(report)) return fail('malformed report');
   const stats = report.stats;
@@ -32,13 +34,13 @@ export function evaluateReport(report, { startedAt, minTests = MIN_TESTS } = {})
   if (report.errors.length > 0) return fail('report errors');
   const tests = [];
   for (const s of report.suites) collect(s, tests);
-  const perEngine = Object.fromEntries(ENGINES.map(e => [e, tests.filter(t => t.projectName === e).length]));
-  const bad = tests.filter(t => t.status !== 'expected' || !ENGINES.includes(t.projectName)
+  const perEngine = Object.fromEntries(engines.map(e => [e, tests.filter(t => t.projectName === e).length]));
+  const bad = tests.filter(t => t.status !== 'expected' || !engines.includes(t.projectName)
     || !Array.isArray(t.results) || t.results.length !== 1 || t.results[0].status !== 'passed');
   const counts = { total: tests.length, passed: stats.expected, failed: stats.unexpected,
     flaky: stats.flaky, skipped: stats.skipped, perEngine };
-  const even = ENGINES.every(e => perEngine[e] === perEngine[ENGINES[0]]);
-  if (!even || ENGINES.some(e => perEngine[e] < minTests) || stats.expected !== tests.length) return { ok: false, reason: 'too few or inconsistent tests', counts };
+  const even = engines.every(e => perEngine[e] === perEngine[engines[0]]);
+  if (!even || engines.some(e => perEngine[e] < minTests) || stats.expected !== tests.length) return { ok: false, reason: 'too few or inconsistent tests', counts };
   if (stats.unexpected || stats.flaky || stats.skipped || bad.length) return { ok: false, reason: 'failures, flakes or skips', counts };
   return { ok: true, counts };
 }
@@ -54,9 +56,40 @@ function sourceState(root) {
   return { clean, sha };
 }
 
+// Stages. Without arguments the whole verification runs here, as it does locally. CI splits it across jobs that test the
+// same bytes: `--stage build` builds once and prints the digest of the tested site; each `--stage browser --engine <e>
+// --shard <i>/<n>` and `--stage upstream` job checks that digest on the build job's output (passed as a workflow artifact)
+// before and after its checks, without rebuilding; `--stage evidence` records the publication evidence for those bytes. Only
+// a job that needs every browser shard and the upstream job to have succeeded may run the evidence stage.
+export const STAGES = ['build', 'browser', 'upstream', 'evidence'];
+export function parseArgs(argv) {
+  const usage = () => { throw new Error('usage'); };
+  const opts = {};
+  for (let i = 0; i < argv.length; i += 2) {
+    const [k, v] = [argv[i], argv[i + 1]];
+    if (!['--stage', '--engine', '--shard', '--expect-digest'].includes(k) || v === undefined || k.slice(2) in opts) usage();
+    opts[k.slice(2)] = v;
+  }
+  if (!Object.keys(opts).length) return { stage: 'all' };
+  const { stage, engine, shard, 'expect-digest': digest } = opts;
+  if (!STAGES.includes(stage)) usage();
+  if (stage === 'build') return (engine || shard || digest) ? usage() : { stage };
+  if (!/^[0-9a-f]{64}$/.test(digest ?? '')) usage();
+  if (stage !== 'browser') return (engine || shard) ? usage() : { stage, digest };
+  const m = /^([1-9]\d?)\/([1-9]\d?)$/.exec(shard ?? '');
+  if (!ENGINES.includes(engine) || !m || +m[1] > +m[2]) usage();
+  return { stage, digest, engine, shard: `${m[1]}/${m[2]}` };
+}
+
+export const snapshotDigest = snapshot => createHash('sha256').update(JSON.stringify(snapshot)).digest('hex');
+
 function main() {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const fail = msg => { process.stderr.write(`verify:product: ${msg}\n`); process.exitCode = 1; };
+  let args;
+  try { args = parseArgs(process.argv.slice(2)); } catch { return fail('usage: [--stage build | --stage browser --engine <chromium|firefox|webkit> --shard <i>/<n> --expect-digest <sha256> | --stage upstream --expect-digest <sha256> | --stage evidence --expect-digest <sha256>]'); }
+  const { stage } = args;
+  const engines = stage === 'browser' ? [args.engine] : ENGINES;
   const ignored = spawnSync('git', ['-C', root, 'check-ignore', '-q', '--', '.airig/product/evidence'], { stdio: 'pipe' });
   if (ignored.status !== 0) return fail('scratch not ignored');
   mkdirSync(path.join(root, '.airig/product'), { recursive: true, mode: 0o700 });
@@ -77,58 +110,95 @@ function main() {
   const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
   if (`pnpm@${version}` !== pkg.packageManager) return fail('pinned pnpm required');
 
-  if (!step('library-build', ['--filter', '@charm-ux/velcro', 'run', 'build'])) return fail('blocked');
-  // The SSG build generates the ignored route/manifest type inputs the typecheck needs.
-  // The project-site build runs first: it leaves dist/static-prefixed and then the root build restores dist/static.
-  // LITRO_BASE_PATH is pinned in every docs step (the browser tests mount the project build at /velcro; the root steps
-  // need it empty), so a value or an empty string inherited from the caller's shell cannot change what is tested.
-  if (!step('docs-build-prefixed', ['--filter', '@velcro/docs', 'run', 'build:prefixed'], { LITRO_BASE_PATH: '/velcro' })) return fail('blocked');
-  // Capture the exact bytes the browser checks will test (every file of the project-site output plus its closure record).
-  sources.push(sourceState(root));
   let tested;
-  try { tested = snapshotTested(root); } catch { return fail('blocked (tested site could not be captured)'); }
-  if (!step('docs-build', ['--filter', '@velcro/docs', 'run', 'build'], { LITRO_BASE_PATH: '' })) return fail('blocked');
-  if (!step('docs-typecheck', ['--filter', '@velcro/docs', 'run', 'typecheck'], { LITRO_BASE_PATH: '' })) return fail('blocked');
+  if (stage === 'all' || stage === 'build') {
+    if (!step('library-build', ['--filter', '@charm-ux/velcro', 'run', 'build'])) return fail('blocked');
+    // The SSG build generates the ignored route/manifest type inputs the typecheck needs.
+    // The project-site build runs first: it leaves dist/static-prefixed and then the root build restores dist/static.
+    // LITRO_BASE_PATH is pinned in every docs step (the browser tests mount the project build at /velcro; the root steps
+    // need it empty), so a value or an empty string inherited from the caller's shell cannot change what is tested.
+    if (!step('docs-build-prefixed', ['--filter', '@velcro/docs', 'run', 'build:prefixed'], { LITRO_BASE_PATH: '/velcro' })) return fail('blocked');
+    // Capture the exact bytes the browser checks will test (every file of the project-site output plus its closure record).
+    sources.push(sourceState(root));
+    try { tested = snapshotTested(root); } catch { return fail('blocked (tested site could not be captured)'); }
+    if (!step('docs-build', ['--filter', '@velcro/docs', 'run', 'build'], { LITRO_BASE_PATH: '' })) return fail('blocked');
+    if (!step('docs-typecheck', ['--filter', '@velcro/docs', 'run', 'typecheck'], { LITRO_BASE_PATH: '' })) return fail('blocked');
+    if (stage === 'build') {
+      let after;
+      try { after = snapshotTested(root); } catch { return fail('blocked (tested site could not be re-read)'); }
+      if (!sameSnapshot(tested, after)) return fail('blocked (tested site changed during the build)');
+      process.stdout.write(`verify:product: tested digest ${snapshotDigest(tested)}\n`);
+      return;
+    }
+  } else {
+    // A later CI stage: the build job's output, unchanged, or nothing runs.
+    try { tested = snapshotTested(root); } catch { return fail('blocked (tested site could not be captured)'); }
+    if (snapshotDigest(tested) !== args.digest) return fail('blocked (tested site differs from the build stage output)');
+  }
 
-  for (const engine of ENGINES) {
-    const probe = spawnSync(process.execPath, ['--input-type=module', '-e',
-      `import { ${engine} } from '@playwright/test'; process.stdout.write(${engine}.executablePath())`],
-    { cwd: root, encoding: 'utf8' });
-    if (probe.status !== 0 || !probe.stdout || !existsSync(probe.stdout.trim())) {
-      return fail(`${engine} is not installed. Run \`pnpm exec playwright install chromium firefox webkit\` (add \`--with-deps\` on Linux) and retry; browsers are never installed automatically.`);
+  // The tested bytes must still be exactly the captured bytes when a stage ends.
+  const unchanged = () => {
+    let after;
+    try { after = snapshotTested(root); } catch { return false; }
+    return sameSnapshot(tested, after);
+  };
+
+  if (stage === 'all' || stage === 'browser') {
+    for (const engine of engines) {
+      const probe = spawnSync(process.execPath, ['--input-type=module', '-e',
+        `import { ${engine} } from '@playwright/test'; process.stdout.write(${engine}.executablePath())`],
+      { cwd: root, encoding: 'utf8' });
+      if (probe.status !== 0 || !probe.stdout || !existsSync(probe.stdout.trim())) {
+        return fail(`${engine} is not installed. Run \`pnpm exec playwright install ${engines.join(' ')}\` (add \`--with-deps\` on Linux) and retry; browsers are never installed automatically.`);
+      }
+    }
+
+    const reportFile = path.join(scratch, 'report.json');
+    const ok = step('browser-tests', ['exec', 'playwright', 'test', '-c', 'tests/product/playwright.config.mjs',
+      ...engines.map(e => `--project=${e}`), ...(args.shard ? [`--shard=${args.shard}`] : []), '--reporter=json', '--output', path.join(scratch, 'artifacts')],
+    { PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile, VELCRO_PRODUCT_OUT: scratch }, 30 * 60 * 1000);
+    // Public, bounded and redacted; the raw log stays in ignored scratch.
+    const publish = () => {
+      try {
+        const { lines } = summarizeReport(JSON.parse(readFileSync(reportFile, 'utf8')), { root, engines });
+        for (const line of lines) process.stdout.write(`verify:product: ${line}\n`);
+      } catch { process.stdout.write('verify:product: no readable report to summarize\n'); }
+    };
+    if (!ok) { publish(); return fail('blocked'); }
+    if (!existsSync(reportFile) || statSync(reportFile).mtimeMs < startedAt) return fail('missing or stale report');
+    let result;
+    try { result = evaluateReport(JSON.parse(readFileSync(reportFile, 'utf8')), { startedAt, engines }); } catch { return fail('malformed report'); }
+    const c = result.counts;
+    if (c) {
+      process.stdout.write(`verify:product: tests ${c.total}, passed ${c.passed}, failed ${c.failed}, flaky ${c.flaky}, skipped ${c.skipped}\n`);
+      process.stdout.write(`verify:product: per engine ${engines.map(e => `${e} ${c.perEngine[e]}`).join(', ')}\n`);
+    }
+    if (!result.ok) { publish(); return fail(`blocked (${result.reason})`); }
+    if (stage === 'browser') {
+      if (!unchanged()) return fail('blocked (tested site changed during verification)');
+      process.stdout.write(`verify:product: passed (${args.engine}, shard ${args.shard})\n`);
+      return;
     }
   }
-
-  const reportFile = path.join(scratch, 'report.json');
-  const ok = step('browser-tests', ['exec', 'playwright', 'test', '-c', 'tests/product/playwright.config.mjs',
-    ...ENGINES.map(e => `--project=${e}`), '--reporter=json', '--output', path.join(scratch, 'artifacts')],
-  { PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile, VELCRO_PRODUCT_OUT: scratch }, 30 * 60 * 1000);
-  // Public, bounded and redacted; the raw log stays in ignored scratch.
-  const publish = () => {
-    try {
-      const { lines } = summarizeReport(JSON.parse(readFileSync(reportFile, 'utf8')), { root });
-      for (const line of lines) process.stdout.write(`verify:product: ${line}\n`);
-    } catch { process.stdout.write('verify:product: no readable report to summarize\n'); }
-  };
-  if (!ok) { publish(); return fail('blocked'); }
-  if (!existsSync(reportFile) || statSync(reportFile).mtimeMs < startedAt) return fail('missing or stale report');
-  let result;
-  try { result = evaluateReport(JSON.parse(readFileSync(reportFile, 'utf8')), { startedAt }); } catch { return fail('malformed report'); }
-  const c = result.counts;
-  if (c) {
-    process.stdout.write(`verify:product: tests ${c.total}, passed ${c.passed}, failed ${c.failed}, flaky ${c.flaky}, skipped ${c.skipped}\n`);
-    process.stdout.write(`verify:product: per engine ${ENGINES.map(e => `${e} ${c.perEngine[e]}`).join(', ')}\n`);
+  if (stage === 'all' || stage === 'upstream') {
+    // Shoelace's own test files against the built library; gated by tests/upstream/known-failures.json.
+    if (!step('upstream-conformance', ['run', 'test:upstream', '--no-build'])) return fail('blocked (upstream conformance differs from the known-failures ledger)');
+    if (stage === 'upstream') {
+      if (!unchanged()) return fail('blocked (tested site changed during verification)');
+      process.stdout.write('verify:product: passed (upstream conformance)\n');
+      return;
+    }
   }
-  if (!result.ok) { publish(); return fail(`blocked (${result.reason})`); }
-  // Shoelace's own test files against the built library; gated by tests/upstream/known-failures.json.
-  if (!step('upstream-conformance', ['run', 'test:upstream', '--no-build'])) return fail('blocked (upstream conformance differs from the known-failures ledger)');
   // Success evidence only if the tested bytes are still exactly the captured bytes.
-  let after;
-  try { after = snapshotTested(root); } catch { return fail('blocked (tested site could not be re-read)'); }
-  if (!sameSnapshot(tested, after)) return fail('blocked (tested site changed during verification)');
+  if (!unchanged()) return fail('blocked (tested site changed during verification)');
   sources.push(sourceState(root));
   const evidenceOk = sources.every(x => x.clean && x.sha === sources[0].sha);
   if (evidenceOk) writeTestedEvidence(root, tested, sources[0].sha);
+  if (stage === 'evidence') {
+    if (!evidenceOk) return fail('blocked (source not clean and unchanged; no evidence recorded)');
+    process.stdout.write('verify:product: evidence recorded for the tested site\n');
+    return;
+  }
   process.stdout.write('verify:product: passed (Chromium, Firefox and WebKit)\n');
   if (!evidenceOk) process.stdout.write('verify:product: note: source was not clean and unchanged at every boundary; no publication evidence recorded\n');
 }

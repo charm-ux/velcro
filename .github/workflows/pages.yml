@@ -1,9 +1,11 @@
 # GitHub Pages deployment for the documentation site. Runs on every push to main (so the site always reflects main) and
-# through workflow_dispatch from main as a manual fallback: there is no pull-request or other trigger. Everything that can fail runs in `build` with read-only permissions and uploads
-# the Pages artifact only after the full verification and the site preparation check passed. Preparation stages only the exact
-# output that verify:product browser-tested (its recorded evidence); the output is never rebuilt after verification. The `deploy` job holds the
-# only write/OIDC permissions and runs nothing but the pinned deployment action. The first real deployment needs
-# explicit owner approval (see docs/deployment.md).
+# through workflow_dispatch from main as a manual fallback: there is no pull-request or other trigger. Everything that can
+# fail runs with read-only permissions: `checks` (history scan and source verification), `product` (product.yml: one build,
+# every engine in three shards and the upstream gate, all on that one output) and `build`, which needs both, records the
+# tested-bytes evidence for the output the product jobs checked, runs the site preparation check and only then uploads the
+# Pages artifact. Preparation stages only the exact output that was browser-tested; the output is never rebuilt after
+# verification. The `deploy` job holds the only write/OIDC permissions and runs nothing but the pinned deployment action.
+# The first real deployment needs explicit owner approval (see docs/deployment.md).
 name: Pages
 on:
   push:
@@ -18,10 +20,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  checks:
     if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 55
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -38,10 +40,19 @@ jobs:
         with:
           version: 9.15.9
           run_install: false
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
       - name: Public frozen dependency install
         run: |
           mkdir -p .airig/ci
-          pnpm install --frozen-lockfile --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
+          pnpm install --frozen-lockfile --prefer-offline --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
           echo 'install: passed'
       - run: node scripts/security/gitleaks.mjs install
       # Full-history mode: every commit's metadata and every file a commit changed, across all of main's ancestry,
@@ -52,42 +63,61 @@ jobs:
         run: |
           pnpm verify:source > .airig/ci/verify.log 2>&1 || { echo 'verify: blocked; private evidence retained'; exit 1; }
           echo 'verify: passed'
-      - name: Install system dependencies for Chromium, Firefox and WebKit (disposable runner)
-        timeout-minutes: 12
+
+  product:
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/product.yml
+    with:
+      ref: ${{ github.sha }}
+
+  build:
+    needs: [checks, product]
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
+        with:
+          version: 9.15.9
+          run_install: false
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+      - name: Public frozen dependency install
+        run: |
+          mkdir -p .airig/ci
+          pnpm install --frozen-lockfile --prefer-offline --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
+          echo 'install: passed'
+      - name: Download the browser-tested build output
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: product-build
+          path: packages
+      - name: Record the tested-bytes evidence (every product job passed on this output)
         env:
-          DEBIAN_FRONTEND: noninteractive
-          NEEDRESTART_MODE: a
+          DIGEST: ${{ needs.product.outputs.digest }}
         run: |
-          mkdir -p .airig/ci
-          echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
-          # A stalled mirror connection must time out and retry instead of hanging the download.
-          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' | sudo tee "$(apt-config shell d Dir::Etc::parts/d | sed "s/^d='//; s/'$//")80-velcro-ci" > .airig/ci/apt-config.log
-          ok=0
-          for attempt in 1 2; do
-            code=0
-            timeout -k 10 330 pnpm exec playwright install-deps chromium firefox webkit > .airig/ci/browser-deps-$attempt.log 2>&1 || code=$?
-            if [ "$code" = 0 ]; then ok=1; break; fi
-            if [ "$code" = 124 ] || [ "$code" = 137 ]; then echo "browser system dependencies: attempt $attempt timed out"; else echo "browser system dependencies: attempt $attempt failed (exit code $code)"; fi
-          done
-          [ "$ok" = 1 ] || { echo 'browser system dependencies: blocked; private evidence retained'; exit 1; }
-          echo 'browser system dependencies: passed'
-      - name: Install Chromium, Firefox and WebKit (disposable runner)
-        timeout-minutes: 12
-        run: |
-          mkdir -p .airig/ci
-          code=0
-          timeout -k 10 480 pnpm exec playwright install chromium firefox webkit > .airig/ci/browser.log 2>&1 || code=$?
-          if [ "$code" != 0 ]; then
-            if [ "$code" = 124 ] || [ "$code" = 137 ]; then echo 'browser setup: timed out'; else echo "browser setup: failed (exit code $code)"; fi
-            echo 'browser setup: blocked; private evidence retained'
-            exit 1
-          fi
-          echo 'browser setup: passed'
-      - name: Product verification (Chromium, Firefox and WebKit)
-        timeout-minutes: 35
-        run: |
-          pnpm verify:product > .airig/ci/product.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/product.log; echo 'product: blocked; private evidence retained'; exit 1; }
-          echo 'product: passed'
+          pnpm verify:product --stage evidence --expect-digest "$DIGEST" > .airig/ci/evidence.log 2>&1 || { awk '/^verify:product: / && n++ < 20 { print substr($0, 1, 300) }' .airig/ci/evidence.log; echo 'evidence: blocked; private evidence retained'; exit 1; }
+          echo 'evidence: passed'
+      - run: node scripts/security/gitleaks.mjs install
       - name: Site preparation, notices and scans
         run: node scripts/site/prepare.mjs --base /velcro --out .airig/site/run --expect-sha "$GITHUB_SHA"
       - name: Upload the prepared site as the Pages artifact

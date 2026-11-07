@@ -8,12 +8,16 @@ enabled with the `github-pages` environment restricted to `main` (repository set
 `.github/workflows/pages.yml` deploys automatically on every push to `main` (no path filter, so the site always reflects
 `main` and a newly added component page appears at https://charm-ux.github.io/velcro/), with a manual `workflow_dispatch`
 on `main` as a fallback. There is no pull-request, schedule, tag or other-branch trigger and no input; both jobs also
-refuse any ref other than `main`, and the `github-pages` environment is restricted to `main`. The `build` job (read-only permissions) checks out the exact pushed or dispatched SHA, installs with the
-frozen lockfile from the public registry, runs the history scan, `verify:source`, `verify:product` (which builds and
-browser-tests the project-site output, `LITRO_BASE_PATH=/velcro`) and runs the site preparation on that same output. Only then does it upload the Pages
-artifact. The `deploy` job is the only one with `pages: write` and `id-token: write`; it runs just the pinned
-`actions/deploy-pages` and executes no repository scripts. Deployments are serialized and never cancelled.
-`ci.yml` runs the same preparation (no upload) on every PR.
+refuse any ref other than `main`, and the `github-pages` environment is restricted to `main`. Every job before `deploy`
+has read-only permissions, checks out the exact pushed or dispatched SHA and installs with the frozen lockfile from the
+public registry. `checks` runs the history scan and `verify:source`. `product` calls `.github/workflows/product.yml`, which
+CI uses too: its build job builds the library and the docs once (the project-site output with `LITRO_BASE_PATH=/velcro`),
+scans that output and shares it with the later jobs as a one-day workflow artifact; each engine then runs in three
+Playwright shards, and the upstream gate runs in its own job, all on that same output and without rebuilding it. `build`
+needs both, records the tested-bytes evidence (below) and runs the site preparation on that same output. Only then does it
+upload the Pages artifact. The `deploy` job is the only one with `pages: write` and `id-token: write`; it runs just the
+pinned `actions/deploy-pages` and executes no repository scripts. Deployments are serialized and never cancelled.
+`ci.yml` runs the same product jobs and preparation (no upload) on every PR.
 
 ## Site preparation (`node scripts/site/prepare.mjs`)
 
@@ -74,6 +78,12 @@ snapshot and after the checks; otherwise `verify:product` still passes for local
 source that is reverted afterwards cannot be prepared. Nothing is rebuilt between verification and
 preparation in either workflow. The closure record is read once (bounded), that buffer is hashed and parsed, and it is
 compared again after the scans.
+
+In CI the checks are split across jobs, so the binding goes through a digest. `verify:product --stage build` prints the
+digest of that snapshot; every browser shard and the upstream job (`--stage browser`, `--stage upstream`) refuse to run
+unless the downloaded output has that digest, and check it again afterwards. `--stage evidence`, run only in a job that
+needs every product job to have succeeded, checks the digest and the clean source once more and writes the same evidence
+file, which preparation then requires as above.
 
 The upload action runs with `include-hidden-files: true` so the empty `.nojekyll` marker is included; only the vetted
 staged directory is uploaded.

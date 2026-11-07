@@ -242,6 +242,10 @@
     "<sl-icon> > svg sprite sheets > Should render nothing if the sprite hash is wrong",
     "<sl-icon> > svg sprite sheets > Should produce an error if the icon doesn't exist."
   ],
+  "include": [
+    "<sl-include> > should load content and emit sl-load",
+    "<sl-include> > should emit sl-error when content cannot be loaded"
+  ],
   "mutation-observer": [
     "<sl-mutation-observer> > should render a component"
   ],
