@@ -85,6 +85,17 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   adapted from `docs/pages/components/resize-observer.md` and the added light theme token `--sl-input-border-color`
   (name and value following `src/themes/light.css`). The component extends the `@charm-ux/core` base element; no
   Shoelace runtime or source files are included.
+- Also used in: `packages/velcro/src/components/split-panel/split-panel.ts` (API documentation wording and behavior: the
+  position, snapping, keyboard, drag and resize logic and the rendered structure, adapted from
+  `src/components/split-panel/split-panel.component.ts`), `packages/velcro/src/components/split-panel/split-panel.styles.ts`
+  (styles adapted from `src/components/split-panel/split-panel.styles.ts` and `src/styles/component.styles.ts`, declarations unchanged),
+  `packages/velcro/src/internal/drag.ts` (adapted from `src/internal/drag.ts`) and `packages/velcro/src/internal/math.ts`
+  (the `clamp` helper, adapted from `src/internal/math.ts`), plus the docs page examples adapted from
+  `docs/pages/components/split-panel.md` (the icon handle is replaced by an inline svg and the select by a native one).
+  Shoelace's `src/components/split-panel/split-panel.test.ts` and the two helpers it imports
+  (`src/internal/test.ts`, `src/internal/test/data-testid-helpers.ts`) are vendored unchanged for the conformance run
+  (see `tests/upstream/`). The component extends the `@charm-ux/core` base element and uses the localization controller
+  listed above; no Shoelace runtime or source files are included in the package.
 - Also used in: `packages/velcro/src/components/mutation-observer/mutation-observer.ts` (API documentation wording and
   behavior: a `MutationObserver` over the element and its subtree, configured by `attr`, `attr-old-value`, `char-data`,
   `char-data-old-value` and `child-list`, started and stopped by `disabled` and reporting through `sl-mutation`, adapted
@@ -95,6 +106,15 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   unchanged), plus the docs page examples
   adapted from `docs/pages/components/mutation-observer.md`. The component extends the `@charm-ux/core` base element;
   no Shoelace runtime or source files are included.
+- Also used in: `packages/velcro/src/components/popup/popup.ts` (API documentation wording and behavior: anchoring by
+  slot, id, element or virtual element, `active`, placement, distance, skidding, arrow, flip, shift, auto-size, sync,
+  the hover bridge, the rendered `popup` / `popup__arrow` / `popup-hover-bridge` structure and `sl-reposition`, adapted
+  from `src/components/popup/popup.component.ts`, and the restore of reflected properties' initial values, adapted from
+  `src/internal/shoelace-element.ts`) and `packages/velcro/src/components/popup/popup.styles.ts` (styles adapted from
+  `src/components/popup/popup.styles.ts` and `src/styles/component.styles.ts`, declarations unchanged), plus the docs
+  page examples adapted from `docs/pages/components/popup.md`. The component extends the `@charm-ux/core` base element
+  and positions through the Floating UI calls of the `@charm-ux/core` popup; no Shoelace runtime or source files are
+  included. Its offset-parent lookup is adapted from composed-offset-position and @floating-ui/utils (listed below).
 - Also used in: `packages/velcro/src/components/visually-hidden/visually-hidden.ts` (API documentation wording and the
   rendered structure, a default slot only, adapted from `src/components/visually-hidden/visually-hidden.component.ts`)
   and `packages/velcro/src/components/visually-hidden/visually-hidden.styles.ts` (styles adapted from
@@ -140,6 +160,16 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   explanatory wording adapted from `docs/pages/components/skeleton.md`). The skeleton is built on the
   `@charm-ux/core` skeleton; no Shoelace runtime or source files are included. The added light theme tokens
   (`--sl-border-radius-medium`, `--sl-border-radius-circle`) follow `src/themes/light.css` names and values.
+- Also used in: `packages/velcro/src/components/tab-panel/tab-panel.ts` (API documentation wording, the rendered
+  structure: one slot with the `base` part and the `tab-panel` / `tab-panel--active` class names, the generated
+  `sl-tab-panel-<n>` id, the `role` and `aria-hidden` handling, adapted from
+  `src/components/tab-panel/tab-panel.component.ts`, and the restore of reflected properties' initial values from
+  `src/internal/shoelace-element.ts`), `packages/velcro/src/components/tab-panel/tab-panel.styles.ts` (styles
+  concatenated from `src/styles/component.styles.ts` and `src/components/tab-panel/tab-panel.styles.ts`, rules
+  unchanged) and the docs page and examples `packages/docs/pages/components/tab-panel.ts` and
+  `packages/docs/examples/tab-panel/*.html` (example markup and wording adapted from
+  `docs/pages/components/tab-panel.md`). The tab panel is built on the `@charm-ux/core` tab panel; no Shoelace runtime
+  or source files are included.
 - Also used in: `tests/upstream/shoelace-2.20.1/` (test files only, never shipped): the upstream test files
   `src/components/<name>/<name>.test.ts` for each implemented component and the helper
   `src/internal/test/form-control-base-tests.ts`, copied unmodified from commit
@@ -155,6 +185,69 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+## composed-offset-position 0.0.6 (MIT)
+
+- Source: https://github.com/jcfranco/composed-offset-position (npm `composed-offset-position` 0.0.6).
+- Used in: `packages/velcro/src/internal/composed-offset-parent.ts` (the `offsetParent` ponyfill and its flat-tree
+  parent walk, adapted with type annotations; used by `packages/velcro/src/components/popup/popup.ts`, as Shoelace's
+  popup uses the package). No package or runtime of composed-offset-position is a dependency.
+- License text, verbatim:
+
+```text
+MIT License
+
+Copyright (c) 2023 composed-offset-position contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
+
+## @floating-ui/utils 0.2.12 (MIT)
+
+- Source: https://github.com/floating-ui/floating-ui (npm `@floating-ui/utils` 0.2.12, `dom` entry).
+- Used in: `packages/velcro/src/internal/composed-offset-parent.ts` (`isContainingBlock` and `isWebKit`, adapted with
+  type annotations). Velcro has no direct dependency on Floating UI; the copy `@charm-ux/core` depends on is used at
+  runtime.
+- License text, verbatim:
+
+```text
+MIT License
+
+Copyright (c) 2021-present Floating UI contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
 ## Litro scaffold, @beatzball/create-litro 0.15.3 (Apache-2.0)

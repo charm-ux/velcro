@@ -143,3 +143,88 @@ test('product timeouts are ordered: global timeout < wrapper bound < step bound 
     assert.ok(global < kill && kill < step && step < job, `${file}: ${global} < ${kill} < ${step} < ${job}`);
   }
 });
+
+// Evaluates the approval expression's GitHub Actions grammar subset exactly:
+// `term && term ... || ''`, where a term is a context path or `a == b` / `a != b`
+// over context paths and single-quoted literals. Comparison is case-insensitive
+// and missing values are '' like GitHub's; anything else is rejected.
+function evaluate(expression, context) {
+  const value = token => {
+    if (/^'[^']*'$/.test(token)) return token.slice(1, -1);
+    assert.match(token, /^[a-z_]+(?:\.[a-z_]+)*$/i, 'unsupported expression token');
+    return token.split('.').reduce((node, key) => (node == null ? undefined : node[key]), context) ?? '';
+  };
+  const term = text => {
+    const comparison = /^(\S+) (==|!=) (\S+)$/.exec(text);
+    if (!comparison) return value(text);
+    const same = String(value(comparison[1])).toLowerCase() === String(value(comparison[3])).toLowerCase();
+    return comparison[2] === '==' ? same : !same;
+  };
+  const alternatives = expression.split(' || ');
+  assert.equal(alternatives.length, 2, 'unsupported expression shape');
+  let result = true;
+  for (const part of alternatives[0].split(' && ')) { result = term(part); if (!result) break; }
+  return result || value(alternatives[1]);
+}
+
+test('security scans the published range and only the configured approver label approves its exact head', () => {
+  const job = /\n  security:\n([\s\S]*?)\n  product:/.exec(workflow)?.[1] ?? '';
+  const step = /- name: Trusted source and history scan\n([\s\S]*?)(?=\n {6}(?:#|- ))/.exec(job)?.[1] ?? '';
+  assert.match(step, /BASE_OID: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.before \}\}/);
+  assert.match(step, /HEAD_OID: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
+  const approval = /VELCRO_HISTORY_APPROVED: \$\{\{ (.*) \}\}/.exec(step)?.[1] ?? '';
+  assert.doesNotMatch(approval, /repository_owner/, 'an organization owner is never the labeling user');
+  const head = 'c'.repeat(40);
+  // An organization-owned repository: the owner login is the organization.
+  const event = (overrides = {}) => ({
+    event_name: 'pull_request', repository_owner: 'fixture-org',
+    event: { action: 'labeled', label: { name: 'history-scan-approved' }, sender: { login: 'approver-fixture' },
+      pull_request: { head: { sha: head } } },
+    ...overrides,
+  });
+  const approver = { VELCRO_HISTORY_APPROVER: 'approver-fixture' };
+  assert.equal(evaluate(approval, { github: event(), vars: approver }), head);
+  const rejected = [
+    { github: event(), vars: {} },
+    { github: event(), vars: { VELCRO_HISTORY_APPROVER: '' } },
+    { github: event({ event: { ...event().event, sender: { login: 'other-fixture' } } }), vars: approver },
+    { github: event({ event: { ...event().event, sender: { login: 'fixture-org' } } }), vars: approver },
+    { github: event({ event: { ...event().event, sender: { login: '' } } }), vars: { VELCRO_HISTORY_APPROVER: '' } },
+    { github: event({ event: { ...event().event, action: 'synchronize' } }), vars: approver },
+    { github: event({ event: { ...event().event, label: { name: 'history-scan-approved-later' } } }), vars: approver },
+    { github: event({ event_name: 'push' }), vars: approver },
+  ];
+  for (const context of rejected) assert.equal(evaluate(approval, context), '', 'approval must stay empty');
+  // edited: retargeting a PR's base re-runs every job against the new base.
+  assert.match(workflow, /\n {2}pull_request:\n(?: {4}#.*\n)* {4}types: \[opened, synchronize, reopened, labeled, edited\]\n/);
+  assert.doesNotMatch(workflow, /github\.event\.action (?:==|!=) 'edited'|github\.event\.changes/, 'no job may be skipped on edits');
+  assert.doesNotMatch(workflow, /git-privacy\.mjs history HEAD/);
+  const script = /\n {8}run: \|\n((?: {10}.*\n?)+)/.exec(step)?.[1];
+  assert.ok(script, 'actual history step must be testable');
+  const dir = mkdtempSync(path.join(tmpdir(), 'velcro-ci-'));
+  try {
+    mkdirSync(path.join(dir, 'bin'));
+    writeFileSync(path.join(dir, 'bin/node'), '#!/bin/sh\nprintf "%s\\n" "$*"\n', { mode: 0o755 });
+    // `git rev-parse` of the fetched main and `git merge-base --is-ancestor <base> refs/remotes/origin/main`.
+    writeFileSync(path.join(dir, 'bin/git'), [
+      '#!/bin/sh',
+      'if [ "$*" = "rev-parse --verify refs/remotes/origin/main^{commit}" ]; then echo "$MAIN"; exit 0; fi',
+      '[ "$1 $2 $4" = "merge-base --is-ancestor refs/remotes/origin/main" ] || exit 9',
+      '[ "$3" = "$ANCESTOR" ]', '',
+    ].join('\n'), { mode: 0o755 });
+    const main = 'd'.repeat(40);
+    const invoke = (event, base, ancestor = base) => spawnSync('sh', ['-e', '-c', script], { cwd: dir, encoding: 'utf8', env: { ...process.env,
+      EVENT_NAME: event, BASE_OID: base, HEAD_OID: head, ANCESTOR: ancestor, MAIN: main,
+      PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } }).stdout.trim().split('\n');
+    const trusted = '.airig/trusted/scripts/security/git-privacy.mjs history';
+    const budget = `${trusted} ${main}..${head}`;
+    assert.deepEqual(invoke('push', 'a'.repeat(40)), [`${trusted} ${'a'.repeat(40)}..${head}`]);
+    // No usable base (new branch, first push, force push): full-history mode under the hard caps.
+    assert.deepEqual(invoke('push', '0'.repeat(40)), [`${trusted} ${head}`]);
+    assert.deepEqual(invoke('push', ''), [`${trusted} ${head}`]);
+    assert.deepEqual(invoke('push', 'a'.repeat(40), 'none'), [`${trusted} ${head}`]);
+    // Every PR meets the budget against the fetched main first, whatever its event base.
+    assert.deepEqual(invoke('pull_request', 'a'.repeat(40)), [budget, `${trusted} ${'a'.repeat(40)}..${head}`]);
+    assert.deepEqual(invoke('pull_request', 'e'.repeat(40), 'none'), [budget, `${trusted} ${head}`]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

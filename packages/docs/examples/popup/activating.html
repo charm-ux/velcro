@@ -1,0 +1,34 @@
+<div class="popup-active">
+  <sl-popup id="demo-activating" placement="top" active>
+    <span slot="anchor"></span>
+    <div class="box"></div>
+  </sl-popup>
+
+  <br />
+  <sl-switch checked>Active</sl-switch>
+</div>
+
+<style>
+  .popup-active span[slot='anchor'] {
+    display: inline-block;
+    width: 150px;
+    height: 150px;
+    border: dashed 2px var(--sl-color-neutral-600);
+    margin: 50px;
+  }
+
+  .popup-active .box {
+    width: 100px;
+    height: 50px;
+    background: var(--sl-color-primary-600);
+    border-radius: var(--sl-border-radius-medium);
+  }
+</style>
+
+<script>
+  const container = document.querySelector('.popup-active');
+  const popup = container.querySelector('sl-popup');
+  const active = container.querySelector('sl-switch');
+
+  active.addEventListener('sl-change', () => (popup.active = active.checked));
+</script>

@@ -1,0 +1,50 @@
+<div class="split-panel-snapping-fn">
+  <sl-split-panel>
+    <div
+      slot="start"
+      style="height: 150px; background: var(--sl-color-neutral-50); display: flex; align-items: center; justify-content: center; overflow: hidden;"
+    >
+      Start
+    </div>
+    <div
+      slot="end"
+      style="height: 150px; background: var(--sl-color-neutral-50); display: flex; align-items: center; justify-content: center; overflow: hidden;"
+    >
+      End
+    </div>
+  </sl-split-panel>
+
+  <div class="split-panel-snapping-dots"></div>
+</div>
+
+<style>
+  .split-panel-snapping-fn {
+    position: relative;
+  }
+
+  .split-panel-snapping-fn .split-panel-snapping-dots::before,
+  .split-panel-snapping-fn .split-panel-snapping-dots::after {
+    content: '';
+    position: absolute;
+    bottom: -12px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--sl-color-neutral-400);
+    transform: translateX(-3px);
+  }
+
+  .split-panel-snapping-fn .split-panel-snapping-dots::before {
+    left: 100px;
+  }
+
+  .split-panel-snapping-fn .split-panel-snapping-dots::after {
+    left: calc(100% - 100px);
+  }
+</style>
+
+<script>
+  const container = document.querySelector('.split-panel-snapping-fn');
+  const splitPanel = container.querySelector('sl-split-panel');
+  splitPanel.snap = ({ pos, size }) => (pos < size / 2) ? 100 : (size - 100);
+</script>

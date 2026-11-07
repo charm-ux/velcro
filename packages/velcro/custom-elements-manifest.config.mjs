@@ -32,9 +32,13 @@ export const keptInherited = {};
 /**
  * Inherited core events a Velcro element does not emit. sl-switch emits Shoelace's sl-change and sl-input instead of
  * core's `change` and `input` events (as in Shoelace, the host still receives the platform's composed `input` event
- * from its inner checkbox on a click).
+ * from its inner checkbox on a click). sl-tab-panel never emits core's tab-show, tab-hide, tab-after-show and
+ * tab-after-hide: they come from core's internal `visible` property, which belongs to core's own tabs and is inert here.
  */
-export const droppedInheritedEvents = { VelcroSwitch: ['change', 'input'] };
+export const droppedInheritedEvents = {
+  VelcroSwitch: ['change', 'input'],
+  VelcroTabPanel: ['tab-show', 'tab-hide', 'tab-after-show', 'tab-after-hide'],
+};
 
 function velcroInheritance() {
   return {
@@ -100,6 +104,14 @@ function hideNativeEvents() {
 const globalAttributes = new Set(['exportparts', 'for', 'part', 'tabindex']);
 export function fixWrapperSource(text) {
   const managed = [];
+  // A property whose attribute name differs (arrowPadding / arrow-padding) is generated as an attribute with the camelCase
+  // prop as its value (`"arrow-padding": arrowPadding ?? props["arrow-padding"]`, wrapped onto two lines when long). The
+  // camelCase prop is set as the element property instead, like every other property; the hyphenated spelling, if a
+  // caller uses it, stays in restProps and is passed to React as an attribute.
+  text = text.replace(/^ {6}"([\w-]+)":\s+(\w+) \?\? props\["\1"\],\n/gm, (line, attribute, name) => {
+    managed.push(name);
+    return '';
+  });
   let out = text.replace(/^( {6})("?[\w-]+"?): (\w+)( \? true : undefined)?,\n/gm, (line, indent, key, name) => {
     if (key === 'ref' || key === 'style') return line;
     if (globalAttributes.has(key)) return `${indent}...(${name} === undefined ? {} : { ${key}: ${name} }),\n`;
@@ -205,7 +217,9 @@ export default {
     jsxTypesPlugin({
       outdir: reactDir,
       fileName: 'custom-element-jsx.d.ts',
-      componentTypePath: (_, tagName) => `../components/${componentDir(tagName)}/${componentDir(tagName)}.js`,
+      // The plugin asks for a path once per declaration in a module, so also for exported constants that are not
+      // components (split-panel's SNAP_NONE), which have no tag name; every component module is src/components/<name>/<name>.ts.
+      componentTypePath: (_, __, modulePath) => `../${modulePath.replace(/^src\//, '').replace(/\.ts$/, '.js')}`,
       stronglyTypedEvents: true,
       // Typed CSS custom properties would merge into React's CSSProperties and conflict with its number values.
       excludeCssCustomProperties: true,

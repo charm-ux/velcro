@@ -3,6 +3,10 @@ on:
   push:
     branches: [main]
   pull_request:
+    # labeled: the approver's history-scan-approved label re-runs the checks for the exact head it was applied to.
+    # edited: a base change (retarget) re-runs every job, so no earlier result stands for the new base. Title or
+    # body edits re-run them too; every job still runs, so the required aggregate is unaffected.
+    types: [opened, synchronize, reopened, labeled, edited]
 
 permissions:
   contents: read
@@ -57,8 +61,32 @@ jobs:
         with:
           node-version: 24.22.1
       - run: node .airig/trusted/scripts/security/gitleaks.mjs install
+      # Every PR first meets the publication budget against the fetched main, whatever its event base: more than
+      # 1,000 changed files in main..head need approval, which is the history-scan-approved label applied by the
+      # login in the VELCRO_HISTORY_APPROVER repository variable (unset: nobody can approve) and approves only the
+      # head of that labeled run. Later pushes, retargets and runs started by any other label or edit are not
+      # approved until the label is re-applied. Content is then scanned file by changed file for commits new to the
+      # event base (on main: since the previous main tip); metadata of the full ancestry always is. Without a base
+      # that is the fetched main or its ancestor (first push, PR into another branch, force push) the full history
+      # is scanned under the hard caps, while the budget above still applies to PRs.
       - name: Trusted source and history scan
-        run: node .airig/trusted/scripts/security/git-privacy.mjs history HEAD
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_OID: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_OID: ${{ github.event.pull_request.head.sha || github.sha }}
+          VELCRO_HISTORY_APPROVED: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'history-scan-approved' && vars.VELCRO_HISTORY_APPROVER != '' && github.event.sender.login == vars.VELCRO_HISTORY_APPROVER && github.event.pull_request.head.sha || '' }}
+        run: |
+          guard=.airig/trusted/scripts/security/git-privacy.mjs
+          if [ "$EVENT_NAME" = pull_request ]; then
+            main_oid=$(git rev-parse --verify 'refs/remotes/origin/main^{commit}')
+            node "$guard" history "$main_oid..$HEAD_OID"
+          fi
+          if [ -n "$(printf '%s' "$BASE_OID" | tr -d 0)" ] && git merge-base --is-ancestor "$BASE_OID" refs/remotes/origin/main; then
+            scope="$BASE_OID..$HEAD_OID"
+          else
+            scope="$HEAD_OID"
+          fi
+          node "$guard" history "$scope"
       # Detection is not approval: protected changes require a separate human
       # merge/publication gate, not a false secret finding or a blocked PR push.
       - name: Report protected changes requiring independent human review
