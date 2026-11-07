@@ -15,7 +15,7 @@ const gaps = [
   'There is no core progress ring: the component extends core\'s base element directly, so no core behavior is reused.',
   'The default accessible name is the fixed English string "Progress". Shoelace localizes it through its localization controller; that is not implemented and localized output has not been compared.',
   'value is not clamped or validated: aria-valuenow and the drawn arc follow whatever number is set, as in Shoelace. Whether a given screen reader announces the progressbar was not tested.',
-  'The Shoelace docs example that pairs the ring with sl-icon circle buttons is ported with plain buttons, because sl-icon is not implemented. The React examples are not ported.',
+  'The Shoelace docs example that pairs the ring with sl-icon circle buttons is ported with plain buttons, as before Velcro had sl-icon (not yet updated to use it). The React examples are not ported.',
   'The indicator transition is not reduced or stopped for prefers-reduced-motion, as in Shoelace; this is recorded as parity, not as an accessibility endorsement.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported. Server-side rendering is not supported.',
   'Geometry and styles were checked by computed-style assertions in Chromium, Firefox and WebKit; there is no pixel comparison against Shoelace, and no RTL or localization check. Playwright\'s WebKit is not Safari: the Safari-specific dash-offset workaround and whether the transition animates in Safari itself are not checked.',

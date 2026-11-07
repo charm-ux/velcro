@@ -61,7 +61,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).toContain('Not implemented or unverified');
   expect(html).toContain('localizes it through its localization controller');
   expect(html).toContain('prefers-reduced-motion');
-  expect(html).toContain('sl-icon is not implemented');
+  expect(html).toContain('as ported before Velcro had sl-icon');
   expect(html).toContain('--label-color');
   expect(html).toContain('fails when it is created, even when it is the only Charm library on the page');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
@@ -373,6 +373,6 @@ test('no upstream Shoelace runtime is requested or defined; all requests stay on
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);
-  expect(await frame.locator('body').evaluate(() => ['sl-icon', 'sl-dialog'].filter(tag => customElements.get(tag)))).toEqual([]);
+  expect(await frame.locator('body').evaluate(() => ['sl-dialog'].filter(tag => customElements.get(tag)))).toEqual([]);
   expect(await frame.locator('body').evaluate(() => Boolean(window.Shoelace || document.querySelector('script[src*="shoelace"]')))).toBe(false);
 });

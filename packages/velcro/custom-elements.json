@@ -3006,6 +3006,586 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/components/icon/icon.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Icons are symbols that can be used to represent various options within an application. API modelled on Shoelace's\n`sl-icon`. The default library is Bootstrap Icons, shipped with the package in `dist/assets/icons`.",
+          "name": "VelcroIcon",
+          "cssParts": [
+            {
+              "description": "The internal SVG element.",
+              "name": "svg"
+            },
+            {
+              "description": "The <use> element generated when using `spriteSheet: true`",
+              "name": "use"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'icon'",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "cachedUrl",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CoreIcon",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "defaultIcon",
+              "privacy": "protected",
+              "default": "this.icons['question']",
+              "inheritedFrom": {
+                "name": "CoreIcon",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any\nstring can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.",
+              "attribute": "dir"
+            },
+            {
+              "kind": "method",
+              "name": "getIconSource",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "IconSource"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "handleLabelChange",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "hasRecordedInitialProperties",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "icon",
+              "type": {
+                "text": "SVGElement | HTMLTemplateResult | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "icons",
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CoreIcon",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "iconTemplate",
+              "privacy": "protected",
+              "description": "Generates the icon template.",
+              "inheritedFrom": {
+                "name": "CoreIcon",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "initialReflectedProperties",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new Map<string, unknown>()"
+            },
+            {
+              "kind": "field",
+              "name": "initialRender",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "''",
+              "description": "An alternate description to use for assistive devices. If omitted, the icon will be considered presentational and\nignored by assistive devices.",
+              "attribute": "label"
+            },
+            {
+              "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "library",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "default": "'default'",
+              "description": "The name of a registered custom icon library.",
+              "attribute": "library",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "The name of the icon to draw. Available names depend on the icon library being used.",
+              "attribute": "name",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "requestIcon",
+              "privacy": "protected",
+              "parameters": [
+                {
+                  "name": "url",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "inheritedFrom": {
+                "name": "CoreIcon",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "resolveIcon",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Promise<SVGResult>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "url",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "library",
+                  "optional": true,
+                  "type": {
+                    "text": "IconLibrary"
+                  }
+                }
+              ],
+              "description": "Given a URL, this function returns the resulting SVG element or an appropriate error."
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "setIcon",
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CoreIcon",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "shoelaceDir",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "src",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "An external URL of an SVG file. Be sure you trust the content you are including, as it will be executed as code and\ncan result in XSS attacks.",
+              "attribute": "src"
+            },
+            {
+              "kind": "field",
+              "name": "svg",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "protected",
+              "default": "''",
+              "inheritedFrom": {
+                "name": "CoreIcon",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "url",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "public",
+              "description": "Velcro extension (from the core icon): an external URL of an SVG file, used only when `src` is null or undefined\n(never set, or its attribute removed) and no library icon applies. Prefer `src`.",
+              "attribute": "url"
+            }
+          ],
+          "events": [
+            {
+              "type": {
+                "text": "{ status: number }"
+              },
+              "description": "Velcro extension (from the core icon), emitted together with `sl-error`. `status` is the HTTP status, or -1 when there is none.",
+              "name": "icon-error"
+            },
+            {
+              "description": "Velcro extension (from the core icon), emitted together with `sl-load`.",
+              "name": "icon-load"
+            },
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "module": "src/base/charm-element/charm-element.ts",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "description": "Emitted when the icon fails to load due to an error. When using `spriteSheet: true` this will not emit.",
+              "name": "sl-error"
+            },
+            {
+              "description": "Emitted when the icon has loaded. When using `spriteSheet: true` this will not emit.",
+              "name": "sl-load"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any\nstring can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.",
+              "fieldName": "dir",
+              "propName": "dir"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "An alternate description to use for assistive devices. If omitted, the icon will be considered presentational and\nignored by assistive devices.",
+              "fieldName": "label",
+              "propName": "label"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "fieldName": "lang",
+              "propName": "lang"
+            },
+            {
+              "name": "library",
+              "type": {
+                "text": "string"
+              },
+              "default": "'default'",
+              "description": "The name of a registered custom icon library.",
+              "fieldName": "library",
+              "propName": "library"
+            },
+            {
+              "name": "name",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "The name of the icon to draw. Available names depend on the icon library being used.",
+              "fieldName": "name",
+              "propName": "name"
+            },
+            {
+              "name": "src",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "An external URL of an SVG file. Be sure you trust the content you are including, as it will be executed as code and\ncan result in XSS attacks.",
+              "fieldName": "src",
+              "propName": "src"
+            },
+            {
+              "name": "url",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "Velcro extension (from the core icon): an external URL of an SVG file, used only when `src` is null or undefined\n(never set, or its attribute removed) and no library icon applies. Prefer `src`.",
+              "fieldName": "url",
+              "propName": "url"
+            }
+          ],
+          "superclass": {
+            "name": "CoreIcon",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-icon",
+          "customElement": true,
+          "status": "prototype",
+          "modulePath": "src/components/icon/icon.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroIcon",
+            "module": "src/components/icon/icon.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroIcon",
+          "declaration": {
+            "name": "VelcroIcon",
+            "module": "src/components/icon/icon.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/icon/library.default.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "library",
+          "type": {
+            "text": "IconLibrary"
+          },
+          "default": "{ name: 'default', resolver: name => getBasePath(`assets/icons/${name}.svg`), }",
+          "description": "Bootstrap Icons, shipped by the package in `dist/assets/icons` and resolved against the base path."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "library",
+            "module": "src/components/icon/library.default.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/icon/library.system.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "systemLibrary",
+          "type": {
+            "text": "IconLibrary"
+          },
+          "default": "{ name: 'system', // Upstream quirk: `in` also matches inherited keys, so names such as `toString` or `constructor` resolve to a data URL // of the function's source (or `[object Object]`), which is not an SVG, so the icon emits `sl-error`. resolver: (name: string) => { if (name in icons) { return `data:image/svg+xml,${encodeURIComponent(icons[name as keyof typeof icons])}`; } return ''; } }"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "systemLibrary",
+            "module": "src/components/icon/library.system.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/components/icon/library.ts",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "getIconLibrary",
+          "parameters": [
+            {
+              "name": "name",
+              "optional": true,
+              "type": {
+                "text": "string"
+              }
+            }
+          ],
+          "description": "Returns a library from the registry."
+        },
+        {
+          "kind": "function",
+          "name": "registerIconLibrary",
+          "parameters": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "name": "options",
+              "type": {
+                "text": "Omit<IconLibrary, 'name'>"
+              }
+            }
+          ],
+          "description": "Adds an icon library to the registry, or overrides an existing one. Icons that use it are redrawn."
+        },
+        {
+          "kind": "function",
+          "name": "unregisterIconLibrary",
+          "parameters": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              }
+            }
+          ],
+          "description": "Removes an icon library from the registry. Icons already drawn keep their current SVG."
+        },
+        {
+          "kind": "function",
+          "name": "unwatchIcon",
+          "parameters": [
+            {
+              "name": "icon",
+              "type": {
+                "text": "WatchedIcon"
+              }
+            }
+          ],
+          "description": "Removes an icon from the list of watched icons."
+        },
+        {
+          "kind": "function",
+          "name": "watchIcon",
+          "parameters": [
+            {
+              "name": "icon",
+              "type": {
+                "text": "WatchedIcon"
+              }
+            }
+          ],
+          "description": "Adds an icon to the list of watched icons."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "getIconLibrary",
+          "declaration": {
+            "name": "getIconLibrary",
+            "module": "src/components/icon/library.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "registerIconLibrary",
+          "declaration": {
+            "name": "registerIconLibrary",
+            "module": "src/components/icon/library.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "unregisterIconLibrary",
+          "declaration": {
+            "name": "unregisterIconLibrary",
+            "module": "src/components/icon/library.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "unwatchIcon",
+          "declaration": {
+            "name": "unwatchIcon",
+            "module": "src/components/icon/library.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "watchIcon",
+          "declaration": {
+            "name": "watchIcon",
+            "module": "src/components/icon/library.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/components/mutation-observer/mutation-observer.ts",
       "declarations": [
         {

@@ -13,7 +13,7 @@ export const pageData = definePageData(async () => ({
 
 const gaps = [
   'Whether a given screen reader announces the hidden content was not tested; only the computed styles and the accessibility tree of the example in Chromium, Firefox and WebKit were checked.',
-  'The Shoelace documentation examples that use sl-icon (the external-link icon) and sl-card with sl-input (content conveyed by context) are not ported, because those components are not implemented. The external-link example is shown without the icon.',
+  'The Shoelace documentation example that uses sl-card with sl-input (content conveyed by context) is not ported, because those components are not implemented. The external-link example was ported before Velcro had sl-icon and is still shown without the icon.',
   'The component extends the core base element, so it also dispatches core\'s non-bubbling "ready" event on first update, which Shoelace does not. Core also keeps its "dir" property and its base styles (including a hidden-attribute rule that hides the element, with no focus exception).',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Scope-dependent core features (declared dependencies, scope-aware templates) are not supported. Server-side rendering is not supported.',
   'Rendering was checked by computed-style assertions in Chromium, Firefox and WebKit; there is no pixel comparison against Shoelace, and no RTL or localization check.',

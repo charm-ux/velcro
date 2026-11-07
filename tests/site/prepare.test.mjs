@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 import { LIMITS, PrepareError, aggregateHash, prepareSite } from '../../scripts/site/prepare.mjs';
 import { writeTestedEvidence } from '../../scripts/site/tested.mjs';
+import { iconsFromSprite } from '../../packages/velcro/scripts/build-icons.mjs';
 
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 const tmp = mkdtempSync(path.join(tmpdir(), 'velcro-site-'));
@@ -103,6 +104,39 @@ test('symlinks, special files, maps and unexpected formats are rejected, not ski
   }
   await blocked(fixture(leaf(c => { c.files['.env'] = 'x\n'; })), 'unsafe-name');
   await blocked(fixture(leaf(c => { c.files['sp ace.html'] = 'x\n'; })), 'unsafe-name');
+  // Icon assets are allowed only at their exact locations and names.
+  for (const name of ['assets/icons/x.png', 'assets/icons/Gear.svg', 'assets/icons/sub/gear.svg', 'assets/icons/other.json',
+    'assets/x.svg', 'assets/images/other.svg', 'assets/images/sprite.svg.js', 'components/assets/icons/gear.svg']) {
+    await blocked(fixture(leaf(c => { c.files[name] = '<svg></svg>\n'; })), 'unexpected-file');
+  }
+});
+
+const iconSource = path.join(repoRoot, 'packages/velcro/assets/bootstrap-icons');
+const sprite = readFileSync(path.join(iconSource, 'bootstrap-icons.svg'), 'utf8');
+const releaseIcons = iconsFromSprite(Buffer.from(sprite));
+const realIcons = () => ({ 'assets/icons/gear.svg': releaseIcons.get('gear'), 'assets/icons/x-circle-fill.svg': releaseIcons.get('x-circle-fill'),
+  'assets/icons/icons.json': readFileSync(path.join(iconSource, 'icons.json'), 'utf8'), 'assets/icons/LICENSE': readFileSync(path.join(iconSource, 'LICENSE'), 'utf8'),
+  'assets/images/sprite.svg': sprite });
+
+test('icon assets (icon SVGs, icons.json, LICENSE, the sprite sheet) stage as scanned text', async () => {
+  const icons = realIcons();
+  const f = fixture(leaf(c => Object.assign(c.files, icons)));
+  await run(f);
+  for (const [rel, text] of Object.entries(icons)) assert.equal(readFileSync(path.join(f.runDir, 'site', rel), 'utf8'), text, rel);
+  await blocked(fixture(leaf(c => { c.files['assets/icons/gear.svg'] = '<svg>\u0001</svg>\n'; })), 'control-characters');
+});
+
+test('icon assets must be the release bytes: changed icons, unknown names, icons.json, LICENSE and sprite changes block', async () => {
+  const stub = { readLicense, privacy: () => [], secrets: async () => ({ findings: [], version: '8.30.1', excluded: 0 }) };
+  const changed = (rel, text) => fixture(leaf(c => { Object.assign(c.files, realIcons()); c.files[rel] = text; }));
+  await blocked(changed('assets/icons/gear.svg', releaseIcons.get('gear').replace('16', '17')), 'icon-asset-mismatch', { scanners: stub });
+  await blocked(changed('assets/icons/gear.svg', releaseIcons.get('alarm')), 'icon-asset-mismatch', { scanners: stub });
+  await blocked(changed('assets/icons/not-an-icon.svg', releaseIcons.get('gear')), 'icon-asset-mismatch', { scanners: stub });
+  await blocked(changed('assets/icons/icons.json', '[]\n'), 'icon-asset-mismatch', { scanners: stub });
+  await blocked(changed('assets/icons/LICENSE', 'MIT\n'), 'icon-asset-mismatch', { scanners: stub });
+  await blocked(changed('assets/images/sprite.svg', sprite.replace('M8', 'M9')), 'icon-asset-mismatch', { scanners: stub });
+  // The control: the same files unchanged pass with the same stubs.
+  await run(fixture(leaf(c => Object.assign(c.files, realIcons()))), { scanners: stub });
 });
 
 test('binary or control-character content in an allowed name is rejected', async () => {
@@ -154,6 +188,9 @@ test('real pinned secret scanner blocks a planted credential and the control pas
   // Isolate the secret engine: privacy stubbed clean, the real engine must still find it.
   const only = fixture(leaf(c => { c.files['index.html'] += `<script>const t = "${token}";</script>\n`; }));
   await blocked(only, 'secret-findings', { scanners: { readLicense, privacy: () => [] } });
+  // An .svg (a path the stock Gitleaks allowlist would skip) is still inspected, through the scan mirror.
+  const svg = fixture(leaf(c => { c.files['assets/icons/gear.svg'] = `<svg><desc>${token}</desc></svg>\n`; }));
+  await blocked(svg, 'secret-findings', { scanners: { readLicense, privacy: () => [] } });
   const clean = fixture();
   assert.equal((await run(clean)).checks.secretFindings, 0);
 });

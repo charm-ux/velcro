@@ -2,7 +2,7 @@
   "name": "@charm-ux/velcro",
   "version": "0.1.0",
   "private": true,
-  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, card, divider, format-bytes, format-date, format-number, mutation-observer, popup, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, split-panel, switch, tab-panel and visually-hidden only).",
+  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, card, divider, format-bytes, format-date, format-number, icon, mutation-observer, popup, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, split-panel, switch, tab-panel and visually-hidden only).",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
@@ -60,6 +60,14 @@
     "./format-number/class": {
       "types": "./dist/components/format-number/class.d.ts",
       "import": "./dist/components/format-number/class.js"
+    },
+    "./icon": {
+      "types": "./dist/components/icon/index.d.ts",
+      "import": "./dist/components/icon/index.js"
+    },
+    "./icon/class": {
+      "types": "./dist/components/icon/class.d.ts",
+      "import": "./dist/components/icon/class.js"
     },
     "./mutation-observer": {
       "types": "./dist/components/mutation-observer/index.d.ts",
@@ -179,7 +187,7 @@
     "*.css"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && pnpm run analyze && tsc -p tsconfig.react.json",
+    "build": "tsc -p tsconfig.json && pnpm run analyze && tsc -p tsconfig.react.json && node scripts/build-icons.mjs",
     "generate": "plop --plopfile plopfile.mjs",
     "analyze": "cem analyze"
   },

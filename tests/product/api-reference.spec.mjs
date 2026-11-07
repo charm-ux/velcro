@@ -3,6 +3,12 @@
 import { expect, test } from '@playwright/test';
 import { apiModel, customElements, readJson, velcroManifestPath } from '../../scripts/api/model.mjs';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
+import { guardCdn } from './support/cdn.mjs';
+
+// The icon page loads its CDN icon library examples only on request; no test here asks, and none reaches a CDN (support/cdn.mjs).
+let cdnRequests = [];
+test.beforeEach(async ({ page }) => { cdnRequests = guardCdn(page); });
+test.afterEach(() => { expect(cdnRequests, 'no request reaches the CDN').toEqual([]); });
 
 const elements = customElements(readJson(velcroManifestPath));
 const source = origin => (origin ? `Inherited ${origin}` : 'Velcro');
