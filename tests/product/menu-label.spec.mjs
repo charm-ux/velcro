@@ -46,6 +46,10 @@ test('docs page is prerendered with Velcro branding, prototype status, the quirk
   expect(html).toContain('without changing the shared core prefix');
   expect(html).toContain('sl-menu and sl-menu-item, which Velcro does not implement yet');
   expect(html).toContain('does not hide the label');
+  // The verification wording says which engines ran locally and that Firefox is CI-only, and the accessibility-tree check is named for what it is.
+  expect(html).toContain('was run locally in Chromium and WebKit only, and Firefox is covered only by the project&#39;s CI run');
+  expect(html).toContain('Playwright&#39;s ARIA snapshot');
+  expect(html).not.toMatch(/screen reader reads it/);
   // The ready event is the only event, labelled as inherited; the API tables list the base part and the default slot.
   expect(html).toContain('Inherited from core');
   expect(html).toContain('data-name="base"');
@@ -223,7 +227,7 @@ test('upstream quirk: the hidden attribute does not hide the label, because the 
   await expect(frame.locator('#h')).toBeVisible();
 });
 
-test('semantics: no role, no ARIA and no focus stop of its own, and the text is exposed as plain text', async ({ page }) => {
+test('semantics: no role, no ARIA, no focus stop and no relationship to the following items (DOM attributes and properties)', async ({ page }) => {
   const { frame } = await openExample(page);
   const info = await frame.locator('sl-menu-label').first().evaluate(el => ({
     attrs: el.getAttributeNames(),
@@ -232,14 +236,36 @@ test('semantics: no role, no ARIA and no focus stop of its own, and the text is 
     ariaLabel: el.ariaLabel,
     shadowAria: [...el.shadowRoot.querySelectorAll('*')].flatMap(n => n.getAttributeNames().filter(a => a === 'role' || a.startsWith('aria-'))),
   }));
+  // Shoelace supplies none of these; a page that wants a group label adds its own role or aria-label.
   expect(info).toEqual({ attrs: [], role: null, tabIndex: -1, ariaLabel: null, shadowAria: [] });
-  // Plain text for a screen reader; a page that wants a group label adds its own role or aria-label.
-  await expect(frame.locator('sl-menu-label').first()).toHaveText('Fruits');
-  await expect(frame.getByRole('separator')).toHaveCount(1);
-  // The text can be found by its words, so the accessibility tree contains it.
-  await expect(frame.getByText('Vegetables', { exact: true })).toBeVisible();
-  // The label cannot be selected as text, as in Shoelace: a double click on its text selects nothing, where the same
-  // gesture on an item's text selects the word.
+});
+
+// Playwright's ARIA snapshot is computed by Playwright from the DOM (roles, names, aria-hidden, hidden and inert content),
+// not read from the browser's native accessibility tree, and no screen reader is involved. It is a real accessibility-tree
+// query, unlike text or visibility locators, which see aria-hidden content.
+test('accessibility tree (Playwright ARIA snapshot): the labels are plain text between the items, and aria-hidden removes them', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const menu = frame.locator('.menu-label-menu');
+  // Playwright joins adjacent text, so each group reads as one run of plain text (no role, no group name) around the separator.
+  await expect(menu).toMatchAriaSnapshot(`
+    - text: Fruits Apple Banana Orange
+    - separator
+    - text: Vegetables Broccoli Carrot Zucchini
+  `);
+  // On its own, each label is exactly its text.
+  await expect(frame.locator('sl-menu-label').first()).toMatchAriaSnapshot('- text: Fruits');
+  await expect(frame.locator('sl-menu-label').nth(1)).toMatchAriaSnapshot('- text: Vegetables');
+  // Sensitivity: the same assertion style fails once an ancestor is aria-hidden, while the text is still in the DOM and visible.
+  await mount(frame, '<div id="hide" aria-hidden="true"><sl-menu-label>Hidden label</sl-menu-label></div><div id="show"><sl-menu-label>Shown label</sl-menu-label></div>');
+  await expect(frame.locator('#show')).toMatchAriaSnapshot('- text: Shown label');
+  expect(await frame.locator('#hide').ariaSnapshot()).toBe('');
+  await expect(frame.locator('#hide sl-menu-label')).toBeVisible();
+  await expect(frame.locator('#hide sl-menu-label')).toHaveText('Hidden label');
+});
+
+test('user-select: the label cannot be selected as text, as in Shoelace (a double click on its text selects nothing)', async ({ page }) => {
+  const { frame } = await openExample(page);
+  // The same gesture on an item's text selects the word, so the empty selection below comes from the label's style.
   const selection = () => frame.locator('body').evaluate(() => getSelection()?.toString());
   await frame.locator('.menu-label-item').first().dblclick({ position: { x: 40, y: 16 } });
   expect(await selection()).toBe('Apple');
