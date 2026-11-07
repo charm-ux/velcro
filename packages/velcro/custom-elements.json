@@ -5543,6 +5543,22 @@
             },
             {
               "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
               "name": "max",
               "type": {
                 "text": "number | undefined"
@@ -5676,6 +5692,14 @@
               "description": "A custom label for assistive devices.",
               "fieldName": "label",
               "propName": "label"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "fieldName": "lang",
+              "propName": "lang"
             },
             {
               "name": "max",
@@ -5864,6 +5888,22 @@
             },
             {
               "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
               "name": "scope",
               "type": {
                 "text": "any"
@@ -5910,6 +5950,14 @@
               "description": "A custom label for assistive devices.",
               "fieldName": "label",
               "propName": "label"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "fieldName": "lang",
+              "propName": "lang"
             },
             {
               "name": "value",
@@ -6690,6 +6738,22 @@
             },
             {
               "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "localize",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new LocalizeController(this)"
+            },
+            {
+              "kind": "field",
               "name": "scope",
               "type": {
                 "text": "any"
@@ -6707,13 +6771,6 @@
               "privacy": "protected"
             }
           ],
-          "superclass": {
-            "name": "CoreSpinner",
-            "package": "@charm-ux/core"
-          },
-          "tagName": "sl-spinner",
-          "customElement": true,
-          "status": "prototype",
           "attributes": [
             {
               "name": "dir",
@@ -6754,8 +6811,23 @@
                 "package": "@charm-ux/core"
               },
               "propName": "labelPosition"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "fieldName": "lang",
+              "propName": "lang"
             }
           ],
+          "superclass": {
+            "name": "CoreSpinner",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-spinner",
+          "customElement": true,
+          "status": "prototype",
           "events": [
             {
               "description": "Emitted when the component is ready.",

@@ -1,6 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
+import { withBase } from '../../src/base.js';
 import { docsShell, shellStyles } from '../../src/shell.js';
 import { themeHead } from '../../src/theme.js';
 import { apiReference } from '../../src/api.js';
@@ -47,7 +48,8 @@ const gaps = [
   'Velcro builds on the core base element; there is no core split panel. It keeps the core extras, which are not part of the Shoelace contract: core\'s "ready" event (dispatched once, after the first update; it does not bubble and is not composed), and core\'s "dir" property (which resolves to the computed direction). Core\'s base styles are replaced by Shoelace\'s own shared rules, so the hidden attribute, the focus outline offset and the box-sizing of the parts behave as in Shoelace.',
   'The text direction comes from the dir attribute, not the property: Shoelace reads the host\'s dir property, which follows the attribute, but the shared localization controller reads only the attribute (core\'s dir getter resolves the computed style), so a dir set only through the property (el.dir = "rtl" without the attribute) is ignored here.',
   'The divider examples were ported before Velcro had sl-icon and use an inline svg handle instead of an <sl-icon> grip (not yet updated to use it). Velcro has no select or option components yet, so the primary-panel example uses a native <select> and a change listener instead of <sl-select> and sl-change. The Shoelace React examples are not ported.',
-  'Only English is rendered: the divider\'s accessible name is "Resize". Shoelace renders the same text until a consumer registers translations, and then follows them (its French file gives "Redimensionner", its Spanish file "Cambiar el tamaño"). Velcro has no translation registry, so Shoelace\'s registerTranslation and its translation files have no counterpart and a registered translation does not change the name; this is the same gap as in sl-spinner, sl-progress-bar and sl-progress-ring. The lang property is declared as in Shoelace but changes nothing here.',
+  'The divider\'s accessible name is the localized "resize" term, as in Shoelace: "Resize" in English, the fallback (Shoelace\'s French file gives "Redimensionner"). It follows the element\'s lang, then the document\'s, and re-renders when either changes or a translation is registered.',
+  'A translation is registered by importing @charm-ux/velcro/translations/<code> (Shoelace\'s 29 files, which register themselves) or by calling registerTranslation from @charm-ux/velcro/utilities/localize, as with Shoelace\'s utilities/localize. The translated text is Shoelace\'s and was not reviewed by Velcro; localized output was checked in Chromium only. See the Localization page.',
   'The public handlePositionChange, handlePositionInPixelsChange and handleVerticalChange methods and the divider property exist as in Shoelace\'s class, where they are the property watchers and a query for the divider element. They are not documented upstream and are not meant to be called.',
   'Shoelace\'s own split panel tests (17, including its axe accessibility test) run against Velcro and pass in Chromium and WebKit; they were not run in Firefox here. The product checks for this page ran in Chromium and WebKit; Firefox was not run locally.',
   'Dragging was checked with a mouse in Chromium and WebKit, and with a touch drag (injected through the DevTools protocol) in Chromium only. Pen input, touch in other engines, and pinch or inertia were not checked. No screen reader testing was done: the divider has role separator with aria-valuenow, aria-valuemin, aria-valuemax and the name Resize, and was checked by the automated axe run and keyboard tests only.',
@@ -64,6 +66,7 @@ export class SplitPanelPage extends LitElement {
     return docsShell('split-panel', html`
       <h1>Split Panel</h1>
       <p><code>&lt;sl-split-panel&gt;</code> is registered by <code>@charm-ux/velcro</code> on top of the <code>@charm-ux/core</code> base element. Prototype status: unreleased.</p>
+      <p>Its built-in text is localized; see <a href=${withBase('/localization')}>Localization</a>.</p>
       <p>Split panels display two adjacent panels, allowing the user to reposition them.</p>
 
       <h2 id="examples">Examples</h2>

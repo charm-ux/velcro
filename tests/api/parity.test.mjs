@@ -75,6 +75,7 @@ test('the comparison detects missing and mismatched entries and reports extras w
       { kind: 'field', name: 'a', attribute: 'a', type: { text: 'string' }, default: "''", reflects: false, readonly: true },
       { kind: 'field', name: 'dir', attribute: 'dir', inheritedFrom: { name: 'CharmElement', package: '@charm-ux/core' } },
       { kind: 'field', name: 'own' },
+      { kind: 'field', name: 'lang', attribute: 'lang' },
     ],
     events: [{ name: 'sl-x' }],
     cssParts: [{ name: 'base' }],
@@ -89,6 +90,8 @@ test('the comparison detects missing and mismatched entries and reports extras w
     'sl-x property b: missing',
     'sl-x slot (default): missing',
   ]);
-  assert.deepEqual(r.extras.map(e => `${e.kind} ${e.name} ${e.origin}`), ['property dir from @charm-ux/core CharmElement', 'property own ']);
-  assert.deepEqual(r.counts['sl-x'], { compared: 7, matched: 2, missing: 3, mismatched: 2, velcroOnly: 1, inherited: 1 });
+  // An own `lang` (or `dir`) mirrors Shoelace's base element, which its manifest omits; an inherited one keeps its origin.
+  assert.deepEqual(r.extras.map(e => `${e.kind} ${e.name} ${e.origin}`), ['property dir from @charm-ux/core CharmElement',
+    "property lang from Shoelace's base element (ShoelaceElement, not in its manifest)", 'property own ']);
+  assert.deepEqual(r.counts['sl-x'], { compared: 7, matched: 2, missing: 3, mismatched: 2, velcroOnly: 1, inherited: 2 });
 });

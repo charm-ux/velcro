@@ -12,8 +12,8 @@ export const pageData = definePageData(async () => ({
 }));
 
 const gaps = [
-  'There is no core relative-time: the component extends the core CharmElement base. The phrase is produced by Intl.RelativeTimeFormat through a minimal localization controller (packages/velcro/src/internal/localize.ts), reused unchanged.',
-  'The localization controller has no translation registry: nothing is translated (this component needs no strings), and registerTranslation / term() do not exist. It resolves lang from the element, then the document element, then the browser language, and re-renders when the document element lang or dir changes.',
+  'There is no core relative-time: the component extends the core CharmElement base. The phrase is produced by Intl.RelativeTimeFormat through Velcro\'s localization controller (packages/velcro/src/utilities/localize.ts), reused unchanged.',
+  'This component uses no translated terms, so registered translations do not change it. The localization controller resolves lang from the element, then the document element, then the browser language, and re-renders when the document element lang or dir changes or a translation is registered.',
   'The text depends on the browser Intl data. It was compared with Shoelace 2.20.1 by the algorithm (the same unit thresholds, rounding and sync scheduling) and by asserted strings in Chromium, not by running Shoelace.',
   'Divergence: removing the date, format or numeric attribute restores the default here (the current time, long, auto), whereas Shoelace restores only reflected properties, so there the property would become null. Setting an invalid value by property is not guarded; an invalid date renders nothing, as in Shoelace.',
   'Divergence: with sync, an element that is disconnected and reconnected resumes updating; in Shoelace its timer is cleared on disconnect and not restarted.',

@@ -38,7 +38,8 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).toContain('<title>Progress Ring - Velcro</title>');
   expect(html).toContain('Velcro is an unreleased prototype');
   expect(html).toContain('Not implemented or unverified');
-  expect(html).toContain('localizes it through its localization controller');
+  expect(html).toContain('registered by importing @charm-ux/velcro/translations/');
+  expect(html).not.toContain('not public package exports yet');
   expect(html).toContain('as before Velcro had sl-icon');
   expect(html).toContain('--indicator-transition-duration');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);

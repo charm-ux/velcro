@@ -3,7 +3,9 @@
 // (src/components/spinner/spinner.component.ts), Copyright (c) 2020 A Beautiful Site, LLC, MIT License.
 // See THIRD_PARTY_NOTICES.md. No Shoelace source file or runtime is included.
 import { html } from 'lit';
+import { property } from 'lit/decorators.js';
 import { CoreSpinner } from '@charm-ux/core/dist/components/spinner/spinner.js';
+import { LocalizeController } from '../../utilities/localize.js';
 import styles from './spinner.styles.js';
 
 /**
@@ -25,14 +27,19 @@ export class VelcroSpinner extends CoreSpinner {
   // element (box-sizing, `[hidden]`) are kept.
   public static override styles = [...(Object.getPrototypeOf(CoreSpinner) as typeof CoreSpinner).styles, styles];
 
+  private readonly localize = new LocalizeController(this);
+
+  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the accessible name. Like Shoelace it has no initial value (undefined).
+  @property()
+  public override lang!: string;
+
   // Core renders a label-bearing `status` layout with its own parts. Shoelace's contract is a single svg `base`
-  // part that is an indeterminate `progressbar` named "Loading", sized by font-size, so the template is replaced
+  // part that is an indeterminate `progressbar` named by the localized "loading" term, sized by font-size, so the template is replaced
   // here, with Shoelace's class names. Core's `label` and `label-position` properties are still declared by the base
   // class but are not used.
   protected override spinnerTemplate() {
-    // The accessible name is English-only; Shoelace localizes it through its own localization controller.
     return html`
-      <svg part="base" class="spinner" role="progressbar" aria-label="Loading">
+      <svg part="base" class="spinner" role="progressbar" aria-label=${this.localize.term('loading')}>
         <circle class="spinner__track"></circle>
         <circle class="spinner__indicator"></circle>
       </svg>

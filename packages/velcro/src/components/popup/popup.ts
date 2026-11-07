@@ -12,7 +12,7 @@ import { classMap } from 'lit/directives/class-map.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
 import { CorePopup } from '@charm-ux/core/dist/components/popup/popup.js';
 import { composedOffsetParent } from '../../internal/composed-offset-parent.js';
-import { LocalizeController } from '../../internal/localize.js';
+import { LocalizeController } from '../../utilities/localize.js';
 import styles from './popup.styles.js';
 
 export interface VirtualElement {

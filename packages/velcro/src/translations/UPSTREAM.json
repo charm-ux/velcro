@@ -1,0 +1,52 @@
+{
+  "project": "shoelace-style/shoelace",
+  "version": "2.20.1",
+  "commit": "fb59fda70ed737c92611051b49bc7e3a5fed5dc5",
+  "license": "MIT",
+  "note": "Shoelace translation modules. Files not listed under adapted are byte-identical to upstream. Each adapted file differs only by the one import line below: Velcro has no @shoelace-style/localize package, and ../internal/localize.js is its registry.",
+  "adapted": {
+    "files": [
+      "src/translations/ar.ts",
+      "src/translations/cs.ts",
+      "src/translations/en.ts",
+      "src/translations/fi.ts",
+      "src/translations/hr.ts",
+      "src/translations/id.ts",
+      "src/translations/it.ts",
+      "src/translations/sl.ts"
+    ],
+    "from": "import { registerTranslation } from '@shoelace-style/localize';",
+    "to": "import { registerTranslation } from '../internal/localize.js';"
+  },
+  "files": {
+    "src/translations/ar.ts": "dd35d5d0980fd237792fa965f1ca75d36d765bc2f65833e68f8f9bae98f6c84d",
+    "src/translations/cs.ts": "02a14dea68dc7ea073e8056bbac3cf5334e1dce6bbbe902343f5b8f9388016dd",
+    "src/translations/da.ts": "8b6fc5bb1735993d639eb6b68726059184dd10a8555ac83f5f0b3ba4d5b97d61",
+    "src/translations/de-ch.ts": "bcc9934c18d8fd7a509f274183bed020b4dc29ccf76db1ab917caa29a40864d0",
+    "src/translations/de.ts": "faee8799ea1e2be677c0d2d926a22adbaae21b8e8272b9cffd430c6aca1f2387",
+    "src/translations/en-gb.ts": "6de5468abdfcbf340b76555d6a08f9a1d4bbaefc6c310cb72e5a089ff90a5cd4",
+    "src/translations/en.ts": "a1f5582bd707636b9dce42b26b9773cf0851c1ee03e685dfd2e1223b2d1505d6",
+    "src/translations/es.ts": "6fbdfa062704d817a489406610d0c31f61714a78765f23650cd1a502ac2e15f4",
+    "src/translations/fa.ts": "314e3eacdc1400020acd626d3ab2e6ce63e64b2b63d2311885f6ed1cf367c221",
+    "src/translations/fi.ts": "69d807d2bef9a1f6ed798c5535ea59d3b33824304af0c02200cc663d4dea0728",
+    "src/translations/fr.ts": "69080d1434cc89e326653eb8e59670fcb1eb7c2cb8fe8ad09fee9b26f16dbb7b",
+    "src/translations/he.ts": "73b972563c042b451a3c5e8f9c3c3027e95cbafee86588b281176f24ef35f260",
+    "src/translations/hr.ts": "4e37594398f4e829c40c12bcb573e71977928e9cfaf47b942c94a54bcfec253c",
+    "src/translations/hu.ts": "1999489f81488726f75fb2c18e4a790f2fc3638e7161cd5fcbdae45be0cef635",
+    "src/translations/id.ts": "8f214bc80cc2c4ad0652bc9059d4b546eb4eac52668fe21ac620320713e02f3a",
+    "src/translations/it.ts": "5c4db96c5e2b9176d0da728583d92103f9de65f332c22ea06ab8a03639abebb3",
+    "src/translations/ja.ts": "d56a6bd2147ec151c2a868d5d69d9c69eb1d60dc2c9e9e2cfa39598bb073348a",
+    "src/translations/nb.ts": "03eedfd228b4caf745e7374fa7bb1cf27ae80186caa6f376489796ac04a2c823",
+    "src/translations/nl.ts": "0ef322980a17333669045fd8361bbb55121f1b0c771b6286857128dbd216e499",
+    "src/translations/nn.ts": "088263ac5f100e26862ee53a802a5f13af407688d215f68c0c78bd3b33e16a87",
+    "src/translations/pl.ts": "a014932d061f57d8f1383bb14ea1eba59307abadcda7c0f4c2c0936788d5becf",
+    "src/translations/pt.ts": "41fde0eb6ecd1b9ad17d355de434ed1b664f245ad59a0f8cb077148347d752f7",
+    "src/translations/ru.ts": "5cea2d196f17c386b3580b9ee7655ab93330210b950d695d736c492c4658d246",
+    "src/translations/sl.ts": "62e0c66d7d0eab10d6bfa0e9b0eddc382e8d36ea617bb848041fb42e9b53bcb3",
+    "src/translations/sv.ts": "461d69e1b4b2d6dc0052ed6c5a6206a690a71ecc2ab05bae070afd20e86b8f1c",
+    "src/translations/tr.ts": "36b957915ca2e1dc88a58ba9d4605a4dcb1d8065ad0cee4457d97e69d07e170d",
+    "src/translations/uk.ts": "e53acf9586968975e75d983b4b2e21c93cbd1fcc292855f4eaa182bbe22c4d84",
+    "src/translations/zh-cn.ts": "4dec7b83065fdd60b10a1d4069c666d7aa6b4a6b6af3dd3d1bf00512dbee9bfb",
+    "src/translations/zh-tw.ts": "41cabbbcb2d61083b6820fc9560f79475b2a2ab3d7f893443a13646134625b4b"
+  }
+}

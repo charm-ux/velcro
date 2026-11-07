@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { CATALOG_LIMITS, CatalogError, MODULE_EXPORTS, checkCoverage, checkExports, parseCatalog, readCatalog } from '../../scripts/site/catalog.mjs';
+import { CATALOG_LIMITS, CatalogError, MODULE_EXPORTS, PACKAGE_OWNER, checkCoverage, checkExports, parseCatalog, readCatalog } from '../../scripts/site/catalog.mjs';
 import { requiredFiles } from '../../scripts/site/prepare.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -21,8 +21,16 @@ test('the repository is complete: every component directory and catalog entry ha
 });
 
 const tgt = f => ({ types: `./dist/${f}.d.ts`, import: `./dist/${f}.js` });
+// Shoelace 2.20.1's published dist/translations/<code>.js files, listed independently of the table under test.
+const TRANSLATION_CODES = ['ar', 'cs', 'da', 'de', 'de-ch', 'en', 'en-gb', 'es', 'fa', 'fi', 'fr', 'he', 'hr', 'hu', 'id', 'it',
+  'ja', 'nb', 'nl', 'nn', 'pl', 'pt', 'ru', 'sl', 'sv', 'tr', 'uk', 'zh-cn', 'zh-tw'];
+const packageModuleExports = () => ({
+  './utilities/localize': tgt('utilities/localize'),
+  ...Object.fromEntries(TRANSLATION_CODES.map(c => [`./translations/${c}`, tgt(`translations/${c}`)])),
+});
 const baseExports = names => ({
   '.': tgt('index'),
+  ...packageModuleExports(),
   ...Object.fromEntries(names.map(x => [`./${x}`, tgt(`components/${x}/index`)])),
   './themes/dark.css': './themes/dark.css',
   './themes/light.css': './themes/light.css',
@@ -85,12 +93,16 @@ for (const [label, mutate, expected] of negatives) {
 // is in the catalog, with exact targets, and never admitted by the ./<name>/class pattern.
 const includeCatalog = [{ name: 'include' }];
 const includeExports = { ...baseExports(['include']), './include/request': tgt('components/include/request') };
-test('the module export table lists exactly the animation modules and the include helper, by full key', () => {
+test('the module export table lists exactly the animation modules, the include helper and the localization modules, by full key', () => {
+  assert.equal(PACKAGE_OWNER, '@charm-ux/velcro');
   assert.deepEqual(Object.entries(MODULE_EXPORTS), [
     ['./animation/animations', ['animation', 'components/animation/animations']],
     ['./include/request', ['include', 'components/include/request']],
     ['./utilities/animation', ['animation', 'utilities/animation']],
+    ['./utilities/localize', ['@charm-ux/velcro', 'utilities/localize']],
+    ...TRANSLATION_CODES.map(c => [`./translations/${c}`, ['@charm-ux/velcro', `translations/${c}`]]),
   ]);
+  assert.equal(TRANSLATION_CODES.length, 29);
   assert.equal(Object.isFrozen(MODULE_EXPORTS), true);
 });
 test('a module export is required, exact, and allowed only by its full key and only with its component', () => {
@@ -120,6 +132,42 @@ test('object prototype names are not export keys or components: nothing is admit
     ['package.json: unexpected export ./__proto__', 'package.json: unexpected export ./constructor', 'package.json: unexpected export ./toString/class']);
 });
 
+// The localization modules are package-level: required (exact key, exact target) whatever the catalog holds.
+test('package-level module exports are required with exact targets for every catalog, including an empty one', () => {
+  for (const catalog of [[], [{ name: 'alpha' }]]) {
+    const ok = baseExports(catalog.map(c => c.name));
+    assert.deepEqual(checkExports(ok, catalog), [], JSON.stringify(catalog));
+    for (const key of Object.keys(packageModuleExports())) {
+      const { [key]: _omitted, ...without } = ok;
+      assert.deepEqual(checkExports(without, catalog), [`@charm-ux/velcro: missing module export ${key}`], key);
+    }
+  }
+  const ok = baseExports([]);
+  const wrong = msgKey => [`@charm-ux/velcro: wrong module export targets for ${msgKey}`];
+  // Wrong targets: another file, the other translation, a bare string, an extra condition, swapped condition values.
+  assert.deepEqual(checkExports({ ...ok, './translations/fr': tgt('translations/en') }, []), wrong('./translations/fr'));
+  assert.deepEqual(checkExports({ ...ok, './translations/de-ch': tgt('translations/de') }, []), wrong('./translations/de-ch'));
+  assert.deepEqual(checkExports({ ...ok, './utilities/localize': tgt('internal/localize') }, []), wrong('./utilities/localize'));
+  assert.deepEqual(checkExports({ ...ok, './utilities/localize': './dist/utilities/localize.js' }, []), wrong('./utilities/localize'));
+  assert.deepEqual(checkExports({ ...ok, './translations/en': { ...tgt('translations/en'), default: './dist/translations/en.js' } }, []), wrong('./translations/en'));
+  assert.deepEqual(checkExports({ ...ok, './translations/ja': { types: './dist/translations/ja.js', import: './dist/translations/ja.d.ts' } }, []), wrong('./translations/ja'));
+  // Unlisted codes, look-alikes, wildcard-looking and directory keys, and prototype names are unexpected exports.
+  const unexpected = ['./translations/xx', './translations/pt-br', './translations/es-mx', './translations/EN', './translations/en.js',
+    './translations/en/extra', './translations/zh_cn', './translations/*', './translations/*.js', './translations', './translations/',
+    './utilities/*', './utilities', './utilities/localize/class', './utilities/localize.js', './utilities/registration', './internal/localize',
+    './translations/__proto__', './translations/constructor', './translations/hasOwnProperty', './utilities/toString'];
+  for (const key of unexpected) {
+    assert.deepEqual(checkExports({ ...ok, [key]: tgt(key.slice(2)) }, []), [`package.json: unexpected export ${key}`], key);
+  }
+  // Prototype-named keys as JSON.parse produces them (own keys), alongside the required ones.
+  const polluted = JSON.parse('{"./translations/__proto__": {}, "./utilities/constructor": {}}');
+  assert.deepEqual(checkExports({ ...ok, ...polluted }, []).sort(),
+    ['package.json: unexpected export ./translations/__proto__', 'package.json: unexpected export ./utilities/constructor']);
+  // A catalog entry cannot claim the package owner's rows or stand in for it.
+  assert.deepEqual(checkExports(ok, [{ name: 'translations' }]), ['translations: missing package export']);
+  assert.deepEqual(checkExports({ ...baseExports(['translations']), './translations/class': tgt('components/translations/class') }, [{ name: 'translations' }]), []);
+});
+
 test('a complete additional component passes the combined source contracts', () => {
   const dir = fixture(({ put }) => {
     put('packages/docs/catalog.jsonl', '{"name":"alpha","title":"Alpha","tag":"sl-alpha","example":"#demo-default"}\n{"name":"beta-box","title":"Beta Box","tag":"sl-beta-box","example":"sl-beta-box"}\n');
@@ -138,7 +186,7 @@ test('module exports are accepted only for a catalog component and only with the
   const catalog = [{ name: 'animation', title: 'Animation', tag: 'sl-animation', example: '#x' }];
   const ok = { ...baseExports(['animation']), './animation/animations': tgt('components/animation/animations'), './utilities/animation': tgt('utilities/animation') };
   assert.deepEqual(checkExports(ok, catalog), []);
-  assert.deepEqual(Object.keys(MODULE_EXPORTS).sort(), ['./animation/animations', './include/request', './utilities/animation']);
+  assert.deepEqual(Object.keys(MODULE_EXPORTS).filter(k => MODULE_EXPORTS[k][0] !== PACKAGE_OWNER).sort(), ['./animation/animations', './include/request', './utilities/animation']);
   const { './utilities/animation': _omitted, ...without } = ok;
   assert.deepEqual(checkExports(without, catalog), ['animation: missing module export ./utilities/animation']);
   assert.deepEqual(checkExports({ ...ok, './utilities/animation': tgt('components/animation/index') }, catalog),
