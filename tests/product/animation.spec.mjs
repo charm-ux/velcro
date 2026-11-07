@@ -5,7 +5,9 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
-import { documentsLoaded } from './support/loaded.mjs';
+import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+
+test.beforeEach(({ page }) => watchNetwork(page));
 
 const velcroDir = fileURLToPath(new URL('../../packages/velcro/', import.meta.url));
 

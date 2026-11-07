@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { documentsLoaded } from './support/loaded.mjs';
+import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+
+test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/button';
 

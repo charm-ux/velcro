@@ -1,6 +1,6 @@
 # Product verification, called by CI (every PR and push to main) and by Pages (main). The build job builds the library
-# and the docs once, scans that output and shares it with the later jobs as a workflow artifact; it also prints the digest
-# of the tested site bytes (packages/docs/dist/static-prefixed and its closure record). Each browser shard (one engine, one
+# and the docs once, scans that output and shares it with the later jobs as a workflow artifact; it also prints the build
+# digest (every file of packages/velcro/dist and packages/docs/dist, bound to the commit). Each browser shard (one engine, one
 # Playwright shard) and the upstream gate check that digest on the downloaded output before and after their checks, and
 # nothing rebuilds it. The caller records publication evidence only in a job that needs this whole workflow to succeed.
 # Raw output stays in each runner's ignored .airig/; only fixed status lines and verify:product's bounded, redacted summary
@@ -15,7 +15,7 @@ on:
         required: true
     outputs:
       digest:
-        description: Digest of the tested site bytes
+        description: Build digest (every file of both dist trees, bound to the commit)
         value: ${{ jobs.build.outputs.digest }}
 
 permissions:

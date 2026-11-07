@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { documentsLoaded } from './support/loaded.mjs';
+import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+
+test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/split-panel';
 const PANELS = '<div slot="start" style="height: 100%">a</div><div slot="end" style="height: 100%">b</div>';

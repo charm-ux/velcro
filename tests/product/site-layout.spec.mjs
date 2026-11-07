@@ -1,7 +1,6 @@
 // Docs layout: narrow viewports and fragment links into the page's shadow root.
 import { expect, test } from '@playwright/test';
 import { guardCdn } from './support/cdn.mjs';
-import { documentsLoaded } from './support/loaded.mjs';
 
 // The icon page loads its CDN icon library examples only on request; no test here asks, and none reaches a CDN (support/cdn.mjs).
 let cdnRequests = [];
@@ -10,7 +9,7 @@ test.afterEach(() => { expect(cdnRequests, 'no request reaches the CDN').toEqual
 
 const settle = async page => {
   await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
-  await documentsLoaded(page);
+  await page.waitForLoadState('networkidle');
 };
 
 for (const fontSize of ['16px', '24px']) {
