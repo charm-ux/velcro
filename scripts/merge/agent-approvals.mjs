@@ -10,10 +10,11 @@
 //   node scripts/merge/agent-approvals.mjs set-group <binding.json> --head <oid> --root <dir> --repo <owner/name> --pr <n> --group <oid>
 //
 // `set` marks the open pull request's head (it must still be <oid>, based on main). `set-group` marks the merge-queue
-// commit GitHub built for that pull request and head (refs/heads/gh-readonly-queue/main/pr-<n>-<oid>), only when it is
-// the --group commit the caller scanned, has main's current tip as its single parent and exactly the approved head's
-// tree, so it lands nothing else. Neither marks a commit that already carries an `agent-approvals` status from another
-// account (a workflow token, for example), and each confirms afterwards that its own success is the newest one.
+// commit GitHub built for that pull request, as GitHub reports it (the pull request's mergeQueueEntry; no branch name
+// is derived), only when the entry is awaiting checks on main's current tip and its commit is the --group commit the
+// caller scanned, has that tip as its single parent and exactly the approved head's tree, so it lands nothing else.
+// Neither marks a commit that already carries an `agent-approvals` status from another account (a workflow token,
+// for example), and each confirms afterwards that its own success is the newest one.
 // Output is fixed status lines with OIDs only: no paths, report text or GitHub responses.
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
@@ -96,17 +97,26 @@ function setStatus(gh, repo, sha) {
   if (foreign(after) || newest?.state !== 'success') refuse('GitHub did not record the status');
 }
 
-// The merge-queue commit for this pull request and head: one exact ref, a single parent that is main's current tip,
-// the approved head's tree, and a head that already contains that tip. Returns the merge-group commit OID.
+const QUEUE_ENTRY = 'query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) '
+  + '{ pullRequest(number: $number) { headRefOid mergeQueueEntry { state headCommit { oid } baseCommit { oid } } } } }';
+
+// The merge-queue commit for this pull request, asked of GitHub rather than derived from a branch name (GitHub names
+// the queue branch after the base it builds on, gh-readonly-queue/main/pr-<n>-<base>, which is no binding to the
+// head). The entry must be awaiting checks for the approved head, built on main's current tip, and be the scanned
+// commit; that commit must have that tip as its single parent, the approved head's tree, and a head that already
+// contains that tip. Returns the merge-group commit OID.
 function mergeGroup(gh, repo, pr, head, expected) {
-  const name = `refs/heads/gh-readonly-queue/main/pr-${pr}-${head}`;
-  const refs = gh(['api', `repos/${repo}/git/matching-refs/${name.slice('refs/'.length)}`]);
-  const exact = Array.isArray(refs) ? refs.filter(ref => ref?.ref === name) : [];
-  if (exact.length !== 1 || exact[0].object?.type !== 'commit' || !OID.test(exact[0].object.sha ?? '')) refuse('no merge-queue commit for the approved head');
-  const group = exact[0].object.sha;
-  if (group !== expected) refuse('the merge-queue commit is not the scanned commit');
   const main = gh(['api', `repos/${repo}/git/ref/heads/main`])?.object?.sha;
   if (!OID.test(main ?? '')) refuse('main could not be resolved');
+  const [owner, name] = repo.split('/');
+  const answer = gh(['api', 'graphql', '-f', `query=${QUEUE_ENTRY}`, '-f', `owner=${owner}`, '-f', `name=${name}`, '-F', `number=${pr}`]);
+  const pull = answer?.errors === undefined ? answer?.data?.repository?.pullRequest : undefined;
+  if (pull?.headRefOid !== head) refuse('the pull request head is not the approved head');
+  const entry = pull.mergeQueueEntry;
+  const group = entry?.headCommit?.oid;
+  if (entry?.state !== 'AWAITING_CHECKS' || !OID.test(group ?? '')) refuse('the pull request has no merge-queue commit awaiting checks');
+  if (entry.baseCommit?.oid !== main) refuse('the merge-queue entry is not built on main');
+  if (group !== expected) refuse('the merge-queue commit is not the scanned commit');
   const built = gh(['api', `repos/${repo}/commits/${group}`]);
   const approved = gh(['api', `repos/${repo}/commits/${head}`]);
   if (built?.sha !== group || approved?.sha !== head) refuse('a commit could not be resolved');

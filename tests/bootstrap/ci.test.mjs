@@ -399,8 +399,13 @@ const truthy = v => !(v === false || v === null || v === undefined || v === '' |
 const head = 'c'.repeat(40);
 const prEvent = (action, extra = {}) => ({ event_name: 'pull_request', repository_owner: 'fixture-org',
   event: { action, pull_request: { head: { sha: head }, base: { sha: 'b'.repeat(40) } }, ...extra } });
+// GitHub's merge_group payload, with the base and branch of a real queue run (#36): the branch is named after the base
+// the group was built on (base_sha), not the pull request head.
+const queueBase = 'b48b57e7f68bbded8b47d0a2a5702ce07be097b6';
 const mergeGroupEvent = { event_name: 'merge_group', sha: head,
-  event: { action: 'checks_requested', merge_group: { head_sha: head, base_sha: 'b'.repeat(40), head_ref: `refs/heads/gh-readonly-queue/main/pr-7-${'e'.repeat(40)}` } } };
+  event: { action: 'checks_requested', merge_group: { head_sha: head, head_ref: `refs/heads/gh-readonly-queue/main/pr-36-${queueBase}`,
+    base_sha: queueBase, base_ref: 'refs/heads/main', head_commit: { id: head } } } };
+assert.equal(mergeGroupEvent.event.merge_group.head_ref, 'refs/heads/gh-readonly-queue/main/pr-36-b48b57e7f68bbded8b47d0a2a5702ce07be097b6');
 const pushEvent = { event_name: 'push', sha: head, event: { before: 'a'.repeat(40) } };
 
 test('a title or body edit skips every analysis job and only then switches the aggregate to the earlier result', () => {
@@ -493,11 +498,11 @@ test('security scans the published range and only the configured approver label 
   assert.equal(headOid, 'github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha');
   // Each event maps to its own base..head: the PR, the merge group (main plus the squashed PR), the previous main tip.
   assert.deepEqual([prEvent('synchronize'), mergeGroupEvent, pushEvent].map(github => [evaluate(base, { github }), evaluate(headOid, { github })]),
-    [['b'.repeat(40), head], ['b'.repeat(40), head], ['a'.repeat(40), head]]);
+    [['b'.repeat(40), head], [queueBase, head], ['a'.repeat(40), head]]);
   // Engines come from the base, never the candidate: the merge group's base is main (or the group ahead of it).
   const trusted = /- uses: actions\/checkout@[a-f0-9]{40}\n {8}with:\n {10}ref: \$\{\{ (.*) \}\}\n {10}path: \.airig\/trusted\n/.exec(job)?.[1] ?? '';
   assert.equal(trusted, 'github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha');
-  assert.equal(evaluate(trusted, { github: mergeGroupEvent }), 'b'.repeat(40));
+  assert.equal(evaluate(trusted, { github: mergeGroupEvent }), queueBase);
   assert.equal(evaluate(trusted, { github: prEvent('opened') }), 'b'.repeat(40));
   // Protected changes are reported for PRs and merge groups alike.
   const policy = /- name: Report protected changes requiring independent human review\n {8}if: \$\{\{ (.*) \}\}\n {8}env:\n {10}BASE_OID: \$\{\{ (.*) \}\}\n {10}HEAD_OID: \$\{\{ (.*) \}\}\n/.exec(job);
@@ -505,7 +510,7 @@ test('security scans the published range and only the configured approver label 
   assert.equal(evaluate(policy[1], { github: mergeGroupEvent }), true);
   assert.equal(evaluate(policy[1], { github: prEvent('opened') }), true);
   assert.equal(evaluate(policy[1], { github: pushEvent }), false);
-  assert.deepEqual([evaluate(policy[2], { github: mergeGroupEvent }), evaluate(policy[3], { github: mergeGroupEvent })], ['b'.repeat(40), head]);
+  assert.deepEqual([evaluate(policy[2], { github: mergeGroupEvent }), evaluate(policy[3], { github: mergeGroupEvent })], [queueBase, head]);
   const approval = /VELCRO_HISTORY_APPROVED: \$\{\{ (.*) \}\}/.exec(step)?.[1] ?? '';
   assert.doesNotMatch(approval, /repository_owner/, 'an organization owner is never the labeling user');
   // An organization-owned repository: the owner login is the organization.
