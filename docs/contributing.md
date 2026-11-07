@@ -58,7 +58,7 @@ verify in parallel.
   clipboard permissions, link Tab stops on macOS WebKit); where an engine
   genuinely differs, branch on `browserName` in the test and say why.
   Tests run fully parallel, so none may depend on another test's order or state.
-  CI builds once and runs each engine in three Playwright shards plus the
+  CI builds once and runs each engine in four Playwright shards plus the
   upstream gate as separate jobs (`.github/workflows/product.yml`), through
   `verify:product --stage build|browser|upstream|evidence`; locally, run
   `verify:product` without arguments.

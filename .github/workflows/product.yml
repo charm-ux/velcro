@@ -81,7 +81,7 @@ jobs:
           retention-days: 1
 
   browser:
-    name: browser (${{ matrix.engine }}, shard ${{ matrix.shard }} of 3)
+    name: browser (${{ matrix.engine }}, shard ${{ matrix.shard }} of 4)
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -92,7 +92,7 @@ jobs:
       fail-fast: false
       matrix:
         engine: [chromium, firefox, webkit]
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -169,7 +169,7 @@ jobs:
         timeout-minutes: 35
         env:
           ENGINE: ${{ matrix.engine }}
-          SHARD: ${{ matrix.shard }}/3
+          SHARD: ${{ matrix.shard }}/4
           DIGEST: ${{ needs.build.outputs.digest }}
         run: |
           mkdir -p .airig/ci

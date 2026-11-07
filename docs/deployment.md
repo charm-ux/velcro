@@ -12,7 +12,7 @@ refuse any ref other than `main`, and the `github-pages` environment is restrict
 has read-only permissions, checks out the exact pushed or dispatched SHA and installs with the frozen lockfile from the
 public registry. `checks` runs the history scan and `verify:source`. `product` calls `.github/workflows/product.yml`, which
 CI uses too: its build job builds the library and the docs once (the project-site output with `LITRO_BASE_PATH=/velcro`),
-scans that output and shares exactly the scanned bytes with the later jobs as a one-day workflow artifact; each engine then runs in three
+scans that output and shares exactly the scanned bytes with the later jobs as a one-day workflow artifact; each engine then runs in four
 Playwright shards, and the upstream gate runs in its own job, all on that same output and without rebuilding it. `build`
 needs both, records the tested-bytes evidence (below) and runs the site preparation on that same output. Only then does it
 upload the Pages artifact. The `deploy` job is the only one with `pages: write` and `id-token: write`; it runs just the

@@ -104,6 +104,8 @@ test('product workflow: one build, every engine in N shards (1..N), the upstream
   const shards = matrix[2].split(', ').map(Number);
   const total = Number(/SHARD: \$\{\{ matrix\.shard \}\}\/(\d+)\n/.exec(browser)?.[1]);
   assert.deepEqual(shards, Array.from({ length: total }, (_, i) => i + 1));
+  // Four shards per engine keep each shard's test step within about four minutes on the hosted runners.
+  assert.equal(total, 4);
   assert.match(browser, new RegExp(`name: browser \\(\\$\\{\\{ matrix\\.engine \\}\\}, shard \\$\\{\\{ matrix\\.shard \\}\\} of ${total}\\)`));
   assert.doesNotMatch(browser, /include:|exclude:/);
   assert.match(browser, /pnpm verify:product --stage browser --engine "\$ENGINE" --shard "\$SHARD" --expect-digest "\$DIGEST"/);
@@ -155,7 +157,7 @@ for (const [label, body, name, prefix, log, published] of stepCases) {
         writeFileSync(path.join(dir, 'bin/pnpm'),
           `#!/bin/sh\necho "cwd ${secret}"\necho "verify:product: webkit passed 1"\necho "SyntaxError at ${secret}/x.mjs:1" >&2\nexit ${code}\n`, { mode: 0o755 });
         const r = spawnSync('sh', ['-e', '-c', script], { cwd: dir, encoding: 'utf8',
-          env: { ...process.env, ENGINE: 'webkit', SHARD: '1/3', DIGEST: 'a'.repeat(64), PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } });
+          env: { ...process.env, ENGINE: 'webkit', SHARD: '1/4', DIGEST: 'a'.repeat(64), PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } });
         const out = `${r.stdout}${r.stderr}`;
         assert.equal(r.status, code === 0 ? 0 : 1);
         assert.equal(out.trim(), code === 0 ? `${prefix}: passed` : `${published}${prefix}: blocked; private evidence retained`);

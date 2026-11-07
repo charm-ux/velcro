@@ -105,7 +105,7 @@ jobs:
           HEAD_OID: ${{ github.event.pull_request.head.sha }}
         run: node .airig/trusted/scripts/security/git-privacy.mjs policy "$BASE_OID" "$HEAD_OID"
 
-  # Builds once, then every engine in three shards and the upstream gate, each on that same output (product.yml).
+  # Builds once, then every engine in four shards and the upstream gate, each on that same output (product.yml).
   product:
     uses: ./.github/workflows/product.yml
     with:
