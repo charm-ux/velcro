@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -8,6 +8,8 @@ import { test } from 'node:test';
 const gate = new URL('../../scripts/ci-gate.mjs', import.meta.url);
 const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
 const product = readFileSync(new URL('../../.github/workflows/product.yml', import.meta.url), 'utf8');
+// The analysis jobs' shared condition: skipped only on a pull request title or body edit.
+const RUN_CONDITION = "${{ github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base }}";
 // A job's body, up to the next job of the same file (comment lines between jobs are dropped first).
 const jobOf = (text, name) => new RegExp(`\\n  ${name}:\\n([\\s\\S]*?)(?=\\n  [a-z-]+:\\n|$)`).exec(text.replace(/^ {2}#.*\n/gm, ''))?.[1] ?? '';
 // The run script of a named step in a job body.
@@ -15,16 +17,20 @@ const stepRun = (body, name) => {
   const at = body.indexOf(`- name: ${name}`);
   return at < 0 ? undefined : /\brun: \|\n((?:\s{10}.*\n?)+)/.exec(body.slice(at))?.[1];
 };
+const inlineAggregate = /node --input-type=module -e '([\s\S]*?)'/.exec(workflow)?.[1];
+// Runs the workflow's inline aggregate and the local oracle with the same environment; they must agree.
+const aggregate = (value, extra = {}) => {
+  const env = { ...process.env, VELCRO_CI_NEEDS: JSON.stringify(value), ...extra };
+  for (const key of ['VELCRO_CI_CARRY', 'VELCRO_CI_PRIOR', 'VELCRO_CI_HEAD', 'VELCRO_CI_RUN']) if (!(key in extra)) delete env[key];
+  const options = { env, encoding: 'utf8' };
+  const script = spawnSync(process.execPath, [gate.pathname], options).status;
+  const actual = spawnSync(process.execPath, ['--input-type=module', '-e', inlineAggregate], options).status;
+  assert.equal(actual, script, 'workflow aggregate and local oracle diverged');
+  return script;
+};
 test('aggregate requires every named job and only successful results', () => {
-  const inline = /node --input-type=module -e '([\s\S]*?)'/.exec(workflow)?.[1];
-  assert.ok(inline, 'actual workflow aggregate must be testable');
-  const run = value => {
-    const options = { env: { ...process.env, VELCRO_CI_NEEDS: JSON.stringify(value) }, encoding: 'utf8' };
-    const script = spawnSync(process.execPath, [gate.pathname], options).status;
-    const actual = spawnSync(process.execPath, ['--input-type=module', '-e', inline], options).status;
-    assert.equal(actual, script, 'workflow aggregate and local oracle diverged');
-    return script;
-  };
+  assert.ok(inlineAggregate, 'actual workflow aggregate must be testable');
+  const run = value => aggregate(value);
   const good = { verify: { result: 'success' }, product: { result: 'success' }, site: { result: 'success' }, security: { result: 'success' } };
   assert.equal(run(good), 0);
   for (const job of ['verify', 'product', 'site', 'security']) {
@@ -40,6 +46,65 @@ test('aggregate requires every named job and only successful results', () => {
   assert.equal(run([good.verify, good.product, good.site, good.security]), 1);
   assert.equal(run({}), 1);
   assert.equal(run({ ...good, extra: { result: 'success' } }), 1);
+  // Skipped jobs never pass outside the title/body-edit mode, even with a successful earlier run on record.
+  const skipped = { verify: { result: 'skipped' }, product: { result: 'skipped' }, site: { result: 'skipped' }, security: { result: 'skipped' } };
+  assert.equal(run(skipped), 1);
+});
+
+// A title or body edit: the analysis jobs are skipped and the aggregate repeats the latest completed `required` result
+// that GitHub Actions recorded for the same head in another run. Everything else blocks.
+test('title/body-edit aggregate repeats only the latest earlier required result for the same head', () => {
+  const head = 'c'.repeat(40);
+  const runId = '4242';
+  const skipped = { verify: { result: 'skipped' }, product: { result: 'skipped' }, site: { result: 'skipped' }, security: { result: 'skipped' } };
+  const checkRun = (overrides = {}) => ({ name: 'required', app: { slug: 'github-actions' }, status: 'completed',
+    conclusion: 'success', head_sha: head, html_url: 'https://github.com/fixture-org/fixture/actions/runs/17/job/9',
+    completed_at: '2026-01-01T00:00:00Z', ...overrides });
+  const dir = mkdtempSync(path.join(tmpdir(), 'velcro-carry-'));
+  try {
+    let n = 0;
+    const carry = (needs, listing, extra = {}) => {
+      const file = path.join(dir, `prior-${n++}.json`);
+      writeFileSync(file, typeof listing === 'string' ? listing : JSON.stringify(listing));
+      return aggregate(needs, { VELCRO_CI_CARRY: 'true', VELCRO_CI_PRIOR: file, VELCRO_CI_HEAD: head, VELCRO_CI_RUN: runId, ...extra });
+    };
+    const list = (...runs) => ({ total_count: runs.length, check_runs: runs });
+    assert.equal(carry(skipped, list(checkRun())), 0);
+    // The latest completed earlier result decides, whatever the listing order.
+    const older = checkRun({ conclusion: 'failure', completed_at: '2025-12-31T00:00:00Z' });
+    const newer = checkRun({ conclusion: 'failure', completed_at: '2026-01-02T00:00:00Z' });
+    assert.equal(carry(skipped, list(older, checkRun())), 0);
+    assert.equal(carry(skipped, list(checkRun(), newer)), 1);
+    assert.equal(carry(skipped, list(newer, checkRun())), 1);
+    // Only completed, successful runs of `required` from GitHub Actions for this head in another run count.
+    for (const bad of [
+      { conclusion: 'failure' }, { conclusion: 'cancelled' }, { conclusion: 'skipped' }, { conclusion: 'neutral' },
+      { conclusion: null, status: 'in_progress' }, { status: 'queued' }, { name: 'required-extra' }, { name: 'verify' },
+      { app: { slug: 'another-app' } }, { app: null }, { head_sha: 'd'.repeat(40) },
+      { html_url: `https://github.com/fixture-org/fixture/actions/runs/${runId}/job/1` }, { html_url: null }, { completed_at: null },
+    ]) assert.equal(carry(skipped, list(checkRun(bad))), 1, JSON.stringify(bad));
+    // This run's own result never counts, even when it is the latest.
+    assert.equal(carry(skipped, list(checkRun({ completed_at: '2025-01-01T00:00:00Z' }),
+      checkRun({ conclusion: 'failure', html_url: `https://github.com/fixture-org/fixture/actions/runs/${runId}/job/2` }))), 0);
+    // No earlier result, an incomplete or unreadable listing, or a malformed head or run id blocks.
+    assert.equal(carry(skipped, list()), 1);
+    assert.equal(carry(skipped, { total_count: 2, check_runs: [checkRun()] }), 1);
+    assert.equal(carry(skipped, { check_runs: [checkRun()] }), 1);
+    assert.equal(carry(skipped, ''), 1);
+    assert.equal(carry(skipped, '{'), 1);
+    assert.equal(carry(skipped, list(checkRun()), { VELCRO_CI_HEAD: '' }), 1);
+    assert.equal(carry(skipped, list(checkRun({ head_sha: head.toUpperCase() })), { VELCRO_CI_HEAD: head.toUpperCase() }), 1);
+    assert.equal(carry(skipped, list(checkRun()), { VELCRO_CI_RUN: '' }), 1);
+    // Every expected job must have been skipped: a job that ran (whatever its result) or a missing job blocks.
+    for (const job of ['verify', 'product', 'site', 'security']) {
+      for (const result of ['success', 'failure', 'cancelled', '', null]) {
+        assert.equal(carry({ ...skipped, [job]: { result } }, list(checkRun())), 1, `${job} ${result}`);
+      }
+      const { [job]: _omitted, ...missing } = skipped;
+      assert.equal(carry(missing, list(checkRun())), 1);
+    }
+    assert.equal(carry({ ...skipped, extra: { result: 'skipped' } }, list(checkRun())), 1);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('workflow is pinned, read-only, full-history and has an always-running aggregate', () => {
@@ -52,7 +117,11 @@ test('workflow is pinned, read-only, full-history and has an always-running aggr
   assert.match(text, /--frozen-lockfile/);
   assert.match(text, /registry\.npmjs\.org/);
   assert.match(jobOf(text, 'product'), /^ {4}uses: \.\/\.github\/workflows\/product\.yml\n {4}with:\n {6}ref: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}$/m);
-  assert.doesNotMatch(text, /\bpaths(-ignore)?:|\n {2}product:\n {4}if:/);
+  // Only the aggregate may read anything beyond contents, and only check runs; nothing may write.
+  assert.doesNotMatch(text, /: write|write-all|read-all/);
+  assert.deepEqual([...text.matchAll(/^ {4}permissions:\n((?: {6}.*\n)+)/gm)].map(m => m[1]), ['      checks: read\n']);
+  assert.match(jobOf(text, 'required'), /^ {4}permissions:\n {6}checks: read\n/m);
+  assert.doesNotMatch(text, /\bpaths(-ignore)?:/);
   assert.doesNotMatch(text, /upload-artifact|pull_request_target|secrets\./);
   assert.match(text, /Report protected changes requiring independent human review/);
   assert.doesNotMatch(text, /Block protected policy changes|continue-on-error/);
@@ -128,7 +197,8 @@ test('product workflow: one build, every engine in N shards (1..N), the upstream
 test('CI records evidence only after every product job, then checks site preparation without uploading', () => {
   const site = jobOf(workflow, 'site');
   assert.match(site, /^ {4}needs: product\n/m);
-  assert.doesNotMatch(site, /^ {4}if:/m);
+  // Its only condition is the shared title/body-edit skip (tested below); otherwise it runs whenever product succeeded.
+  assert.deepEqual([...site.matchAll(/^ {4}if: (.*)$/gm)].map(m => m[1]), [RUN_CONDITION]);
   const at = s => site.indexOf(s);
   assert.ok(at('actions/download-artifact@') > 0);
   assert.match(site, /DIGEST: \$\{\{ needs\.product\.outputs\.digest \}\}/);
@@ -252,37 +322,136 @@ test('product timeouts are ordered: global timeout < wrapper bound < step bound 
   assert.ok(global < kill && kill < step && step < job, `${global} < ${kill} < ${step} < ${job}`);
 });
 
-// Evaluates the approval expression's GitHub Actions grammar subset exactly:
-// `term && term ... || ''`, where a term is a context path or `a == b` / `a != b`
-// over context paths and single-quoted literals. Comparison is case-insensitive
-// and missing values are '' like GitHub's; anything else is rejected.
+// Evaluates the GitHub Actions expression subset these workflows use, with GitHub's semantics: single-quoted string
+// literals, context paths (a missing property is null), `!`, `==`/`!=` (strings compare case-insensitively, other
+// mixed types compare as numbers, so null and '' are equal), and `&&`/`||`, which return an operand value, plus
+// parentheses. Precedence: `!` > comparison > `&&` > `||`. Anything else is rejected.
 function evaluate(expression, context) {
-  const value = token => {
+  const tokens = expression.match(/'[^']*'|[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*|==|!=|&&|\|\||!|\(|\)|\S/g);
+  let at = 0;
+  const truthy = v => !(v === false || v === null || v === undefined || v === '' || v === 0 || Number.isNaN(v));
+  const number = v => (v === null || v === undefined ? 0 : typeof v === 'boolean' ? Number(v) : typeof v === 'string' ? (v.trim() === '' ? 0 : Number(v)) : NaN);
+  const equal = (a, b) => {
+    if (typeof a === 'string' && typeof b === 'string') return a.toLowerCase() === b.toLowerCase();
+    if ((a !== null && typeof a === 'object') || (b !== null && typeof b === 'object')) return a === b;
+    return number(a) === number(b);
+  };
+  const primary = () => {
+    const token = tokens[at++];
+    assert.ok(token !== undefined, 'unexpected end of expression');
+    if (token === '(') { const value = or(); assert.equal(tokens[at++], ')'); return value; }
+    if (token === '!') return !truthy(primary());
     if (/^'[^']*'$/.test(token)) return token.slice(1, -1);
-    assert.match(token, /^[a-z_]+(?:\.[a-z_]+)*$/i, 'unsupported expression token');
-    return token.split('.').reduce((node, key) => (node == null ? undefined : node[key]), context) ?? '';
+    if (token === 'true' || token === 'false') return token === 'true';
+    assert.match(token, /^(?:github|vars|needs|inputs)(?:\.[A-Za-z_][\w-]*)+$/, `unsupported expression token ${token}`);
+    return token.split('.').reduce((node, key) => (node == null || !Object.hasOwn(node, key) ? null : node[key]), context);
   };
-  const term = text => {
-    const comparison = /^(\S+) (==|!=) (\S+)$/.exec(text);
-    if (!comparison) return value(text);
-    const same = String(value(comparison[1])).toLowerCase() === String(value(comparison[3])).toLowerCase();
-    return comparison[2] === '==' ? same : !same;
+  const comparison = () => {
+    const left = primary();
+    if (tokens[at] !== '==' && tokens[at] !== '!=') return left;
+    const operator = tokens[at++];
+    const same = equal(left, primary());
+    return operator === '==' ? same : !same;
   };
-  const alternatives = expression.split(' || ');
-  assert.equal(alternatives.length, 2, 'unsupported expression shape');
-  let result = true;
-  for (const part of alternatives[0].split(' && ')) { result = term(part); if (!result) break; }
-  return result || value(alternatives[1]);
+  const and = () => { let value = comparison(); while (tokens[at] === '&&') { at++; const right = comparison(); value = truthy(value) ? right : value; } return value; };
+  const or = () => { let value = and(); while (tokens[at] === '||') { at++; const right = and(); value = truthy(value) ? value : right; } return value; };
+  const result = or();
+  assert.equal(at, tokens.length, 'unsupported expression shape');
+  return result;
 }
+const truthy = v => !(v === false || v === null || v === undefined || v === '' || v === 0);
+
+// The workflow's event shapes: push, merge_group and every pull_request action it subscribes to.
+const head = 'c'.repeat(40);
+const prEvent = (action, extra = {}) => ({ event_name: 'pull_request', repository_owner: 'fixture-org',
+  event: { action, pull_request: { head: { sha: head }, base: { sha: 'b'.repeat(40) } }, ...extra } });
+const mergeGroupEvent = { event_name: 'merge_group', sha: head,
+  event: { action: 'checks_requested', merge_group: { head_sha: head, base_sha: 'b'.repeat(40), head_ref: `refs/heads/gh-readonly-queue/main/pr-7-${'e'.repeat(40)}` } } };
+const pushEvent = { event_name: 'push', sha: head, event: { before: 'a'.repeat(40) } };
+
+test('a title or body edit skips every analysis job and only then switches the aggregate to the earlier result', () => {
+  const conditions = ['verify', 'security', 'product', 'site'].map(job => [...jobOf(workflow, job).matchAll(/^ {4}if: \$\{\{ (.*) \}\}$/gm)].map(m => m[1]));
+  for (const found of conditions) assert.deepEqual(found, [RUN_CONDITION.slice(4, -3)], 'one identical job condition');
+  assert.match(jobOf(workflow, 'required'), /^ {4}if: \$\{\{ always\(\) \}\}\n/m);
+  const carry = /VELCRO_CI_CARRY: \$\{\{ (.*) \}\}/.exec(jobOf(workflow, 'required'))?.[1] ?? '';
+  const runs = github => truthy(evaluate(RUN_CONDITION.slice(4, -3), { github }));
+  const carries = github => evaluate(carry, { github });
+  const cases = [
+    [pushEvent, true], [mergeGroupEvent, true],
+    ...['opened', 'synchronize', 'reopened', 'labeled'].map(action => [prEvent(action), true]),
+    // A retarget re-runs everything, also when the title changed with it.
+    [prEvent('edited', { changes: { base: { ref: { from: 'other' }, sha: { from: 'f'.repeat(40) } } } }), true],
+    [prEvent('edited', { changes: { base: { ref: { from: 'other' } }, title: { from: 'old' } } }), true],
+    [prEvent('edited', { changes: { title: { from: 'old' } } }), false],
+    [prEvent('edited', { changes: { body: { from: 'old' } } }), false],
+    [prEvent('edited', { changes: { title: { from: 'old' }, body: { from: '' } } }), false],
+    [prEvent('edited', { changes: {} }), false],
+    [prEvent('edited'), false],
+  ];
+  for (const [github, expected] of cases) {
+    const label = `${github.event_name} ${github.event.action ?? ''} ${JSON.stringify(github.event.changes ?? null)}`;
+    assert.equal(runs(github), expected, label);
+    // The aggregate repeats an earlier result exactly when the analysis jobs are skipped.
+    assert.equal(carries(github), expected ? '' : 'true', label);
+  }
+  // In carry mode the aggregate reads the PR head; nothing else in the run changes.
+  assert.match(jobOf(workflow, 'required'), /VELCRO_CI_HEAD: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
+  assert.match(jobOf(workflow, 'required'), /gh api "repos\/\$REPO\/commits\/\$VELCRO_CI_HEAD\/check-runs\?check_name=required&filter=all&per_page=100"/);
+});
+
+test('the aggregate reads the earlier result only in carry mode and fails closed when it cannot', () => {
+  const script = stepRun(jobOf(workflow, 'required'), 'Require every expected job to succeed');
+  assert.ok(script, 'actual aggregate step must be testable');
+  const skipped = { verify: { result: 'skipped' }, product: { result: 'skipped' }, site: { result: 'skipped' }, security: { result: 'skipped' } };
+  const good = { verify: { result: 'success' }, product: { result: 'success' }, site: { result: 'success' }, security: { result: 'success' } };
+  const listing = { total_count: 1, check_runs: [{ name: 'required', app: { slug: 'github-actions' }, status: 'completed', conclusion: 'success',
+    head_sha: head, html_url: 'https://github.com/fixture-org/fixture/actions/runs/17/job/9', completed_at: '2026-01-01T00:00:00Z' }] };
+  const run = (carry, needs, ghCode) => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'velcro-required-'));
+    try {
+      mkdirSync(path.join(dir, 'bin'));
+      writeFileSync(path.join(dir, 'listing.json'), JSON.stringify(listing));
+      writeFileSync(path.join(dir, 'bin/gh'), `#!/bin/sh\necho "$*" >> "${dir}/gh.log"\ncat "${dir}/listing.json"\nexit ${ghCode}\n`, { mode: 0o755 });
+      const r = spawnSync('sh', ['-e', '-c', script], { cwd: dir, encoding: 'utf8', env: { ...process.env, RUNNER_TEMP: dir,
+        VELCRO_CI_NEEDS: JSON.stringify(needs), VELCRO_CI_CARRY: carry, VELCRO_CI_HEAD: head, VELCRO_CI_RUN: '4242', REPO: 'fixture-org/fixture',
+        PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } });
+      const calls = (() => { try { return readFileSync(path.join(dir, 'gh.log'), 'utf8').trim().split('\n'); } catch { return []; } })();
+      return { status: r.status, out: `${r.stdout}${r.stderr}`.trim(), calls };
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  };
+  assert.deepEqual(run('', good, 0), { status: 0, out: 'required: passed', calls: [] });
+  assert.deepEqual(run('', skipped, 0), { status: 1, out: 'required: blocked', calls: [] });
+  const call = [`api repos/fixture-org/fixture/commits/${head}/check-runs?check_name=required&filter=all&per_page=100`];
+  assert.deepEqual(run('true', skipped, 0), { status: 0, out: 'required: passed', calls: call });
+  assert.deepEqual(run('true', good, 0), { status: 1, out: 'required: blocked', calls: call });
+  // A failed lookup blocks (the partial output is discarded).
+  assert.deepEqual(run('true', skipped, 1), { status: 1, out: 'required: blocked', calls: call });
+});
 
 test('security scans the published range and only the configured approver label approves its exact head', () => {
   const job = /\n  security:\n([\s\S]*?)\n  product:/.exec(workflow)?.[1] ?? '';
   const step = /- name: Trusted source and history scan\n([\s\S]*?)(?=\n {6}(?:#|- ))/.exec(job)?.[1] ?? '';
-  assert.match(step, /BASE_OID: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.before \}\}/);
-  assert.match(step, /HEAD_OID: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
+  const base = /BASE_OID: \$\{\{ (.*) \}\}/.exec(step)?.[1] ?? '';
+  const headOid = /HEAD_OID: \$\{\{ (.*) \}\}/.exec(step)?.[1] ?? '';
+  assert.equal(base, 'github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before');
+  assert.equal(headOid, 'github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha');
+  // Each event maps to its own base..head: the PR, the merge group (main plus the squashed PR), the previous main tip.
+  assert.deepEqual([prEvent('synchronize'), mergeGroupEvent, pushEvent].map(github => [evaluate(base, { github }), evaluate(headOid, { github })]),
+    [['b'.repeat(40), head], ['b'.repeat(40), head], ['a'.repeat(40), head]]);
+  // Engines come from the base, never the candidate: the merge group's base is main (or the group ahead of it).
+  const trusted = /- uses: actions\/checkout@[a-f0-9]{40}\n {8}with:\n {10}ref: \$\{\{ (.*) \}\}\n {10}path: \.airig\/trusted\n/.exec(job)?.[1] ?? '';
+  assert.equal(trusted, 'github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha');
+  assert.equal(evaluate(trusted, { github: mergeGroupEvent }), 'b'.repeat(40));
+  assert.equal(evaluate(trusted, { github: prEvent('opened') }), 'b'.repeat(40));
+  // Protected changes are reported for PRs and merge groups alike.
+  const policy = /- name: Report protected changes requiring independent human review\n {8}if: \$\{\{ (.*) \}\}\n {8}env:\n {10}BASE_OID: \$\{\{ (.*) \}\}\n {10}HEAD_OID: \$\{\{ (.*) \}\}\n/.exec(job);
+  assert.ok(policy, 'policy step must be testable');
+  assert.equal(evaluate(policy[1], { github: mergeGroupEvent }), true);
+  assert.equal(evaluate(policy[1], { github: prEvent('opened') }), true);
+  assert.equal(evaluate(policy[1], { github: pushEvent }), false);
+  assert.deepEqual([evaluate(policy[2], { github: mergeGroupEvent }), evaluate(policy[3], { github: mergeGroupEvent })], ['b'.repeat(40), head]);
   const approval = /VELCRO_HISTORY_APPROVED: \$\{\{ (.*) \}\}/.exec(step)?.[1] ?? '';
   assert.doesNotMatch(approval, /repository_owner/, 'an organization owner is never the labeling user');
-  const head = 'c'.repeat(40);
   // An organization-owned repository: the owner login is the organization.
   const event = (overrides = {}) => ({
     event_name: 'pull_request', repository_owner: 'fixture-org',
@@ -299,13 +468,16 @@ test('security scans the published range and only the configured approver label 
     { github: event({ event: { ...event().event, sender: { login: 'fixture-org' } } }), vars: approver },
     { github: event({ event: { ...event().event, sender: { login: '' } } }), vars: { VELCRO_HISTORY_APPROVER: '' } },
     { github: event({ event: { ...event().event, action: 'synchronize' } }), vars: approver },
+    { github: event({ event: { ...event().event, action: 'edited', changes: { title: { from: 'old' } } } }), vars: approver },
     { github: event({ event: { ...event().event, label: { name: 'history-scan-approved-later' } } }), vars: approver },
     { github: event({ event_name: 'push' }), vars: approver },
+    // A merge group has no approval channel, even when its sender is the approver.
+    { github: { ...mergeGroupEvent, event: { ...mergeGroupEvent.event, sender: { login: 'approver-fixture' } } }, vars: approver },
   ];
   for (const context of rejected) assert.equal(evaluate(approval, context), '', 'approval must stay empty');
-  // edited: retargeting a PR's base re-runs every job against the new base.
+  // edited: retargeting a PR's base re-runs every job against the new base (the job condition is tested above).
   assert.match(workflow, /\n {2}pull_request:\n(?: {4}#.*\n)* {4}types: \[opened, synchronize, reopened, labeled, edited\]\n/);
-  assert.doesNotMatch(workflow, /github\.event\.action (?:==|!=) 'edited'|github\.event\.changes/, 'no job may be skipped on edits');
+  assert.match(workflow, /\n {2}merge_group:\n {4}types: \[checks_requested\]\n/);
   assert.doesNotMatch(workflow, /git-privacy\.mjs history HEAD/);
   const script = /\n {8}run: \|\n((?: {10}.*\n?)+)/.exec(step)?.[1];
   assert.ok(script, 'actual history step must be testable');
@@ -324,15 +496,38 @@ test('security scans the published range and only the configured approver label 
     const invoke = (event, base, ancestor = base) => spawnSync('sh', ['-e', '-c', script], { cwd: dir, encoding: 'utf8', env: { ...process.env,
       EVENT_NAME: event, BASE_OID: base, HEAD_OID: head, ANCESTOR: ancestor, MAIN: main,
       PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } }).stdout.trim().split('\n');
-    const trusted = '.airig/trusted/scripts/security/git-privacy.mjs history';
-    const budget = `${trusted} ${main}..${head}`;
-    assert.deepEqual(invoke('push', 'a'.repeat(40)), [`${trusted} ${'a'.repeat(40)}..${head}`]);
+    const trustedGuard = '.airig/trusted/scripts/security/git-privacy.mjs history';
+    const budget = `${trustedGuard} ${main}..${head}`;
+    assert.deepEqual(invoke('push', 'a'.repeat(40)), [`${trustedGuard} ${'a'.repeat(40)}..${head}`]);
     // No usable base (new branch, first push, force push): full-history mode under the hard caps.
-    assert.deepEqual(invoke('push', '0'.repeat(40)), [`${trusted} ${head}`]);
-    assert.deepEqual(invoke('push', ''), [`${trusted} ${head}`]);
-    assert.deepEqual(invoke('push', 'a'.repeat(40), 'none'), [`${trusted} ${head}`]);
+    assert.deepEqual(invoke('push', '0'.repeat(40)), [`${trustedGuard} ${head}`]);
+    assert.deepEqual(invoke('push', ''), [`${trustedGuard} ${head}`]);
+    assert.deepEqual(invoke('push', 'a'.repeat(40), 'none'), [`${trustedGuard} ${head}`]);
     // Every PR meets the budget against the fetched main first, whatever its event base.
-    assert.deepEqual(invoke('pull_request', 'a'.repeat(40)), [budget, `${trusted} ${'a'.repeat(40)}..${head}`]);
-    assert.deepEqual(invoke('pull_request', 'e'.repeat(40), 'none'), [budget, `${trusted} ${head}`]);
+    assert.deepEqual(invoke('pull_request', 'a'.repeat(40)), [budget, `${trustedGuard} ${'a'.repeat(40)}..${head}`]);
+    assert.deepEqual(invoke('pull_request', 'e'.repeat(40), 'none'), [budget, `${trustedGuard} ${head}`]);
+    // A PR based on the fetched main tip: its event range is the budget range, scanned once.
+    assert.deepEqual(invoke('pull_request', main), [budget]);
+    // A merge group on main: base..head is main..head, the budget range, scanned once (capped, never approved).
+    assert.deepEqual(invoke('merge_group', main), [budget]);
+    // A merge group on an older main ancestor: budget, then its own base..head.
+    assert.deepEqual(invoke('merge_group', 'a'.repeat(40)), [budget, `${trustedGuard} ${'a'.repeat(40)}..${head}`]);
+    // A merge group queued behind another group (its base is not on main yet): budget, then full history.
+    assert.deepEqual(invoke('merge_group', 'f'.repeat(40), 'none'), [budget, `${trustedGuard} ${head}`]);
+    // Any other event never gets the budget step.
+    assert.deepEqual(invoke('workflow_dispatch', '0'.repeat(40)), [`${trustedGuard} ${head}`]);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('no workflow can write commit statuses or check runs, and only CI defines the required job', () => {
+  const dir = new URL('../../.github/workflows/', import.meta.url);
+  const files = readdirSync(dir).filter(name => /\.ya?ml$/.test(name)).sort();
+  assert.deepEqual(files, ['ci.yml', 'pages.yml', 'product.yml']);
+  for (const name of files) {
+    const text = readFileSync(new URL(name, dir), 'utf8');
+    // `agent-approvals` is a commit status any source may set: no workflow token may be able to set it.
+    assert.doesNotMatch(text, /statuses:|checks: write|write-all|agent-approvals/, name);
+    const jobs = [...text.replace(/^ {2}#.*\n/gm, '').matchAll(/\n {2}([a-z-]+):\n/g)].map(m => m[1]);
+    if (name !== 'ci.yml') assert.ok(!jobs.includes('required'), `${name} must not define a job named required`);
+  }
 });

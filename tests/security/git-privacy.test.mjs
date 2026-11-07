@@ -686,6 +686,11 @@ test('CI history step enforces the main publication budget whatever the PR base'
   // After a retarget to main the same head is still capped.
   assert.equal(step$('pull_request', base).status, 3);
   assert.equal(step$('pull_request', base, head).status, 0);
+  // A merge group (main plus the squashed PR) meets the same budget; the workflow never approves one (tests/bootstrap/ci.test.mjs).
+  const group = step$('merge_group', base);
+  assert.equal(group.status, 3);
+  assert.ok(group.output.includes(notice));
+  assert.equal(step$('merge_group', target).status, 3);
   // A push has no PR budget step; full-history mode stays uncapped.
   assert.equal(step$('push', '0'.repeat(40)).status, 0);
 });

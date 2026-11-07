@@ -4,15 +4,21 @@ on:
     branches: [main]
   pull_request:
     # labeled: the approver's history-scan-approved label re-runs the checks for the exact head it was applied to.
-    # edited: a base change (retarget) re-runs every job, so no earlier result stands for the new base. Title or
-    # body edits re-run them too; every job still runs, so the required aggregate is unaffected.
+    # edited: a base change (retarget) re-runs every job, so no earlier result stands for the new base. A title or body
+    # edit changes neither the head nor the base: the analysis jobs are skipped and `required` repeats the latest
+    # completed `required` result of an earlier run for the same head (none: blocked), so an edit neither clears nor
+    # approves anything.
     types: [opened, synchronize, reopened, labeled, edited]
+  # The merge queue tests the exact commit that lands on main: main (the group's base) plus the squashed pull request.
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
 
 jobs:
   verify:
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -50,6 +56,7 @@ jobs:
           echo 'verify: passed'
 
   security:
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -58,11 +65,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      # On PRs only base-owned engines may certify candidate Git objects. An
-      # initial base without these controls fails: bootstrap needs local review.
+      # On PRs and merge groups only base-owned engines may certify candidate Git
+      # objects. An initial base without these controls fails: bootstrap needs local review.
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha }}
           path: .airig/trusted
           fetch-depth: 0
           persist-credentials: false
@@ -70,43 +77,49 @@ jobs:
         with:
           node-version: 24.22.1
       - run: node .airig/trusted/scripts/security/gitleaks.mjs install
-      # Every PR first meets the publication budget against the fetched main, whatever its event base: more than
-      # 1,000 changed files in main..head need approval, which is the history-scan-approved label applied by the
-      # login in the VELCRO_HISTORY_APPROVER repository variable (unset: nobody can approve) and approves only the
-      # head of that labeled run. Later pushes, retargets and runs started by any other label or edit are not
-      # approved until the label is re-applied. Content is then scanned file by changed file for commits new to the
-      # event base (on main: since the previous main tip); metadata of the full ancestry always is. Without a base
-      # that is the fetched main or its ancestor (first push, PR into another branch, force push) the full history
-      # is scanned under the hard caps, while the budget above still applies to PRs.
+      # Every PR and merge group first meets the publication budget against the fetched main, whatever its event
+      # base: more than 1,000 changed files in main..head need approval, which is the history-scan-approved label
+      # applied by the login in the VELCRO_HISTORY_APPROVER repository variable (unset: nobody can approve) and
+      # approves only the head of that labeled run. Later pushes, retargets and runs started by any other label or
+      # edit are not approved until the label is re-applied. A merge group has no approval channel: its squashed
+      # commit is a new head, so an approved PR over the budget cannot pass the queue (docs/contributing.md).
+      # Content is then scanned file by changed file for commits new to the event base (on main: since the previous
+      # main tip; in a merge group: since its base), unless that is the budget range just scanned; metadata of the
+      # full ancestry always is. Without a base that is the fetched main or its ancestor (first push, PR into another
+      # branch, force push, a group queued behind another group) the full history is scanned under the hard caps,
+      # while the budget above still applies to PRs and merge groups.
       - name: Trusted source and history scan
         env:
           EVENT_NAME: ${{ github.event_name }}
-          BASE_OID: ${{ github.event.pull_request.base.sha || github.event.before }}
-          HEAD_OID: ${{ github.event.pull_request.head.sha || github.sha }}
+          BASE_OID: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          HEAD_OID: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
           VELCRO_HISTORY_APPROVED: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'history-scan-approved' && vars.VELCRO_HISTORY_APPROVER != '' && github.event.sender.login == vars.VELCRO_HISTORY_APPROVER && github.event.pull_request.head.sha || '' }}
         run: |
           guard=.airig/trusted/scripts/security/git-privacy.mjs
-          if [ "$EVENT_NAME" = pull_request ]; then
+          budget=
+          if [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = merge_group ]; then
             main_oid=$(git rev-parse --verify 'refs/remotes/origin/main^{commit}')
-            node "$guard" history "$main_oid..$HEAD_OID"
+            budget="$main_oid..$HEAD_OID"
+            node "$guard" history "$budget"
           fi
           if [ -n "$(printf '%s' "$BASE_OID" | tr -d 0)" ] && git merge-base --is-ancestor "$BASE_OID" refs/remotes/origin/main; then
             scope="$BASE_OID..$HEAD_OID"
           else
             scope="$HEAD_OID"
           fi
-          node "$guard" history "$scope"
+          if [ "$scope" != "$budget" ]; then node "$guard" history "$scope"; fi
       # Detection is not approval: protected changes require a separate human
       # merge/publication gate, not a false secret finding or a blocked PR push.
       - name: Report protected changes requiring independent human review
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
         env:
-          BASE_OID: ${{ github.event.pull_request.base.sha }}
-          HEAD_OID: ${{ github.event.pull_request.head.sha }}
+          BASE_OID: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_OID: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: node .airig/trusted/scripts/security/git-privacy.mjs policy "$BASE_OID" "$HEAD_OID"
 
   # Builds once, then every engine in four shards and the upstream gate, each on that same output (product.yml).
   product:
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base }}
     uses: ./.github/workflows/product.yml
     with:
       ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -115,6 +128,7 @@ jobs:
   # then verifies site preparation (notices, allowlist, scans) on every PR. Nothing is uploaded or deployed here.
   site:
     needs: product
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -163,11 +177,16 @@ jobs:
         run: |
           node scripts/site/prepare.mjs --base /velcro --out .airig/site/run --expect-sha "$SOURCE_SHA"
 
+  # Always runs. Ordinarily every expected job must have succeeded. On a title or body edit (the analysis jobs are
+  # skipped) it instead repeats the latest completed `required` result recorded by GitHub Actions for the same head in
+  # an earlier run; with none, or with any expected job not skipped, it blocks. Reading check runs needs `checks: read`.
   required:
     if: ${{ always() }}
     needs: [verify, product, site, security]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      checks: read
     steps:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -176,13 +195,42 @@ jobs:
       - name: Require every expected job to succeed
         env:
           VELCRO_CI_NEEDS: ${{ toJSON(needs) }}
+          VELCRO_CI_CARRY: ${{ github.event_name == 'pull_request' && github.event.action == 'edited' && !github.event.changes.base && 'true' || '' }}
+          VELCRO_CI_HEAD: ${{ github.event.pull_request.head.sha }}
+          VELCRO_CI_RUN: ${{ github.run_id }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
+          VELCRO_CI_PRIOR=
+          if [ "$VELCRO_CI_CARRY" = true ]; then
+            VELCRO_CI_PRIOR="$RUNNER_TEMP/required-prior.json"
+            gh api "repos/$REPO/commits/$VELCRO_CI_HEAD/check-runs?check_name=required&filter=all&per_page=100" > "$VELCRO_CI_PRIOR" 2> "$RUNNER_TEMP/required-prior.log" || : > "$VELCRO_CI_PRIOR"
+          fi
+          export VELCRO_CI_PRIOR
           node --input-type=module -e '
+            import { readFileSync } from "node:fs";
             let good = false;
             try {
               const n = JSON.parse(process.env.VELCRO_CI_NEEDS);
-              good = n && Object.keys(n).sort().join(",") === "product,security,site,verify"
-                && ["security", "verify", "product", "site"].every(k => n[k]?.result === "success");
+              const jobs = ["security", "verify", "product", "site"];
+              const named = n !== null && typeof n === "object" && !Array.isArray(n)
+                && Object.keys(n).sort().join(",") === "product,security,site,verify";
+              if (process.env.VELCRO_CI_CARRY === "true") {
+                const head = process.env.VELCRO_CI_HEAD;
+                const own = `/actions/runs/${process.env.VELCRO_CI_RUN}/`;
+                const listed = JSON.parse(readFileSync(process.env.VELCRO_CI_PRIOR, "utf8"));
+                const runs = listed.check_runs;
+                const at = r => Date.parse(r.completed_at);
+                const prior = runs.length === listed.total_count && runs
+                  .filter(r => r.name === "required" && r.app?.slug === "github-actions" && r.status === "completed"
+                    && r.head_sha === head && typeof r.html_url === "string" && !r.html_url.includes(own)
+                    && Number.isFinite(at(r)))
+                  .sort((a, b) => at(b) - at(a))[0];
+                good = named && /^[0-9a-f]{40}$/.test(head) && /^[0-9]+$/.test(process.env.VELCRO_CI_RUN)
+                  && jobs.every(k => n[k]?.result === "skipped") && prior?.conclusion === "success";
+              } else {
+                good = named && jobs.every(k => n[k]?.result === "success");
+              }
             } catch {}
             console.log(good ? "required: passed" : "required: blocked");
             process.exitCode = good ? 0 : 1;
