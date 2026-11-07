@@ -23,7 +23,7 @@ test.beforeAll(async () => {
       import React from 'react';
       import { flushSync } from 'react-dom';
       import { createRoot } from 'react-dom/client';
-      import { VelcroBadge, VelcroButton, VelcroMutationObserver, VelcroPopup, VelcroProgressRing, VelcroSplitPanel } from 'velcro-react';
+      import { VelcroBadge, VelcroButton, VelcroInclude, VelcroMutationObserver, VelcroPopup, VelcroProgressRing, VelcroSplitPanel } from 'velcro-react';
       import * as wrappers from 'velcro-react';
       window.errors = [];
       addEventListener('error', e => window.errors.push(String(e.message)));
@@ -50,6 +50,10 @@ test.beforeAll(async () => {
         { id: 'popup', active: true, ...p, onSlReposition: () => { window.repositions++; } },
         React.createElement('span', { slot: 'anchor', style: { display: 'inline-block', width: '100px', height: '40px', margin: '10px 0 0 150px' } }),
         React.createElement('div', { style: { width: '80px', height: '20px' } }))));
+      window.includeEvents = [];
+      const includeRoot = createRoot(document.getElementById('include-root'));
+      window.renderInclude = p => flushSync(() => includeRoot.render(React.createElement(VelcroInclude, { id: 'include', ...p,
+        onSlLoad: e => window.includeEvents.push(['load', e.detail]), onSlError: e => window.includeEvents.push(['error', e.detail]) })));
       const wrapperRoot = createRoot(document.getElementById('wrapper-root'));
       window.renderWrapper = (name, p) => flushSync(() => wrapperRoot.render(name ? React.createElement(wrappers[name], { id: 'wrapped', ...p }) : null));
     `);
@@ -68,7 +72,7 @@ test.beforeAll(async () => {
 async function mount(page) {
   const pageErrors = [];
   page.on('pageerror', e => pageErrors.push(e.message));
-  await page.setContent('<!DOCTYPE html><html><body><div id="root"></div><div id="observer-root"></div><div id="split-root"></div><div id="popup-root" style="position: relative; width: 400px; height: 60px; overflow: hidden"></div><div id="wrapper-root"></div></body></html>');
+  await page.setContent('<!DOCTYPE html><html><body><div id="root"></div><div id="observer-root"></div><div id="split-root"></div><div id="popup-root" style="position: relative; width: 400px; height: 60px; overflow: hidden"></div><div id="include-root"></div><div id="wrapper-root"></div></body></html>');
   await page.addScriptTag({ type: 'module', content: bundle });
   await page.waitForFunction(() => typeof window.renderScenario === 'function');
   return pageErrors;
@@ -326,6 +330,37 @@ test('React 19 wrappers set camelCase props with hyphenated attributes as proper
     // The hyphenated spelling reaches the element as the attribute, and the element converts it.
     expect.soft(r.viaAttribute, r.key).toEqual({ value: fromAttribute, attribute: text });
   }
+  expect(await page.evaluate(() => window.errors)).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
+test('React 19 wrapper for the include sets src, mode and allowScripts as element properties and maps onSlLoad and onSlError', async ({ page }) => {
+  const pageErrors = await mount(page);
+  await page.route('http://include.test/**', route => {
+    const url = new URL(route.request().url());
+    return url.pathname.startsWith('/ok')
+      ? route.fulfill({ status: 200, contentType: 'text/html', body: '<p id="inc">Included</p><script>window.includeScript = (window.includeScript ?? 0) + 1</script>' })
+      : route.fulfill({ status: 500, contentType: 'text/html', body: 'broken' });
+  });
+  const read = () => page.evaluate(async () => {
+    const el = document.getElementById('include');
+    await el.updateComplete;
+    return { src: el.src, mode: el.mode, allowScripts: el.allowScripts, attrs: el.getAttributeNames().filter(n => n !== 'style').sort(), html: el.innerHTML.includes('id="inc"'), script: window.includeScript ?? 0 };
+  });
+  const events = () => page.evaluate(() => window.includeEvents);
+  // Omitted props keep the element's defaults, src is set as a property (no attribute appears), and sl-load reaches onSlLoad.
+  await page.evaluate(() => window.renderInclude({ src: 'http://include.test/ok' }));
+  await expect.poll(async () => (await events()).length).toBe(1);
+  expect(await read()).toEqual({ src: 'http://include.test/ok', mode: 'cors', allowScripts: false, attrs: ['id'], html: true, script: 0 });
+  expect(await events()).toEqual([['load', {}]]);
+  // allowScripts (the property for allow-scripts) applies to the next src: its script runs.
+  await page.evaluate(() => window.renderInclude({ src: 'http://include.test/ok-2', allowScripts: true, mode: 'cors' }));
+  await expect.poll(async () => (await events()).length).toBe(2);
+  expect(await read()).toMatchObject({ allowScripts: true, mode: 'cors', attrs: ['id'], html: true, script: 1 });
+  // An error status reaches onSlError as detail.status.
+  await page.evaluate(() => window.renderInclude({ src: 'http://include.test/bad', allowScripts: true }));
+  await expect.poll(async () => (await events()).length).toBe(3);
+  expect((await events())[2]).toEqual(['error', { status: 500 }]);
   expect(await page.evaluate(() => window.errors)).toEqual([]);
   expect(pageErrors).toEqual([]);
 });
