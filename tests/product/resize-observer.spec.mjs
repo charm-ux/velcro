@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const PAGE = '/components/resize-observer';
 
@@ -12,7 +13,7 @@ async function openExample(page) {
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-box')).toBeVisible();
   await frame.locator('#demo-observer').evaluate(() => customElements.whenDefined('sl-resize-observer'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 

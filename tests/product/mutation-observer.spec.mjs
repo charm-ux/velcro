@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const PAGE = '/components/mutation-observer';
 const TITLES = { overview: 'Mutation Observer example: Overview', 'child-list': 'Mutation Observer example: Child List' };
@@ -11,7 +12,7 @@ async function openExample(page, which = 'overview') {
   const frame = page.frameLocator(`iframe[title="${TITLES[which]}"]`);
   await expect(frame.locator('#demo-observer')).toBeAttached();
   await frame.locator('#demo-observer').evaluate(() => customElements.whenDefined('sl-mutation-observer'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 

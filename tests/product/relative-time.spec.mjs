@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const PAGE = '/components/relative-time';
 const RELEASE = '2020-07-15T09:17:00-04:00';
@@ -13,7 +14,7 @@ async function openExample(page) {
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-default')).toBeVisible();
   await frame.locator('#demo-default').evaluate(() => customElements.whenDefined('sl-relative-time'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 

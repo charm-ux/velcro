@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const PAGE = '/components/tab-panel';
 
@@ -10,7 +11,7 @@ async function openExample(page, name = 'Overview') {
   const frame = page.frameLocator(`iframe.example[title="Tab Panel example: ${name}"]`);
   await expect(frame.locator('sl-tab-panel[active]').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-tab-panel'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 

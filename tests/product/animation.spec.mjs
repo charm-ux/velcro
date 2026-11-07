@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const velcroDir = fileURLToPath(new URL('../../packages/velcro/', import.meta.url));
 
@@ -21,7 +22,7 @@ async function openExample(page, name = 'Overview') {
   const frame = page.frameLocator(`iframe.example[title="Animation example: ${name}"]`);
   await expect(frame.locator('sl-animation').first()).toBeAttached();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-animation'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 

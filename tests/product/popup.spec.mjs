@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const PAGE = '/components/popup';
 const TITLES = {
@@ -47,7 +48,7 @@ async function openExample(page, which = 'overview') {
   const frame = page.frameLocator(`iframe[title="${TITLES[which]}"]`);
   await expect(frame.locator(IDS[which])).toBeAttached();
   await frame.locator(IDS[which]).evaluate(() => customElements.whenDefined('sl-popup'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   await expect(iframe).toHaveCount(1);
   // WebKit runs no animation frames in an iframe outside the viewport, and the helpers below wait for frames.
   await iframe.scrollIntoViewIfNeeded();

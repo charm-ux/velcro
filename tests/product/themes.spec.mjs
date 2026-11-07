@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const read = path => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const SOURCES = ['light', 'dark'];
@@ -67,7 +68,7 @@ async function openFrame(page) {
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-basic')).toBeVisible();
   await frame.locator('#demo-basic').evaluate(() => customElements.whenDefined('sl-card'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return frame;
 }
 

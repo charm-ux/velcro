@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const PAGE = '/components/switch';
 
@@ -10,7 +11,7 @@ async function openExample(page, name = 'Overview') {
   const frame = page.frameLocator(`iframe.example[title="Switch example: ${name}"]`);
   await expect(frame.locator('sl-switch').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-switch'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 

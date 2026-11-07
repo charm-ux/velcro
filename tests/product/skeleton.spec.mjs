@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const PAGE = '/components/skeleton';
 
@@ -12,7 +13,7 @@ async function openExample(page, name = 'Overview', readyId = '#demo-avatar') {
   const frame = page.frameLocator(`iframe.example[title="Skeleton example: ${name}"]`);
   await expect(frame.locator(readyId)).toBeAttached();
   await frame.locator(readyId).evaluate(() => customElements.whenDefined('sl-skeleton'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 

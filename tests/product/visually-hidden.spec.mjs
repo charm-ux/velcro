@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const PAGE = '/components/visually-hidden';
 
@@ -12,7 +13,7 @@ async function openExample(page) {
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-external')).toBeVisible();
   await frame.locator('#demo-skip').evaluate(() => customElements.whenDefined('sl-visually-hidden'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 

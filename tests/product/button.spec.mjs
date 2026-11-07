@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const PAGE = '/components/button';
 
@@ -12,7 +13,7 @@ async function openExample(page, name = 'Overview') {
   const frame = page.frameLocator(`iframe.example[title="Button example: ${name}"]`);
   await expect(frame.locator('sl-button').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-button'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 

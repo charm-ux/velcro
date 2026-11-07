@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const PAGE = '/components/split-panel';
 const PANELS = '<div slot="start" style="height: 100%">a</div><div slot="end" style="height: 100%">b</div>';
@@ -12,7 +13,7 @@ async function openExample(page, name = 'Overview') {
   const frame = page.frameLocator(`iframe.example[title="Split Panel example: ${name}"]`).first();
   await expect(frame.locator('sl-split-panel').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-split-panel'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const PAGE = '/components/progress-ring';
 
@@ -13,7 +14,7 @@ async function openExample(page) {
   await expect(frame.locator('#demo-default')).toBeVisible();
   await expect(frame.locator('#demo-values')).toBeVisible();
   await frame.locator('#demo-default').evaluate(() => customElements.whenDefined('sl-progress-ring'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 

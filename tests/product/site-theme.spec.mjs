@@ -2,6 +2,7 @@
 // preference, applied by a synchronous head script before first paint, followed by the site palette, the Velcro
 // components' theme class and the example iframes. Served from the root build (playwright.config.mjs webServer).
 import { expect, test } from '@playwright/test';
+import { documentsLoaded } from './support/loaded.mjs';
 
 const KEY = 'velcro-docs-theme';
 const DARK_BG = 'rgb(18, 18, 20)';
@@ -16,7 +17,7 @@ const emulate = async (page, scheme) => {
 };
 const settle = async page => {
   await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
 };
 
 test('the theme is decided by a synchronous head script that runs before the body is parsed', async ({ request }) => {
