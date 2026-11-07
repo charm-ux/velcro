@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 import { startPreview } from '../../packages/docs/scripts/preview.mjs';
-import { collectRequestFailures } from './request-failures.mjs';
+import { collectRequestFailures, LOAD_FAILED } from './request-failures.mjs';
 import { guardCdn } from './support/cdn.mjs';
 
 // The icon page loads its CDN icon library examples only on request; no test here asks, and none reaches a CDN (support/cdn.mjs).
@@ -79,7 +79,10 @@ for (const { name, dir, base } of layouts) {
         expect(own.filter(u => !u.pathname.startsWith(`${base}/`)).map(u => u.pathname)).toEqual([]);
         expect(own.some(u => u.pathname === `${base}/_litro/app.js`)).toBe(true);
         expect(failures()).toEqual([]);
-        expect(errors).toEqual([]);
+        // Firefox also reports a script load that the router's remount cancelled (an excused abort above) as a console
+        // error; only that exact report, for a URL whose request was such an abort, is set aside.
+        const cancelled = failures.cancelled();
+        expect(errors.filter(message => !cancelled.has(LOAD_FAILED.exec(message)?.[1]))).toEqual([]);
         // The page the client router rendered (it swaps in a client-rendered element; it does not hydrate the prerendered
         // one) carries the same prefixed links as the prerendered HTML.
         const hrefs = await page.locator('litro-outlet a[href]').evaluateAll(links => links.map(a => a.getAttribute('href')));
