@@ -193,6 +193,126 @@
       "types": "./dist/utilities/animation.d.ts",
       "import": "./dist/utilities/animation.js"
     },
+    "./utilities/localize": {
+      "types": "./dist/utilities/localize.d.ts",
+      "import": "./dist/utilities/localize.js"
+    },
+    "./translations/ar": {
+      "types": "./dist/translations/ar.d.ts",
+      "import": "./dist/translations/ar.js"
+    },
+    "./translations/cs": {
+      "types": "./dist/translations/cs.d.ts",
+      "import": "./dist/translations/cs.js"
+    },
+    "./translations/da": {
+      "types": "./dist/translations/da.d.ts",
+      "import": "./dist/translations/da.js"
+    },
+    "./translations/de": {
+      "types": "./dist/translations/de.d.ts",
+      "import": "./dist/translations/de.js"
+    },
+    "./translations/de-ch": {
+      "types": "./dist/translations/de-ch.d.ts",
+      "import": "./dist/translations/de-ch.js"
+    },
+    "./translations/en": {
+      "types": "./dist/translations/en.d.ts",
+      "import": "./dist/translations/en.js"
+    },
+    "./translations/en-gb": {
+      "types": "./dist/translations/en-gb.d.ts",
+      "import": "./dist/translations/en-gb.js"
+    },
+    "./translations/es": {
+      "types": "./dist/translations/es.d.ts",
+      "import": "./dist/translations/es.js"
+    },
+    "./translations/fa": {
+      "types": "./dist/translations/fa.d.ts",
+      "import": "./dist/translations/fa.js"
+    },
+    "./translations/fi": {
+      "types": "./dist/translations/fi.d.ts",
+      "import": "./dist/translations/fi.js"
+    },
+    "./translations/fr": {
+      "types": "./dist/translations/fr.d.ts",
+      "import": "./dist/translations/fr.js"
+    },
+    "./translations/he": {
+      "types": "./dist/translations/he.d.ts",
+      "import": "./dist/translations/he.js"
+    },
+    "./translations/hr": {
+      "types": "./dist/translations/hr.d.ts",
+      "import": "./dist/translations/hr.js"
+    },
+    "./translations/hu": {
+      "types": "./dist/translations/hu.d.ts",
+      "import": "./dist/translations/hu.js"
+    },
+    "./translations/id": {
+      "types": "./dist/translations/id.d.ts",
+      "import": "./dist/translations/id.js"
+    },
+    "./translations/it": {
+      "types": "./dist/translations/it.d.ts",
+      "import": "./dist/translations/it.js"
+    },
+    "./translations/ja": {
+      "types": "./dist/translations/ja.d.ts",
+      "import": "./dist/translations/ja.js"
+    },
+    "./translations/nb": {
+      "types": "./dist/translations/nb.d.ts",
+      "import": "./dist/translations/nb.js"
+    },
+    "./translations/nl": {
+      "types": "./dist/translations/nl.d.ts",
+      "import": "./dist/translations/nl.js"
+    },
+    "./translations/nn": {
+      "types": "./dist/translations/nn.d.ts",
+      "import": "./dist/translations/nn.js"
+    },
+    "./translations/pl": {
+      "types": "./dist/translations/pl.d.ts",
+      "import": "./dist/translations/pl.js"
+    },
+    "./translations/pt": {
+      "types": "./dist/translations/pt.d.ts",
+      "import": "./dist/translations/pt.js"
+    },
+    "./translations/ru": {
+      "types": "./dist/translations/ru.d.ts",
+      "import": "./dist/translations/ru.js"
+    },
+    "./translations/sl": {
+      "types": "./dist/translations/sl.d.ts",
+      "import": "./dist/translations/sl.js"
+    },
+    "./translations/sv": {
+      "types": "./dist/translations/sv.d.ts",
+      "import": "./dist/translations/sv.js"
+    },
+    "./translations/tr": {
+      "types": "./dist/translations/tr.d.ts",
+      "import": "./dist/translations/tr.js"
+    },
+    "./translations/uk": {
+      "types": "./dist/translations/uk.d.ts",
+      "import": "./dist/translations/uk.js"
+    },
+    "./translations/zh-cn": {
+      "types": "./dist/translations/zh-cn.d.ts",
+      "import": "./dist/translations/zh-cn.js"
+    },
+    "./translations/zh-tw": {
+      "types": "./dist/translations/zh-tw.d.ts",
+      "import": "./dist/translations/zh-tw.js"
+    },
     "./themes/dark.css": "./themes/dark.css",
     "./themes/light.css": "./themes/light.css",
     "./custom-elements.json": "./custom-elements.json",

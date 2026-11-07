@@ -53,6 +53,10 @@ const prototypeExports = {
   './animation/class': exportTargets('components/animation/class'),
   './animation/animations': exportTargets('components/animation/animations'),
   './utilities/animation': exportTargets('utilities/animation'),
+  // The localization modules: Shoelace's dist/utilities/localize.js and its 29 dist/translations/<code>.js files.
+  './utilities/localize': exportTargets('utilities/localize'),
+  ...Object.fromEntries(['ar', 'cs', 'da', 'de', 'de-ch', 'en', 'en-gb', 'es', 'fa', 'fi', 'fr', 'he', 'hr', 'hu', 'id', 'it', 'ja', 'nb',
+    'nl', 'nn', 'pl', 'pt', 'ru', 'sl', 'sv', 'tr', 'uk', 'zh-cn', 'zh-tw'].map(c => [`./translations/${c}`, exportTargets(`translations/${c}`)])),
   './button/class': exportTargets('components/button/class'),
   './card/class': exportTargets('components/card/class'),
   './include/class': exportTargets('components/include/class'),

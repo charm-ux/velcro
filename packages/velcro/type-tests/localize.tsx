@@ -1,16 +1,20 @@
 // Type-level check of the localization module's API, as Shoelace 2.20.1 types it (src/utilities/localize.ts with
 // @shoelace-style/localize). Compiled (never run) by `tsc -p tsconfig.react.json` as the last step of the library build.
-import type { LocalizeController, Translation } from '../dist/utilities/localize.js';
-import type { registerTranslation } from '../dist/utilities/localize.js';
-import type de from '../dist/translations/de.js';
+// The entries are imported by package name, so the export map and its .d.ts targets are checked too.
+import type { LocalizeController, Translation } from '@charm-ux/velcro/utilities/localize';
+import type { registerTranslation } from '@charm-ux/velcro/utilities/localize';
+import type de from '@charm-ux/velcro/translations/de';
+import type zhTw from '@charm-ux/velcro/translations/zh-tw';
 
 declare const register: typeof registerTranslation;
 declare const controller: LocalizeController;
 declare const german: typeof de;
+declare const chinese: typeof zhTw;
 
 // A vendored translation is a full Translation, and several register at once.
 const full: Translation = german;
-register(full, german);
+const traditional: Translation = chinese;
+register(full, german, traditional);
 
 // A partial translation (a code, a name, a direction and only some terms) can be registered, as upstream. As upstream,
 // the parameter type lists no terms, so a partial translation is declared first rather than passed as a literal.

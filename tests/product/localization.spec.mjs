@@ -1,8 +1,8 @@
 // Velcro's localization module (packages/velcro/src/utilities/localize.ts on internal/localize.ts) and the four components
 // that render translated terms as Shoelace 2.20.1 does: sl-spinner ("loading"), sl-progress-bar and sl-progress-ring
-// ("progress", when label is empty) and sl-split-panel's divider ("resize"). The registry and the vendored translation
-// modules are not public package exports yet, so they are loaded through internal fixtures; the components through their
-// public registering entries. Translation strings used here are generated per run.
+// ("progress", when label is empty) and sl-split-panel's divider ("resize"). The registry, the vendored translation
+// modules and the components are all loaded through their public package exports (@charm-ux/velcro/utilities/localize,
+// @charm-ux/velcro/translations/<code>). Translation strings used here are generated per run.
 import { expect, test } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -15,7 +15,14 @@ const fixtureName = code => `t_${code.replace('-', '_')}`;
 let outDir;
 test.beforeAll(async () => {
   const entries = {
-    localize: "export * from 'velcro-internal:utilities/localize';",
+    localize: "export * from '@charm-ux/velcro/utilities/localize';",
+    // A consumer module: the side-effect import of a translation and registerTranslation, both by package specifier.
+    consumer: [
+      "import '@charm-ux/velcro/spinner';",
+      "import '@charm-ux/velcro/translations/fr';",
+      "import { registerTranslation } from '@charm-ux/velcro/utilities/localize';",
+      'export { registerTranslation };',
+    ].join('\n'),
     components: [
       "import '@charm-ux/velcro/spinner';",
       "import '@charm-ux/velcro/progress-bar';",
@@ -23,7 +30,7 @@ test.beforeAll(async () => {
       "import '@charm-ux/velcro/split-panel';",
     ].join('\n'),
   };
-  for (const code of CODES) entries[fixtureName(code)] = `export { default } from 'velcro-internal:translations/${code}';`;
+  for (const code of CODES) entries[fixtureName(code)] = `export { default } from '@charm-ux/velcro/translations/${code}';`;
   outDir = await buildFixtures(entries);
 });
 
@@ -324,11 +331,35 @@ test('upstream quirk matched: a translation that imports the registry directly (
   expect(await page.evaluate(() => window.names())).toEqual({ loading: vendoredTerm('ar', 'loading'), bar: progress, ring: progress, resize: vendoredTerm('ar', 'resize') });
 });
 
-test('the localization page documents the pending entry points, resolution, quirks and the localized components', async ({ request }) => {
+test('a consumer importing a translation and registerTranslation by package specifier changes a component\'s label', async ({ page }) => {
+  const label = unique('consumer-loading');
+  const r = await page.evaluate(async label => {
+    document.documentElement.lang = 'fr';
+    const { registerTranslation } = await import('/consumer.js');
+    document.body.innerHTML = '<sl-spinner></sl-spinner>';
+    const spinner = document.querySelector('sl-spinner');
+    const read = async () => {
+      await new Promise(r => setTimeout(r));
+      while (!(await spinner.updateComplete));
+      return spinner.shadowRoot.querySelector('[part~="base"]').getAttribute('aria-label');
+    };
+    const imported = await read();
+    registerTranslation({ $code: 'fr', $name: 'Français', $dir: 'ltr', loading: label });
+    const registered = await read();
+    document.documentElement.lang = 'en';
+    const english = await read();
+    return { imported, registered, english };
+  }, label);
+  expect(r).toEqual({ imported: vendoredTerm('fr', 'loading'), registered: label, english: 'Loading' });
+  expect(r.imported).not.toBe('Loading');
+});
+
+test('the localization page documents the entry points, resolution, quirks and the localized components', async ({ request }) => {
   const res = await request.get('/localization');
   expect(res.status()).toBe(200);
   const html = await res.text();
-  for (const text of ['Status: the entry points are pending', 'Translation resolution', 'Multiple locales per page', 'Upstream quirks matched',
+  expect(html).not.toContain('pending');
+  for (const text of ['Entry points', '@charm-ux/velcro/utilities/localize', '@charm-ux/velcro/translations/es', 'there is no wildcard', 'Translation resolution', 'Multiple locales per page', 'Upstream quirks matched',
     'Differences from Shoelace', 'Not implemented or unverified', 'registerTranslation', '/components/split-panel', 'zh-tw']) {
     expect(html, text).toContain(text);
   }

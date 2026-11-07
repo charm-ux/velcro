@@ -38,7 +38,8 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).toContain('<title>Spinner - Velcro</title>');
   expect(html).toContain('Velcro is an unreleased prototype');
   expect(html).toContain('Not implemented or unverified');
-  expect(html).toContain('not public package exports yet');
+  expect(html).toContain('registered by importing @charm-ux/velcro/translations/');
+  expect(html).not.toContain('not public package exports yet');
   expect(html).toContain('prefers-reduced-motion');
   expect(html).toContain('fails when it is created, even when it is the only Charm library on the page');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);

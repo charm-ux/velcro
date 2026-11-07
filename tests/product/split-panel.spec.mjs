@@ -73,7 +73,8 @@ test('docs page is prerendered with Velcro branding, prototype status, quirks an
   expect(html).toContain('position-in-pixels');
   expect(html).toContain('without changing the shared core prefix');
   expect(html).toContain('Redimensionner');
-  expect(html).toContain('not public package exports yet');
+  expect(html).toContain('registered by importing @charm-ux/velcro/translations/');
+  expect(html).not.toContain('not public package exports yet');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
   const home = await (await request.get('/')).text();

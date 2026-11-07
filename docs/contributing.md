@@ -23,7 +23,9 @@ under `dist/components/<name>/`; `./<name>/class` is optional) to `packages/velc
 
 A module that Shoelace publishes next to a component (for example `dist/components/include/request.js`) is exported by its full key and only
 if `MODULE_EXPORTS` in `scripts/site/catalog.mjs` lists it: once its component is in the catalog the entry is required, with exactly its
-listed targets, and the gate rejects any other `./<name>/<subpath>`.
+listed targets, and the gate rejects any other `./<name>/<subpath>`. A module that belongs to the package rather than a component
+(`dist/utilities/localize.js` and the 29 `dist/translations/<code>.js` files) is listed with the owner `PACKAGE_OWNER`, and is
+required whatever the catalog holds.
 
 The page's API tables are not hand-written: `apiReference('sl-<name>')` (`packages/docs/src/api.ts`) renders them from
 `packages/velcro/custom-elements.json`, the Custom Elements Manifest built from the component's JSDoc (`@tag`, `@status`,

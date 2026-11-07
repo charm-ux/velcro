@@ -1,7 +1,7 @@
 /*
  * Localization guide. Wording and examples adapted from Shoelace v2.20.1 docs/pages/getting-started/localization.md
  * (Copyright (c) 2020 A Beautiful Site, LLC, MIT License). See THIRD_PARTY_NOTICES.md.
- * Changes: rewritten for what Velcro supports today, with its pending entry points, its differences and the upstream
+ * Changes: rewritten for what Velcro supports today, with its package entry points, its differences and the upstream
  * quirks it matches.
  */
 import { LitElement, html } from 'lit';
@@ -29,7 +29,9 @@ const LOCALIZED = [
 
 const SPANISH = `<html lang="es">
   <head>
-    <script type="module" src="./path/to/velcro/dist/translations/es.js"></script>
+    <script type="module">
+      import '@charm-ux/velcro/translations/es';
+    </script>
   </head>
   <body>
     ...
@@ -40,7 +42,7 @@ const DYNAMIC = `// Same as setting <html lang="de">
 document.documentElement.lang = 'de';
 
 // Import the translation
-import('./path/to/velcro/dist/translations/de.js');`;
+import('@charm-ux/velcro/translations/de');`;
 
 const PER_ELEMENT = `<html lang="es">
   <body>
@@ -52,7 +54,7 @@ const PER_ELEMENT = `<html lang="es">
   </body>
 </html>`;
 
-const OWN = `import { registerTranslation } from '@charm-ux/velcro/utilities/localize'; // pending entry point
+const OWN = `import { registerTranslation } from '@charm-ux/velcro/utilities/localize';
 import type { Translation } from '@charm-ux/velcro/utilities/localize';
 
 const translation: Translation = {
@@ -80,14 +82,17 @@ export class LocalizationPage extends LitElement {
         translation registry, Shoelace's translation files, and the <code>lang</code> and <code>dir</code> of the element or the document.
         Prototype status: unreleased.</p>
 
-      <h2 id="status">Status: the entry points are pending</h2>
-      <p>The package contains the localization module and all of Shoelace's translation files, and the components below use them. They
-        are not public package exports yet. <code>@charm-ux/velcro/utilities/localize</code> (with <code>registerTranslation</code> and the
-        <code>Translation</code> type) and <code>@charm-ux/velcro/translations/&lt;code&gt;</code> wait on an approved export table, so they are
-        not importable through <code>@charm-ux/velcro</code> specifiers yet. The files are in the package's <code>dist</code> folder, and a
-        translation loaded from there by its file path registers with the same registry as components loaded from that folder. A page that
-        registers no translation renders English, the fallback, whatever its <code>lang</code>. The examples below use file paths, as
-        Shoelace's do.</p>
+      <h2 id="entry-points">Entry points</h2>
+      <p>The package exports the localization module and each of Shoelace's translation files:</p>
+      <ul>
+        <li><code>@charm-ux/velcro/utilities/localize</code>: <code>registerTranslation</code>, the <code>Translation</code> type and the
+          <code>LocalizeController</code>, as in Shoelace's <code>utilities/localize</code>;</li>
+        <li><code>@charm-ux/velcro/translations/&lt;code&gt;</code>, one per translation listed below, each registering itself when
+          imported.</li>
+      </ul>
+      <p>Only those exact entry points exist; there is no wildcard. The examples use these bare specifiers, so a page needs a bundler or
+        an import map that resolves the package. A page that registers no translation renders English, the fallback, whatever its
+        <code>lang</code>.</p>
 
       <h2 id="usage">Usage</h2>
       <p>Components are localized by importing the translation file and setting the <code>lang</code> attribute, and the <code>dir</code>
@@ -136,8 +141,9 @@ export class LocalizationPage extends LitElement {
 
       <h2 id="differences">Differences from Shoelace</h2>
       <ul>
-        <li>The entry points <code>@charm-ux/velcro/utilities/localize</code> and <code>@charm-ux/velcro/translations/&lt;code&gt;</code> are
-          not public exports yet (see Status).</li>
+        <li>The entry points are package exports without <code>dist/</code> or a <code>.js</code> extension
+          (<code>@charm-ux/velcro/translations/es</code>, where Shoelace's path is
+          <code>@shoelace-style/shoelace/dist/translations/es.js</code>), and there is no CDN build or autoloader.</li>
         <li>Velcro has no <code>@shoelace-style/localize</code> package. Its registry and controller are adapted from it into a module of
           Velcro's own, with the same API (<code>registerTranslation</code>, and on the controller <code>term</code>, <code>exists</code>, <code>lang</code>,
           <code>dir</code>, <code>date</code>, <code>number</code> and <code>relativeTime</code>). The eight translation files that
@@ -164,7 +170,6 @@ export class LocalizationPage extends LitElement {
 
       <h2 id="not-implemented">Not implemented or unverified</h2>
       <ul>
-        <li>Public entry points for the module and the translation files (pending, see Status).</li>
         <li>Checked in Chromium only; there is no Firefox or WebKit check. The text of the 29 translation files is Shoelace's and was not
           reviewed by Velcro.</li>
       </ul>
