@@ -28,6 +28,12 @@ const FIELDS = {
   cssProperties: ['default'],
 };
 
+// Shoelace declares `dir` and `lang` once, on its base element (ShoelaceElement), and its manifest does not list them on the
+// components. A Velcro component that declares them itself mirrors that base, so they are reported as inherited from it
+// rather than as Velcro-only.
+export const SHOELACE_BASE_PROPERTIES = Object.freeze(['dir', 'lang']);
+export const SHOELACE_BASE_ORIGIN = "from Shoelace's base element (ShoelaceElement, not in its manifest)";
+
 /** Formatting-only differences are not API differences: whitespace, quote style and union member order. */
 export function normalize(field, value) {
   if (typeof value === 'boolean') return String(value);
@@ -75,9 +81,10 @@ export function compare(velcroManifest, shoelaceManifest, tags) {
       }
       for (const [name, item] of ours) {
         if (theirs.has(name)) continue;
-        if (item.origin) c.inherited++;
+        const origin = item.origin || (section === 'properties' && SHOELACE_BASE_PROPERTIES.includes(name) ? SHOELACE_BASE_ORIGIN : item.origin);
+        if (origin) c.inherited++;
         else c.velcroOnly++;
-        extras.push({ tag, kind: label, name, origin: item.origin });
+        extras.push({ tag, kind: label, name, origin });
       }
     }
   }

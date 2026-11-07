@@ -23,7 +23,9 @@ const layouts = [
 // One catalog (packages/docs/catalog.jsonl) drives the routes, the example selectors and the navigation clicks.
 const catalog = readCatalog();
 const components = catalog.map(c => c.name);
-const routes = ['/', ...components.map(c => `/components/${c}`)];
+// Guide pages outside the catalog, linked from component pages.
+const guides = ['/localization'];
+const routes = ['/', ...guides, ...components.map(c => `/components/${c}`)];
 const examples = Object.fromEntries(catalog.map(c => [`/components/${c.name}`, c.example]));
 const tags = catalog.map(c => c.tag).join(', ');
 
@@ -87,7 +89,7 @@ for (const { name, dir, base } of layouts) {
         // one) carries the same prefixed links as the prerendered HTML.
         const hrefs = await page.locator('litro-outlet a[href]').evaluateAll(links => links.map(a => a.getAttribute('href')));
         expect(hrefs).toEqual(expect.arrayContaining(components.map(c => `${base}/components/${c}`)));
-        expect(hrefs.filter(h => h.startsWith('/') && h !== `${base}/` && !h.startsWith(`${base}/components/`))).toEqual([]);
+        expect(hrefs.filter(h => h.startsWith('/') && h !== `${base}/` && !h.startsWith(`${base}/components/`) && !guides.some(g => h === `${base}${g}`))).toEqual([]);
       });
 
       test(`${route}: a refresh on the deep link renders the same page`, async ({ page }) => {

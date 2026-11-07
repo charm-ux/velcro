@@ -41,7 +41,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).toContain('<title>Relative Time - Velcro</title>');
   expect(html).toContain('Velcro is an unreleased prototype');
   expect(html).toContain('Not implemented or unverified');
-  expect(html).toContain('translation registry');
+  expect(html).toContain('uses no translated terms');
   expect(html).toContain('Divergence: removing');
   expect(html).toContain('resumes updating');
   expect(html).toContain('<code>ready</code>');

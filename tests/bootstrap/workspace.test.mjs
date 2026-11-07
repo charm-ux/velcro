@@ -53,6 +53,10 @@ const prototypeExports = {
   './animation/class': exportTargets('components/animation/class'),
   './animation/animations': exportTargets('components/animation/animations'),
   './utilities/animation': exportTargets('utilities/animation'),
+  // The localization modules: Shoelace's dist/utilities/localize.js and its 29 dist/translations/<code>.js files.
+  './utilities/localize': exportTargets('utilities/localize'),
+  ...Object.fromEntries(['ar', 'cs', 'da', 'de', 'de-ch', 'en', 'en-gb', 'es', 'fa', 'fi', 'fr', 'he', 'hr', 'hu', 'id', 'it', 'ja', 'nb',
+    'nl', 'nn', 'pl', 'pt', 'ru', 'sl', 'sv', 'tr', 'uk', 'zh-cn', 'zh-tw'].map(c => [`./translations/${c}`, exportTargets(`translations/${c}`)])),
   './button/class': exportTargets('components/button/class'),
   './card/class': exportTargets('components/card/class'),
   './include/class': exportTargets('components/include/class'),
@@ -124,8 +128,11 @@ test('prototype exports are supported without weakening publication locks', () =
 
 test('only the registering entries have side effects; class-only entries and the helper stay pure', () => {
   const { sideEffects } = json('packages/velcro/package.json');
-  assert.deepEqual(sideEffects, ['./dist/index.js', './dist/components/*/index.js', '*.css']);
-  assert.ok(!sideEffects.some(pattern => /class|registration|utilities/.test(pattern)));
+  // The localize module registers English and each translation module registers itself when imported, as in Shoelace.
+  assert.deepEqual(sideEffects, ['./dist/index.js', './dist/components/*/index.js', './dist/utilities/localize.js',
+    './dist/translations/*.js', '*.css']);
+  assert.ok(!sideEffects.some(pattern => /class|registration|internal/.test(pattern)));
+  assert.deepEqual(sideEffects.filter(pattern => /utilities/.test(pattern)), ['./dist/utilities/localize.js']);
 });
 
 test('changelog is heading-only', () => {

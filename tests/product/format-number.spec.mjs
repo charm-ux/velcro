@@ -44,7 +44,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).toContain('Velcro is an unreleased prototype');
   expect(html).toContain('Formats a number using the specified locale and options.');
   expect(html).toContain('Not implemented or unverified');
-  expect(html).toContain('translation registry');
+  expect(html).toContain('uses no translated terms');
   expect(html).toContain('RangeError');
   expect(html).toContain('Divergence: removing');
   expect(html).toContain('<code>ready</code>');

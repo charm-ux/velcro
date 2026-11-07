@@ -8,7 +8,7 @@ import { property, query } from 'lit/decorators.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
 import { drag } from '../../internal/drag.js';
-import { LocalizeController } from '../../internal/localize.js';
+import { LocalizeController } from '../../utilities/localize.js';
 import { clamp } from '../../internal/math.js';
 import styles from './split-panel.styles.js';
 
@@ -399,8 +399,6 @@ export class VelcroSplitPanel extends CharmElement {
     // Unset the alt grid template property
     this.style[gridTemplateAlt] = '';
 
-    // The accessible name is Shoelace's built-in English "Resize": Shoelace renders it from its translation registry, which
-    // only has "en" until a consumer registers more, and Velcro has no translation registry (see the docs page).
     return html`
       <slot name="start" part="panel start" class="start"></slot>
 
@@ -412,7 +410,7 @@ export class VelcroSplitPanel extends CharmElement {
         aria-valuenow=${this.position}
         aria-valuemin="0"
         aria-valuemax="100"
-        aria-label="Resize"
+        aria-label=${this.localize.term('resize')}
         @keydown=${this.handleKeyDown}
         @mousedown=${this.handleDrag}
         @touchstart=${this.handleDrag}

@@ -81,10 +81,16 @@ const listFiles = dir => {
 const target = file => ({ types: `./dist/${file}.d.ts`, import: `./dist/${file}.js` });
 
 /**
- * Non-registering modules a component exposes as counterparts of Shoelace's public module paths:
- * export key -> [owning component, dist file]. While its component is in the catalog each entry is required, with exactly
- * this target; without the component the key is an unexpected export. Every key is listed in full: the subpath pattern
- * below stays ./<name> and ./<name>/class.
+ * The owner of a package-level module export: one that belongs to the package rather than to a component, so it is
+ * required whatever the catalog holds. It cannot be a catalog name (catalog names are lower-case kebab-case).
+ */
+export const PACKAGE_OWNER = '@charm-ux/velcro';
+
+/**
+ * Non-registering modules exposed as counterparts of Shoelace's public module paths: export key -> [owner, dist file].
+ * The owner is a component or PACKAGE_OWNER. An entry is required, with exactly this target, while its component is in
+ * the catalog (always, for PACKAGE_OWNER); otherwise the key is an unexpected export. Every key is listed in full, with no
+ * wildcard: the subpath pattern below stays ./<name> and ./<name>/class.
  */
 export const MODULE_EXPORTS = Object.freeze({
   // Shoelace's dist/components/animation/animations.js (the animations namespace and the two utilities).
@@ -93,12 +99,44 @@ export const MODULE_EXPORTS = Object.freeze({
   './include/request': ['include', 'components/include/request'],
   // Shoelace's dist/utilities/animation.js (the two utilities).
   './utilities/animation': ['animation', 'utilities/animation'],
+  // Shoelace's dist/utilities/localize.js (registerTranslation, the Translation type and the LocalizeController).
+  './utilities/localize': [PACKAGE_OWNER, 'utilities/localize'],
+  // Shoelace's 29 dist/translations/<code>.js files, each registering its translation when imported.
+  './translations/ar': [PACKAGE_OWNER, 'translations/ar'],
+  './translations/cs': [PACKAGE_OWNER, 'translations/cs'],
+  './translations/da': [PACKAGE_OWNER, 'translations/da'],
+  './translations/de': [PACKAGE_OWNER, 'translations/de'],
+  './translations/de-ch': [PACKAGE_OWNER, 'translations/de-ch'],
+  './translations/en': [PACKAGE_OWNER, 'translations/en'],
+  './translations/en-gb': [PACKAGE_OWNER, 'translations/en-gb'],
+  './translations/es': [PACKAGE_OWNER, 'translations/es'],
+  './translations/fa': [PACKAGE_OWNER, 'translations/fa'],
+  './translations/fi': [PACKAGE_OWNER, 'translations/fi'],
+  './translations/fr': [PACKAGE_OWNER, 'translations/fr'],
+  './translations/he': [PACKAGE_OWNER, 'translations/he'],
+  './translations/hr': [PACKAGE_OWNER, 'translations/hr'],
+  './translations/hu': [PACKAGE_OWNER, 'translations/hu'],
+  './translations/id': [PACKAGE_OWNER, 'translations/id'],
+  './translations/it': [PACKAGE_OWNER, 'translations/it'],
+  './translations/ja': [PACKAGE_OWNER, 'translations/ja'],
+  './translations/nb': [PACKAGE_OWNER, 'translations/nb'],
+  './translations/nl': [PACKAGE_OWNER, 'translations/nl'],
+  './translations/nn': [PACKAGE_OWNER, 'translations/nn'],
+  './translations/pl': [PACKAGE_OWNER, 'translations/pl'],
+  './translations/pt': [PACKAGE_OWNER, 'translations/pt'],
+  './translations/ru': [PACKAGE_OWNER, 'translations/ru'],
+  './translations/sl': [PACKAGE_OWNER, 'translations/sl'],
+  './translations/sv': [PACKAGE_OWNER, 'translations/sv'],
+  './translations/tr': [PACKAGE_OWNER, 'translations/tr'],
+  './translations/uk': [PACKAGE_OWNER, 'translations/uk'],
+  './translations/zh-cn': [PACKAGE_OWNER, 'translations/zh-cn'],
+  './translations/zh-tw': [PACKAGE_OWNER, 'translations/zh-tw'],
 });
 
 /**
  * Export contract of packages/velcro: the fixed entries, ./<name> with exact targets for every catalog entry,
  * ./<name>/class (exact targets) only for a catalog component, and the MODULE_EXPORTS entries (exact targets, required)
- * of catalog components. Any other key or target is a problem.
+ * of catalog components and of the package. Any other key or target is a problem.
  */
 export function checkExports(exportsMap, catalog) {
   const problems = [];
@@ -108,6 +146,7 @@ export function checkExports(exportsMap, catalog) {
     './custom-elements.json': './custom-elements.json', './react': { types: './dist/react/index.d.ts', import: './dist/react/index.js' },
     './react/*': './dist/react/*', './package.json': './package.json' };
   const names = new Set(catalog.map(c => c.name));
+  const owned = owner => owner === PACKAGE_OWNER || names.has(owner);
   for (const [key, value] of Object.entries(fixed)) if (!same(exportsMap[key], value)) problems.push(`package.json: export ${key} is missing or has wrong targets`);
   for (const name of names) {
     if (!Object.hasOwn(exportsMap, `./${name}`)) problems.push(`${name}: missing package export`);
@@ -116,14 +155,14 @@ export function checkExports(exportsMap, catalog) {
     if (Object.hasOwn(exportsMap, cls) && !same(exportsMap[cls], target(`components/${name}/class`))) problems.push(`${name}: wrong class export targets`);
   }
   for (const [key, [owner, file]] of Object.entries(MODULE_EXPORTS)) {
-    if (!names.has(owner)) continue;
+    if (!owned(owner)) continue;
     if (!Object.hasOwn(exportsMap, key)) problems.push(`${owner}: missing module export ${key}`);
     else if (!same(exportsMap[key], target(file))) problems.push(`${owner}: wrong module export targets for ${key}`);
   }
   for (const key of Object.keys(exportsMap)) {
     const m = /^\.\/([a-z0-9-]+)(\/class)?$/.exec(key);
     if (Object.hasOwn(fixed, key) || (m && names.has(m[1]))) continue;
-    if (Object.hasOwn(MODULE_EXPORTS, key) && names.has(MODULE_EXPORTS[key][0])) continue;
+    if (Object.hasOwn(MODULE_EXPORTS, key) && owned(MODULE_EXPORTS[key][0])) continue;
     problems.push(`package.json: unexpected export ${key}`);
   }
   return problems;

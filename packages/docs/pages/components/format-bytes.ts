@@ -12,8 +12,8 @@ export const pageData = definePageData(async () => ({
 }));
 
 const gaps = [
-  'There is no core format-bytes: the component extends the core CharmElement base and renders text only. The text is produced by Intl.NumberFormat with the unit style, through a minimal localization controller (packages/velcro/src/internal/localize.ts).',
-  'The localization controller has no translation registry: nothing is translated (this component needs no strings), and registerTranslation / term() do not exist. It resolves lang from the element, then the document element, then the browser language, and re-renders when the document element lang or dir changes. The dir part is resolved but nothing here uses it.',
+  'There is no core format-bytes: the component extends the core CharmElement base and renders text only. The text is produced by Intl.NumberFormat with the unit style, through Velcro\'s localization controller (packages/velcro/src/utilities/localize.ts).',
+  'This component uses no translated terms, so registered translations do not change it. The localization controller resolves lang from the element, then the document element, then the browser language, and re-renders when the document element lang or dir changes or a translation is registered. The dir part is resolved but nothing here uses it.',
   'The formatted output depends on the browser Intl data. It was compared with Shoelace 2.20.1 only by the algorithm (the same prefix table, three significant digits and unit style) and by asserted strings in Chromium, Firefox and WebKit, not by running Shoelace.',
   'A negative value is not guarded: the prefix lookup yields NaN, so the component renders nothing (empty text, no exception), the same as a non-numeric value. A negative value is not formatted as a negative size. Whether Shoelace 2.20.1 behaves the same was not checked, because its formatting helper is an external package.',
   'Decimal (1000-based) prefixes are used, as in Shoelace; there are no binary (KiB) units, and petabits are not supported.',

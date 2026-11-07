@@ -5,6 +5,7 @@
 import { html } from 'lit';
 import { property, query, state } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { LocalizeController } from '../../utilities/localize.js';
 import styles from './progress-ring.styles.js';
 
 /**
@@ -36,6 +37,12 @@ export class VelcroProgressRing extends CharmElement {
 
   @state()
   private indicatorOffset?: string;
+
+  private readonly localize = new LocalizeController(this);
+
+  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the accessible name. Like Shoelace it has no initial value (undefined).
+  @property()
+  public override lang!: string;
 
   /** The current progress as a percentage, 0 to 100. */
   @property({ type: Number, reflect: true })
@@ -69,13 +76,12 @@ export class VelcroProgressRing extends CharmElement {
   }
 
   protected override render() {
-    // The default accessible name is English-only; Shoelace localizes it through its own localization controller.
     return html`
       <div
         part="base"
         class="progress-ring"
         role="progressbar"
-        aria-label=${this.label.length > 0 ? this.label : 'Progress'}
+        aria-label=${this.label.length > 0 ? this.label : this.localize.term('progress')}
         aria-describedby="label"
         aria-valuemin="0"
         aria-valuemax="100"
