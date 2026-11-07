@@ -10,7 +10,7 @@ Shoelace members count when its own docs would list them (described and not priv
 whitespace, quote style and union order. Missing and mismatched entries form the ledger
 `docs/api/api-parity-ledger.json`, which may only shrink.
 
-Totals: 215 Shoelace entries compared, 200 matching, 15 mismatched, 0 missing; 37 Velcro-only and 62 inherited extras.
+Totals: 242 Shoelace entries compared, 227 matching, 15 mismatched, 0 missing; 47 Velcro-only and 65 inherited extras.
 
 | Component | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -21,6 +21,7 @@ Totals: 215 Shoelace entries compared, 200 matching, 15 mismatched, 0 missing; 3
 | `sl-format-bytes` | 3 | 3 | 0 | 0 | 1 | 2 |
 | `sl-format-date` | 12 | 2 | 10 | 0 | 1 | 2 |
 | `sl-format-number` | 10 | 5 | 5 | 0 | 1 | 2 |
+| `sl-icon` | 8 | 8 | 0 | 0 | 5 | 1 |
 | `sl-include` | 5 | 5 | 0 | 0 | 3 | 1 |
 | `sl-mutation-observer` | 8 | 8 | 0 | 0 | 1 | 2 |
 | `sl-popup` | 34 | 34 | 0 | 0 | 2 | 1 |
@@ -30,6 +31,7 @@ Totals: 215 Shoelace entries compared, 200 matching, 15 mismatched, 0 missing; 3
 | `sl-resize-observer` | 3 | 3 | 0 | 0 | 0 | 2 |
 | `sl-skeleton` | 6 | 6 | 0 | 0 | 0 | 4 |
 | `sl-spinner` | 5 | 5 | 0 | 0 | 0 | 4 |
+| `sl-split-panel` | 19 | 19 | 0 | 0 | 5 | 2 |
 | `sl-switch` | 33 | 33 | 0 | 0 | 19 | 3 |
 | `sl-tab-panel` | 5 | 5 | 0 | 0 | 2 | 1 |
 | `sl-visually-hidden` | 1 | 1 | 0 | 0 | 0 | 2 |
@@ -201,6 +203,28 @@ Velcro-only (own):
 Inherited extras:
 
 - `property dir` (from @charm-ux/core CharmElement)
+- `event ready` (from @charm-ux/core CharmElement)
+
+## `sl-icon`
+
+Missing:
+
+- None.
+
+Mismatched:
+
+- None.
+
+Velcro-only (own):
+
+- `property dir`
+- `property lang`
+- `property url`
+- `event icon-error`
+- `event icon-load`
+
+Inherited extras:
+
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-include`
@@ -381,6 +405,29 @@ Inherited extras:
 - `property dir` (from @charm-ux/core CharmElement)
 - `property label` (from @charm-ux/core CoreSpinner)
 - `property labelPosition` (from @charm-ux/core CoreSpinner)
+- `event ready` (from @charm-ux/core CharmElement)
+
+## `sl-split-panel`
+
+Missing:
+
+- None.
+
+Mismatched:
+
+- None.
+
+Velcro-only (own):
+
+- `property divider`
+- `property lang`
+- `method handlePositionChange`
+- `method handlePositionInPixelsChange`
+- `method handleVerticalChange`
+
+Inherited extras:
+
+- `property dir` (from @charm-ux/core CharmElement)
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-switch`

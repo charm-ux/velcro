@@ -4,8 +4,9 @@ Velcro runs Shoelace 2.20.1's own component test files, vendored unmodified in
 `tests/upstream/shoelace-2.20.1/` (upstream commit `fb59fda70ed737c92611051b49bc7e3a5fed5dc5`, MIT), against
 Velcro's components in Chromium. A resolver plugin points each test's Shoelace library import
 (`dist/shoelace.js`) at Velcro's package root, which registers every component, and a test's own
-`./<name>.js` at Velcro's registering entry for that component; no test is edited or skipped. Run it with
-`pnpm test:upstream`.
+`./<name>.js` at Velcro's registering entry for that component; no test is edited, and Velcro skips none.
+A test that upstream itself marks `it.skip` in its vendored file is reported as skipped, and the gate allows
+only those (listed below). Run it with `pnpm test:upstream`.
 
 The complete pinned list of expected tests per component (repeated titles carry a `[#n]` suffix) is
 `tests/upstream/inventory.json`; a run must report exactly those outcomes, with nothing missing or extra.
@@ -19,7 +20,7 @@ later Firefox and WebKit lane can reuse it.
 
 Shoelace 2.20.1 ships no test file for resize-observer, so it has no row here.
 
-Totals: 309 tests, 309 passed, 0 failed.
+Totals: 340 tests, 340 passed, 0 failed.
 
 | Component | Tests | Passed | Failed |
 | --- | ---: | ---: | ---: |
@@ -30,6 +31,7 @@ Totals: 309 tests, 309 passed, 0 failed.
 | format-bytes | 9 | 9 | 0 |
 | format-date | 40 | 40 | 0 |
 | format-number | 39 | 39 | 0 |
+| icon | 14 | 14 | 0 |
 | include | 2 | 2 | 0 |
 | mutation-observer | 1 | 1 | 0 |
 | popup | 2 | 2 | 0 |
@@ -38,9 +40,16 @@ Totals: 309 tests, 309 passed, 0 failed.
 | relative-time | 25 | 25 | 0 |
 | skeleton | 3 | 3 | 0 |
 | spinner | 4 | 4 | 0 |
+| split-panel | 17 | 17 | 0 |
 | switch | 39 | 39 | 0 |
 | tab-panel | 5 | 5 | 0 |
 | visually-hidden | 2 | 2 | 0 |
+
+## Skipped upstream
+
+Skipped in the vendored upstream file itself (`it.skip`), not counted above:
+
+- icon: `<sl-icon> > svg sprite sheets > Should produce an error if the icon doesn't exist.`
 
 ## Failing tests
 
@@ -48,6 +57,9 @@ Harness notes: the runner page loads Velcro's light theme where upstream loads S
 mocha settings (3 s timeout, one retry), and adds two guards so one failure cannot discard a whole file's
 results: real form submission and navigation by `form.submit()` are suppressed, and an assertion that carries a
 sinon spy is reported instead of crashing the runner. Neither guard can turn a failing assertion into a pass.
+Upstream's icon sprite sheet tests load `/docs/assets/images/sprite.svg`, which Shoelace's docs build generates
+from Bootstrap Icons; the runner serves that one path from the same Bootstrap Icons sprite that Velcro's docs
+site ships (`packages/docs/public/assets/images/sprite.svg`).
 
 ## Dependency note: inflation override
 

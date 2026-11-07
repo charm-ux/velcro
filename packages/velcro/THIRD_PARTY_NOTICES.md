@@ -85,6 +85,17 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   adapted from `docs/pages/components/resize-observer.md` and the added light theme token `--sl-input-border-color`
   (name and value following `src/themes/light.css`). The component extends the `@charm-ux/core` base element; no
   Shoelace runtime or source files are included.
+- Also used in: `packages/velcro/src/components/split-panel/split-panel.ts` (API documentation wording and behavior: the
+  position, snapping, keyboard, drag and resize logic and the rendered structure, adapted from
+  `src/components/split-panel/split-panel.component.ts`), `packages/velcro/src/components/split-panel/split-panel.styles.ts`
+  (styles adapted from `src/components/split-panel/split-panel.styles.ts` and `src/styles/component.styles.ts`, declarations unchanged),
+  `packages/velcro/src/internal/drag.ts` (adapted from `src/internal/drag.ts`) and `packages/velcro/src/internal/math.ts`
+  (the `clamp` helper, adapted from `src/internal/math.ts`), plus the docs page examples adapted from
+  `docs/pages/components/split-panel.md` (the icon handle is replaced by an inline svg and the select by a native one).
+  Shoelace's `src/components/split-panel/split-panel.test.ts` and the two helpers it imports
+  (`src/internal/test.ts`, `src/internal/test/data-testid-helpers.ts`) are vendored unchanged for the conformance run
+  (see `tests/upstream/`). The component extends the `@charm-ux/core` base element and uses the localization controller
+  listed above; no Shoelace runtime or source files are included in the package.
 - Also used in: `packages/velcro/src/components/mutation-observer/mutation-observer.ts` (API documentation wording and
   behavior: a `MutationObserver` over the element and its subtree, configured by `attr`, `attr-old-value`, `char-data`,
   `char-data-old-value` and `child-list`, started and stopped by `disabled` and reporting through `sl-mutation`, adapted
@@ -160,6 +171,18 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   explanatory wording adapted from `docs/pages/components/skeleton.md`). The skeleton is built on the
   `@charm-ux/core` skeleton; no Shoelace runtime or source files are included. The added light theme tokens
   (`--sl-border-radius-medium`, `--sl-border-radius-circle`) follow `src/themes/light.css` names and values.
+- Also used in: `packages/velcro/src/components/icon/icon.ts` (API documentation wording, and the icon resolution and
+  rendering behavior: library or `src` lookup, the shared request cache with cacheable and retryable errors, sprite
+  sheets, mutators, `sl-load` / `sl-error` and the label-driven host ARIA, adapted from
+  `src/components/icon/icon.component.ts`), `packages/velcro/src/components/icon/icon.styles.ts` (adapted from
+  `src/components/icon/icon.styles.ts`), `packages/velcro/src/components/icon/library.ts`,
+  `packages/velcro/src/components/icon/library.default.ts` and `packages/velcro/src/utilities/base-path.ts` (the icon
+  library registry and base path contract, adapted from `src/components/icon/library.ts`,
+  `src/components/icon/library.default.ts` and `src/utilities/base-path.ts`),
+  `packages/velcro/src/components/icon/library.system.ts` (the system icon set and resolver, copied from
+  `src/components/icon/library.system.ts`; the icons themselves are Bootstrap Icons, see below) and
+  `packages/docs/pages/components/icon.ts` with `packages/docs/examples/icon/` (example sections and wording adapted from
+  `docs/pages/components/icon.md`). No Shoelace runtime or source files are included.
 - Also used in: `packages/velcro/src/components/tab-panel/tab-panel.ts` (API documentation wording, the rendered
   structure: one slot with the `base` part and the `tab-panel` / `tab-panel--active` class names, the generated
   `sl-tab-panel-<n>` id, the `role` and `aria-hidden` handling, adapted from
@@ -185,6 +208,46 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+## Bootstrap Icons v1.11.3 (MIT)
+
+- Source: the GitHub `v1.11.3` release archive of Bootstrap Icons (https://github.com/twbs/icons), the source Shoelace
+  2.20.1's `scripts/make-icons.js` downloads for its default icon library. Its 2,050 icon files, sprite sheet and
+  LICENSE also have the same SHA-256 hashes as those jsDelivr's file index lists for the `bootstrap-icons` 1.11.3 npm
+  package.
+- Used in: `packages/velcro/assets/bootstrap-icons/bootstrap-icons.svg` and
+  `packages/docs/public/assets/images/sprite.svg` (the release's sprite, copied unmodified; the package build generates
+  the 2,050 icon files in `dist/assets/icons/` from it for the default icon library and checks each against the
+  release's own files with `SHA256SUMS`, so they are byte-identical), `packages/velcro/assets/bootstrap-icons/LICENSE`
+  (the license, copied unmodified), `packages/velcro/assets/bootstrap-icons/icons.json` (an index of icon names,
+  titles, categories and tags, generated from the front matter of the release's `docs/content/icons/*.md`) and the
+  system icons in
+  `packages/velcro/src/components/icon/library.system.ts` (via Shoelace).
+- The release carries no NOTICE file. Its license text, verbatim:
+
+```text
+The MIT License (MIT)
+
+Copyright (c) 2019-2024 The Bootstrap Authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 ```
 
 ## composed-offset-position 0.0.6 (MIT)

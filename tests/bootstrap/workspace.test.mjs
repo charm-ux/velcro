@@ -62,6 +62,7 @@ const prototypeExports = {
   './resize-observer/class': exportTargets('components/resize-observer/class'),
   './skeleton/class': exportTargets('components/skeleton/class'),
   './spinner/class': exportTargets('components/spinner/class'),
+  './split-panel/class': exportTargets('components/split-panel/class'),
   './tab-panel/class': exportTargets('components/tab-panel/class'),
   './themes/dark.css': './themes/dark.css',
   './themes/light.css': './themes/light.css',

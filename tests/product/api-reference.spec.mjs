@@ -3,6 +3,10 @@
 import { expect, test } from '@playwright/test';
 import { apiModel, customElements, readJson, velcroManifestPath } from '../../scripts/api/model.mjs';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
+import { stubCdn } from './support/cdn.mjs';
+
+// The icon page's CDN icon library examples are answered locally (support/cdn.mjs); no test reaches a CDN.
+test.beforeEach(async ({ page }) => { await stubCdn(page); });
 
 const elements = customElements(readJson(velcroManifestPath));
 const source = origin => (origin ? `Inherited ${origin}` : 'Velcro');

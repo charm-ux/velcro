@@ -225,6 +225,23 @@
     "<sl-format-number> > maximumSignificantDigits property > number has correct type format: 5",
     "<sl-format-number> > maximumSignificantDigits property > number has correct type format: 6"
   ],
+  "icon": [
+    "<sl-icon> > defaults  > default properties",
+    "<sl-icon> > defaults  > renders pre-loaded system icons and emits sl-load event",
+    "<sl-icon> > defaults  > the icon is accessible",
+    "<sl-icon> > defaults  > the icon has the correct default aria attributes",
+    "<sl-icon> > when a label is provided > the icon has the correct default aria attributes",
+    "<sl-icon> > when a valid src is provided > the svg is rendered",
+    "<sl-icon> > new library > renders icons from the new library and emits sl-load event",
+    "<sl-icon> > new library > runs mutator from new library",
+    "<sl-icon> > negative cases > svg not rendered with an icon that doesn't exist in the library",
+    "<sl-icon> > negative cases > emits sl-error when the file cant be retrieved",
+    "<sl-icon> > negative cases > emits sl-error when there isn't an svg element in the registered icon",
+    "<sl-icon> > svg sprite sheets > Should properly grab an SVG and render it from bootstrap icons",
+    "<sl-icon> > svg sprite sheets > Should apply mutator to multiple identical spritesheet icons",
+    "<sl-icon> > svg sprite sheets > Should render nothing if the sprite hash is wrong",
+    "<sl-icon> > svg sprite sheets > Should produce an error if the icon doesn't exist."
+  ],
   "include": [
     "<sl-include> > should load content and emit sl-load",
     "<sl-include> > should emit sl-error when content cannot be loaded"
@@ -291,6 +308,25 @@
     "<sl-spinner> > when provided no parameters > should have a role of \"status\".",
     "<sl-spinner> > when provided no parameters > should use \"transform: rotate(x)\" instead of \"rotate: x\" when animating",
     "<sl-spinner> > when provided no parameters > should have flex:none to prevent flex re-sizing"
+  ],
+  "split-panel": [
+    "<sl-split-panel> > should render a component",
+    "<sl-split-panel> > should be accessible",
+    "<sl-split-panel> > should show both panels",
+    "<sl-split-panel> > panel sizing horizontal > has two evenly sized panels by default",
+    "<sl-split-panel> > panel sizing horizontal > changes the sizing of the panels based on the position attribute",
+    "<sl-split-panel> > panel sizing horizontal > updates the position in pixels to the correct result",
+    "<sl-split-panel> > panel sizing horizontal > emits the sl-reposition\tevent on position change",
+    "<sl-split-panel> > panel sizing horizontal > can be resized using the mouse",
+    "<sl-split-panel> > panel sizing horizontal > cannot be resized if disabled",
+    "<sl-split-panel> > panel sizing horizontal > snaps to predefined positions",
+    "<sl-split-panel> > panel sizing vertical > has two evenly sized panels by default",
+    "<sl-split-panel> > panel sizing vertical > changes the sizing of the panels based on the position attribute",
+    "<sl-split-panel> > panel sizing vertical > updates the position in pixels to the correct result",
+    "<sl-split-panel> > panel sizing vertical > emits the sl-reposition\tevent on position change ",
+    "<sl-split-panel> > panel sizing vertical > can be resized using the mouse ",
+    "<sl-split-panel> > panel sizing vertical > cannot be resized if disabled",
+    "<sl-split-panel> > panel sizing vertical > snaps to predefined positions"
   ],
   "switch": [
     "should make sure that `.validity.valid` is `false` in custom error case",

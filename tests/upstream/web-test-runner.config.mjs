@@ -31,6 +31,14 @@ const velcroEntries = {
   }
 };
 
+// Upstream's sprite sheet tests load '/docs/assets/images/sprite.svg', a file Shoelace's docs build generates from
+// Bootstrap Icons in its own web root. Velcro's docs site ships the same Bootstrap Icons sprite at
+// packages/docs/public/assets/images/sprite.svg, so that one path is served from there. Nothing else is rewritten.
+const upstreamDocsAssets = (ctx, next) => {
+  if (ctx.path === '/docs/assets/images/sprite.svg') ctx.url = '/packages/docs/public/assets/images/sprite.svg';
+  return next();
+};
+
 // Writes every test outcome (component, suite path, title, passed, short reason) as JSON for the scoreboard.
 function jsonReporter(file) {
   return {
@@ -71,6 +79,7 @@ export default {
   concurrency: 4,
   // Upstream's own mocha settings (3s timeout, one retry).
   testFramework: { config: { timeout: 3000, retries: 1 } },
+  middleware: [upstreamDocsAssets],
   plugins: [velcroEntries, esbuildPlugin({ ts: true, target: 'es2020' })],
   browsers: products.map(product => playwrightLauncher({ product })),
   // Mirrors upstream's runner page, with Velcro's light theme in place of Shoelace's.

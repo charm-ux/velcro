@@ -5,6 +5,7 @@
 {"name":"format-bytes","title":"Format Bytes","tag":"sl-format-bytes","example":"#demo-default"}
 {"name":"format-date","title":"Format Date","tag":"sl-format-date","example":"#demo-default"}
 {"name":"format-number","title":"Format Number","tag":"sl-format-number","example":"#demo-default"}
+{"name":"icon","title":"Icon","tag":"sl-icon","example":"sl-icon"}
 {"name":"include","title":"Include","tag":"sl-include","example":"#demo-default"}
 {"name":"mutation-observer","title":"Mutation Observer","tag":"sl-mutation-observer","example":"#demo-observer"}
 {"name":"popup","title":"Popup","tag":"sl-popup","example":"#demo-default"}
@@ -14,6 +15,7 @@
 {"name":"resize-observer","title":"Resize Observer","tag":"sl-resize-observer","example":"#demo-observer"}
 {"name":"skeleton","title":"Skeleton","tag":"sl-skeleton","example":"#demo-avatar"}
 {"name":"spinner","title":"Spinner","tag":"sl-spinner","example":"sl-spinner"}
+{"name":"split-panel","title":"Split Panel","tag":"sl-split-panel","example":"sl-split-panel"}
 {"name":"switch","title":"Switch","tag":"sl-switch","example":"#demo-default"}
 {"name":"tab-panel","title":"Tab Panel","tag":"sl-tab-panel","example":"#demo-default"}
 {"name":"visually-hidden","title":"Visually Hidden","tag":"sl-visually-hidden","example":"#demo-skip"}

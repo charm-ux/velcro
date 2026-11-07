@@ -75,15 +75,32 @@ verify in parallel.
   approved identity and effective author/committer, including environment overrides.
 - `node scripts/security/git-privacy.mjs message <file>`: exact message/footer text.
 - `node scripts/security/git-privacy.mjs history [revision-or-range]`: raw commit
-  metadata/messages and every source tree in the selected tip's full ancestry.
-  A range is deliberately stronger than a diff: its lower bound is not trusted to
-  conceal history. Replace refs, presentation settings and mailmaps cannot change
-  inspected objects; shallow repositories and legacy grafts are refused.
+  metadata/messages (author, committer, other headers, message) for every commit in
+  the selected tip's full ancestry, plus the content and path of every file a
+  commit changed. Unchanged files are not rescanned: each commit contributes only
+  the files it adds or modifies relative to its parents (a root commit: all files;
+  a merge: every path whose result differs from every parent, so an evil merge's
+  new content is scanned). In a range, a parent outside the range is replaced by
+  the range base for this comparison, so content inherited from an older,
+  unscanned ancestor is scanned unless the base tip has the same file. Deleted
+  files need no content scan. Identical path/blob pairs are scanned once. With a
+  single tip (full-history mode) content is checked across the whole ancestry
+  under the hard caps only. With a range `<base>..<tip>`, content is checked for
+  commits not reachable from `<base>`, which must be the fetched
+  `refs/remotes/origin/main` or one of its ancestors (anything else fails with
+  exit 2); metadata is still checked for the full ancestry. A range of more
+  than 1,000 changed-file entries fails with exit 3 and `history scan exceeds
+  1,000 changed files; owner approval required` (see "History scan approval").
+  Success prints only counts. Replace refs, presentation settings and mailmaps
+  cannot change inspected objects; shallow repositories and legacy grafts are
+  refused.
 - `node scripts/security/git-privacy.mjs pre-push [origin]`: consume Git's proposed
   updates on stdin; accept one feature-branch creation or fast-forward update to
   the same branch name on `origin`, never an ordinary direct push to `main`.
   Inspect the supplied full OID, not the current named local branch, and scan its
-  full ancestry, metadata and ref name. Require a direct, already fetched
+  full-ancestry metadata, ref name, and the changed files of every commit not
+  reachable from the fetched `origin/main` (the range being published, under the
+  1,000-entry approval cap). Require a direct, already fetched
   `refs/remotes/origin/main` commit included in that ancestry. For an update,
   require the exact fetched `refs/remotes/origin/<feature>` OID to match Git's
   proposed old OID; for creation, no existing fetched feature ref may conflict.
@@ -102,6 +119,46 @@ verify in parallel.
   content clearance or human approval. A protected-change notice does not block
   creating a privacy-clean PR branch; it requires separate human merge/publication
   review. The pre-push command emits the same notice after mandatory data checks.
+
+### History scan approval
+
+A published range (pre-push: commits not reachable from the fetched `origin/main`;
+CI on a PR: the PR's commits against the fetched `origin/main`, whatever the PR's
+base; CI on `main`: the commits since the previous `main` tip) may contain at most
+1,000 changed-file entries. Above that the
+scan stops with exit 3 before inspecting content. Only the owner approves a larger
+range, and only for one exact head:
+
+- Locally: `VELCRO_HISTORY_APPROVED=<full head OID>` for that one command. Any other
+  value, an abbreviated OID or a different head stays blocked. **Agents must never
+  set this variable**, suggest a value for it, or retry a blocked push with it; stop
+  and report the exit instead.
+- In CI: the approver applies the `history-scan-approved` label to the PR. The
+  approver is the GitHub login in the `VELCRO_HISTORY_APPROVER` repository variable
+  (Settings → Secrets and variables → Actions → Variables), which the owner must
+  set; the login is never committed. While it is unset or empty nobody can approve.
+  The labeled run approves only the head it ran for; a later push runs blocked
+  again until the label is removed and re-applied. A label applied by anyone else
+  approves nothing. Applying any other label, or editing the PR (its base, title or
+  body), also re-runs CI (including the product job) without approval, and that run
+  becomes the head's latest result, so re-apply the approval label afterwards.
+- A post-merge run on `main` has no approval channel, so an approved range over
+  1,000 entries fails there too. It does not gate Pages, which scans full history,
+  and clears on the next push to `main` (a small range again).
+- The pre-push hook reports every failure as `hook: required check failed`. To see
+  whether it was exit 3, run `node scripts/security/git-privacy.mjs pre-push origin`
+  (or `history origin/main..HEAD`) explicitly.
+- A PR into a branch other than `main`, a force push, or a first push has no base
+  that is the fetched `main` or its ancestor, so CI scans the full history under the
+  hard caps instead of a range. A PR still meets the 1,000-entry budget against the
+  fetched `main` first, so targeting another branch and later retargeting to `main`
+  cannot skip approval; a base change is an `edited` event and re-runs CI.
+
+Approval lifts only the 1,000-entry cap. Every finding, identity, protected-path,
+archive and scanner check still applies, as do the scanner's hard size and 10,000-entry caps.
+Full-history mode (`history <tip>`, used by the Pages deployment) does not use the
+1,000-entry cap: its count grows with the whole project and it is not a newly
+published range.
 
 Source publication supports UTF-8 regular text files only. Archives, binaries,
 symlinks, submodules, runtime material, tags and broad ref pushes are not certified.
@@ -128,7 +185,7 @@ Hooks are bypassable and never replace explicit checks before outbound operation
 Clean local commits require current-file privacy/secret checks, exact staged-object
 and effective-identity checks, message checks, and tests. They do not certify every
 ancestor of a private development branch. Pre-commit checks staged source;
-pre-push checks the proposed tip's ancestry. Never substitute one result for the
+pre-push checks the proposed tip's ancestry metadata and the files its new commits change. Never substitute one result for the
 other or add a skip-history switch.
 
 Keep private development history intact. Obsolete detector/test snapshots may

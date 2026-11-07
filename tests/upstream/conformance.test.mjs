@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { DOCS, INVENTORY, LEDGER, VENDOR, checkVendor, evaluate, keyResults, scoreboard } from '../../scripts/upstream-conformance.mjs';
+import { DOCS, INVENTORY, LEDGER, VENDOR, checkVendor, declaredTests, evaluate, keyResults, scoreboard, upstreamSkips } from '../../scripts/upstream-conformance.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const components = readdirSync(new URL(`../../${VENDOR}/src/components/`, import.meta.url)).sort();
@@ -37,7 +37,7 @@ const inventory = JSON.parse(readFileSync(new URL(`../../${INVENTORY}`, import.m
 
 test('the pinned inventory covers every vendored component, is unique, and contains every ledgered title', () => {
   assert.deepEqual(Object.keys(inventory).sort(), components);
-  assert.equal(Object.values(inventory).flat().length, 309);
+  assert.equal(Object.values(inventory).flat().length, 341);
   for (const [c, titles] of Object.entries(inventory)) {
     assert.equal(new Set(titles).size, titles.length, c);
     for (const e of ledger[c] ?? []) assert.ok(titles.includes(e.title), `${c}: ${e.title}`);
@@ -87,6 +87,55 @@ test('gate fails on missing components, skips, unknown or malformed ledger and i
     assert.equal(gate(baseline(), led, bad).ok, false);
   }
   assert.equal(gate(baseline(), led, { a: ['x', 'y', 'w'] }).ok, false);
+});
+
+test('a skip passes only when the vendored upstream file itself marks that exact test it.skip', () => {
+  const nested = { a: ['suite > x', 'other > x', 'y', 'y [#2]'], b: ['z'] };
+  const run = (skippedTitle, skips) => {
+    const results = nested.a.map(t => r('a', t.replace(/ \[#\d+\]$/, ''), true, t === skippedTitle ? { skipped: true } : {}));
+    return evaluate(scoreboard(keyResults([...results, r('b', 'z', true)])), {}, nested, ['a', 'b'], skips);
+  };
+  const bound = skipped => ({ a: { skipped, declared: nested.a } });
+  assert.equal(run('suite > x', bound(['suite > x'])).ok, true);
+  assert.deepEqual(run('suite > x', {}).problems, ['skipped test in a: suite > x']);
+  assert.equal(run('suite > x', { b: { skipped: ['suite > x'], declared: ['z'] } }).ok, false, 'another component does not cover it');
+  assert.equal(run('other > x', bound(['suite > x'])).ok, false, 'the same title in another suite is a different test');
+  assert.equal(run('y [#2]', bound(['y'])).ok, false, 'a repeated title is bound to its occurrence');
+  assert.equal(run('y [#2]', bound(['y [#2]'])).ok, true);
+  assert.deepEqual(run('suite > x', { a: { skipped: ['suite > x'], declared: ['suite > x', 'other > x', 'y'] } }).problems,
+    ['upstream skips in a cannot be bound to the inventory', 'skipped test in a: suite > x'], 'the scan must declare exactly the inventory');
+  assert.equal(run('suite > x', { a: { skipped: ['suite > x'], declared: ['suite > x', 'other > x', 'y', null] } }).ok, false, 'a dynamic title fails closed');
+  // The real vendored files: icon's own it.skip is the only upstream skip, bound to its full identity.
+  const real = upstreamSkips(root, components);
+  assert.deepEqual(Object.keys(real), ['icon']);
+  assert.deepEqual(real.icon.skipped, ["<sl-icon> > svg sprite sheets > Should produce an error if the icon doesn't exist."]);
+  assert.deepEqual([...real.icon.declared].sort(), [...JSON.parse(readFileSync(new URL(`../../${INVENTORY}`, import.meta.url), 'utf8')).icon].sort());
+});
+
+test('the declaration scan follows describe nesting and ignores comments, strings and dynamic titles', () => {
+  const src = `
+    // it('commented out', () => {});
+    describe('outer', () => {
+      const s = '} it("in a string") {';
+      /* describe('in a comment', () => { */
+      it('a', () => { if (x) { y(); } });
+      describe("inner \\" quoted", async () => {
+        it.skip('b', () => {});
+        it(\`c\`, () => {});
+      });
+      it(\`d \${n}\`, () => {});
+      it.only('e', () => {});
+      notit('f', () => {});
+    });
+    it('top', () => {});`;
+  assert.deepEqual(declaredTests(src), [
+    { title: 'outer > a', skip: false },
+    { title: 'outer > inner " quoted > b', skip: true },
+    { title: 'outer > inner " quoted > c', skip: false },
+    { title: null, skip: false },
+    { title: 'outer > e', skip: false },
+    { title: 'top', skip: false },
+  ]);
 });
 
 test('repeated titles get stable occurrence suffixes', () => {

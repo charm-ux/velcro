@@ -11,7 +11,8 @@ export const TESTED_EVIDENCE = '.airig/product/tested-prefixed.json';
 export const TESTED_SITE_DIR = 'packages/docs/dist/static-prefixed';
 export const TESTED_CLOSURE = 'packages/docs/dist/closure/client-closure-velcro.json';
 export const TESTED_BASE = '/velcro';
-export const TESTED_LIMITS = Object.freeze({ maxEntries: 300, maxFileBytes: 2 * 1024 * 1024, maxTotalBytes: 16 * 1024 * 1024, maxDepth: 8, maxEvidenceBytes: 2 * 1024 * 1024 });
+// maxEntries covers the docs site's icon assets (about 2,050 SVG files) on top of the pages and bundles.
+export const TESTED_LIMITS = Object.freeze({ maxEntries: 2600, maxFileBytes: 2 * 1024 * 1024, maxTotalBytes: 16 * 1024 * 1024, maxDepth: 8, maxEvidenceBytes: 2 * 1024 * 1024 });
 
 export class TestedError extends Error {
   constructor(code) {

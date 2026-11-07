@@ -1,5 +1,9 @@
 // Docs layout: narrow viewports and fragment links into the page's shadow root.
 import { expect, test } from '@playwright/test';
+import { stubCdn } from './support/cdn.mjs';
+
+// The icon page's CDN icon library examples are answered locally (support/cdn.mjs); no test reaches a CDN.
+test.beforeEach(async ({ page }) => { await stubCdn(page); });
 
 const settle = async page => {
   await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');

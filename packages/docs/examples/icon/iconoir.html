@@ -1,0 +1,16 @@
+<script type="module">
+  import { registerIconLibrary } from '@charm-ux/velcro';
+
+  registerIconLibrary('iconoir', {
+    resolver: name => `https://cdn.jsdelivr.net/gh/lucaburgio/iconoir@5.5.2/icons/${name}.svg`
+  });
+</script>
+
+<div style="font-size: 24px;">
+  <sl-icon library="iconoir" name="check-circled-outline"></sl-icon>
+  <sl-icon library="iconoir" name="drawer"></sl-icon>
+  <sl-icon library="iconoir" name="keyframes"></sl-icon>
+  <sl-icon library="iconoir" name="headset-help"></sl-icon>
+  <sl-icon library="iconoir" name="color-picker"></sl-icon>
+  <sl-icon library="iconoir" name="wifi"></sl-icon>
+</div>

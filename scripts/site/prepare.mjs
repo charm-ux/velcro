@@ -9,6 +9,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ICONS_JSON_SHA256, LICENSE_SHA256, SPRITE_SHA256 } from '../../packages/velcro/scripts/build-icons.mjs';
 import { scanDir } from '../security/gitleaks.mjs';
 import { loadPolicy, scanText } from '../security/privacy.mjs';
 import { componentPages, readCatalog } from './catalog.mjs';
@@ -23,7 +24,9 @@ export class PrepareError extends Error {
 }
 const fail = code => { throw new PrepareError(code); };
 
-export const LIMITS = Object.freeze({ maxEntries: 200, maxFiles: 120, maxFileBytes: 1024 * 1024, maxTotalBytes: 8 * 1024 * 1024, maxDepth: 6 });
+// Sized for the icon assets (about 2,050 Bootstrap Icons SVGs, icons.json, their LICENSE and the 1.1 MB sprite sheet)
+// on top of the pages and bundles.
+export const LIMITS = Object.freeze({ maxEntries: 2400, maxFiles: 2300, maxFileBytes: 2 * 1024 * 1024, maxTotalBytes: 16 * 1024 * 1024, maxDepth: 6 });
 const FIXED_REQUIRED = Object.freeze(['index.html', '_litro/app.js', '_litro/velcro.js', '_litro/velcro.css', 'THIRD_PARTY_NOTICES.md']);
 // The fixed files plus one page per catalog entry. An unreadable or malformed catalog blocks (fail closed).
 export function requiredFiles(repoRoot) {
@@ -40,10 +43,34 @@ function allowedKind(rel) {
   if (rel === SOURCE_NOTICES) return 'text';
   if (/^(?:[A-Za-z0-9_-]+\/)*index\.html$/.test(rel) && !rel.startsWith('_litro/')) return 'text';
   if (/^_litro\/(?:assets\/)?[A-Za-z0-9_.-]+\.(?:js|css)$/.test(rel) && !rel.endsWith('.map')) return 'closure';
+  // Icon assets: the package's Bootstrap Icons (one SVG per icon, icons.json, LICENSE) and the sprite sheet. Plain
+  // UTF-8 text, privacy- and secret-scanned like every other staged file.
+  if (/^assets\/icons\/(?:[a-z0-9]+(?:-[a-z0-9]+)*\.svg|icons\.json|LICENSE)$/.test(rel)) return 'text';
+  if (rel === 'assets/images/sprite.svg') return 'text';
   return null;
 }
 
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+
+// Icon assets must be exactly the Bootstrap Icons 1.11.3 release's: each icon SVG matches the package's SHA256SUMS, and
+// icons.json, LICENSE and the sprite sheet match the hashes the package build pins. Unknown names or changed bytes block.
+const ICON_SUMS = 'packages/velcro/assets/bootstrap-icons/SHA256SUMS';
+export function checkIconAssets(staged, repoRoot) {
+  const assets = staged.filter(f => f.rel.startsWith('assets/'));
+  if (!assets.length) return;
+  const expected = new Map([['assets/icons/icons.json', ICONS_JSON_SHA256], ['assets/icons/LICENSE', LICENSE_SHA256], ['assets/images/sprite.svg', SPRITE_SHA256]]);
+  try {
+    for (const line of readBounded(path.join(repoRoot, ICON_SUMS), 1024 * 1024).toString('utf8').split('\n').filter(Boolean)) {
+      const m = /^([a-f0-9]{64}) {2}([a-z0-9]+(?:-[a-z0-9]+)*\.svg)$/.exec(line);
+      if (!m) fail('icon-sums-invalid');
+      expected.set(`assets/icons/${m[2]}`, m[1]);
+    }
+  } catch (e) {
+    if (e instanceof PrepareError) throw e;
+    fail('icon-sums-invalid');
+  }
+  for (const f of assets) if (expected.get(f.rel) !== sha256(f.bytes)) fail('icon-asset-mismatch');
+}
 
 function readBounded(full, max) {
   // O_NOFOLLOW refuses a symlink swapped in after the walk; fstat proves a regular file of bounded size.
@@ -248,7 +275,22 @@ export async function prepareSite({ repoRoot, sourceDir, closurePath, runDir, ba
       writeFileSync(target, f.bytes, { flag: 'wx', mode: 0o600 });
     }
     await privacyScan(all.map(f => ({ rel: f.rel, bytes: f.bytes, text: f.kind === 'marker' ? '' : undefined })), repoRoot, scanners.privacy);
-    const secrets = await secretScan(site, { scanner: scanners.secrets });
+    // Gitleaks' stock path allowlist skips *.svg, and any skipped path blocks (excluded must be 0). So the secret scan
+    // runs over a private mirror of exactly the staged bytes in which each .svg name gets a .txt suffix: every staged
+    // byte is inspected, nothing is allowlisted. The mirror must be unchanged afterwards, like the site itself.
+    const scanName = rel => (rel.endsWith('.svg') ? `${rel}.txt` : rel);
+    const mirror = path.join(partial, 'secret-scan');
+    for (const f of all) {
+      const target = path.join(mirror, scanName(f.rel));
+      mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+      writeFileSync(target, f.bytes, { flag: 'wx', mode: 0o600 });
+    }
+    const secrets = await secretScan(mirror, { scanner: scanners.secrets });
+    const mirrored = all.map(f => ({ rel: scanName(f.rel), sha256: sha256(f.bytes), size: f.bytes.length })).sort((a, b) => (a.rel < b.rel ? -1 : 1));
+    if (JSON.stringify(treeFiles(mirror)) !== JSON.stringify(mirrored)) fail('staged-bytes-changed');
+    rmSync(mirror, { recursive: true, force: true });
+    // After the scans, so that a planted secret in an icon is still reported as one.
+    checkIconAssets(staged, repoRoot);
     // The closure that was evaluated must still be the closure on disk.
     let closureAfter;
     try { closureAfter = readBounded(closurePath, 4 * 1024 * 1024); } catch { fail('closure-changed'); }

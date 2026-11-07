@@ -1,0 +1,76 @@
+<div class="icon-search">
+  <div class="icon-search-controls">
+    <sl-icon name="search"></sl-icon>
+    <input type="search" placeholder="Search icons" aria-label="Search icons" />
+    <select aria-label="Icon style">
+      <option value="outline">Outlined</option>
+      <option value="fill">Filled</option>
+      <option value="all">All icons</option>
+    </select>
+  </div>
+  <p class="icon-search-status" role="status"></p>
+  <div class="icon-list"></div>
+</div>
+
+<style>
+  .icon-search-controls { display: flex; align-items: center; gap: 0.5rem; }
+  .icon-search-controls input { flex: 1 1 auto; }
+  .icon-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr)); gap: 0.25rem; }
+  .icon-list button {
+    display: flex; align-items: center; justify-content: center; aspect-ratio: 1; font-size: 24px;
+    border: none; border-radius: 4px; background: none; color: inherit; cursor: copy;
+  }
+  /* The display above would otherwise beat the hidden attribute, and filtered-out icons would stay on screen. */
+  .icon-list button[hidden] { display: none; }
+  .icon-list button:hover, .icon-list button:focus-visible { background: var(--sl-color-primary-50); color: var(--sl-color-primary-600); }
+  .icon-list svg { width: 1em; height: 1em; fill: currentColor; }
+</style>
+
+<script type="module">
+  import { getBasePath } from '@charm-ux/velcro';
+
+  const search = document.querySelector('.icon-search input');
+  const style = document.querySelector('.icon-search select');
+  const status = document.querySelector('.icon-search-status');
+  const list = document.querySelector('.icon-list');
+  const sprite = getBasePath('assets/images/sprite.svg');
+  const icons = await (await fetch(getBasePath('assets/icons/icons.json'))).json();
+
+  // Each icon is a button that copies its name; the glyphs come from one sprite sheet instead of one file each.
+  for (const icon of icons) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.title = icon.name;
+    button.dataset.name = icon.name;
+    button.dataset.terms = [icon.name, icon.title, ...icon.tags, ...icon.categories].join(' ').toLowerCase();
+    button.setAttribute('aria-label', icon.name);
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    svg.setAttribute('aria-hidden', 'true');
+    use.setAttribute('href', `${sprite}#${icon.name}`);
+    svg.append(use);
+    button.append(svg);
+    button.addEventListener('click', async () => {
+      await navigator.clipboard?.writeText(icon.name).catch(() => {});
+      status.textContent = `Copied "${icon.name}"`;
+    });
+    list.append(button);
+  }
+
+  function filter() {
+    const terms = search.value.toLowerCase().split(/\s+/).filter(Boolean);
+    let shown = 0;
+    for (const button of list.children) {
+      const name = button.dataset.name;
+      const filled = name.includes('-fill');
+      const styleMatch = style.value === 'all' || (style.value === 'fill' ? filled : !filled);
+      button.hidden = !styleMatch || !terms.every(term => button.dataset.terms.includes(term));
+      if (!button.hidden) shown++;
+    }
+    status.textContent = `${shown} icons`;
+  }
+
+  search.addEventListener('input', filter);
+  style.addEventListener('change', filter);
+  filter();
+</script>

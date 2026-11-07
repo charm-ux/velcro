@@ -125,6 +125,44 @@ privacy rules; do not rely on a bespoke regex list to detect all credentials.
   content to the GitHub CLI. Check any subsequently edited comments or attachments.
 - Apply the same rule to artifact upload scripts and agent-generated evidence.
 
+History scanning is changed-files-only (owner decision). Every commit's raw
+metadata and message is checked across the full ancestry, but file content and
+paths are checked only where a commit introduces them: a root commit's whole
+tree, a non-merge commit's added or modified files, and a merge's paths whose
+result differs from every parent (so content found in no parent, an evil merge,
+is scanned). Deleted files need no content scan and identical path/blob pairs are
+scanned once. Equality to a parent is only trusted when that parent's content is
+itself covered: a parent inside the scanned commits is covered by induction, but
+a parent outside a range (an older ancestor of the base) is not, because the
+range never scanned it and the base may since have removed its content. Such a
+parent is therefore replaced by the base tip for the comparison. The invariant,
+in topological order, is that every path/blob pair in the tree of a scanned
+commit is either scanned or present in the base tip's tree (in full-history mode
+there is no base and every pair is scanned). Archives,
+`.gitleaksignore`, non-regular files, the empty-exclusion rule and fail-closed
+errors apply to every changed file exactly as before.
+
+The range being published is bounded: pre-push scans the commits not reachable
+from the fetched `origin/main`, CI scans a PR's commits against its base and a
+`main` push's commits since the previous tip. That baseline's content was itself
+verified when it was published, so it is not rescanned. An explicit range base
+must be the fetched `origin/main` or its ancestor; CI falls back to full-history
+mode when its base is not (a PR into another branch, whose tip is unverified, a
+force push or a first push). Every PR, whatever its base, also meets the budget
+below against the fetched `origin/main`, and a base change (`edited`) re-runs CI,
+so a fallback or a retarget cannot skip approval. More than 1,000
+changed-file entries in that range fail with a distinct exit (3) and
+"history scan exceeds 1,000 changed files; owner approval required". Approval
+names one exact head: locally `VELCRO_HISTORY_APPROVED=<full head OID>`, in CI
+the `history-scan-approved` label applied by the login named in the
+`VELCRO_HISTORY_APPROVER` repository variable (an organization-owned repository's
+owner is never the labeling user; unset means nobody can approve), which
+approves only the head of the labeled run. Agents must never set either.
+Approval lifts only this cap, never a finding or another check. Full-history
+mode (a single tip, used for deployment and initial trust) scans every commit's
+changed files under the existing hard caps instead, because its count grows
+with the whole project and a push to `main` has no approval channel.
+
 Git hooks are bypassable and do not intercept every external API. The coordinator
 must run the explicit checks and bind results to the exact content/head before
 using external tools. CI supplies a second boundary; it cannot undo a public leak

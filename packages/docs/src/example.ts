@@ -29,6 +29,11 @@ const FIT_TO_CONTENT =
  * work instead of reaching into the docs page's shadow root. A srcdoc document resolves URLs against the parent
  * page, so the asset paths carry the build-time base path explicitly.
  *
+ * An import map points the bare specifier '@charm-ux/velcro' at the same bundle, so an example's own module script
+ * imports Velcro's exports (registerIconLibrary, getBasePath, ...) as an application would, from the same module
+ * instance that registered the elements (velcro-entry.ts also sets Velcro's base path to the site root, where the
+ * site serves the package's icon assets and the Bootstrap Icons sprite).
+ *
  * With `siteRelative` the document also gets a <base> element for the site root (with the build-time base path), so the
  * example can use a plain relative URL for a file the site serves (the include examples' `src`) and still work at the
  * root and under a project-site prefix. The shown source then contains no base path.
@@ -39,6 +44,7 @@ export function exampleDocument(source: string, { siteRelative = false }: { site
 <head>
 <meta charset="UTF-8">
 ${siteRelative ? `<base href="${withBase('/')}">\n` : ''}<link rel="stylesheet" href="${withBase('/_litro/velcro.css')}">
+<script type="importmap">${JSON.stringify({ imports: { '@charm-ux/velcro': withBase('/_litro/velcro.js') } })}</script>
 <script type="module" src="${withBase('/_litro/velcro.js')}"></script>
 <style>body{margin:1rem;font-family:var(--sl-font-sans, system-ui, sans-serif)}:root.sl-theme-dark body{background:var(--sl-color-neutral-0);color:var(--sl-color-neutral-900)}</style>
 <script>${FOLLOW_PARENT_THEME}</script>

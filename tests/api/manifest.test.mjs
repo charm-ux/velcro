@@ -171,6 +171,44 @@ test('the React wrapper type test checks Shoelace props, rejects bad values and 
   assert.equal(config.compilerOptions.skipLibCheck, false);
 });
 
+test('the sl-icon dir type test assigns a string-typed direction, as Shoelace declares dir: string', () => {
+  const source = readFileSync(path.join(pkgDir, 'type-tests/icon-dir.tsx'), 'utf8');
+  assert.match(source, /declare const direction: string;/);
+  assert.match(source, /^element\.dir = direction;$/m);
+  assert.equal(source.match(/@ts-expect-error/g)?.length, 1);
+});
+
+test('the React wrapper fix manages hyphenated-attribute props as element properties, on one line or wrapped', async () => {
+  const { fixWrapperSource } = await import(new URL('../../packages/velcro/custom-elements-manifest.config.mjs', import.meta.url));
+  const generated = [
+    'import { useEventListener } from "./react-utils.js";',
+    'export const VelcroX = () => {',
+    '  return React.createElement(',
+    '    "sl-x",',
+    '    {',
+    '      ref: createForwardedRefHandler(ref, forwardedRef),',
+    '      ...restProps,',
+    '      size: size ?? undefined,',
+    '      "snap-threshold": snapThreshold ?? props["snap-threshold"],',
+    '      "maximum-fraction-digits":',
+    '        maximumFractionDigits ?? props["maximum-fraction-digits"],',
+    '      "help-text": helpText ?? props["help-text"],',
+    '      disabled: disabled ? true : undefined,',
+    '      tabindex: tabIndex,',
+    '      style: { ...props.style },',
+    '    },',
+    '  );',
+    '};',
+    '',
+  ].join('\n');
+  const out = fixWrapperSource(generated);
+  // Each is an element property now: none is passed to React as an attribute or a prop.
+  assert.match(out, /useElementProps\(ref, \{ snapThreshold, maximumFractionDigits, helpText, disabled \}\);/);
+  assert.doesNotMatch(out, /snap-threshold|maximum-fraction-digits|help-text/);
+  assert.match(out, /\.\.\.\(tabIndex === undefined \? \{\} : \{ tabindex: tabIndex \}\),/);
+  assert.match(out, /ref: createForwardedRefHandler\(ref, forwardedRef\),/);
+});
+
 test('the sl-tab-panel dir type test assigns a string-typed direction, as Shoelace declares dir: string', () => {
   const source = readFileSync(path.join(pkgDir, 'type-tests/tab-panel-dir.tsx'), 'utf8');
   assert.match(source, /declare const direction: string;/);
