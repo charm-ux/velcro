@@ -1,0 +1,28 @@
+<style>
+  .radio-group { border: 0; padding: 0; margin: 0; }
+  .radio-group__label { display: inline-block; margin-bottom: var(--sl-spacing-3x-small); font-family: var(--sl-input-font-family); font-size: var(--sl-input-label-font-size-medium); color: var(--sl-input-label-color); }
+  .radio-group sl-radio:not(:last-of-type) { margin-bottom: var(--sl-spacing-2x-small); }
+</style>
+<div class="radio-group" role="radiogroup" aria-labelledby="demo-label" data-value="1">
+  <div id="demo-label" class="radio-group__label">Select an option</div>
+  <sl-radio id="demo-default" value="1">Option 1</sl-radio>
+  <sl-radio value="2">Option 2</sl-radio>
+  <sl-radio value="3">Option 3</sl-radio>
+</div>
+
+<script type="module">
+  // Stand-in for <sl-radio-group>, which Velcro does not implement yet: it sets each radio's size, checks the radio
+  // whose value matches the group's data-value and, on a click, keeps that radio the only checked one. No arrow keys,
+  // no form value and no validation.
+  await customElements.whenDefined('sl-radio');
+  for (const group of document.querySelectorAll('.radio-group')) {
+    const radios = [...group.querySelectorAll('sl-radio')];
+    const select = value => radios.forEach(radio => { radio.checked = radio.value === value; });
+    radios.forEach(radio => { radio.size = group.dataset.size || 'medium'; });
+    select(group.dataset.value);
+    group.addEventListener('click', event => {
+      const radio = event.target.closest('sl-radio');
+      if (radio && !radio.disabled) select((group.dataset.value = radio.value));
+    });
+  }
+</script>

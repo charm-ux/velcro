@@ -1,0 +1,14 @@
+{
+  "files": {
+    "src/components/radio/radio.test.ts": "f515fb231df55fafd546562c29ae674258c6d3aa8201a021ac64d2fa8d166873"
+  },
+  "tests": [
+    "<sl-radio> > should not get checked when disabled"
+  ],
+  "knownFailures": [
+    {
+      "title": "<sl-radio> > should not get checked when disabled",
+      "reason": "needs <sl-radio-group>, which checks the radio matching its value; Velcro has no radio group yet, so radio 1 is never checked (the disabled radio does stay unchecked)"
+    }
+  ]
+}
