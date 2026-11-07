@@ -98,6 +98,37 @@ test('sl-tab-panel lists only Shoelace\'s API plus core\'s ready event: core\'s 
   }
 });
 
+test('sl-include lists only Shoelace\'s API plus core\'s ready event, with no slot, part or custom property', () => {
+  const include = elements.get('sl-include');
+  assert.deepEqual(include.events.map(e => e.name).sort(), ['ready', 'sl-error', 'sl-load']);
+  assert.equal(include.events.find(e => e.name === 'ready').inheritedFrom.package, '@charm-ux/core');
+  assert.equal(include.events.find(e => e.name === 'sl-error').type.text, '{ status: number }');
+  assert.deepEqual(include.attributes.map(a => a.name).sort(), ['allow-scripts', 'dir', 'lang', 'mode', 'src']);
+  assert.deepEqual(include.slots ?? [], []);
+  assert.deepEqual(include.cssParts ?? [], []);
+  assert.deepEqual(include.cssProperties ?? [], []);
+  // Nothing reflects (as in Shoelace), and dir and lang are declared as Shoelace's base element declares them.
+  for (const member of include.members.filter(m => m.kind === 'field')) assert.notEqual(member.reflects, true, member.name);
+  for (const name of ['dir', 'lang']) assert.equal(include.attributes.find(a => a.name === name).inheritedFrom, undefined, name);
+  // The public methods are Shoelace's: handleSrcChange (public upstream, undescribed) and the private executeScript.
+  assert.equal(include.members.find(m => m.name === 'handleSrcChange').privacy ?? 'public', 'public');
+  assert.equal(include.members.find(m => m.name === 'executeScript').privacy, 'private');
+});
+
+test('the request helper module is exported and documented in the manifest as requestInclude', () => {
+  const mod = manifest.modules.find(m => m.path === 'src/components/include/request.ts');
+  assert.ok(mod, 'request module');
+  assert.deepEqual(mod.exports.map(e => e.name), ['requestInclude']);
+});
+
+test('the sl-include type test covers dir, the React wrapper props and the request helper', () => {
+  const source = readFileSync(path.join(pkgDir, 'type-tests/include.tsx'), 'utf8');
+  assert.match(source, /^element\.dir = direction;$/m);
+  for (const prop of ['src', 'mode', 'allowScripts', 'onSlLoad', 'onSlError']) assert.match(source, new RegExp(`\\b${prop}:`), prop);
+  assert.match(source, /requestInclude\('\/fragment\.html', 'no-cors'\)/);
+  assert.equal(source.match(/@ts-expect-error/g)?.length, 2);
+});
+
 test('inherited slots, parts and CSS custom properties are exactly the per-component kept list (measured in tests/product/inherited-api.spec.mjs)', async () => {
   const { keptInherited } = await import('../../packages/velcro/custom-elements-manifest.config.mjs');
   for (const [tag, decl] of elements) {
@@ -138,6 +169,26 @@ test('the React wrapper type test checks Shoelace props, rejects bad values and 
   assert.deepEqual(config.include, ['dist/react/*.d.ts', 'type-tests/*.tsx']);
   assert.equal(config.compilerOptions.strict, true);
   assert.equal(config.compilerOptions.skipLibCheck, false);
+});
+
+test('the sl-animation API type test checks Shoelace\'s public members and module entries through the export map', () => {
+  const source = readFileSync(path.join(pkgDir, 'type-tests/animation-api.tsx'), 'utf8');
+  for (const entry of ['animation/class', 'animation/animations', 'utilities/animation']) {
+    assert.match(source, new RegExp(`from '@charm-ux/velcro/${entry}';`), entry);
+  }
+  assert.match(source, /Pick<VelcroAnimation, ShoelacePublicMembers> = element;/);
+  for (const member of ['defaultSlot', 'currentTime', 'handleAnimationChange', 'handlePlayChange', 'handlePlaybackRateChange', 'cancel', 'finish', 'render']) {
+    assert.match(source, new RegExp(`\\| '${member}'$`, 'm'), member);
+  }
+  assert.match(source, /^const rendered: unknown = element\.render\(\);$/m);
+  assert.equal(source.match(/@ts-expect-error/g)?.length, 2);
+});
+
+test('the sl-icon dir type test assigns a string-typed direction, as Shoelace declares dir: string', () => {
+  const source = readFileSync(path.join(pkgDir, 'type-tests/icon-dir.tsx'), 'utf8');
+  assert.match(source, /declare const direction: string;/);
+  assert.match(source, /^element\.dir = direction;$/m);
+  assert.equal(source.match(/@ts-expect-error/g)?.length, 1);
 });
 
 test('the React wrapper fix manages hyphenated-attribute props as element properties, on one line or wrapped', async () => {

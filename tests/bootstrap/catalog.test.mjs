@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { CATALOG_LIMITS, CatalogError, checkCoverage, checkExports, parseCatalog, readCatalog } from '../../scripts/site/catalog.mjs';
+import { CATALOG_LIMITS, CatalogError, MODULE_EXPORTS, checkCoverage, checkExports, parseCatalog, readCatalog } from '../../scripts/site/catalog.mjs';
 import { requiredFiles } from '../../scripts/site/prepare.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -67,6 +67,8 @@ const negatives = [
   ['a stray export', ({ put }) => put('packages/velcro/package.json', JSON.stringify({ exports: { ...baseExports(['alpha']), './scratch': './x.txt' } })), 'package.json: unexpected export ./scratch'],
   ['a class export for a non-component', ({ put }) => put('packages/velcro/package.json', JSON.stringify({ exports: { ...baseExports(['alpha']), './ghost/class': tgt('components/ghost/class') } })), 'package.json: unexpected export ./ghost/class'],
   ['wrong class export targets', ({ put }) => put('packages/velcro/package.json', JSON.stringify({ exports: { ...baseExports(['alpha']), './alpha/class': tgt('components/alpha/index') } })), 'alpha: wrong class export targets'],
+  ['a module export whose component is not in the catalog', ({ put }) => put('packages/velcro/package.json', JSON.stringify({ exports: { ...baseExports(['alpha']), './utilities/animation': tgt('utilities/animation') } })), 'package.json: unexpected export ./utilities/animation'],
+  ['an unlisted module export', ({ put }) => put('packages/velcro/package.json', JSON.stringify({ exports: { ...baseExports(['alpha']), './alpha/internal': tgt('components/alpha/internal') } })), 'package.json: unexpected export ./alpha/internal'],
   ['an orphan docs page', ({ put }) => put('packages/docs/pages/components/orphan.ts', 'export {};\n'), 'orphan: docs page has no catalog entry'],
   ['an example selector that matches nothing', ({ put }) => put('packages/docs/catalog.jsonl', '{"name":"alpha","title":"Alpha","tag":"sl-alpha","example":"#nope"}\n'), 'alpha: example selector #nope matches nothing in its examples'],
   ['an unsupported example selector', ({ put }) => put('packages/docs/catalog.jsonl', '{"name":"alpha","title":"Alpha","tag":"sl-alpha","example":".cls"}\n'), 'alpha: example selector .cls is unsupported'],
@@ -78,6 +80,45 @@ for (const [label, mutate, expected] of negatives) {
     assert.ok(checkCoverage(fixture(mutate)).includes(expected), expected);
   });
 }
+
+// Non-registering modules Shoelace publishes are exported by exact key (MODULE_EXPORTS): required while their component
+// is in the catalog, with exact targets, and never admitted by the ./<name>/class pattern.
+const includeCatalog = [{ name: 'include' }];
+const includeExports = { ...baseExports(['include']), './include/request': tgt('components/include/request') };
+test('the module export table lists exactly the animation modules and the include helper, by full key', () => {
+  assert.deepEqual(Object.entries(MODULE_EXPORTS), [
+    ['./animation/animations', ['animation', 'components/animation/animations']],
+    ['./include/request', ['include', 'components/include/request']],
+    ['./utilities/animation', ['animation', 'utilities/animation']],
+  ]);
+  assert.equal(Object.isFrozen(MODULE_EXPORTS), true);
+});
+test('a module export is required, exact, and allowed only by its full key and only with its component', () => {
+  assert.deepEqual(checkExports(includeExports, includeCatalog), []);
+  const { './include/request': _omitted, ...without } = includeExports;
+  assert.deepEqual(checkExports(without, includeCatalog), ['include: missing module export ./include/request']);
+  assert.deepEqual(checkExports({ ...includeExports, './include/request': tgt('components/include/index') }, includeCatalog), ['include: wrong module export targets for ./include/request']);
+  assert.deepEqual(checkExports({ ...includeExports, './include/request': './dist/components/include/request.js' }, includeCatalog), ['include: wrong module export targets for ./include/request']);
+  assert.deepEqual(checkExports({ ...includeExports, './include/request': { import: './dist/components/include/request.js', types: './dist/components/include/request.d.ts', default: './x.js' } }, includeCatalog), ['include: wrong module export targets for ./include/request']);
+  // Other subpaths of the owner, deeper paths and other components' look-alikes are unexpected.
+  for (const key of ['./include/other', './include/request/extra', './include/request.js', './include/Request', './include/class/request']) {
+    assert.deepEqual(checkExports({ ...includeExports, [key]: tgt('components/include/other') }, includeCatalog), [`package.json: unexpected export ${key}`], key);
+  }
+  assert.deepEqual(checkExports({ ...baseExports(['alpha']), './alpha/request': tgt('components/alpha/request') }, [{ name: 'alpha' }]), ['package.json: unexpected export ./alpha/request']);
+  // Without its component in the catalog the entry is neither required nor allowed.
+  assert.deepEqual(checkExports(baseExports(['alpha']), [{ name: 'alpha' }]), []);
+  assert.deepEqual(checkExports({ ...baseExports(['alpha']), './include/request': tgt('components/include/request') }, [{ name: 'alpha' }]), ['package.json: unexpected export ./include/request']);
+  assert.deepEqual(checkExports(includeExports, [{ name: 'alpha' }]), ['alpha: missing package export', 'package.json: unexpected export ./include', 'package.json: unexpected export ./include/request']);
+});
+test('object prototype names are not export keys or components: nothing is admitted, nothing throws', () => {
+  // A catalog entry whose name is an Object.prototype property still needs its own export, and gains no module export.
+  assert.deepEqual(checkExports(baseExports([]), [{ name: 'constructor' }]), ['constructor: missing package export']);
+  assert.deepEqual(checkExports({ ...baseExports(['constructor']), './constructor/request': tgt('components/constructor/request') }, [{ name: 'constructor' }]), ['package.json: unexpected export ./constructor/request']);
+  // JSON.parse keeps __proto__ as an own key; it is no allowed export either.
+  const polluted = JSON.parse('{"./__proto__": {}, "./constructor": {}, "./toString/class": {}}');
+  assert.deepEqual(checkExports({ ...baseExports([]), ...polluted }, []).sort(),
+    ['package.json: unexpected export ./__proto__', 'package.json: unexpected export ./constructor', 'package.json: unexpected export ./toString/class']);
+});
 
 test('a complete additional component passes the combined source contracts', () => {
   const dir = fixture(({ put }) => {
@@ -91,6 +132,21 @@ test('a complete additional component passes the combined source contracts', () 
   });
   assert.deepEqual(checkCoverage(dir), []);
   assert.deepEqual(checkExports(JSON.parse(readFileSync(path.join(dir, 'packages/velcro/package.json'), 'utf8')).exports, readCatalog(dir)), []);
+});
+
+test('module exports are accepted only for a catalog component and only with their exact targets', () => {
+  const catalog = [{ name: 'animation', title: 'Animation', tag: 'sl-animation', example: '#x' }];
+  const ok = { ...baseExports(['animation']), './animation/animations': tgt('components/animation/animations'), './utilities/animation': tgt('utilities/animation') };
+  assert.deepEqual(checkExports(ok, catalog), []);
+  assert.deepEqual(Object.keys(MODULE_EXPORTS).sort(), ['./animation/animations', './include/request', './utilities/animation']);
+  const { './utilities/animation': _omitted, ...without } = ok;
+  assert.deepEqual(checkExports(without, catalog), ['animation: missing module export ./utilities/animation']);
+  assert.deepEqual(checkExports({ ...ok, './utilities/animation': tgt('components/animation/index') }, catalog),
+    ['animation: wrong module export targets for ./utilities/animation']);
+  assert.deepEqual(checkExports({ ...ok, './animation/animations': './dist/components/animation/animations.js' }, catalog),
+    ['animation: wrong module export targets for ./animation/animations']);
+  assert.deepEqual(checkExports({ ...ok, './utilities/registration': tgt('utilities/registration') }, catalog),
+    ['package.json: unexpected export ./utilities/registration']);
 });
 
 test('catalog parsing fails closed on every malformed shape', () => {

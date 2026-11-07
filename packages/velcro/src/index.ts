@@ -1,3 +1,4 @@
+export * from './components/animation/index.js';
 export * from './components/badge/index.js';
 export * from './components/button/index.js';
 export * from './components/card/index.js';
@@ -5,6 +6,8 @@ export * from './components/divider/index.js';
 export * from './components/format-bytes/index.js';
 export * from './components/format-date/index.js';
 export * from './components/format-number/index.js';
+export * from './components/icon/index.js';
+export * from './components/include/index.js';
 export * from './components/mutation-observer/index.js';
 export * from './components/progress-bar/index.js';
 export * from './components/progress-ring/index.js';

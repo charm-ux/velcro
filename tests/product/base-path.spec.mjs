@@ -8,6 +8,10 @@ import { fileURLToPath } from 'node:url';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 import { startPreview } from '../../packages/docs/scripts/preview.mjs';
 import { collectRequestFailures } from './request-failures.mjs';
+import { stubCdn } from './support/cdn.mjs';
+
+// The icon page's CDN icon library examples are answered locally (support/cdn.mjs); no test reaches a CDN.
+test.beforeEach(async ({ page }) => { await stubCdn(page); });
 
 const dist = fileURLToPath(new URL('../../packages/docs/dist/', import.meta.url));
 const layouts = [

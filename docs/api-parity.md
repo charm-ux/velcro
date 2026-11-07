@@ -10,10 +10,11 @@ Shoelace members count when its own docs would list them (described and not priv
 whitespace, quote style and union order. Missing and mismatched entries form the ledger
 `docs/api/api-parity-ledger.json`, which may only shrink.
 
-Totals: 229 Shoelace entries compared, 214 matching, 15 mismatched, 0 missing; 27 Velcro-only and 78 inherited extras.
+Totals: 261 Shoelace entries compared, 246 matching, 15 mismatched, 0 missing; 31 Velcro-only and 87 inherited extras.
 
 | Component | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `sl-animation` | 19 | 19 | 0 | 0 | 0 | 3 |
 | `sl-badge` | 5 | 5 | 0 | 0 | 0 | 2 |
 | `sl-button` | 42 | 42 | 0 | 0 | 6 | 13 |
 | `sl-card` | 13 | 13 | 0 | 0 | 0 | 5 |
@@ -21,6 +22,8 @@ Totals: 229 Shoelace entries compared, 214 matching, 15 mismatched, 0 missing; 2
 | `sl-format-bytes` | 3 | 3 | 0 | 0 | 0 | 3 |
 | `sl-format-date` | 12 | 2 | 10 | 0 | 0 | 3 |
 | `sl-format-number` | 10 | 5 | 5 | 0 | 0 | 3 |
+| `sl-icon` | 8 | 8 | 0 | 0 | 3 | 3 |
+| `sl-include` | 5 | 5 | 0 | 0 | 1 | 3 |
 | `sl-mutation-observer` | 8 | 8 | 0 | 0 | 0 | 3 |
 | `sl-popup` | 34 | 34 | 0 | 0 | 0 | 3 |
 | `sl-progress-bar` | 11 | 11 | 0 | 0 | 0 | 7 |
@@ -33,6 +36,26 @@ Totals: 229 Shoelace entries compared, 214 matching, 15 mismatched, 0 missing; 2
 | `sl-switch` | 33 | 33 | 0 | 0 | 17 | 5 |
 | `sl-tab-panel` | 5 | 5 | 0 | 0 | 0 | 3 |
 | `sl-visually-hidden` | 1 | 1 | 0 | 0 | 0 | 2 |
+
+## `sl-animation`
+
+Missing:
+
+- None.
+
+Mismatched:
+
+- None.
+
+Velcro-only (own):
+
+- None.
+
+Inherited extras:
+
+- `property dir` (from Shoelace's base element (ShoelaceElement, not in its manifest))
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
+- `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-badge`
 
@@ -203,6 +226,48 @@ Velcro-only (own):
 Inherited extras:
 
 - `property dir` (from @charm-ux/core CharmElement)
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
+- `event ready` (from @charm-ux/core CharmElement)
+
+## `sl-icon`
+
+Missing:
+
+- None.
+
+Mismatched:
+
+- None.
+
+Velcro-only (own):
+
+- `property url`
+- `event icon-error`
+- `event icon-load`
+
+Inherited extras:
+
+- `property dir` (from Shoelace's base element (ShoelaceElement, not in its manifest))
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
+- `event ready` (from @charm-ux/core CharmElement)
+
+## `sl-include`
+
+Missing:
+
+- None.
+
+Mismatched:
+
+- None.
+
+Velcro-only (own):
+
+- `method handleSrcChange`
+
+Inherited extras:
+
+- `property dir` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event ready` (from @charm-ux/core CharmElement)
 

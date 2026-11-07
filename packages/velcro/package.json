@@ -2,7 +2,7 @@
   "name": "@charm-ux/velcro",
   "version": "0.1.0",
   "private": true,
-  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, card, divider, format-bytes, format-date, format-number, mutation-observer, popup, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, split-panel, switch, tab-panel and visually-hidden only).",
+  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; animation, badge, button, card, divider, format-bytes, format-date, format-number, icon, include, mutation-observer, popup, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, split-panel, switch, tab-panel and visually-hidden only).",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,6 +12,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./animation": {
+      "types": "./dist/components/animation/index.d.ts",
+      "import": "./dist/components/animation/index.js"
+    },
+    "./animation/class": {
+      "types": "./dist/components/animation/class.d.ts",
+      "import": "./dist/components/animation/class.js"
+    },
+    "./animation/animations": {
+      "types": "./dist/components/animation/animations.d.ts",
+      "import": "./dist/components/animation/animations.js"
     },
     "./badge": {
       "types": "./dist/components/badge/index.d.ts",
@@ -60,6 +72,26 @@
     "./format-number/class": {
       "types": "./dist/components/format-number/class.d.ts",
       "import": "./dist/components/format-number/class.js"
+    },
+    "./icon": {
+      "types": "./dist/components/icon/index.d.ts",
+      "import": "./dist/components/icon/index.js"
+    },
+    "./icon/class": {
+      "types": "./dist/components/icon/class.d.ts",
+      "import": "./dist/components/icon/class.js"
+    },
+    "./include": {
+      "types": "./dist/components/include/index.d.ts",
+      "import": "./dist/components/include/index.js"
+    },
+    "./include/class": {
+      "types": "./dist/components/include/class.d.ts",
+      "import": "./dist/components/include/class.js"
+    },
+    "./include/request": {
+      "types": "./dist/components/include/request.d.ts",
+      "import": "./dist/components/include/request.js"
     },
     "./mutation-observer": {
       "types": "./dist/components/mutation-observer/index.d.ts",
@@ -157,6 +189,10 @@
       "types": "./dist/components/visually-hidden/class.d.ts",
       "import": "./dist/components/visually-hidden/class.js"
     },
+    "./utilities/animation": {
+      "types": "./dist/utilities/animation.d.ts",
+      "import": "./dist/utilities/animation.js"
+    },
     "./themes/dark.css": "./themes/dark.css",
     "./themes/light.css": "./themes/light.css",
     "./custom-elements.json": "./custom-elements.json",
@@ -181,7 +217,7 @@
     "*.css"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && pnpm run analyze && tsc -p tsconfig.react.json",
+    "build": "tsc -p tsconfig.json && pnpm run analyze && tsc -p tsconfig.react.json && node scripts/build-icons.mjs",
     "generate": "plop --plopfile plopfile.mjs",
     "analyze": "cem analyze"
   },

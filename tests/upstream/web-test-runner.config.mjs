@@ -2,8 +2,12 @@
 // Chromium. Test files are never edited: a resolver plugin redirects each test's Shoelace entry import to Velcro.
 // '../../../dist/shoelace.js' is Shoelace's whole library, so it maps to Velcro's package root (which registers every
 // component, including the one under test through its own entry): tests such as the switch's also render <sl-button>.
-// A test's own './<name>.js' maps to Velcro's registering entry for that component alone.
+// A test's own './<name>.js' maps to Velcro's registering entry for that component alone. A test's bare 'lit' import
+// (the animation test builds its fixtures with lit's `html`) maps to the lit that Velcro itself loads, which the
+// workspace root cannot resolve on its own.
 import { readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { esbuildPlugin } from '@web/dev-server-esbuild';
 import { playwrightLauncher } from '@web/test-runner-playwright';
@@ -18,6 +22,8 @@ const only = process.env.VELCRO_UPSTREAM_ONLY;
 // Browsers are parameterized for a later Firefox/WebKit lane; the gate and its ledger currently cover Chromium only.
 const products = (process.env.VELCRO_UPSTREAM_BROWSERS || 'chromium').split(',');
 
+const velcroLit = `/${path.relative(root, createRequire(new URL('../../packages/velcro/package.json', import.meta.url)).resolve('lit')).split(path.sep).join('/')}`;
+
 const velcroEntries = {
   name: 'velcro-upstream-resolver',
   resolveImport({ source, context }) {
@@ -27,8 +33,17 @@ const velcroEntries = {
     const name = match[1];
     if (source === '../../../dist/shoelace.js') return '/packages/velcro/dist/index.js';
     if (source === `./${name}.js`) return `/packages/velcro/dist/components/${name}/index.js`;
+    if (source === 'lit') return velcroLit;
     return undefined;
   }
+};
+
+// Upstream's sprite sheet tests load '/docs/assets/images/sprite.svg', a file Shoelace's docs build generates from
+// Bootstrap Icons in its own web root. Velcro's docs site ships the same Bootstrap Icons sprite at
+// packages/docs/public/assets/images/sprite.svg, so that one path is served from there. Nothing else is rewritten.
+const upstreamDocsAssets = (ctx, next) => {
+  if (ctx.path === '/docs/assets/images/sprite.svg') ctx.url = '/packages/docs/public/assets/images/sprite.svg';
+  return next();
 };
 
 // Writes every test outcome (component, suite path, title, passed, short reason) as JSON for the scoreboard.
@@ -71,6 +86,7 @@ export default {
   concurrency: 4,
   // Upstream's own mocha settings (3s timeout, one retry).
   testFramework: { config: { timeout: 3000, retries: 1 } },
+  middleware: [upstreamDocsAssets],
   plugins: [velcroEntries, esbuildPlugin({ ts: true, target: 'es2020' })],
   browsers: products.map(product => playwrightLauncher({ product })),
   // Mirrors upstream's runner page, with Velcro's light theme in place of Shoelace's.

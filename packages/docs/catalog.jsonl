@@ -1,3 +1,4 @@
+{"name":"animation","title":"Animation","tag":"sl-animation","example":"#demo-overview"}
 {"name":"badge","title":"Badge","tag":"sl-badge","example":"#demo-default"}
 {"name":"button","title":"Button","tag":"sl-button","example":"#demo-primary"}
 {"name":"card","title":"Card","tag":"sl-card","example":"#demo-basic"}
@@ -5,6 +6,8 @@
 {"name":"format-bytes","title":"Format Bytes","tag":"sl-format-bytes","example":"#demo-default"}
 {"name":"format-date","title":"Format Date","tag":"sl-format-date","example":"#demo-default"}
 {"name":"format-number","title":"Format Number","tag":"sl-format-number","example":"#demo-default"}
+{"name":"icon","title":"Icon","tag":"sl-icon","example":"sl-icon"}
+{"name":"include","title":"Include","tag":"sl-include","example":"#demo-default"}
 {"name":"mutation-observer","title":"Mutation Observer","tag":"sl-mutation-observer","example":"#demo-observer"}
 {"name":"popup","title":"Popup","tag":"sl-popup","example":"#demo-default"}
 {"name":"progress-bar","title":"Progress Bar","tag":"sl-progress-bar","example":"#demo-default"}
