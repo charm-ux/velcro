@@ -452,3 +452,15 @@ test('CLI rejects unknown or malformed stage arguments without running anything'
     assert.throws(() => readFileSync(path.join(dir, 'calls.log')), /ENOENT/);
   } finally { cleanup(dir); }
 });
+
+test('summary: the failing assertion line is added only when it is in the test\'s own spec file', () => {
+  const at = (file, line) => ({ title: 'title 4', file: 'split-panel.spec.mjs', line: 4,
+    tests: [{ projectName: 'firefox', status: 'unexpected', results: [{ status: 'failed', error: { message: 'Error: expect(received).toBe(expected)', location: { file, line, column: 3 } } }] }] });
+  const summary = spec => summarizeReport(rep([spec])).lines.at(-1);
+  // Locations are absolute on the runner; only the base name is compared and nothing of the path is printed.
+  const runnerFile = ['', 'runner', 'work', 'velcro', 'tests', 'product', 'split-panel.spec.mjs'].join('/');
+  assert.equal(summary(at(runnerFile, 645)), 'firefox split-panel.spec.mjs:4 title 4 | matcher toBe, line 645');
+  assert.equal(summary(at(['', 'runner', 'work', 'support', 'fixtures.mjs'].join('/'), 12)), 'firefox split-panel.spec.mjs:4 title 4 | matcher toBe');
+  for (const line of [0, -1, 1.5, '645', undefined]) assert.equal(summary(at(runnerFile, line)), 'firefox split-panel.spec.mjs:4 title 4 | matcher toBe');
+  assert.equal(summary(fake('firefox', 'unexpected', 'Error: boom', 4)), 'firefox x.spec.mjs:4 title 4 | error Error');
+});

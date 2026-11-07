@@ -1,5 +1,6 @@
 // Bounded, redacted public summary of a failed Playwright JSON report: engine counts and, per failing test, the engine, spec
-// file and line, title and the failure category only. Error messages and their values never leave the private log.
+// file and line, title, the failure category and the line of the failing assertion when it is in that same spec file.
+// Error messages and their values never leave the private log.
 import { scanText } from './security/privacy.mjs';
 
 export const MAX_FAILURES = 40;
@@ -38,11 +39,17 @@ function category(message) {
   return 'failure';
 }
 
-const firstLine = t => {
+// The failing assertion's line, only for a location in the test's own spec file (a repository file named by its base name).
+const base = file => String(file ?? '').split(/[\\/]/).pop();
+const atLine = (error, specFile) => {
+  const loc = error?.location;
+  return loc && Number.isInteger(loc.line) && loc.line > 0 && base(specFile) && base(loc.file) === base(specFile) ? `, line ${loc.line}` : '';
+};
+const firstLine = (t, specFile) => {
   const results = Array.isArray(t.results) ? t.results : [];
   for (const r of [...results].reverse()) {
-    const message = r?.error?.message ?? r?.errors?.[0]?.message;
-    if (typeof message === 'string') return category(message);
+    const error = r?.error ?? r?.errors?.[0];
+    if (typeof error?.message === 'string') return `${category(error.message)}${atLine(error, specFile)}`;
   }
   return 'no error recorded';
 };
@@ -68,7 +75,7 @@ export function summarizeReport(report, { root, engines = ENGINES } = {}) {
   const failingEngines = engines.filter(e => per[e].failed || per[e].flaky);
   for (const { spec, test } of bad.slice(0, MAX_FAILURES)) {
     const where = `${redactLine(spec.file, root)}:${Number.isInteger(spec.line) ? spec.line : 0}`;
-    lines.push(redactLine(`${test.projectName} ${where} ${spec.title} | ${test.status === 'skipped' ? 'skipped or interrupted' : firstLine(test)}`, root));
+    lines.push(redactLine(`${test.projectName} ${where} ${spec.title} | ${test.status === 'skipped' ? 'skipped or interrupted' : firstLine(test, spec.file)}`, root));
   }
   if (bad.length > MAX_FAILURES) lines.push(`... ${bad.length - MAX_FAILURES} more failing tests not listed`);
   return { lines, failingEngines };
