@@ -208,12 +208,14 @@ and the specific PR's merge. After authorization:
 2. If the branch is behind/conflicting, stop and obtain the authorization required
    by the active skill to update it. Revalidate the resulting head/integration
    state, including affected review coverage and CI; do not silently force-push.
-3. Use airig `merge-on-green` with explicit PR/repository and squash method. Refuse
-   drafts, failed/pending/missing expected checks, unresolved blockers, or dirty
-   mergeability. Never use an admin override as a routine repair.
-4. Re-fetch the PR head and state immediately before merging. Bind the operation
-   to the reviewed head (for example `--match-head-commit` if supported by the
-   installed GitHub CLI) so a concurrent push cannot slip past approval.
+3. Land through the GitHub merge queue (squash), which requires `required` and the
+   `agent-approvals` status on the PR head and on the queued commit
+   (`docs/contributing.md`, "Merge queue and agent approvals"). Refuse drafts,
+   failed/pending/missing expected checks, unresolved blockers, or dirty
+   mergeability. Never use an admin override or ruleset bypass as a routine repair.
+4. Re-fetch the PR head and state immediately before enqueueing. Bind the operation
+   to the reviewed head (`expectedHeadOid`, and `agent-approvals` set only for that
+   exact head and its queued commit) so a concurrent push cannot slip past approval.
 5. Confirm GitHub reports `MERGED`, record the squash commit, and watch any required
    post-merge integration checks before scheduling dependents.
 6. End idle worker/reviewer sessions that still refer to the branch, preserve
