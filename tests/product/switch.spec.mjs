@@ -352,8 +352,12 @@ test('upstream quirks matched: hidden does not hide it, ArrowLeft on an off swit
   await off.evaluate(el => {
     window.__offEvents = [];
     for (const t of ['sl-change', 'sl-input']) el.addEventListener(t, () => window.__offEvents.push(t));
-    el.focus();
   });
+  // Focus through Playwright, not el.focus() inside the frame: Firefox does not let a frame's own script move the page's
+  // focus into that frame, so the key press would go to the parent document. Playwright focuses from its own script world,
+  // which does not see the element's focus() override, so it focuses the inner checkbox directly.
+  await off.locator('input').focus();
+  expect(await off.evaluate(el => [document.hasFocus(), document.activeElement === el, el.shadowRoot.activeElement?.localName])).toEqual([true, true, 'input']);
   await page.keyboard.press('ArrowLeft');
   expect(await off.evaluate(el => ({ checked: el.checked, events: window.__offEvents }))).toEqual({ checked: false, events: ['sl-change', 'sl-input'] });
   // Without help text the inner checkbox still points aria-describedby at the (empty) help text, and form="" is reflected.

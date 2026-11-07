@@ -389,9 +389,18 @@ test('mouse drag: moves the divider to the pointer (horizontal, vertical, end pr
   await drag(page, host, 200, 100);
   near(await position(host), 25);
   near((await state(host)).start[2], 98);
-  await drag(page, host, 100, 9999);
+  // Clamping: drag past each edge of the host, to 1px inside the example frame's own edges. Past the frame, Firefox sends
+  // the pointer moves of a press that started in the frame to the parent document (Chromium and WebKit keep them in the
+  // frame), and the drag listens on the frame's document.
+  const edges = await host.evaluate(el => {
+    const left = el.getBoundingClientRect().left;
+    return { before: 1 - left, after: document.documentElement.clientWidth - 1 - left, width: el.getBoundingClientRect().width };
+  });
+  expect(edges.before).toBeLessThan(0);
+  expect(edges.after).toBeGreaterThan(edges.width);
+  await drag(page, host, 100, edges.after);
   expect(await position(host)).toBe(100);
-  await drag(page, host, 398, -500);
+  await drag(page, host, 398, edges.before);
   expect(await position(host)).toBe(0);
   const end = await mount(frame, { primary: 'end', position: '25' });
   await drag(page, end, 300, 250);
