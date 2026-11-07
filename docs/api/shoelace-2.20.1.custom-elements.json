@@ -1757,6 +1757,183 @@
     },
     {
       "kind": "javascript-module",
+      "path": "components/icon/icon.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlIcon",
+          "tagName": "sl-icon",
+          "summary": "Icons are symbols that can be used to represent various options within an application.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "initialRender",
+              "privacy": "private",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "kind": "method",
+              "name": "resolveIcon",
+              "privacy": "private",
+              "description": "Given a URL, this function returns the resulting SVG element or an appropriate error symbol.",
+              "parameters": [
+                {
+                  "name": "url",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "library",
+                  "optional": true,
+                  "type": {
+                    "text": "IconLibrary"
+                  }
+                }
+              ],
+              "return": {
+                "type": {
+                  "text": "Promise<SVGResult>"
+                }
+              }
+            },
+            {
+              "kind": "field",
+              "name": "svg",
+              "privacy": "private",
+              "type": {
+                "text": "SVGElement | HTMLTemplateResult | null"
+              },
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "The name of the icon to draw. Available names depend on the icon library being used.",
+              "attribute": "name",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "src",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "An external URL of an SVG file. Be sure you trust the content you are including, as it will be executed as code and\ncan result in XSS attacks.",
+              "attribute": "src"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "An alternate description to use for assistive devices. If omitted, the icon will be considered presentational and\nignored by assistive devices.",
+              "attribute": "label"
+            },
+            {
+              "kind": "field",
+              "name": "library",
+              "type": {
+                "text": "string"
+              },
+              "default": "'default'",
+              "description": "The name of a registered custom icon library.",
+              "attribute": "library",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "getIconSource",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "IconSource"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "handleLabelChange"
+            },
+            {
+              "kind": "method",
+              "name": "setIcon"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "The name of the icon to draw. Available names depend on the icon library being used.",
+              "fieldName": "name"
+            },
+            {
+              "name": "src",
+              "type": {
+                "text": "string | undefined"
+              },
+              "description": "An external URL of an SVG file. Be sure you trust the content you are including, as it will be executed as code and\ncan result in XSS attacks.",
+              "fieldName": "src"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "An alternate description to use for assistive devices. If omitted, the icon will be considered presentational and\nignored by assistive devices.",
+              "fieldName": "label"
+            },
+            {
+              "name": "library",
+              "type": {
+                "text": "string"
+              },
+              "default": "'default'",
+              "description": "The name of a registered custom icon library.",
+              "fieldName": "library"
+            }
+          ],
+          "events": [
+            {
+              "name": "sl-load",
+              "description": "Emitted when the icon has loaded. When using `spriteSheet: true` this will not emit."
+            },
+            {
+              "name": "sl-error",
+              "description": "Emitted when the icon fails to load due to an error. When using `spriteSheet: true` this will not emit."
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The internal SVG element.",
+              "name": "svg"
+            },
+            {
+              "description": "The <use> element generated when using `spriteSheet: true`",
+              "name": "use"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "components/mutation-observer/mutation-observer.js",
       "declarations": [
         {

@@ -153,6 +153,13 @@ test('the sl-animation API type test checks Shoelace\'s public members and modul
   assert.equal(source.match(/@ts-expect-error/g)?.length, 2);
 });
 
+test('the sl-icon dir type test assigns a string-typed direction, as Shoelace declares dir: string', () => {
+  const source = readFileSync(path.join(pkgDir, 'type-tests/icon-dir.tsx'), 'utf8');
+  assert.match(source, /declare const direction: string;/);
+  assert.match(source, /^element\.dir = direction;$/m);
+  assert.equal(source.match(/@ts-expect-error/g)?.length, 1);
+});
+
 test('the React wrapper fix manages hyphenated-attribute props as element properties, on one line or wrapped', async () => {
   const { fixWrapperSource } = await import(new URL('../../packages/velcro/custom-elements-manifest.config.mjs', import.meta.url));
   const generated = [

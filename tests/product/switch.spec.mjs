@@ -36,7 +36,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
 });
 
-test('sl-switch registers as the exported class with no core marker attribute and no ch-* or sl-icon definitions', async ({ page }) => {
+test('sl-switch registers as the exported class with no core marker attribute, no ch-* definitions and no sl-icon in its template', async ({ page }) => {
   const { frame, requests } = await openExample(page);
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
   const r = await frame.locator('#demo-default').evaluate(el => ({
@@ -44,7 +44,8 @@ test('sl-switch registers as the exported class with no core marker attribute an
     // Core's base element would add its base-name marker attribute from a core scope; Velcro hosts carry none.
     attributes: el.getAttributeNames().sort(),
     chDefined: ['ch-switch', 'ch-icon'].filter(tag => customElements.get(tag)),
-    slIcon: Boolean(customElements.get('sl-icon')),
+    // sl-icon is a Velcro component (registered by the package root), but the switch's template renders none.
+    slIcon: Boolean(el.shadowRoot.querySelector('sl-icon')),
   }));
   expect(r.ctor).toBe(true);
   // size and form reflect their initial values ('medium', ''), as in Shoelace; focusable is core's documented marker.

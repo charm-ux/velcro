@@ -1,0 +1,34 @@
+<script type="module">
+  import { registerIconLibrary } from '@charm-ux/velcro';
+
+  registerIconLibrary('material', {
+    resolver: name => {
+      const match = name.match(/^(.*?)(_(round|sharp))?$/);
+      return `https://cdn.jsdelivr.net/npm/@material-icons/svg@1.0.5/svg/${match[1]}/${match[3] || 'outline'}.svg`;
+    },
+    mutator: svg => svg.setAttribute('fill', 'currentColor')
+  });
+</script>
+
+<div style="font-size: 24px;">
+  <sl-icon library="material" name="notifications"></sl-icon>
+  <sl-icon library="material" name="email"></sl-icon>
+  <sl-icon library="material" name="delete"></sl-icon>
+  <sl-icon library="material" name="volume_up"></sl-icon>
+  <sl-icon library="material" name="settings"></sl-icon>
+  <sl-icon library="material" name="shopping_basket"></sl-icon>
+  <br />
+  <sl-icon library="material" name="notifications_round"></sl-icon>
+  <sl-icon library="material" name="email_round"></sl-icon>
+  <sl-icon library="material" name="delete_round"></sl-icon>
+  <sl-icon library="material" name="volume_up_round"></sl-icon>
+  <sl-icon library="material" name="settings_round"></sl-icon>
+  <sl-icon library="material" name="shopping_basket_round"></sl-icon>
+  <br />
+  <sl-icon library="material" name="notifications_sharp"></sl-icon>
+  <sl-icon library="material" name="email_sharp"></sl-icon>
+  <sl-icon library="material" name="delete_sharp"></sl-icon>
+  <sl-icon library="material" name="volume_up_sharp"></sl-icon>
+  <sl-icon library="material" name="settings_sharp"></sl-icon>
+  <sl-icon library="material" name="shopping_basket_sharp"></sl-icon>
+</div>

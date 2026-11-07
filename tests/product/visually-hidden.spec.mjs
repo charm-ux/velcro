@@ -163,5 +163,5 @@ test('no upstream Shoelace runtime is requested or defined; all requests stay on
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);
-  expect(await frame.locator('body').evaluate(() => ['sl-icon', 'sl-dialog', 'sl-input'].filter(tag => customElements.get(tag)))).toEqual([]);
+  expect(await frame.locator('body').evaluate(() => ['sl-dialog', 'sl-input'].filter(tag => customElements.get(tag)))).toEqual([]);
 });
