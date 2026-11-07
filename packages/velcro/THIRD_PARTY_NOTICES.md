@@ -137,11 +137,12 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   `packages/velcro/src/components/format-bytes/format-bytes.styles.ts` (written for Velcro; upstream has no styles file)
   and the localization controller listed below. Built on the `@charm-ux/core` base element; no Shoelace runtime or
   source files are included.
-- Also used in: the localization module. `packages/velcro/src/internal/localize.ts` is a small original implementation
-  of the translation registry (`registerTranslation`, with the first registered translation as the fallback), the
-  `term`, `exists`, `lang`, `dir`, `number`, `date` and `relativeTime` behavior and the resolution rules of
-  `@shoelace-style/localize` 3.2 (Copyright (c) 2020 A Beautiful Site, LLC, MIT License, the same terms as the license
-  text below) as used by Shoelace; no source of that package is included. `packages/velcro/src/utilities/localize.ts`
+- Also used in: the localization module. `packages/velcro/src/internal/localize.ts` is adapted from
+  `@shoelace-style/localize` 3.2.1 (A Beautiful Site, LLC, MIT License), the version Shoelace 2.20.1 pins and bundles
+  in its published package: the translation registry (`registerTranslation`, with the first registered translation as
+  the fallback), the document-locale snapshot, and the `term`, `exists`, `lang`, `dir`, `number`, `date` and
+  `relativeTime` behavior, with TypeScript types added and the host's `dir` read from its attribute.
+  `packages/velcro/src/utilities/localize.ts`
   (the `Translation` term list, the English registration and the re-export of `registerTranslation`) is adapted from
   `src/utilities/localize.ts`. The 29 translation modules `packages/velcro/src/translations/*.ts` are copied from
   `src/translations/*.ts` at commit `fb59fda70ed737c92611051b49bc7e3a5fed5dc5` and are shipped in the package: 21 are

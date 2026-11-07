@@ -57,7 +57,12 @@ async function setup(page, { first = [] } = {}) {
       <sl-split-panel><div slot="start"></div><div slot="end"></div></sl-split-panel>`;
     const tags = ['sl-spinner', 'sl-progress-bar', 'sl-progress-ring', 'sl-split-panel'];
     window.all = () => tags.map(t => document.querySelector(t));
-    window.settle = async () => { for (const el of window.all()) await el.updateComplete; };
+    // The document locale is a snapshot that the <html> observer refreshes (as upstream): let its callback run, then wait until
+    // no element has an update pending (updateComplete resolves false when another update was requested meanwhile).
+    window.settle = async () => {
+      await new Promise(r => setTimeout(r));
+      for (const el of window.all()) while (!(await el.updateComplete));
+    };
     window.names = async () => {
       await window.settle();
       const [spinner, bar, ring, split] = window.all();
@@ -149,6 +154,47 @@ test('changing the document lang re-renders without touching the components', as
     return window.names();
   });
   expect(after).toEqual(namesOf(terms));
+});
+
+test('upstream parity: the document lang and dir are a snapshot, refreshed by the observer and by registration, not read in the same task', async ({ page }) => {
+  await setup(page);
+  const terms = synthetic();
+  const r = await page.evaluate(async t => {
+    window.loc.registerTranslation({ $code: 'xq', $name: 'Test', $dir: 'ltr', ...t });
+    document.documentElement.lang = 'en';
+    document.documentElement.dir = 'ltr';
+    await window.settle();
+    const [spinner, bar] = window.all();
+    const c = spinner.localize;
+    const out = {};
+    // Same task as the change: the snapshot still holds the previous values.
+    document.documentElement.lang = 'xq';
+    document.documentElement.dir = 'rtl';
+    out.sameTask = { lang: c.lang(), dir: c.dir(), term: c.term('loading') };
+    // After the observer's callback: the new values.
+    await new Promise(r => setTimeout(r));
+    out.afterObserver = { lang: c.lang(), dir: c.dir(), term: c.term('loading') };
+    // A registration refreshes the snapshot synchronously.
+    document.documentElement.lang = 'en';
+    out.beforeRegistration = c.lang();
+    window.loc.registerTranslation({ $code: 'xr', $name: 'Other', $dir: 'ltr', loading: 'xr' });
+    out.afterRegistration = c.lang();
+    // The rendered names converge once the updates have run.
+    document.documentElement.lang = 'xq';
+    out.names = await window.names();
+    bar.indeterminate = true;
+    await window.settle();
+    out.rtl = bar.shadowRoot.querySelector('[part~="base"]').classList.contains('progress-bar--rtl');
+    return out;
+  }, terms);
+  expect(r).toEqual({
+    sameTask: { lang: 'en', dir: 'ltr', term: 'Loading' },
+    afterObserver: { lang: 'xq', dir: 'rtl', term: terms.loading },
+    beforeRegistration: 'xq',
+    afterRegistration: 'en',
+    names: namesOf(terms),
+    rtl: true,
+  });
 });
 
 test('terms resolve region first, then the base language, then English; codes are case-insensitive', async ({ page }) => {

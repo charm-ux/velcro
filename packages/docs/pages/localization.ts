@@ -83,9 +83,11 @@ export class LocalizationPage extends LitElement {
       <h2 id="status">Status: the entry points are pending</h2>
       <p>The package contains the localization module and all of Shoelace's translation files, and the components below use them. They
         are not public package exports yet. <code>@charm-ux/velcro/utilities/localize</code> (with <code>registerTranslation</code> and the
-        <code>Translation</code> type) and <code>@charm-ux/velcro/translations/&lt;code&gt;</code> wait on an approved export table. Until then a
-        page that uses the package cannot register a translation or import a translation file. Every component then renders English, the
-        fallback, whatever its <code>lang</code>. The examples below show the intended use, with the paths Shoelace uses.</p>
+        <code>Translation</code> type) and <code>@charm-ux/velcro/translations/&lt;code&gt;</code> wait on an approved export table, so they are
+        not importable through <code>@charm-ux/velcro</code> specifiers yet. The files are in the package's <code>dist</code> folder, and a
+        translation loaded from there by its file path registers with the same registry as components loaded from that folder. A page that
+        registers no translation renders English, the fallback, whatever its <code>lang</code>. The examples below use file paths, as
+        Shoelace's do.</p>
 
       <h2 id="usage">Usage</h2>
       <p>Components are localized by importing the translation file and setting the <code>lang</code> attribute, and the <code>dir</code>
@@ -136,20 +138,22 @@ export class LocalizationPage extends LitElement {
       <ul>
         <li>The entry points <code>@charm-ux/velcro/utilities/localize</code> and <code>@charm-ux/velcro/translations/&lt;code&gt;</code> are
           not public exports yet (see Status).</li>
-        <li>Velcro has no <code>@shoelace-style/localize</code> package. Its registry and controller are Velcro's own module, with the
-          same API (<code>registerTranslation</code>, and on the controller <code>term</code>, <code>exists</code>, <code>lang</code>,
+        <li>Velcro has no <code>@shoelace-style/localize</code> package. Its registry and controller are adapted from it into a module of
+          Velcro's own, with the same API (<code>registerTranslation</code>, and on the controller <code>term</code>, <code>exists</code>, <code>lang</code>,
           <code>dir</code>, <code>date</code>, <code>number</code> and <code>relativeTime</code>). The eight translation files that
           import it (ar, cs, en, fi, hr, id, it and sl) import Velcro's module instead.</li>
         <li>The direction is read from the element's <code>dir</code> attribute, not its property, because core's <code>dir</code> getter
           resolves the computed direction. A direction set only through the property (<code>el.dir = 'rtl'</code> without the attribute)
           is therefore not seen by the localization module.</li>
-        <li>The <code>&lt;html&gt;</code> observer is attached while a localized component is connected, not from the moment the module is
-          imported; the visible effect is the same.</li>
-        <li>The <code>date</code> and <code>number</code> helpers return an empty string for an invalid date or a non-numeric value.</li>
+        <li>The <code>date</code> helper returns an empty string for an invalid date, where upstream throws a <code>RangeError</code>. (The
+          <code>number</code> helper returns an empty string for a non-numeric value, as upstream does.)</li>
       </ul>
 
       <h2 id="upstream-quirks">Upstream quirks matched</h2>
       <ul>
+        <li>The <code>lang</code> and <code>dir</code> of <code>&lt;html&gt;</code> are read from a snapshot that is refreshed when the observer
+          reports a change and when a translation is registered. A lookup in the same task as the change still sees the previous value;
+          components re-render with the new one once the observer runs.</li>
         <li>The first translation ever registered is the fallback. The eight files that import the registry directly (ar, cs, en, fi, hr,
           id, it, sl) do not load English first, so importing one of them before any component makes it the fallback instead of English.</li>
         <li>A translation's <code>$dir</code> does not set any direction; only the <code>dir</code> attributes do.</li>

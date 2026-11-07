@@ -1,8 +1,9 @@
 // The public localization surface, mirroring Shoelace v2.20.1's src/utilities/localize.ts (Copyright (c) 2020 A Beautiful
 // Site, LLC, MIT License; the `Translation` term list and the English registration are taken from it). See
-// THIRD_PARTY_NOTICES.md. The registry and controller underneath are Velcro's own (`../internal/localize.ts`).
-// The registry module must be imported before the English translation: that translation calls `registerTranslation` while
-// this module is still being evaluated.
+// THIRD_PARTY_NOTICES.md. The registry and controller underneath are adapted from @shoelace-style/localize
+// (`../internal/localize.ts`).
+// English imports the registry from `../internal/localize.js` and only a type from here, so there is no import cycle
+// and the order of these imports does not matter.
 import { LocalizeController as DefaultLocalizationController, registerTranslation } from '../internal/localize.js';
 import en from '../translations/en.js'; // Register English as the default/fallback language
 import type { Translation as DefaultTranslation } from '../internal/localize.js';

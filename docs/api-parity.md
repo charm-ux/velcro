@@ -10,7 +10,7 @@ Shoelace members count when its own docs would list them (described and not priv
 whitespace, quote style and union order. Missing and mismatched entries form the ledger
 `docs/api/api-parity-ledger.json`, which may only shrink.
 
-Totals: 229 Shoelace entries compared, 214 matching, 15 mismatched, 0 missing; 42 Velcro-only and 63 inherited extras.
+Totals: 229 Shoelace entries compared, 214 matching, 15 mismatched, 0 missing; 27 Velcro-only and 78 inherited extras.
 
 | Component | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -18,20 +18,20 @@ Totals: 229 Shoelace entries compared, 214 matching, 15 mismatched, 0 missing; 4
 | `sl-button` | 42 | 42 | 0 | 0 | 6 | 13 |
 | `sl-card` | 13 | 13 | 0 | 0 | 0 | 5 |
 | `sl-divider` | 4 | 4 | 0 | 0 | 0 | 6 |
-| `sl-format-bytes` | 3 | 3 | 0 | 0 | 1 | 2 |
-| `sl-format-date` | 12 | 2 | 10 | 0 | 1 | 2 |
-| `sl-format-number` | 10 | 5 | 5 | 0 | 1 | 2 |
-| `sl-mutation-observer` | 8 | 8 | 0 | 0 | 1 | 2 |
-| `sl-popup` | 34 | 34 | 0 | 0 | 2 | 1 |
-| `sl-progress-bar` | 11 | 11 | 0 | 0 | 1 | 6 |
-| `sl-progress-ring` | 11 | 11 | 0 | 0 | 1 | 2 |
-| `sl-relative-time` | 4 | 4 | 0 | 0 | 1 | 2 |
+| `sl-format-bytes` | 3 | 3 | 0 | 0 | 0 | 3 |
+| `sl-format-date` | 12 | 2 | 10 | 0 | 0 | 3 |
+| `sl-format-number` | 10 | 5 | 5 | 0 | 0 | 3 |
+| `sl-mutation-observer` | 8 | 8 | 0 | 0 | 0 | 3 |
+| `sl-popup` | 34 | 34 | 0 | 0 | 0 | 3 |
+| `sl-progress-bar` | 11 | 11 | 0 | 0 | 0 | 7 |
+| `sl-progress-ring` | 11 | 11 | 0 | 0 | 0 | 3 |
+| `sl-relative-time` | 4 | 4 | 0 | 0 | 0 | 3 |
 | `sl-resize-observer` | 3 | 3 | 0 | 0 | 0 | 2 |
 | `sl-skeleton` | 6 | 6 | 0 | 0 | 0 | 4 |
-| `sl-spinner` | 5 | 5 | 0 | 0 | 1 | 4 |
-| `sl-split-panel` | 19 | 19 | 0 | 0 | 5 | 2 |
-| `sl-switch` | 33 | 33 | 0 | 0 | 19 | 3 |
-| `sl-tab-panel` | 5 | 5 | 0 | 0 | 2 | 1 |
+| `sl-spinner` | 5 | 5 | 0 | 0 | 0 | 5 |
+| `sl-split-panel` | 19 | 19 | 0 | 0 | 4 | 3 |
+| `sl-switch` | 33 | 33 | 0 | 0 | 17 | 5 |
+| `sl-tab-panel` | 5 | 5 | 0 | 0 | 0 | 3 |
 | `sl-visually-hidden` | 1 | 1 | 0 | 0 | 0 | 2 |
 
 ## `sl-badge`
@@ -145,11 +145,12 @@ Mismatched:
 
 Velcro-only (own):
 
-- `property lang`
+- None.
 
 Inherited extras:
 
 - `property dir` (from @charm-ux/core CharmElement)
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-format-date`
@@ -173,11 +174,12 @@ Mismatched:
 
 Velcro-only (own):
 
-- `property lang`
+- None.
 
 Inherited extras:
 
 - `property dir` (from @charm-ux/core CharmElement)
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-format-number`
@@ -196,11 +198,12 @@ Mismatched:
 
 Velcro-only (own):
 
-- `property lang`
+- None.
 
 Inherited extras:
 
 - `property dir` (from @charm-ux/core CharmElement)
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-mutation-observer`
@@ -215,11 +218,12 @@ Mismatched:
 
 Velcro-only (own):
 
-- `property lang`
+- None.
 
 Inherited extras:
 
 - `property dir` (from @charm-ux/core CharmElement)
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-popup`
@@ -234,11 +238,12 @@ Mismatched:
 
 Velcro-only (own):
 
-- `property dir`
-- `property lang`
+- None.
 
 Inherited extras:
 
+- `property dir` (from Shoelace's base element (ShoelaceElement, not in its manifest))
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-progress-bar`
@@ -253,13 +258,14 @@ Mismatched:
 
 Velcro-only (own):
 
-- `property lang`
+- None.
 
 Inherited extras:
 
 - `property dir` (from @charm-ux/core CharmElement)
 - `property helpText` (from @charm-ux/core CoreProgressBar)
 - `property hideLabel` (from @charm-ux/core CoreProgressBar)
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `property max` (from @charm-ux/core CoreProgressBar)
 - `property meter` (from @charm-ux/core CoreProgressBar)
 - `event ready` (from @charm-ux/core CharmElement)
@@ -276,11 +282,12 @@ Mismatched:
 
 Velcro-only (own):
 
-- `property lang`
+- None.
 
 Inherited extras:
 
 - `property dir` (from @charm-ux/core CharmElement)
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-relative-time`
@@ -295,11 +302,12 @@ Mismatched:
 
 Velcro-only (own):
 
-- `property lang`
+- None.
 
 Inherited extras:
 
 - `property dir` (from @charm-ux/core CharmElement)
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-resize-observer`
@@ -354,13 +362,14 @@ Mismatched:
 
 Velcro-only (own):
 
-- `property lang`
+- None.
 
 Inherited extras:
 
 - `property dir` (from @charm-ux/core CharmElement)
 - `property label` (from @charm-ux/core CoreSpinner)
 - `property labelPosition` (from @charm-ux/core CoreSpinner)
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-split-panel`
@@ -376,7 +385,6 @@ Mismatched:
 Velcro-only (own):
 
 - `property divider`
-- `property lang`
 - `method handlePositionChange`
 - `method handlePositionInPixelsChange`
 - `method handleVerticalChange`
@@ -384,6 +392,7 @@ Velcro-only (own):
 Inherited extras:
 
 - `property dir` (from @charm-ux/core CharmElement)
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-switch`
@@ -399,14 +408,12 @@ Mismatched:
 Velcro-only (own):
 
 - `property autofocus`
-- `property dir`
 - `property errorMessage`
 - `property hideLabel`
 - `property input`
 - `property invalid`
 - `property label`
 - `property labelPosition`
-- `property lang`
 - `property readonly`
 - `property title`
 - `method formResetCallback`
@@ -420,6 +427,8 @@ Velcro-only (own):
 
 Inherited extras:
 
+- `property dir` (from Shoelace's base element (ShoelaceElement, not in its manifest))
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event blur` (from @charm-ux/core CoreSwitch)
 - `event focus` (from @charm-ux/core CoreSwitch)
 - `event ready` (from @charm-ux/core CharmElement)
@@ -436,11 +445,12 @@ Mismatched:
 
 Velcro-only (own):
 
-- `property dir`
-- `property lang`
+- None.
 
 Inherited extras:
 
+- `property dir` (from Shoelace's base element (ShoelaceElement, not in its manifest))
+- `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-visually-hidden`

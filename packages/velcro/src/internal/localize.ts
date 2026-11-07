@@ -1,6 +1,7 @@
-// Modelled on the behavior of @shoelace-style/localize 3.2 (Copyright (c) 2020 A Beautiful Site, LLC, MIT License) as used by
-// Shoelace v2.20.1 (src/utilities/localize.ts). See THIRD_PARTY_NOTICES.md. No source or runtime of @shoelace-style/localize
-// is included; this is a small original implementation of the same registry and resolution rules.
+// Adapted from @shoelace-style/localize 3.2.1 (A Beautiful Site, LLC, MIT License), the version Shoelace v2.20.1 pins and
+// bundles (its src/utilities/localize.ts builds on it). See THIRD_PARTY_NOTICES.md. The registry, the document-locale
+// snapshot, the lookup and the controller follow its structure; the changes are TypeScript types, the controller set and
+// reading the host's dir attribute rather than its property (see `dir()`).
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 /**
@@ -34,23 +35,29 @@ const translations = new Map<string, Translation>();
 let fallback: Translation | undefined;
 
 const connected = new Set<LocalizeController>();
-let observer: MutationObserver | undefined;
 
-/** Re-renders every connected localized element (after a registration, or when `<html lang|dir>` changes). */
+// As upstream, the document's lang and dir are a snapshot, taken when this module is evaluated and refreshed only by
+// `update()`: when the observer below reports a change of `<html lang|dir>`, and on every registration. A controller
+// reads the snapshot, so a change made in the current task is not seen until the observer's callback runs.
+let documentDirection = 'ltr';
+let documentLanguage = 'en';
+const isClient = typeof MutationObserver !== 'undefined' && typeof document !== 'undefined' && typeof document.documentElement !== 'undefined';
+
+/** Refreshes the document-locale snapshot and re-renders every connected localized element. */
 export function update(): void {
+  if (isClient) {
+    documentDirection = document.documentElement.dir || 'ltr';
+    documentLanguage = document.documentElement.lang || navigator.language;
+  }
   connected.forEach(controller => controller.host.requestUpdate());
 }
 
-// Shoelace's library observes `<html lang dir>` from the moment it is imported; here the one shared observer is attached
-// while any localized element is connected, which has the same visible effect.
-function sync(): void {
-  if (connected.size > 0 && !observer && typeof MutationObserver !== 'undefined') {
-    observer = new MutationObserver(update);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['dir', 'lang'] });
-  } else if (connected.size === 0 && observer) {
-    observer.disconnect();
-    observer = undefined;
-  }
+// As upstream, one observer watches `<html lang dir>` from the moment this module is evaluated, for the page's lifetime.
+if (isClient) {
+  const documentElementObserver = new MutationObserver(update);
+  documentDirection = document.documentElement.dir || 'ltr';
+  documentLanguage = document.documentElement.lang || navigator.language;
+  documentElementObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['dir', 'lang'] });
 }
 
 /**
@@ -72,8 +79,8 @@ export function registerTranslation(...translation: Translation[]): void {
  * Localization controller with the API of @shoelace-style/localize's: `term`, `exists`, `lang`, `dir` and the `Intl`
  * based `date`, `number` and `relativeTime` helpers.
  *
- * Resolution: the host's `lang` (and `dir`) when set, otherwise the `lang` / `dir` of the document element, otherwise the
- * browser language (`navigator.language`) / `ltr`. An unset host `lang` (undefined, as in Shoelace, or null after its
+ * Resolution: the host's `lang` (and `dir`) when set, otherwise the snapshot of the document element's `lang` / `dir`
+ * (refreshed by `update()`), otherwise the browser language (`navigator.language`) / `ltr`. An unset host `lang` (undefined, as in Shoelace, or null after its
  * attribute is removed) falls through the same way, as does an empty string. A term is looked up in the translation for
  * the full `language-region` code, then the language alone, then the fallback; a term found nowhere logs an error and
  * renders its key. The host re-renders when the document element's `lang` or `dir` changes and when a translation is
@@ -90,24 +97,25 @@ export class LocalizeController<UserTranslation extends Translation = DefaultTra
 
   public hostConnected(): void {
     connected.add(this as LocalizeController<Translation>);
-    sync();
   }
 
   public hostDisconnected(): void {
     connected.delete(this as LocalizeController<Translation>);
-    sync();
   }
 
-  /** The resolved language, lower-cased: the host's `lang`, else the document's, else the browser language. */
+  /** The resolved language, lower-cased: the host's `lang`, else the document snapshot (`<html lang>`, else the browser language). */
   public lang(): string {
-    const documentLang = document.documentElement.lang || navigator.language;
-    return `${this.host.lang || documentLang}`.toLowerCase();
+    return `${this.host.lang || documentLanguage}`.toLowerCase();
   }
 
-  /** The resolved direction: the host's `dir` ATTRIBUTE only (not the `dir` property, which core's getter resolves through computed style), else the document's, else `ltr`. */
+  /**
+   * The resolved direction, lower-cased: the host's `dir` attribute, else the document snapshot (`<html dir>`, else `ltr`).
+   * Upstream reads the host's `dir` property; Velcro reads the attribute because core's `dir` getter resolves the computed
+   * style, so a direction set only through the property is not seen.
+   */
   public dir(): string {
     const hostDir = this.host.getAttribute('dir') || '';
-    return `${hostDir || document.documentElement.dir || 'ltr'}`.toLowerCase();
+    return `${hostDir || documentDirection}`.toLowerCase();
   }
 
   private getTranslationData(lang: string) {
