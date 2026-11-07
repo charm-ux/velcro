@@ -174,6 +174,34 @@ test('module classification uses logical ids only and rejects unresolved package
   assert.doesNotMatch(JSON.stringify(rec), /"\/r|node_modules/);
 });
 
+test('the rolldown runtime helper is credited to the rolldown that Vite runs, which is not a direct docs dependency', async () => {
+  const { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const path = (await import('node:path')).default;
+  const root = mkdtempSync(path.join(tmpdir(), 'velcro-closure-'));
+  try {
+    // pnpm's layout: packages/docs/node_modules/vite links into the store, and rolldown sits beside Vite there.
+    const store = path.join(root, 'node_modules/.pnpm/vite@8.1.6/node_modules');
+    mkdirSync(path.join(store, 'vite'), { recursive: true });
+    writeFileSync(path.join(store, 'vite/package.json'), JSON.stringify({ name: 'vite', version: '8.1.6', license: 'MIT' }));
+    mkdirSync(path.join(root, 'packages/docs/node_modules'), { recursive: true });
+    symlinkSync(path.join(store, 'vite'), path.join(root, 'packages/docs/node_modules/vite'));
+    const runtime = [{ fileName: 'velcro.js', modules: { '\0rolldown/runtime.js': { renderedLength: 348 } } }];
+    const before = buildClosure(runtime, [], root);
+    assert.deepEqual(before.modules.map(m => [m.id, m.kind, m.package]), [['virtual:rolldown/runtime', 'virtual', 'rolldown']]);
+    assert.deepEqual(before.packages, [], 'no rolldown installed beside Vite: nothing is credited, and the notices block');
+    assert.equal(code(() => gen(before)), 'closure-empty');
+    assert.equal(code(() => gen({ ...closure(), modules: [...closure().modules, ...before.modules] })), 'closure-package-missing');
+    mkdirSync(path.join(store, 'rolldown'));
+    writeFileSync(path.join(store, 'rolldown/package.json'), JSON.stringify({ name: 'rolldown', version: '1.1.5', license: 'MIT' }));
+    const after = buildClosure(runtime, [], root);
+    assert.deepEqual(after.packages, [{ name: 'rolldown', version: '1.1.5', license: 'MIT' }]);
+    assert.doesNotMatch(JSON.stringify(after), /node_modules|velcro-closure-/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 // --- compiler-emitted decorate helpers inside ordinary modules -------------------------------------------------------------
 const TS_BODY = `var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;

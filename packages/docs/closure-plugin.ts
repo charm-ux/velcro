@@ -8,7 +8,7 @@
  * classified explicitly; anything unrecognised is kept as `unknown` so the notice generator can fail on it.
  */
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 export interface ClosureModule {
@@ -108,6 +108,15 @@ export function classifyModule(
   return { kind: 'unknown', id: 'outside-repository' };
 }
 
+/** The directory holding the installed Vite's own dependencies (pnpm links them beside Vite in its store entry). */
+function viteDependencies(repoRoot: string): string {
+  try {
+    return path.dirname(realpathSync(path.join(repoRoot, 'packages/docs/node_modules/vite')));
+  } catch {
+    return path.join(repoRoot, 'packages/docs/node_modules/.missing-vite');
+  }
+}
+
 function readPackageFromDisk(dir: string): PackageInfo | null {
   try {
     const p = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'));
@@ -141,8 +150,10 @@ export function buildClosure(
       if (c.virtualPackage && c.virtualVersion) {
         packages.set(`${c.virtualPackage}@${c.virtualVersion}`, { name: c.virtualPackage, version: c.virtualVersion, license: '' });
       } else if (c.virtualPackage) {
-        // The helper belongs to the build tool that ran; its version is read from the docs package's installed copy.
-        const host = readPackage(path.join(repoRoot, 'packages/docs/node_modules', c.virtualPackage));
+        // The helper belongs to the build tool that ran; its version is read from the docs package's installed copy, or,
+        // for a tool Vite runs itself (rolldown), from Vite's own dependency of that name.
+        const host = readPackage(path.join(repoRoot, 'packages/docs/node_modules', c.virtualPackage))
+          ?? readPackage(path.join(viteDependencies(repoRoot), c.virtualPackage));
         if (host) packages.set(`${host.name}@${host.version}`, host);
       }
     }
