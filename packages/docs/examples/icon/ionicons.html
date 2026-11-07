@@ -1,0 +1,36 @@
+<script type="module">
+  import { registerIconLibrary } from '@charm-ux/velcro';
+
+  registerIconLibrary('ionicons', {
+    resolver: name => `https://cdn.jsdelivr.net/npm/ionicons@5.1.2/dist/ionicons/svg/${name}.svg`,
+    mutator: svg => {
+      svg.setAttribute('fill', 'currentColor');
+      svg.setAttribute('stroke', 'currentColor');
+      [...svg.querySelectorAll('.ionicon-fill-none')].map(el => el.setAttribute('fill', 'none'));
+      [...svg.querySelectorAll('.ionicon-stroke-width')].map(el => el.setAttribute('stroke-width', '32px'));
+    }
+  });
+</script>
+
+<div style="font-size: 24px;">
+  <sl-icon library="ionicons" name="alarm"></sl-icon>
+  <sl-icon library="ionicons" name="american-football"></sl-icon>
+  <sl-icon library="ionicons" name="bug"></sl-icon>
+  <sl-icon library="ionicons" name="chatbubble"></sl-icon>
+  <sl-icon library="ionicons" name="settings"></sl-icon>
+  <sl-icon library="ionicons" name="warning"></sl-icon>
+  <br />
+  <sl-icon library="ionicons" name="alarm-outline"></sl-icon>
+  <sl-icon library="ionicons" name="american-football-outline"></sl-icon>
+  <sl-icon library="ionicons" name="bug-outline"></sl-icon>
+  <sl-icon library="ionicons" name="chatbubble-outline"></sl-icon>
+  <sl-icon library="ionicons" name="settings-outline"></sl-icon>
+  <sl-icon library="ionicons" name="warning-outline"></sl-icon>
+  <br />
+  <sl-icon library="ionicons" name="alarm-sharp"></sl-icon>
+  <sl-icon library="ionicons" name="american-football-sharp"></sl-icon>
+  <sl-icon library="ionicons" name="bug-sharp"></sl-icon>
+  <sl-icon library="ionicons" name="chatbubble-sharp"></sl-icon>
+  <sl-icon library="ionicons" name="settings-sharp"></sl-icon>
+  <sl-icon library="ionicons" name="warning-sharp"></sl-icon>
+</div>

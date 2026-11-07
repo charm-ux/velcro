@@ -225,6 +225,23 @@
     "<sl-format-number> > maximumSignificantDigits property > number has correct type format: 5",
     "<sl-format-number> > maximumSignificantDigits property > number has correct type format: 6"
   ],
+  "icon": [
+    "<sl-icon> > defaults  > default properties",
+    "<sl-icon> > defaults  > renders pre-loaded system icons and emits sl-load event",
+    "<sl-icon> > defaults  > the icon is accessible",
+    "<sl-icon> > defaults  > the icon has the correct default aria attributes",
+    "<sl-icon> > when a label is provided > the icon has the correct default aria attributes",
+    "<sl-icon> > when a valid src is provided > the svg is rendered",
+    "<sl-icon> > new library > renders icons from the new library and emits sl-load event",
+    "<sl-icon> > new library > runs mutator from new library",
+    "<sl-icon> > negative cases > svg not rendered with an icon that doesn't exist in the library",
+    "<sl-icon> > negative cases > emits sl-error when the file cant be retrieved",
+    "<sl-icon> > negative cases > emits sl-error when there isn't an svg element in the registered icon",
+    "<sl-icon> > svg sprite sheets > Should properly grab an SVG and render it from bootstrap icons",
+    "<sl-icon> > svg sprite sheets > Should apply mutator to multiple identical spritesheet icons",
+    "<sl-icon> > svg sprite sheets > Should render nothing if the sprite hash is wrong",
+    "<sl-icon> > svg sprite sheets > Should produce an error if the icon doesn't exist."
+  ],
   "mutation-observer": [
     "<sl-mutation-observer> > should render a component"
   ],

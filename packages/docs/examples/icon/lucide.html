@@ -1,0 +1,16 @@
+<div style="font-size: 24px;">
+  <sl-icon library="lucide" name="feather"></sl-icon>
+  <sl-icon library="lucide" name="pie-chart"></sl-icon>
+  <sl-icon library="lucide" name="settings"></sl-icon>
+  <sl-icon library="lucide" name="map-pin"></sl-icon>
+  <sl-icon library="lucide" name="printer"></sl-icon>
+  <sl-icon library="lucide" name="shopping-cart"></sl-icon>
+</div>
+
+<script type="module">
+  import { registerIconLibrary } from '@charm-ux/velcro';
+
+  registerIconLibrary('lucide', {
+    resolver: name => `https://cdn.jsdelivr.net/npm/lucide-static@0.16.29/icons/${name}.svg`
+  });
+</script>

@@ -51,14 +51,103 @@ export function keyResults(results) {
 export function scoreboard(results) {
   const board = {};
   for (const r of results) {
-    const c = (board[r.component] ??= { passed: 0, failed: 0, skipped: 0, failures: [], titles: [], infrastructure: [] });
+    const c = (board[r.component] ??= { passed: 0, failed: 0, skipped: 0, skips: [], failures: [], titles: [], infrastructure: [] });
     if (r.infrastructure) { c.infrastructure.push(r.reason ?? r.title); continue; }
     c.titles.push(r.title);
-    if (r.skipped) c.skipped++;
+    if (r.skipped) { c.skipped++; c.skips.push(r.title); }
     else if (r.passed) c.passed++;
     else { c.failed++; c.failures.push({ title: r.title, reason: r.reason ?? '' }); }
   }
   return Object.fromEntries(Object.keys(board).sort().map(k => [k, board[k]]));
+}
+
+// Reads a string literal starting at `i`. Returns { value, end }; value is null for a template literal with `${`.
+function readString(src, i) {
+  const quote = src[i];
+  let value = '';
+  let dynamic = false;
+  for (let j = i + 1; j < src.length; j++) {
+    const ch = src[j];
+    if (ch === '\\') { value += src[j + 1]; j++; continue; }
+    if (ch === quote) return { value: dynamic ? null : value, end: j + 1 };
+    if (quote === '`' && ch === '$' && src[j + 1] === '{') {
+      dynamic = true;
+      let depth = 0;
+      for (j += 1; j < src.length; j++) {
+        if (src[j] === '{') depth++;
+        else if (src[j] === '}' && --depth === 0) break;
+      }
+      continue;
+    }
+    value += ch;
+  }
+  throw new Error('upstream-conformance: unterminated string in a vendored test file');
+}
+
+// Every `it(...)` / `it.skip(...)` in a test file, in declaration order, with its full title (the enclosing describe
+// titles and its own, joined with ' > ' as the runner reports them; null when any of them is not a plain literal) and
+// whether it is skipped. A small scanner, not a parser: callers must check the result against the inventory.
+export function declaredTests(src) {
+  const tests = [];
+  const stack = [];
+  let depth = 0;
+  let pending;
+  let i = 0;
+  while (i < src.length) {
+    const ch = src[i];
+    if (ch === '/' && src[i + 1] === '/') { const n = src.indexOf('\n', i); i = n < 0 ? src.length : n; continue; }
+    if (ch === '/' && src[i + 1] === '*') { const n = src.indexOf('*/', i + 2); i = n < 0 ? src.length : n + 2; continue; }
+    if (ch === '"' || ch === "'" || ch === '`') { i = readString(src, i).end; continue; }
+    if (ch === '{') {
+      depth++;
+      if (pending !== undefined) { stack.push({ title: pending, depth }); pending = undefined; }
+      i++;
+      continue;
+    }
+    if (ch === '}') {
+      if (stack.length && stack.at(-1).depth === depth) stack.pop();
+      depth--;
+      i++;
+      continue;
+    }
+    const call = /^(describe|it)(\.skip|\.only)?\s*\(\s*/.exec(src.slice(i, i + 64));
+    if (call && !/[\w$.]/.test(src[i - 1] ?? '')) {
+      const at = i + call[0].length;
+      const literal = /['"`]/.test(src[at]) ? readString(src, at) : { value: null, end: at };
+      if (call[1] === 'describe') pending = literal.value;
+      else {
+        const parts = [...stack.map(s => s.title), literal.value];
+        tests.push({ title: parts.includes(null) ? null : parts.join(' > '), skip: call[2] === '.skip' });
+      }
+      i = literal.end;
+      continue;
+    }
+    i++;
+  }
+  return tests;
+}
+
+// The tests that upstream itself marks `it.skip(...)` in a vendored (hash-pinned) test file, per component, as full
+// runner identities (suite path, and the [#n] suffix of a repeated title), with every declared identity so the caller
+// can check the scan against the inventory. Only these may be reported as skipped: Velcro never skips a test, and
+// editing a vendored file breaks its pinned hash.
+export function upstreamSkips(root, components) {
+  const skips = {};
+  for (const name of components) {
+    const file = path.join(root, VENDOR, 'src/components', name, `${name}.test.ts`);
+    if (!existsSync(file)) continue;
+    const seen = new Map();
+    const declared = declaredTests(readFileSync(file, 'utf8')).map(t => {
+      if (t.title === null) return t;
+      const n = (seen.get(t.title) ?? 0) + 1;
+      seen.set(t.title, n);
+      return { ...t, title: n === 1 ? t.title : `${t.title} [#${n}]` };
+    });
+    if (declared.some(t => t.skip)) {
+      skips[name] = { skipped: declared.filter(t => t.skip).map(t => t.title), declared: declared.map(t => t.title) };
+    }
+  }
+  return skips;
 }
 
 const malformedList = (value, ok) => !value || typeof value !== 'object' || Array.isArray(value)
@@ -67,8 +156,10 @@ const malformedList = (value, ok) => !value || typeof value !== 'object' || Arra
 // Compares a run with the pinned inventory and the ledger. Returns { ok, unexpected, fixed, problems }.
 // The inventory lists every expected test title per component (repeated titles carry their [#n] suffix): any missing or
 // extra outcome fails, infrastructure (load/session) failures always fail and can never be ledgered, and only assertion
-// failures of inventoried tests may be ledgered.
-export function evaluate(board, ledger, inventory, components) {
+// failures of inventoried tests may be ledgered. A skipped outcome fails unless upstream itself skips that exact test
+// (`skips`, from upstreamSkips: full identity, suite path and occurrence included), and only when the scan of that
+// vendored file declares exactly the inventoried tests, so the skip is bound to the right one.
+export function evaluate(board, ledger, inventory, components, skips = {}) {
   const problems = [];
   const unexpected = [];
   const fixed = [];
@@ -85,7 +176,15 @@ export function evaluate(board, ledger, inventory, components) {
     const result = board[component];
     if (!result) { problems.push(`no results for ${component}`); continue; }
     for (const reason of result.infrastructure) problems.push(`infrastructure failure in ${component}: ${reason}`);
-    if (result.skipped) problems.push(`skipped tests in ${component}`);
+    const bound = skips[component];
+    const boundOk = bound && bound.declared.length === expected.length && !bound.declared.includes(null)
+      && [...bound.declared].sort().every((t, n) => t === [...expected].sort()[n]);
+    if (bound && !boundOk) problems.push(`upstream skips in ${component} cannot be bound to the inventory`);
+    const allowed = new Set(boundOk ? bound.skipped : []);
+    for (const t of result.skips ?? []) {
+      if (!allowed.has(t)) problems.push(`skipped test in ${component}: ${t}`);
+    }
+    if (result.skipped !== (result.skips?.length ?? 0)) problems.push(`skipped tests in ${component}`);
     const want = new Set(expected);
     const seen = new Set();
     for (const t of result.titles) {
@@ -113,8 +212,9 @@ export function renderDocs(board, ledger) {
     `\`${VENDOR}/\` (upstream commit \`fb59fda70ed737c92611051b49bc7e3a5fed5dc5\`, MIT), against`,
     'Velcro\'s components in Chromium. A resolver plugin points each test\'s Shoelace library import',
     '(`dist/shoelace.js`) at Velcro\'s package root, which registers every component, and a test\'s own',
-    '`./<name>.js` at Velcro\'s registering entry for that component; no test is edited or skipped. Run it with',
-    '`pnpm test:upstream`.',
+    '`./<name>.js` at Velcro\'s registering entry for that component; no test is edited, and Velcro skips none.',
+    'A test that upstream itself marks `it.skip` in its vendored file is reported as skipped, and the gate allows',
+    'only those (listed below). Run it with `pnpm test:upstream`.',
     '',
     'The complete pinned list of expected tests per component (repeated titles carry a `[#n]` suffix) is',
     '`tests/upstream/inventory.json`; a run must report exactly those outcomes, with nothing missing or extra.',
@@ -134,6 +234,11 @@ export function renderDocs(board, ledger) {
     '| --- | ---: | ---: | ---: |',
     ...Object.entries(board).map(([c, r]) => `| ${c} | ${r.passed + r.failed} | ${r.passed} | ${r.failed} |`),
     '',
+    ...(Object.values(board).some(r => r.skipped) ? [
+      '## Skipped upstream', '',
+      'Skipped in the vendored upstream file itself (`it.skip`), not counted above:', '',
+      ...Object.entries(board).flatMap(([c, r]) => (r.skips ?? []).map(t => `- ${c}: \`${t}\``)),
+      ''] : []),
     '## Failing tests',
     ''
   ];
@@ -147,7 +252,10 @@ export function renderDocs(board, ledger) {
   lines.push('Harness notes: the runner page loads Velcro\'s light theme where upstream loads Shoelace\'s, uses upstream\'s',
     'mocha settings (3 s timeout, one retry), and adds two guards so one failure cannot discard a whole file\'s',
     'results: real form submission and navigation by `form.submit()` are suppressed, and an assertion that carries a',
-    'sinon spy is reported instead of crashing the runner. Neither guard can turn a failing assertion into a pass.', '',
+    'sinon spy is reported instead of crashing the runner. Neither guard can turn a failing assertion into a pass.',
+    'Upstream\'s icon sprite sheet tests load `/docs/assets/images/sprite.svg`, which Shoelace\'s docs build generates',
+    'from Bootstrap Icons; the runner serves that one path from the same Bootstrap Icons sprite that Velcro\'s docs',
+    'site ships (`packages/docs/public/assets/images/sprite.svg`).', '',
     '## Dependency note: inflation override', '',
     'The test runner\'s dev server pulls in `inflation` through `co-body` (range `^2.0.0`). The root `package.json`',
     'pins it to 2.0.0 with a pnpm override because the published integrity hash of 2.1.0 is falsely reported by',
@@ -207,7 +315,7 @@ function main() {
   let passed = 0, failed = 0;
   for (const [c, b] of Object.entries(board)) { passed += b.passed; failed += b.failed; say(`${c} ${b.passed} passed, ${b.failed} failed`); }
   say(`total ${passed + failed}, passed ${passed}, failed ${failed}; scoreboard in ignored .airig/upstream/`);
-  const result = evaluate(board, ledger, inventory, components);
+  const result = evaluate(board, ledger, inventory, components, upstreamSkips(root, components));
   for (const p of result.problems) say(`problem: ${p}`);
   for (const u of result.unexpected) say(`unexpected failure: ${u}`);
   for (const f of result.fixed) say(`now passes, remove from ledger: ${f}`);

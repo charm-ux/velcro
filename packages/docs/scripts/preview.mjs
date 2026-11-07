@@ -16,7 +16,7 @@ const defaultBase = parseSiteBase(process.env.LITRO_BASE_PATH);
 const defaultRoot = resolve(
   process.env.PREVIEW_ROOT ?? fileURLToPath(new URL(defaultBase ? '../dist/static-prefixed' : '../dist/static', import.meta.url))
 );
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.md': 'text/markdown; charset=utf-8' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.md': 'text/markdown; charset=utf-8', '.svg': 'image/svg+xml' };
 
 export function isInside(root, file) {
   return file === root || file.startsWith(root + sep);
