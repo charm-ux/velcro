@@ -171,6 +171,19 @@ test('the React wrapper type test checks Shoelace props, rejects bad values and 
   assert.equal(config.compilerOptions.skipLibCheck, false);
 });
 
+test('the sl-animation API type test checks Shoelace\'s public members and module entries through the export map', () => {
+  const source = readFileSync(path.join(pkgDir, 'type-tests/animation-api.tsx'), 'utf8');
+  for (const entry of ['animation/class', 'animation/animations', 'utilities/animation']) {
+    assert.match(source, new RegExp(`from '@charm-ux/velcro/${entry}';`), entry);
+  }
+  assert.match(source, /Pick<VelcroAnimation, ShoelacePublicMembers> = element;/);
+  for (const member of ['defaultSlot', 'currentTime', 'handleAnimationChange', 'handlePlayChange', 'handlePlaybackRateChange', 'cancel', 'finish', 'render']) {
+    assert.match(source, new RegExp(`\\| '${member}'$`, 'm'), member);
+  }
+  assert.match(source, /^const rendered: unknown = element\.render\(\);$/m);
+  assert.equal(source.match(/@ts-expect-error/g)?.length, 2);
+});
+
 test('the sl-icon dir type test assigns a string-typed direction, as Shoelace declares dir: string', () => {
   const source = readFileSync(path.join(pkgDir, 'type-tests/icon-dir.tsx'), 'utf8');
   assert.match(source, /declare const direction: string;/);

@@ -5,6 +5,7 @@
   "license": "MIT",
   "files": {
     "LICENSE.md": "ac9ffacbfc877b6f4253a481b3c0edbad0c019ac3506a3b51415b336f4a0c054",
+    "src/components/animation/animation.test.ts": "c800ab0b07bf5cd4d64cf36180bb046817d33cf954f10082be394cf8aadc055a",
     "src/components/badge/badge.test.ts": "5d2198fb7c6b7878090d5bbb8fc8e852c5863f21f232a47ed600a0e6ddcfcfc8",
     "src/components/button/button.test.ts": "027ed06f04c0657b1f2850023568784f6d262b5b84d3e2957b300e822356a262",
     "src/components/card/card.test.ts": "398fefdfc41b5ecc40af686298b7fda44d300179ee9e46164b9c32b96b639641",

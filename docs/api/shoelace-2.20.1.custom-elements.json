@@ -12,6 +12,338 @@
   "modules": [
     {
       "kind": "javascript-module",
+      "path": "components/animation/animation.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlAnimation",
+          "tagName": "sl-animation",
+          "summary": "Animate elements declaratively with nearly 100 baked-in presets, or roll your own with custom keyframes. Powered by the [Web Animations API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API).",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [
+            {
+              "kind": "field",
+              "name": "animation",
+              "privacy": "private",
+              "type": {
+                "text": "Animation | undefined"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "hasStarted",
+              "privacy": "private",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "defaultSlot",
+              "type": {
+                "text": "Promise<HTMLSlotElement>"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "'none'",
+              "description": "The name of the built-in animation to use. For custom animations, use the `keyframes` prop.",
+              "attribute": "name"
+            },
+            {
+              "kind": "field",
+              "name": "play",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Plays the animation. When omitted, the animation will be paused. This attribute will be automatically removed when\nthe animation finishes or gets canceled.",
+              "attribute": "play",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "delay",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The number of milliseconds to delay the start of the animation.",
+              "attribute": "delay"
+            },
+            {
+              "kind": "field",
+              "name": "direction",
+              "type": {
+                "text": "PlaybackDirection"
+              },
+              "default": "'normal'",
+              "description": "Determines the direction of playback as well as the behavior when reaching the end of an iteration.\n[Learn more](https://developer.mozilla.org/en-US/docs/Web/CSS/animation-direction)",
+              "attribute": "direction"
+            },
+            {
+              "kind": "field",
+              "name": "duration",
+              "type": {
+                "text": "number"
+              },
+              "default": "1000",
+              "description": "The number of milliseconds each iteration of the animation takes to complete.",
+              "attribute": "duration"
+            },
+            {
+              "kind": "field",
+              "name": "easing",
+              "type": {
+                "text": "string"
+              },
+              "default": "'linear'",
+              "description": "The easing function to use for the animation. This can be a Shoelace easing function or a custom easing function\nsuch as `cubic-bezier(0, 1, .76, 1.14)`.",
+              "attribute": "easing"
+            },
+            {
+              "kind": "field",
+              "name": "endDelay",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The number of milliseconds to delay after the active period of an animation sequence.",
+              "attribute": "end-delay"
+            },
+            {
+              "kind": "field",
+              "name": "fill",
+              "type": {
+                "text": "FillMode"
+              },
+              "default": "'auto'",
+              "description": "Sets how the animation applies styles to its target before and after its execution.",
+              "attribute": "fill"
+            },
+            {
+              "kind": "field",
+              "name": "iterations",
+              "default": "Infinity",
+              "description": "The number of iterations to run before the animation completes. Defaults to `Infinity`, which loops.",
+              "attribute": "iterations"
+            },
+            {
+              "kind": "field",
+              "name": "iterationStart",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The offset at which to start the animation, usually between 0 (start) and 1 (end).",
+              "attribute": "iteration-start"
+            },
+            {
+              "kind": "field",
+              "name": "keyframes",
+              "type": {
+                "text": "Keyframe[] | undefined"
+              },
+              "description": "The keyframes to use for the animation. If this is set, `name` will be ignored."
+            },
+            {
+              "kind": "field",
+              "name": "playbackRate",
+              "type": {
+                "text": "number"
+              },
+              "default": "1",
+              "description": "Sets the animation's playback rate. The default is `1`, which plays the animation at a normal speed. Setting this\nto `2`, for example, will double the animation's speed. A negative value can be used to reverse the animation. This\nvalue can be changed without causing the animation to restart.",
+              "attribute": "playback-rate"
+            },
+            {
+              "kind": "field",
+              "name": "currentTime",
+              "type": {
+                "text": "CSSNumberish"
+              },
+              "description": "Gets and sets the current animation time."
+            },
+            {
+              "kind": "field",
+              "name": "handleAnimationFinish",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "handleAnimationCancel",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "handleSlotChange",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "createAnimation",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "destroyAnimation",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "handleAnimationChange"
+            },
+            {
+              "kind": "method",
+              "name": "handlePlayChange"
+            },
+            {
+              "kind": "method",
+              "name": "handlePlaybackRateChange"
+            },
+            {
+              "kind": "method",
+              "name": "cancel",
+              "description": "Clears all keyframe effects caused by this animation and aborts its playback."
+            },
+            {
+              "kind": "method",
+              "name": "finish",
+              "description": "Sets the playback time to the end of the animation corresponding to the current playback direction."
+            }
+          ],
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "'none'",
+              "description": "The name of the built-in animation to use. For custom animations, use the `keyframes` prop.",
+              "fieldName": "name"
+            },
+            {
+              "name": "play",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Plays the animation. When omitted, the animation will be paused. This attribute will be automatically removed when\nthe animation finishes or gets canceled.",
+              "fieldName": "play"
+            },
+            {
+              "name": "delay",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The number of milliseconds to delay the start of the animation.",
+              "fieldName": "delay"
+            },
+            {
+              "name": "direction",
+              "type": {
+                "text": "PlaybackDirection"
+              },
+              "default": "'normal'",
+              "description": "Determines the direction of playback as well as the behavior when reaching the end of an iteration.\n[Learn more](https://developer.mozilla.org/en-US/docs/Web/CSS/animation-direction)",
+              "fieldName": "direction"
+            },
+            {
+              "name": "duration",
+              "type": {
+                "text": "number"
+              },
+              "default": "1000",
+              "description": "The number of milliseconds each iteration of the animation takes to complete.",
+              "fieldName": "duration"
+            },
+            {
+              "name": "easing",
+              "type": {
+                "text": "string"
+              },
+              "default": "'linear'",
+              "description": "The easing function to use for the animation. This can be a Shoelace easing function or a custom easing function\nsuch as `cubic-bezier(0, 1, .76, 1.14)`.",
+              "fieldName": "easing"
+            },
+            {
+              "name": "end-delay",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The number of milliseconds to delay after the active period of an animation sequence.",
+              "fieldName": "endDelay"
+            },
+            {
+              "name": "fill",
+              "type": {
+                "text": "FillMode"
+              },
+              "default": "'auto'",
+              "description": "Sets how the animation applies styles to its target before and after its execution.",
+              "fieldName": "fill"
+            },
+            {
+              "name": "iterations",
+              "default": "Infinity",
+              "description": "The number of iterations to run before the animation completes. Defaults to `Infinity`, which loops.",
+              "fieldName": "iterations"
+            },
+            {
+              "name": "iteration-start",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "The offset at which to start the animation, usually between 0 (start) and 1 (end).",
+              "fieldName": "iterationStart"
+            },
+            {
+              "name": "playback-rate",
+              "type": {
+                "text": "number"
+              },
+              "default": "1",
+              "description": "Sets the animation's playback rate. The default is `1`, which plays the animation at a normal speed. Setting this\nto `2`, for example, will double the animation's speed. A negative value can be used to reverse the animation. This\nvalue can be changed without causing the animation to restart.",
+              "fieldName": "playbackRate"
+            }
+          ],
+          "events": [
+            {
+              "name": "sl-cancel",
+              "description": "Emitted when the animation is canceled."
+            },
+            {
+              "name": "sl-finish",
+              "description": "Emitted when the animation finishes."
+            },
+            {
+              "name": "sl-start",
+              "description": "Emitted when the animation starts or restarts."
+            }
+          ],
+          "slots": [
+            {
+              "description": "The element to animate. Avoid slotting in more than one element, as subsequent ones will be ignored. To animate multiple elements, either wrap them in a single container or use multiple `<sl-animation>` elements.",
+              "name": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "components/badge/badge.js",
       "declarations": [
         {

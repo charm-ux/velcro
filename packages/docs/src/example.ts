@@ -1,6 +1,6 @@
 import { withBase } from './base.js';
 
-export { examples } from './examples.generated.js';
+export { examples, reactExamples } from './examples.generated.js';
 
 /**
  * Mirrors the docs page's theme class (sl-theme-dark / sl-theme-light) onto the example document, now and whenever the

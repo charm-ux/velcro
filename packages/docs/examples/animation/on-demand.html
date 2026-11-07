@@ -1,0 +1,15 @@
+<div class="animation-form">
+  <sl-animation name="rubberBand" duration="1000" iterations="1">
+    <sl-button variant="primary">Click me</sl-button>
+  </sl-animation>
+</div>
+
+<script>
+  const container = document.querySelector('.animation-form');
+  const animation = container.querySelector('sl-animation');
+  const button = container.querySelector('sl-button');
+
+  button.addEventListener('click', () => {
+    animation.play = true;
+  });
+</script>
