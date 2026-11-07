@@ -1,10 +1,10 @@
 // Raw build/browser output stays private in a fresh ignored folder; only counts, status and (on browser failures) the bounded,
 // redacted metadata lines of scripts/product-summary.mjs are printed.
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildDigest, collect as collectBuild } from './ci/build-output.mjs';
 import { summarizeReport } from './product-summary.mjs';
 import { clearTestedEvidence, sameSnapshot, snapshotTested, writeTestedEvidence } from './site/tested.mjs';
 
@@ -57,10 +57,12 @@ function sourceState(root) {
 }
 
 // Stages. Without arguments the whole verification runs here, as it does locally. CI splits it across jobs that test the
-// same bytes: `--stage build` builds once and prints the digest of the tested site; each `--stage browser --engine <e>
-// --shard <i>/<n>` and `--stage upstream` job checks that digest on the build job's output (passed as a workflow artifact)
-// before and after its checks, without rebuilding; `--stage evidence` records the publication evidence for those bytes. Only
-// a job that needs every browser shard and the upstream job to have succeeded may run the evidence stage.
+// same bytes: `--stage build` builds once from a clean, unchanged source and prints the build digest (scripts/ci/
+// build-output.mjs: every file of both dist trees, bound to the source commit); each `--stage browser --engine <e> --shard
+// <i>/<n>` and `--stage upstream` job checks that digest, and a clean source, on the build job's output (passed as a workflow
+// artifact) before and after its checks, without rebuilding; `--stage evidence` checks it too and records the publication
+// evidence for the prefixed site in it. Only a job that needs every browser shard and the upstream job to have succeeded may
+// run the evidence stage.
 export const STAGES = ['build', 'browser', 'upstream', 'evidence'];
 export function parseArgs(argv) {
   const usage = () => { throw new Error('usage'); };
@@ -81,7 +83,12 @@ export function parseArgs(argv) {
   return { stage, digest, engine, shard: `${m[1]}/${m[2]}` };
 }
 
-export const snapshotDigest = snapshot => createHash('sha256').update(JSON.stringify(snapshot)).digest('hex');
+// The build digest of the current output, or null when the source is not clean or the output cannot be read.
+function currentBuild(root) {
+  const state = sourceState(root);
+  if (!state.clean) return null;
+  try { return buildDigest(collectBuild(root), state.sha); } catch { return null; }
+}
 
 function main() {
   const root = fileURLToPath(new URL('../', import.meta.url));
@@ -127,20 +134,27 @@ function main() {
       let after;
       try { after = snapshotTested(root); } catch { return fail('blocked (tested site could not be re-read)'); }
       if (!sameSnapshot(tested, after)) return fail('blocked (tested site changed during the build)');
-      process.stdout.write(`verify:product: tested digest ${snapshotDigest(tested)}\n`);
+      // What the later jobs test must be what this commit builds: the build may not change or add a source file.
+      sources.push(sourceState(root));
+      if (!sources.every(x => x.clean && x.sha === sources[0].sha)) return fail('blocked (source not clean and unchanged across the build)');
+      let digest;
+      try { digest = buildDigest(collectBuild(root), sources[0].sha); } catch { return fail('blocked (build output could not be read)'); }
+      process.stdout.write(`verify:product: build digest ${digest}\n`);
       return;
     }
   } else {
-    // A later CI stage: the build job's output, unchanged, or nothing runs.
+    // A later CI stage: the build job's whole output, unchanged, on a clean checkout of the same commit, or nothing runs.
+    if (!sources[0].clean) return fail('blocked (source not clean)');
+    if (currentBuild(root) !== args.digest) return fail('blocked (build output differs from the build stage output)');
     try { tested = snapshotTested(root); } catch { return fail('blocked (tested site could not be captured)'); }
-    if (snapshotDigest(tested) !== args.digest) return fail('blocked (tested site differs from the build stage output)');
   }
 
-  // The tested bytes must still be exactly the captured bytes when a stage ends.
+  // When a stage ends, the tested site must still be exactly the captured bytes and, in CI, the whole build output and the
+  // source must still match the build digest.
   const unchanged = () => {
     let after;
     try { after = snapshotTested(root); } catch { return false; }
-    return sameSnapshot(tested, after);
+    return sameSnapshot(tested, after) && (stage === 'all' || currentBuild(root) === args.digest);
   };
 
   if (stage === 'all' || stage === 'browser') {

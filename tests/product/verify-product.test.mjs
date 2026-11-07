@@ -53,12 +53,21 @@ test('report must carry the expected errors array and config forbids focused tes
 // Subprocess negative controls against a throwaway fixture root (copy of the CLI).
 const realRoot = path.resolve(new URL('../..', import.meta.url).pathname);
 const SENTINEL = 'sentinel-private-value';
-// The fake project-site build leaves a small output tree and its closure record, as the real one does.
-const PREFIXED_BUILD = `case "$*" in *"@velcro/docs run build:prefixed"*)
+// The fake builds leave small output trees as the real ones do: the library dist, the project-site output and its closure
+// record, and the root site output.
+const PREFIXED_BUILD = `case "$*" in
+  *"@charm-ux/velcro run build"*)
+  mkdir -p packages/velcro/dist/react
+  echo 'export {}' > packages/velcro/dist/index.js
+  echo 'export {}' > packages/velcro/dist/react/index.js ;;
+  *"@velcro/docs run build:prefixed"*)
   mkdir -p packages/docs/dist/static-prefixed/_litro packages/docs/dist/closure
   echo '<p>page</p>' > packages/docs/dist/static-prefixed/index.html
   echo 'export {}' > packages/docs/dist/static-prefixed/_litro/app.js
   echo '{"schema":1}' > packages/docs/dist/closure/client-closure-velcro.json ;;
+  *"@velcro/docs run build"*)
+  mkdir -p packages/docs/dist/static
+  echo '<p>root</p>' > packages/docs/dist/static/index.html ;;
 esac
 `;
 function fixture(setup) {
@@ -68,13 +77,15 @@ function fixture(setup) {
   copyFileSync(path.join(realRoot, 'scripts/verify-product.mjs'), path.join(dir, 'scripts/verify-product.mjs'));
   mkdirSync(path.join(dir, 'scripts/site'));
   copyFileSync(path.join(realRoot, 'scripts/site/tested.mjs'), path.join(dir, 'scripts/site/tested.mjs'));
+  mkdirSync(path.join(dir, 'scripts/ci'));
+  copyFileSync(path.join(realRoot, 'scripts/ci/build-output.mjs'), path.join(dir, 'scripts/ci/build-output.mjs'));
   copyFileSync(path.join(realRoot, 'scripts/product-summary.mjs'), path.join(dir, 'scripts/product-summary.mjs'));
   mkdirSync(path.join(dir, 'scripts/security'));
   copyFileSync(path.join(realRoot, 'scripts/security/privacy.mjs'), path.join(dir, 'scripts/security/privacy.mjs'));
   mkdirSync(path.join(dir, 'security'));
   copyFileSync(path.join(realRoot, 'security/policy.json'), path.join(dir, 'security/policy.json'));
   writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ packageManager: 'pnpm@9.15.9' }));
-  writeFileSync(path.join(dir, '.gitignore'), '.airig/\nnode_modules/\ncalls.log\n*.marker\npackages/docs/dist/\n');
+  writeFileSync(path.join(dir, '.gitignore'), '.airig/\nnode_modules/\ncalls.log\n*.marker\npackages/docs/dist/\npackages/velcro/dist/\n');
   spawnSync('git', ['init', '-q'], { cwd: dir });
   // Fake pnpm: reports the pinned version; other behavior is supplied per case.
   writeFileSync(path.join(dir, 'bin/pnpm'), '#!/bin/sh\nif [ "$1" = "--version" ]; then echo 9.15.9; fi\n' + PREFIXED_BUILD + (setup?.shim ?? ''), { mode: 0o755 });
@@ -351,7 +362,7 @@ test('CLI prints the bounded summary when the browser tests fail, and nothing pr
 });
 
 // --- CI stages -----------------------------------------------------------------------------------------------------------
-const DIGEST = /^verify:product: tested digest ([0-9a-f]{64})$/m;
+const DIGEST = /^verify:product: build digest ([0-9a-f]{64})$/m;
 
 test('stage arguments: only the documented forms are accepted', () => {
   const d = 'a'.repeat(64);
@@ -419,18 +430,59 @@ test('CI stages: build only builds and prints the digest; a shard, upstream and 
   } finally { cleanup(dir); }
 });
 
-test('CI stages: output that differs from the build stage digest blocks before any check and leaves no evidence', () => {
-  const dir = fixture({ prepare: d => { stubPlaywright(d); gitInit(d); }, shim: stageShim });
+// Every change to the shared build output after the build stage, in either dist tree, and a different commit.
+const OUTPUT_CHANGES = {
+  'prefixed site file changed': d => writeFileSync(path.join(d, 'packages/docs/dist/static-prefixed/index.html'), '<p>changed</p>\n'),
+  'root site file changed': d => writeFileSync(path.join(d, 'packages/docs/dist/static/index.html'), '<p>changed</p>\n'),
+  'root site file added': d => writeFileSync(path.join(d, 'packages/docs/dist/static/extra.js'), 'export {}\n'),
+  'library file changed': d => writeFileSync(path.join(d, 'packages/velcro/dist/react/index.js'), 'export const x = 1;\n'),
+  'library file added': d => writeFileSync(path.join(d, 'packages/velcro/dist/extra.js'), 'export {}\n'),
+  'library file removed': d => rmSync(path.join(d, 'packages/velcro/dist/index.js')),
+  'library tree missing': d => rmSync(path.join(d, 'packages/velcro/dist'), { recursive: true }),
+  'another commit': d => {
+    writeFileSync(path.join(d, 'tracked.txt'), 'next\n');
+    spawnSync('git', ['-C', d, '-c', 'user.name=t', '-c', `user.email=${['t', 'users.noreply.github.com'].join('@')}`, 'commit', '-qam', 'y']);
+  },
+};
+const CONSUMERS = digest => [['--stage', 'browser', '--engine', 'chromium', '--shard', '1/3', '--expect-digest', digest], ['--stage', 'upstream', '--expect-digest', digest], ['--stage', 'evidence', '--expect-digest', digest]];
+for (const [name, change] of Object.entries(OUTPUT_CHANGES)) {
+  test(`CI stages: build output that differs from the build stage digest blocks before any check (${name})`, () => {
+    const dir = fixture({ prepare: d => { stubPlaywright(d); gitInit(d); }, shim: stageShim });
+    try {
+      const digest = DIGEST.exec(runCli(dir, false, {}, true, ['--stage', 'build']))[1];
+      change(dir);
+      rmSync(path.join(dir, 'calls.log'));
+      for (const argv of CONSUMERS(digest)) assert.match(runCli(dir, true, {}, true, argv), /blocked \(build output differs from the build stage output\)/);
+      assert.throws(() => readFileSync(path.join(dir, 'calls.log')), /ENOENT/);
+      assert.throws(() => readFileSync(path.join(dir, EVIDENCE)), /ENOENT/);
+    } finally { cleanup(dir); }
+  });
+}
+
+test('CI stages: build output changed while a shard or the upstream gate runs blocks it', () => {
+  const touch = `case "$*" in *"exec playwright"*|*"run test:upstream"*) echo 'export const late = 1;' > packages/velcro/dist/react/index.js ;; esac\n`;
+  const dir = fixture({ prepare: d => { stubPlaywright(d); gitInit(d); }, shim: stageShim + touch });
   try {
     const digest = DIGEST.exec(runCli(dir, false, {}, true, ['--stage', 'build']))[1];
-    writeFileSync(path.join(dir, 'packages/docs/dist/static-prefixed/index.html'), '<p>changed</p>\n');
-    rmSync(path.join(dir, 'calls.log'));
-    for (const argv of [['--stage', 'browser', '--engine', 'chromium', '--shard', '1/3', '--expect-digest', digest], ['--stage', 'upstream', '--expect-digest', digest], ['--stage', 'evidence', '--expect-digest', digest]]) {
-      assert.match(runCli(dir, true, {}, true, argv), /blocked \(tested site differs from the build stage output\)/);
-    }
-    assert.throws(() => readFileSync(path.join(dir, 'calls.log')), /ENOENT/);
-    assert.throws(() => readFileSync(path.join(dir, EVIDENCE)), /ENOENT/);
+    const restore = () => writeFileSync(path.join(dir, 'packages/velcro/dist/react/index.js'), 'export {}\n');
+    restore();
+    assert.match(runCli(dir, true, {}, true, CONSUMERS(digest)[0]), /blocked \(tested site changed during verification\)/);
+    restore();
+    assert.match(runCli(dir, true, {}, true, CONSUMERS(digest)[1]), /blocked \(tested site changed during verification\)/);
   } finally { cleanup(dir); }
+});
+
+test('CI stages: a build that changes or adds a source file prints no digest', () => {
+  for (const [name, dirty] of [['tracked file changed', 'echo changed > tracked.txt'], ['untracked file added', 'echo new > new-source.txt']]) {
+    const shim = stageShim.replace('*"@velcro/docs run typecheck"*) ', `*"@velcro/docs run typecheck"*) ${dirty}; `);
+    assert.notEqual(shim, stageShim);
+    const dir = fixture({ prepare: d => { stubPlaywright(d); gitInit(d); }, shim });
+    try {
+      const out = runCli(dir, true, {}, true, ['--stage', 'build']);
+      assert.match(out, /blocked \(source not clean and unchanged across the build\)/, name);
+      assert.doesNotMatch(out, DIGEST, name);
+    } finally { cleanup(dir); }
+  }
 });
 
 test('CI stages: the evidence stage refuses a dirty source tree', () => {
@@ -438,7 +490,7 @@ test('CI stages: the evidence stage refuses a dirty source tree', () => {
   try {
     const digest = DIGEST.exec(runCli(dir, false, {}, true, ['--stage', 'build']))[1];
     writeFileSync(path.join(dir, 'tracked.txt'), 'changed\n');
-    assert.match(runCli(dir, true, {}, true, ['--stage', 'evidence', '--expect-digest', digest]), /blocked \(source not clean and unchanged; no evidence recorded\)/);
+    for (const argv of CONSUMERS(digest)) assert.match(runCli(dir, true, {}, true, argv), /blocked \(source not clean\)/);
     assert.throws(() => readFileSync(path.join(dir, EVIDENCE)), /ENOENT/);
   } finally { cleanup(dir); }
 });

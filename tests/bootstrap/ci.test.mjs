@@ -85,8 +85,10 @@ test('product workflow: one build, every engine in N shards (1..N), the upstream
   assert.ok(at('pnpm verify:product --stage build') > 0);
   assert.ok(at('pnpm verify:product --stage build') < at('node scripts/ci/scan-build-output.mjs'));
   assert.ok(at('node scripts/ci/scan-build-output.mjs') < at('actions/upload-artifact@'));
+  // The scan checks the build digest and stages exactly the scanned bytes; only that staging tree is uploaded.
+  assert.match(build, /env:\n\s+DIGEST: \$\{\{ steps\.build\.outputs\.digest \}\}\n\s+run: node scripts\/ci\/scan-build-output\.mjs --expect-digest "\$DIGEST"\n/);
   assert.equal([...text.matchAll(/upload-artifact|upload-pages/g)].length, 1, 'only the build job uploads, once');
-  assert.match(build, /name: product-build\n\s+path: \|\n\s+packages\/velcro\/dist\n\s+packages\/docs\/dist\n\s+if-no-files-found: error\n\s+include-hidden-files: true\n\s+retention-days: 1\n/);
+  assert.match(build, /name: product-build\n\s+path: \.airig\/ci\/product-build\n\s+if-no-files-found: error\n\s+include-hidden-files: true\n\s+retention-days: 1\n/);
   // Every later job downloads that output and checks the build digest; nothing rebuilds it.
   for (const [name, body] of [['browser', browser], ['upstream', upstream]]) {
     assert.match(body, /needs: build\n/);
@@ -168,8 +170,9 @@ test('build step publishes only the digest, keeps all command output private and
   assert.ok(script, 'actual build step must be testable');
   const digest = 'b'.repeat(64);
   for (const [code, digestLine, status, expected] of [
-    [0, `verify:product: tested digest ${digest}`, 0, `product build: passed (tested digest ${digest})`],
-    [0, 'verify:product: tested digest short', 1, 'product build: blocked (no tested digest)'],
+    [0, `verify:product: build digest ${digest}`, 0, `product build: passed (build digest ${digest})`],
+    [0, 'verify:product: build digest short', 1, 'product build: blocked (no build digest)'],
+    [0, `verify:product: tested digest ${digest}`, 1, 'product build: blocked (no build digest)'],
     [3, '', 1, 'verify:product: webkit passed 1\nproduct build: blocked; private evidence retained'],
   ]) {
     const dir = mkdtempSync(path.join(tmpdir(), 'velcro-ci-'));

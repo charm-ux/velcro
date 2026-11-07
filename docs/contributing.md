@@ -178,7 +178,11 @@ symlinks, submodules, runtime material, tags and broad ref pushes are not certif
 Content is bounded and secret-scanned with numbered text names so stock path
 exclusions cannot hide lockfiles or other source files. This is not a general
 release-archive processor. Build/pack output is local-only, not publication-approved.
-No package, site, test output, or workflow artifact is uploaded by this increment.
+No package or test output is uploaded. CI uploads one workflow artifact, `product-build`:
+the library and docs build output that the later CI jobs test, kept for one day. It is
+scanned with the privacy rules and the pinned Gitleaks engine first, and only the
+scanned bytes are uploaded (`scripts/ci/scan-build-output.mjs`). The Pages workflow
+also uploads the prepared site for deployment (`docs/deployment.md`).
 
 ## Hooks are explicit and shared
 
@@ -262,8 +266,8 @@ is a blocker; do not broaden the exception to make a generated commit pass.
 ## CI and trust limitations
 
 CI pins actions, Node and pnpm; public-npm frozen install remains required. The
-`required` aggregate runs with `always()` and accepts exactly `verify`, `product` and
-`security` with successful results. Missing, skipped, failed or cancelled jobs
+`required` aggregate runs with `always()` and accepts exactly `verify`, `product`,
+`site` and `security` with successful results. Missing, skipped, failed or cancelled jobs
 block. Security scans PR objects with engines from the base checkout, not
 candidate-modified engines; a base lacking the guard fails closed.
 

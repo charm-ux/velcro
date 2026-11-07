@@ -59,21 +59,23 @@ jobs:
         run: |
           mkdir -p .airig/ci
           pnpm verify:product --stage build > .airig/ci/product-build.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/product-build.log; echo 'product build: blocked; private evidence retained'; exit 1; }
-          digest=$(sed -n 's/^verify:product: tested digest \([0-9a-f]\{64\}\)$/\1/p' .airig/ci/product-build.log)
-          [ "${#digest}" = 64 ] || { echo 'product build: blocked (no tested digest)'; exit 1; }
+          digest=$(sed -n 's/^verify:product: build digest \([0-9a-f]\{64\}\)$/\1/p' .airig/ci/product-build.log)
+          [ "${#digest}" = 64 ] || { echo 'product build: blocked (no build digest)'; exit 1; }
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
-          echo "product build: passed (tested digest $digest)"
+          echo "product build: passed (build digest $digest)"
       - run: node scripts/security/gitleaks.mjs install
-      # A signed-in user can download a public repository's workflow artifacts: every shared byte is scanned first.
-      - name: Scan the build output before it is shared
-        run: node scripts/ci/scan-build-output.mjs
-      - name: Share the build output with the later jobs
+      # A signed-in user can download a public repository's workflow artifacts: every shared byte is scanned first. The scan
+      # checks the build digest, then stages exactly the bytes it scanned (velcro/dist and docs/dist) for the upload; the
+      # later jobs check the same digest on what they download into packages/.
+      - name: Scan the build output and stage the scanned bytes for sharing
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: node scripts/ci/scan-build-output.mjs --expect-digest "$DIGEST"
+      - name: Share the scanned build output with the later jobs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: product-build
-          path: |
-            packages/velcro/dist
-            packages/docs/dist
+          path: .airig/ci/product-build
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 1

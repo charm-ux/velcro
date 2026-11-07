@@ -12,7 +12,7 @@ refuse any ref other than `main`, and the `github-pages` environment is restrict
 has read-only permissions, checks out the exact pushed or dispatched SHA and installs with the frozen lockfile from the
 public registry. `checks` runs the history scan and `verify:source`. `product` calls `.github/workflows/product.yml`, which
 CI uses too: its build job builds the library and the docs once (the project-site output with `LITRO_BASE_PATH=/velcro`),
-scans that output and shares it with the later jobs as a one-day workflow artifact; each engine then runs in three
+scans that output and shares exactly the scanned bytes with the later jobs as a one-day workflow artifact; each engine then runs in three
 Playwright shards, and the upstream gate runs in its own job, all on that same output and without rebuilding it. `build`
 needs both, records the tested-bytes evidence (below) and runs the site preparation on that same output. Only then does it
 upload the Pages artifact. The `deploy` job is the only one with `pages: write` and `id-token: write`; it runs just the
@@ -79,11 +79,15 @@ source that is reverted afterwards cannot be prepared. Nothing is rebuilt betwee
 preparation in either workflow. The closure record is read once (bounded), that buffer is hashed and parsed, and it is
 compared again after the scans.
 
-In CI the checks are split across jobs, so the binding goes through a digest. `verify:product --stage build` prints the
-digest of that snapshot; every browser shard and the upstream job (`--stage browser`, `--stage upstream`) refuse to run
-unless the downloaded output has that digest, and check it again afterwards. `--stage evidence`, run only in a job that
-needs every product job to have succeeded, checks the digest and the clean source once more and writes the same evidence
-file, which preparation then requires as above.
+In CI the checks are split across jobs, so the binding goes through a digest. `verify:product --stage build` requires a
+clean source that is the same commit at the start, at the snapshot and at the end of the build (a build that changes or
+adds a source file prints no digest), checks that the snapshot did not change during the rest of the build, and prints the
+build digest: every file of both dist trees (path, size and SHA-256) and the source commit (`scripts/ci/build-output.mjs`).
+The build output scan checks that digest, scans those bytes and stages exactly them for the upload. Every browser shard,
+the upstream job and `--stage evidence` (`--stage browser`, `--stage upstream`, `--stage evidence`) refuse to run unless
+their checkout is clean and the downloaded output with it has that digest, and check both again afterwards. The evidence
+stage, run only in a job that needs every product job to have succeeded, then writes the same evidence file for the
+snapshot, which preparation requires as above.
 
 The upload action runs with `include-hidden-files: true` so the empty `.nojekyll` marker is included; only the vetted
 staged directory is uploaded.
