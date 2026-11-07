@@ -219,6 +219,16 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   are changed to Velcro's React wrappers). The animation is built on the
   `@charm-ux/core` base element; no Shoelace runtime is included. The animation presets come from
   `@shoelace-style/animations` (next section).
+- Also used in: `packages/velcro/src/components/menu-label/menu-label.ts` (API documentation wording and the rendered
+  structure, one default slot with the `base` part and the `menu-label` class name, adapted from
+  `src/components/menu-label/menu-label.component.ts`), `packages/velcro/src/components/menu-label/menu-label.styles.ts`
+  (styles concatenated from `src/styles/component.styles.ts` and `src/components/menu-label/menu-label.styles.ts`, rules
+  unchanged) and the docs page and examples `packages/docs/pages/components/menu-label.ts` and
+  `packages/docs/examples/menu-label/*.html` (example markup and wording adapted from
+  `docs/pages/components/menu-label.md`) and the React example `packages/docs/examples/menu-label/react/basic.jsx`
+  (copied from the same page's React example; the import lines are changed to Velcro's React wrappers and Velcro-side
+  stand-ins replace `SlMenu` and `SlMenuItem`). The menu label is built on the `@charm-ux/core` base element; no
+  Shoelace runtime or source files are included.
 - Also used in: `tests/upstream/shoelace-2.20.1/` (test files only, never shipped): the upstream test files
   `src/components/<name>/<name>.test.ts` for each implemented component and the helper
   `src/internal/test/form-control-base-tests.ts`, copied unmodified from commit

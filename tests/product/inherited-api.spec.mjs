@@ -23,6 +23,7 @@ const CONTENT = {
   'sl-progress-bar': 'Label',
   'sl-progress-ring': 'Label',
   'sl-include': '<div>x</div>',
+  'sl-menu-label': 'Label',
   'sl-mutation-observer': '<div>x</div>',
   'sl-animation': '<div>x</div>',
   'sl-popup': '<span slot="anchor">a</span><div>x</div>',

@@ -8,6 +8,7 @@ export * from './components/format-date/index.js';
 export * from './components/format-number/index.js';
 export * from './components/icon/index.js';
 export * from './components/include/index.js';
+export * from './components/menu-label/index.js';
 export * from './components/mutation-observer/index.js';
 export * from './components/progress-bar/index.js';
 export * from './components/progress-ring/index.js';

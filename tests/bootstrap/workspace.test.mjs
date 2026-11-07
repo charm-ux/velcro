@@ -61,6 +61,7 @@ const prototypeExports = {
   './card/class': exportTargets('components/card/class'),
   './include/class': exportTargets('components/include/class'),
   './include/request': exportTargets('components/include/request'),
+  './menu-label/class': exportTargets('components/menu-label/class'),
   './mutation-observer/class': exportTargets('components/mutation-observer/class'),
   './popup/class': exportTargets('components/popup/class'),
   './progress-bar/class': exportTargets('components/progress-bar/class'),

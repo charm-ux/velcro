@@ -255,6 +255,9 @@
     "<sl-include> > should load content and emit sl-load",
     "<sl-include> > should emit sl-error when content cannot be loaded"
   ],
+  "menu-label": [
+    "<sl-menu-label> > passes accessibility test"
+  ],
   "mutation-observer": [
     "<sl-mutation-observer> > should render a component"
   ],

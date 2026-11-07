@@ -2040,6 +2040,36 @@
     },
     {
       "kind": "javascript-module",
+      "path": "components/menu-label/menu-label.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SlMenuLabel",
+          "tagName": "sl-menu-label",
+          "summary": "Menu labels are used to describe a group of menu items.",
+          "description": "",
+          "superclass": {
+            "name": "ShoelaceElement",
+            "module": "/src/internal/shoelace-element.js"
+          },
+          "members": [],
+          "slots": [
+            {
+              "description": "The menu label's content.",
+              "name": ""
+            }
+          ],
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "components/mutation-observer/mutation-observer.js",
       "declarations": [
         {

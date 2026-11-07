@@ -4353,6 +4353,137 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/components/menu-label/menu-label.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Menu labels are used to describe a group of menu items. API modelled on Shoelace's `sl-menu-label`. There is no core\ncounterpart, so it extends the core base element.\n\nVelcro extension inherited from the core base element and kept: the non-bubbling `ready` event, emitted on the first\nupdate. Shoelace's menu label has no events.",
+          "name": "VelcroMenuLabel",
+          "cssParts": [
+            {
+              "description": "The component's base wrapper.",
+              "name": "base"
+            }
+          ],
+          "slots": [
+            {
+              "description": "The menu label's content.",
+              "name": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "baseName",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "static": true,
+              "default": "'menu-label'"
+            },
+            {
+              "kind": "field",
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "privacy": "public",
+              "description": "The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any\nstring can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.",
+              "attribute": "dir"
+            },
+            {
+              "kind": "field",
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "public",
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "attribute": "lang"
+            },
+            {
+              "kind": "field",
+              "name": "scope",
+              "type": {
+                "text": "any"
+              },
+              "privacy": "protected",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "velcroDir",
+              "type": {
+                "text": "string | undefined"
+              },
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "dir",
+              "type": {
+                "text": "'ltr' | 'rtl' | 'auto'"
+              },
+              "description": "The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any\nstring can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.",
+              "fieldName": "dir",
+              "propName": "dir"
+            },
+            {
+              "name": "lang",
+              "type": {
+                "text": "string"
+              },
+              "description": "The element's language, as set by the `lang` attribute or property. Not reflected.",
+              "fieldName": "lang",
+              "propName": "lang"
+            }
+          ],
+          "superclass": {
+            "name": "CharmElement",
+            "package": "@charm-ux/core"
+          },
+          "tagName": "sl-menu-label",
+          "customElement": true,
+          "status": "prototype",
+          "events": [
+            {
+              "description": "Emitted when the component is ready.",
+              "name": "ready",
+              "inheritedFrom": {
+                "name": "CharmElement",
+                "package": "@charm-ux/core"
+              }
+            }
+          ],
+          "modulePath": "src/components/menu-label/menu-label.ts"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "VelcroMenuLabel",
+            "module": "src/components/menu-label/menu-label.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "VelcroMenuLabel",
+          "declaration": {
+            "name": "VelcroMenuLabel",
+            "module": "src/components/menu-label/menu-label.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/components/mutation-observer/mutation-observer.ts",
       "declarations": [
         {

@@ -53,6 +53,8 @@ test('copied or adapted upstream files carry a provenance header', () => {
     'packages/velcro/src/components/include/include.ts',
     'packages/velcro/src/components/include/include.styles.ts',
     'packages/velcro/src/components/include/request.ts',
+    'packages/velcro/src/components/menu-label/menu-label.ts',
+    'packages/velcro/src/components/menu-label/menu-label.styles.ts',
     'packages/velcro/src/components/mutation-observer/mutation-observer.ts',
     'packages/velcro/src/components/mutation-observer/mutation-observer.styles.ts',
     'packages/velcro/src/components/popup/popup.ts',
