@@ -639,8 +639,12 @@ test('slots: a custom divider handle is slotted and nested split panels work ind
   // ::part(divider) styles apply, and keyboard focus recolors the divider through the shadow styles.
   const color = () => host.evaluate(el => getComputedStyle(el.shadowRoot.querySelector('.divider')).backgroundColor);
   expect(await color()).toBe('rgb(219, 39, 119)');
-  await host.locator('.divider').focus();
+  // Keyboard focus, as in the focus test below: Tab first, so the last interaction is a keyboard one (Firefox does not
+  // always treat script focus as :focus-visible otherwise), then script focus if Tab landed elsewhere.
+  await page.keyboard.press('Tab');
+  if (!(await host.evaluate(el => el.shadowRoot.activeElement !== null))) await host.locator('.divider').focus();
   await page.keyboard.press('ArrowRight');
+  expect(await host.evaluate(el => [document.hasFocus(), el.shadowRoot.activeElement?.classList.contains('divider')])).toEqual([true, true]);
   expect(await color()).toBe('rgb(2, 132, 199)');
   const nested = await openExample(page, 'Nested Split Panels');
   const panels = nested.frame.locator('sl-split-panel');
