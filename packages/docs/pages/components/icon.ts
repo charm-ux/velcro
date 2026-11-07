@@ -83,7 +83,7 @@ const gaps = [
   'The icon search on this page is Velcro\'s own: Shoelace\'s uses sl-input, sl-select and sl-tooltip, which Velcro does not have. It matches icon names, titles, tags and categories, and clicking an icon copies its name.',
   'The CDN icon library examples load third-party icons from jsDelivr only when you choose to load them, so this page contacts no third party until then. The examples run in same-origin frames, and the icon parses each fetched file as HTML (see the quirks above), so only load examples whose source you trust. The Iconoir example is pinned to version 5.5.2 where Shoelace\'s docs use @latest (for the six icons shown, the same files). Velcro\'s tests answer the CDN requests locally, so they check the URLs each resolver builds and what each mutator sets, not the CDN content.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Server-side rendering is not supported.',
-  'Shoelace\'s own icon tests run against Velcro and all pass; one (an error for a missing sprite sheet icon) is skipped by Shoelace itself. Rendering is checked by computed-style assertions in Chromium; there is no pixel comparison against Shoelace, and no Firefox or WebKit run.',
+  'Shoelace\'s own icon tests run against Velcro and all pass; one (an error for a missing sprite sheet icon) is skipped by Shoelace itself. Rendering is checked by computed-style assertions in Chromium, Firefox and WebKit; there is no pixel comparison against Shoelace.',
 ];
 
 const quirks = [

@@ -3,14 +3,14 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { collectRequestFailures } from './request-failures.mjs';
 import { buildFixtures, openFixturePage, ORIGIN } from './support/fixtures.mjs';
-import { stubCdn } from './support/cdn.mjs';
+import { guardCdn, stubCdn } from './support/cdn.mjs';
 
 const PAGE = '/components/icon';
 const source = fileURLToPath(new URL('../../packages/velcro/assets/bootstrap-icons/', import.meta.url));
 const dist = fileURLToPath(new URL('../../packages/velcro/dist/assets/icons/', import.meta.url));
 
 async function openPage(page) {
-  const cdn = await stubCdn(page);
+  const cdn = guardCdn(page);
   const requests = [];
   page.on('request', request => requests.push(request.url()));
   const failures = collectRequestFailures(page);
@@ -123,6 +123,8 @@ test('CDN icon library examples load only on request, then resolve the documente
   await expect(buttons).toHaveCount(11);
   await expect(page.locator('iframe[title="Icon example: Boxicons"]')).toHaveCount(0);
   expect(cdn).toEqual([]);
+  // From here the CDN is answered locally (installed now, after the page settled: see support/cdn.mjs).
+  const answered = await stubCdn(page);
   while (await buttons.count()) {
     await buttons.first().click();
   }
@@ -145,7 +147,7 @@ test('CDN icon library examples load only on request, then resolve the documente
     const count = await icons.count();
     expect(count).toBeGreaterThan(0);
     await expect.poll(() => icons.evaluateAll(els => els.filter(el => el.shadowRoot.querySelector('svg')).length), { message: title }).toBe(count);
-    expect(cdn.some(url => url.startsWith(prefix)), `${title} requests ${prefix}`).toBe(true);
+    expect(answered.some(url => url.startsWith(prefix)), `${title} requests ${prefix}`).toBe(true);
     // The libraries with a mutator set fill (and Ionicons also stroke) to currentColor; the others have none.
     const attrs = await icons.first().evaluate(el => ['fill', 'stroke'].map(a => el.shadowRoot.querySelector('svg').getAttribute(a)));
     expect(attrs, title).toEqual(mutated ? ['currentColor', title === 'Ionicons' ? 'currentColor' : null] : [null, null]);
@@ -282,8 +284,8 @@ async function routeTestIcons(page) {
 }
 
 test('upstream quirks matched: one draw per changed property, label after draw, hidden, system names, parsing, cache and stale responses', async ({ page }) => {
-  const counts = await routeTestIcons(page);
   await openPage(page);
+  const counts = await routeTestIcons(page);
   const frame = frameOf(page, 'Icon example: Colors');
   const result = await frame.locator('body').evaluate(async () => {
     const { registerIconLibrary } = await import('@charm-ux/velcro');

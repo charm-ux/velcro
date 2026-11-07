@@ -18,10 +18,28 @@ export default defineConfig({
   testMatch: '*.spec.mjs',
   outputDir,
   forbidOnly: true,
+  // Tests, not files, are the unit of scheduling, so CI's shards (`--shard`, one engine each; see .github/workflows/product.yml)
+  // split even the long files evenly. No spec depends on the order of its tests or on another test's state.
+  fullyParallel: true,
+  // Hangs must fail fast and visibly: a stuck test fails after 45 s (specs that need more say so with test.setTimeout), and the
+  // whole run stops at 28 min. With 519 tests per engine, a CI run of the three engines ran past 20 min (WebKit, run last, still
+  // had 22 tests to go). scripts/verify-product.mjs kills the browser step only at 30 min, so Playwright writes its JSON report
+  // (and verify:product prints its summary) first; the CI step bound of 35 min also covers the builds and the upstream gate, and
+  // the product job's 45 min covers the installs. global-timeout.test.mjs exercises the stop-and-report path with a short timeout.
+  // Two workers in CI (Playwright's default on the 4-vCPU runner), pinned so a runner change cannot raise it. Four workers
+  // saturated the runner: the run gained little time, and WebKit loads of the button docs page (15 example iframes, reloaded
+  // once by the client router) went past the 45 s test timeout.
+  workers: process.env.CI ? 2 : undefined,
+  timeout: 45000,
+  globalTimeout: 28 * 60 * 1000,
   reporter: 'list',
   // webServer.port makes Playwright set baseURL itself.
   use: { trace: 'off' },
-  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'firefox', use: { browserName: 'firefox' } },
+    { name: 'webkit', use: { browserName: 'webkit' } },
+  ],
   webServer: {
     command: 'node packages/docs/scripts/preview.mjs',
     cwd: root,

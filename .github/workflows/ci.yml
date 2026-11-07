@@ -29,10 +29,19 @@ jobs:
         with:
           version: 9.15.9
           run_install: false
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
       - name: Public frozen dependency install
         run: |
           mkdir -p .airig/ci
-          pnpm install --frozen-lockfile --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
+          pnpm install --frozen-lockfile --prefer-offline --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
           echo 'install: passed'
       - run: node scripts/security/gitleaks.mjs install
       - name: Verify with private raw output
@@ -96,14 +105,22 @@ jobs:
           HEAD_OID: ${{ github.event.pull_request.head.sha }}
         run: node .airig/trusted/scripts/security/git-privacy.mjs policy "$BASE_OID" "$HEAD_OID"
 
+  # Builds once, then every engine in four shards and the upstream gate, each on that same output (product.yml).
   product:
+    uses: ./.github/workflows/product.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  # Runs only when every product job succeeded: records the tested-bytes evidence for the build output they all checked,
+  # then verifies site preparation (notices, allowlist, scans) on every PR. Nothing is uploaded or deployed here.
+  site:
+    needs: product
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -113,21 +130,32 @@ jobs:
         with:
           version: 9.15.9
           run_install: false
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
       - name: Public frozen dependency install
         run: |
           mkdir -p .airig/ci
-          pnpm install --frozen-lockfile --registry=https://registry.npmjs.org/ > .airig/ci/product-install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
+          pnpm install --frozen-lockfile --prefer-offline --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
           echo 'install: passed'
-      - name: Install Chromium and system dependencies (disposable runner)
-        run: |
-          pnpm exec playwright install --with-deps chromium > .airig/ci/browser.log 2>&1 || { echo 'browser setup: blocked; private evidence retained'; exit 1; }
-          echo 'browser setup: passed'
-      - name: Product verification (Chromium only)
+      - name: Download the build output
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: product-build
+          path: packages
+      - name: Record the tested-bytes evidence
+        env:
+          DIGEST: ${{ needs.product.outputs.digest }}
         run: |
           mkdir -p .airig/ci
-          pnpm verify:product > .airig/ci/product.log 2>&1 || { echo 'product: blocked; private evidence retained'; exit 1; }
-          echo 'product: passed'
-      # Verifies site preparation (notices, allowlist, scans) on every PR. Nothing is uploaded or deployed here.
+          pnpm verify:product --stage evidence --expect-digest "$DIGEST" > .airig/ci/evidence.log 2>&1 || { awk '/^verify:product: / && n++ < 20 { print substr($0, 1, 300) }' .airig/ci/evidence.log; echo 'evidence: blocked; private evidence retained'; exit 1; }
+          echo 'evidence: passed'
       - run: node scripts/security/gitleaks.mjs install
       - name: Site preparation check (no upload)
         env:
@@ -137,7 +165,7 @@ jobs:
 
   required:
     if: ${{ always() }}
-    needs: [verify, product, security]
+    needs: [verify, product, site, security]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -153,8 +181,8 @@ jobs:
             let good = false;
             try {
               const n = JSON.parse(process.env.VELCRO_CI_NEEDS);
-              good = n && Object.keys(n).sort().join(",") === "product,security,verify"
-                && ["security", "verify", "product"].every(k => n[k]?.result === "success");
+              good = n && Object.keys(n).sort().join(",") === "product,security,site,verify"
+                && ["security", "verify", "product", "site"].every(k => n[k]?.result === "success");
             } catch {}
             console.log(good ? "required: passed" : "required: blocked");
             process.exitCode = good ? 0 : 1;

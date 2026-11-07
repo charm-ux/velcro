@@ -403,7 +403,17 @@ test('React 19 wrapper for the split panel behaves like the property on a plain 
     const react = document.getElementById('split');
     await Promise.all([react.updateComplete, plain.updateComplete]);
     root.style.display = '';
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // Wait for the resize notification of the shown panels rather than a fixed delay (WebKit can deliver it later): an
+    // observer created now is notified in the same pass as each panel's own, older observer of its host, and after it.
+    await new Promise(resolve => {
+      const seen = new Set();
+      const ro = new ResizeObserver(entries => {
+        for (const e of entries) if (e.contentRect.width > 0) seen.add(e.target);
+        if (seen.size === 2) { ro.disconnect(); resolve(); }
+      });
+      ro.observe(react);
+      ro.observe(plain);
+    });
     await Promise.all([react.updateComplete, plain.updateComplete]);
     return { react: react.position, plain: plain.position, attribute: react.hasAttribute('position-in-pixels') };
   });

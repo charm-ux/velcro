@@ -22,8 +22,8 @@ It does contain Shoelace-derived material adapted into source (the components' A
 ## Prerequisites
 
 - Node `24.22.1` and pnpm `9.15.9`, as pinned in `.nvmrc` and `package.json`.
-- Chromium for Playwright, installed explicitly once (it is never installed automatically):
-  `pnpm exec playwright install chromium` (add `--with-deps` on Linux). Needed only for the browser tests.
+- Chromium, Firefox and WebKit for Playwright, installed explicitly once (they are never installed automatically):
+  `pnpm exec playwright install chromium firefox webkit` (add `--with-deps` on Linux). Needed only for the browser tests.
 - The committed `.npmrc` and lockfile default to public npm. An operator-approved local registry override is possible, but
   it must stay out of committed and public content.
 
@@ -46,7 +46,7 @@ static build, not a hosting feature, so do not expose it on other interfaces.
 ```sh
 pnpm test                 # Node tests under tests/
 pnpm verify:source        # pinned tools, hooks, scanner, tests, proposed index
-pnpm verify:product       # build, root and prefixed static builds, typecheck and the Chromium Playwright suite
+pnpm verify:product       # build, root and prefixed static builds, typecheck and the Playwright suite in Chromium, Firefox and WebKit
 pnpm verify               # both of the above
 ```
 

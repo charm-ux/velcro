@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+
+test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/visually-hidden';
 
@@ -7,10 +10,12 @@ async function openExample(page) {
   page.on('request', request => requests.push(request.url()));
   // Litro's client router remounts the page component once after load, which reloads the iframe; wait for it to settle.
   await page.goto(PAGE, { waitUntil: 'networkidle' });
+  // The client router replaces the prerendered page once; until it has settled there can be two example iframes.
+  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-external')).toBeVisible();
   await frame.locator('#demo-skip').evaluate(() => customElements.whenDefined('sl-visually-hidden'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 
@@ -109,7 +114,7 @@ test('hidden state: clip-based styles match Shoelace', async ({ page }) => {
   expect(overridden).toEqual({ width: '1px', position: 'absolute' });
 });
 
-test('focus reveals the content and blurring hides it again', async ({ page }) => {
+test('focus reveals the content and blurring hides it again', async ({ page, browserName }) => {
   const { frame } = await openExample(page);
   const host = frame.locator('#demo-skip');
   await frame.locator('#demo-skip-link').focus();
@@ -124,7 +129,8 @@ test('focus reveals the content and blurring hides it again', async ({ page }) =
   // Keyboard path: the first Tab stop in the document is the hidden link.
   await frame.locator('body').evaluate(() => document.activeElement?.blur());
   await frame.locator('#demo-external').evaluate(el => el.focus());
-  await page.keyboard.press('Shift+Tab');
+  // Safari's default (and so WebKit's on macOS) skips links in the Tab order; Option moves through all focusable elements.
+  await page.keyboard.press(browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Shift+Tab' : 'Shift+Tab');
   await expect(frame.locator('#demo-skip-link')).toBeFocused();
   expect((await hiddenStyles(host)).clipPath).toBe('none');
 });

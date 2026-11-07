@@ -8,6 +8,12 @@ const DARK_BG = 'rgb(18, 18, 20)';
 const LIGHT_BG = 'rgb(255, 255, 255)';
 const themeSelect = page => page.getByRole('combobox', { name: 'Color theme' });
 const rootClass = page => page.evaluate(() => document.documentElement.className);
+// emulateMedia is a protocol call; WebKit re-evaluates media queries at its next rendering update, so a synchronous read of
+// matchMedia can still show the old scheme. Wait for the page to observe the new scheme before acting on it.
+const emulate = async (page, scheme) => {
+  await page.emulateMedia({ colorScheme: scheme });
+  await page.waitForFunction(s => matchMedia('(prefers-color-scheme: dark)').matches === (s === 'dark'), scheme);
+};
 const settle = async page => {
   await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
   await page.waitForLoadState('networkidle');
@@ -71,7 +77,7 @@ test('an explicit choice persists across reloads and pages, wins over the system
   await page.reload({ waitUntil: 'networkidle' });
   expect(await rootClass(page)).toBe('sl-theme-dark');
   // A stored choice is not overridden by a system change.
-  await page.emulateMedia({ colorScheme: 'light' });
+  await emulate(page, 'light');
   expect(await rootClass(page)).toBe('sl-theme-dark');
 
   await settle(page);
@@ -79,7 +85,7 @@ test('an explicit choice persists across reloads and pages, wins over the system
   expect(await rootClass(page)).toBe('sl-theme-light');
   expect(await page.evaluate(k => localStorage.getItem(k), KEY)).toBe('light');
 
-  await page.emulateMedia({ colorScheme: 'dark' });
+  await emulate(page, 'dark');
   await themeSelect(page).selectOption('system');
   expect(await page.evaluate(k => localStorage.getItem(k), KEY)).toBeNull();
   expect(await rootClass(page)).toBe('sl-theme-dark');

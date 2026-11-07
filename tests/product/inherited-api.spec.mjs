@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { expect, test } from '@playwright/test';
+import { makeProbe } from './support/probe.mjs';
 import { customElements, readJson, velcroManifestPath } from '../../scripts/api/model.mjs';
 
 const require = createRequire(new URL('../../packages/velcro/package.json', import.meta.url));
@@ -38,21 +39,29 @@ const ATTRS = { 'sl-progress-bar': { value: '40' }, 'sl-progress-ring': { value:
 // box shadow, time, keyword, number, alignment.
 const VALUES = ['37px', 'rgb(1, 2, 3)', 'dotted', '3px solid rgb(1, 2, 3)', '2px 2px rgb(1, 2, 3)', '3s', 'none', '0.25', 'flex-end'];
 
+// Each candidate is measured on its own, so the candidates are split into groups of at most GROUP, each its own test: the
+// slow components (sl-switch has 55 core candidates and 7 boolean states) then spread over workers instead of holding one
+// for minutes. A group decides exactly its own candidates; with every group also requiring that each listed inherited
+// property is a core candidate, together they assert that the listed set equals the effective set.
+const GROUP = 10;
 for (const [tag, decl] of elements) {
-  test(`${tag}: inherited CSS custom properties, slots and parts are listed exactly when they still apply`, async ({ page }) => {
-    // The probe measures every candidate property with every value in every state. sl-switch (55 core candidates,
-    // 7 boolean states) takes about 1 minute on a fast workstation and about 2 at half that CPU speed, so 2 minutes is
-    // too tight for slower runners.
-    test.setTimeout(240000);
-    const parent = coreDecls.get(decl.superclass.name);
+  const listed = key => (decl[key] ?? []).filter(x => x.inheritedFrom).map(x => x.name).sort();
+  const own = key => new Set((decl[key] ?? []).filter(x => !x.inheritedFrom).map(x => x.name));
+  const parent = coreDecls.get(decl.superclass?.name);
+  const all = (parent?.cssProperties ?? []).map(p => p.name).filter(n => !own('cssProperties').has(n));
+  const groups = Math.max(1, Math.ceil(all.length / GROUP));
+  for (let group = 0; group < groups; group++) {
+  test(`${tag}: inherited CSS custom properties, slots and parts are listed exactly when they still apply${groups > 1 ? ` (candidates ${group + 1} of ${groups})` : ''}`, async ({ page }) => {
+    // Every candidate is measured with every value in every state, which is slow: a group of sl-switch candidates takes
+    // about 20 s in WebKit on a fast machine. The margin covers slower CI runners.
+    test.setTimeout(300000);
     expect(parent, `${tag} superclass in core's manifest`).toBeTruthy();
-    const listed = key => (decl[key] ?? []).filter(x => x.inheritedFrom).map(x => x.name).sort();
-    const own = key => new Set((decl[key] ?? []).filter(x => !x.inheritedFrom).map(x => x.name));
     const booleans = (decl.attributes ?? []).filter(a => a.type?.text?.replace(/ \| undefined/, '') === 'boolean').map(a => a.name);
 
     await page.goto('/components/button', { waitUntil: 'networkidle' });
     await page.evaluate(t => customElements.whenDefined(t), tag);
-    const candidates = (parent.cssProperties ?? []).map(p => p.name).filter(n => !own('cssProperties').has(n));
+    const candidates = all.slice(group * GROUP, (group + 1) * GROUP);
+    await page.evaluate(`window.makeProbe = ${makeProbe}`);
     await page.evaluate(async ({ tag, content, attrs }) => {
       const host = document.createElement(tag);
       host.id = 'probe';
@@ -66,30 +75,7 @@ for (const [tag, decl] of elements) {
       const freeze = new CSSStyleSheet();
       freeze.replaceSync('*, :host { animation-play-state: paused !important; animation-delay: 0s !important; transition: none !important; }');
       host.shadowRoot.adoptedStyleSheets = [...host.shadowRoot.adoptedStyleSheets, freeze];
-      const nodes = () => {
-        const out = [host, ...host.children];
-        const walk = root => { for (const el of root.querySelectorAll('*')) { out.push(el); if (el.shadowRoot) walk(el.shadowRoot); } };
-        walk(host.shadowRoot);
-        return out;
-      };
-      const snapshot = () => nodes().map(el => {
-        const cs = getComputedStyle(el);
-        return [...cs].filter(p => !p.startsWith('--')).map(p => `${p}:${cs.getPropertyValue(p)}`).join(';');
-      }).join('|');
-      // getComputedStyle recalculates synchronously, so the current state (including a held pointer) is measured as is.
-      window.probeMeasure = (candidates, values) => {
-        const base = snapshot();
-        const hit = [];
-        for (const name of candidates) {
-          for (const v of values) {
-            host.style.setProperty(name, v);
-            const changed = snapshot() !== base;
-            host.style.removeProperty(name);
-            if (changed) { hit.push(name); break; }
-          }
-        }
-        return hit;
-      };
+      window.probeMeasure = window.makeProbe(host).measure;
       window.probeState = async (attr, on) => { host.toggleAttribute(attr, on); await host.updateComplete; };
     }, { tag, content: CONTENT[tag] ?? '', attrs: ATTRS[tag] ?? {} });
 
@@ -135,7 +121,9 @@ for (const [tag, decl] of elements) {
     });
     result.cssProperties = [...effective].sort();
     test.info().annotations.push({ type: 'effective', description: found.join(', ') });
-    expect({ cssProperties: listed('cssProperties'), slots: listed('slots'), parts: listed('cssParts') }).toEqual(result);
+    expect(listed('cssProperties').filter(n => !all.includes(n)), 'listed inherited properties that are not core candidates').toEqual([]);
+    expect({ cssProperties: listed('cssProperties').filter(n => candidates.includes(n)), slots: listed('slots'), parts: listed('cssParts') }).toEqual(result);
     for (const p of (decl.cssProperties ?? []).filter(x => x.inheritedFrom)) expect(p.inheritedFrom.package).toBe('@charm-ux/core');
   });
+  }
 }

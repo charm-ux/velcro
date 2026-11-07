@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+
+test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/divider';
 
@@ -7,10 +10,12 @@ async function openExample(page) {
   page.on('request', request => requests.push(request.url()));
   // Litro's client router remounts the page component once after load, which reloads the iframe; wait for it to settle.
   await page.goto(PAGE, { waitUntil: 'networkidle' });
+  // The client router replaces the prerendered page once; until it has settled there can be two example iframes.
+  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-horizontal')).toBeVisible();
   await frame.locator('#demo-horizontal').evaluate(() => customElements.whenDefined('sl-divider'));
-  await page.waitForLoadState('networkidle');
+  await documentsLoaded(page);
   return { frame, requests };
 }
 
@@ -40,7 +45,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
   expect(html).toContain('without changing the shared core prefix');
   expect(html).not.toContain('not isolated from core');
   expect(html).toContain('definite height');
-  expect(html).toContain('no Firefox, WebKit, RTL or localization check');
+  expect(html).toContain('no RTL or localization check');
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
   const home = await (await request.get('/')).text();
@@ -115,15 +120,18 @@ test('geometry: horizontal is a 1px block rule with 16px vertical margin; vertic
   const { frame } = await openExample(page);
   const horizontal = await hostStyle(frame.locator('#demo-horizontal'));
   expect(horizontal).toMatchObject({ display: 'block', borderTop: '1px solid rgb(228, 228, 231)', borderLeft: '0px none rgb(0, 0, 0)', margin: '16px 0px', padding: '0px', minHeight: '0px' });
-  const box = await frame.locator('#demo-horizontal').boundingBox();
-  const parent = await frame.locator('body').boundingBox();
+  // Sizes come from the element's own layout box inside its frame (not Playwright's cross-frame boundingBox, whose
+  // coordinate transform rounds differently per engine).
+  const sizeOf = locator => locator.evaluate(el => { const r = el.getBoundingClientRect(); return { width: r.width, height: r.height }; });
+  const box = await sizeOf(frame.locator('#demo-horizontal'));
+  const parent = await frame.locator('body').evaluate(el => el.getBoundingClientRect().width);
   // Block width: fills the container (body minus its 1rem margins), not core's width:100% flex item.
-  expect(box.width).toBe(parent.width - 0);
+  expect(box.width).toBe(parent - 0);
   expect(box.height).toBe(1);
   const vertical = await hostStyle(frame.locator('#demo-vertical'));
   // The example puts the vertical divider in a flex container, which blockifies inline-block; the dynamic test checks it standalone.
   expect(vertical).toMatchObject({ display: 'block', borderLeft: '1px solid rgb(228, 228, 231)', margin: '0px 16px', padding: '0px', minHeight: '0px' });
-  const v = await frame.locator('#demo-vertical').boundingBox();
+  const v = await sizeOf(frame.locator('#demo-vertical'));
   expect([v.width, v.height]).toEqual([1, 32]);
 });
 

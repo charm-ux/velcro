@@ -1,8 +1,8 @@
 // This list is fixed rather than inferred from the jobs that happened to run.
 export function accepted(needs) {
   return needs !== null && typeof needs === 'object' && !Array.isArray(needs)
-    && Object.keys(needs).sort().join(',') === 'product,security,verify'
-    && ['verify', 'product', 'security'].every(job => needs[job]?.result === 'success');
+    && Object.keys(needs).sort().join(',') === 'product,security,site,verify'
+    && ['verify', 'product', 'site', 'security'].every(job => needs[job]?.result === 'success');
 }
 
 if (import.meta.main) {
