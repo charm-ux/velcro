@@ -318,20 +318,26 @@ node scripts/merge/agent-approvals.mjs set-group <binding> --head <oid> --root <
 
 `set` marks the PR head, after confirming the PR is open, not a draft, targets
 `main` from the same repository and still has that head. It also lets the PR join
-the queue. `set-group` marks the queue's commit for that PR and head, the
-`gh-readonly-queue/main/pr-<n>-<oid>` branch, only when that commit is the `--group`
-commit the caller scanned, has the current `main` tip as its single parent and exactly the approved head's tree, and the head
-already contains that tip. The queued commit therefore lands nothing but the
-approved content. A push to the PR removes it from the queue and needs a new
-binding. A queue rebuild has a new commit, which `set-group` must check again.
+the queue. `set-group` marks the queue's commit for that PR as GitHub reports it:
+the PR's `mergeQueueEntry` (GraphQL), never a branch name derived from the head.
+GitHub names the queue branch after the base it was built on
+(`gh-readonly-queue/main/pr-<n>-<base oid>`). The entry must be awaiting checks for
+the approved head and built on the current `main` tip. Its commit must be the
+`--group` commit the caller scanned, have that tip as its single parent and exactly
+the approved head's tree, and the head must already contain that tip. The queued
+commit therefore lands nothing but the approved content. A push to the PR removes
+it from the queue and needs a new binding. A queue rebuild has a new commit, which
+`set-group` must check again.
 
 The merge sequence is: confirm the PR is up to date with `main` and `required` is
 green on its head, run `check`, run the privacy checks on the head and the merge
 title, `set`, then enqueue it bound to the head (GraphQL `enqueuePullRequest` with
-`expectedHeadOid`). When the group branch appears, fetch it and run
-`node scripts/security/git-privacy.mjs history <main>..<group>` on that exact commit,
-which checks its author, committer and message as well as its content. Then run
-`set-group --group <group>`, which refuses if the queue has since rebuilt the entry. If the guard fails, dequeue instead (`dequeuePullRequest`). After
+`expectedHeadOid`). When the PR's `mergeQueueEntry` reports its `headCommit` (the
+group commit), fetch the PR's queue branches (`gh-readonly-queue/main/pr-<n>-*`) and
+run `node scripts/security/git-privacy.mjs history <main>..<group>` on that exact
+commit, which checks its author, committer and message as well as its content. Then
+run `set-group --group <group>`, which refuses if the queue has since rebuilt the
+entry. If the guard fails, dequeue instead (`dequeuePullRequest`). After
 GitHub reports `MERGED`, confirm the merge commit is the group commit that was
 marked. Never use an admin merge or a ruleset bypass to skip the queue.
 

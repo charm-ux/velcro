@@ -7,8 +7,11 @@ import { test } from 'node:test';
 import { CONTEXT, DESCRIPTION, main } from '../../scripts/merge/agent-approvals.mjs';
 
 const script = new URL('../../scripts/merge/agent-approvals.mjs', import.meta.url).pathname;
-const head = 'c'.repeat(40);
-const main$ = 'a'.repeat(40);
+// Pinned from a real queue run (#36): its head, and the main tip GitHub built its queue entry on. GitHub named that
+// entry's branch gh-readonly-queue/main/pr-36-<main tip>, after the base, not the head.
+const head = '1d1f8c6c42d1720328f71ea4b4b1396c0b432e64';
+const main$ = 'b48b57e7f68bbded8b47d0a2a5702ce07be097b6';
+const realQueueBranch = 'gh-readonly-queue/main/pr-36-b48b57e7f68bbded8b47d0a2a5702ce07be097b6';
 const group = 'e'.repeat(40);
 const tree = '7'.repeat(40);
 const repo = 'fixture-org/fixture';
@@ -28,6 +31,10 @@ function layout(t) {
   return { root, report, binding };
 }
 
+// The pull request as GitHub's GraphQL API reports it, with its merge-queue entry.
+const entry = (fields = {}, pull = {}) => ({ data: { repository: { pullRequest: { headRefOid: head,
+  mergeQueueEntry: { state: 'AWAITING_CHECKS', headCommit: { oid: group }, baseCommit: { oid: main$ }, ...fields }, ...pull } } } });
+
 // A scripted GitHub: answers by request, records every call, and keeps each commit's statuses (newest first) so a POST
 // is visible to the next listing. `overrides` replaces answers by request key; `statuses` seeds earlier statuses.
 const me = 'owner-fixture';
@@ -38,7 +45,8 @@ function github(overrides = {}, { statuses = {}, afterPost = () => {} } = {}) {
   const answers = {
     user: { login: me },
     [`repos/${repo}/pulls/7`]: { state: 'open', draft: false, head: { sha: head, repo: { full_name: repo } }, base: { ref: 'main', repo: { full_name: repo } } },
-    [`repos/${repo}/git/matching-refs/heads/gh-readonly-queue/main/pr-7-${head}`]: [{ ref: `refs/heads/gh-readonly-queue/main/pr-7-${head}`, object: { type: 'commit', sha: group } }],
+    // GitHub's GraphQL answer for the pull request's queue entry (the shape `gh api graphql` prints).
+    graphql: entry(),
     [`repos/${repo}/git/ref/heads/main`]: { object: { sha: main$ } },
     [`repos/${repo}/commits/${group}`]: { sha: group, parents: [{ sha: main$ }], commit: { tree: { sha: tree } } },
     [`repos/${repo}/commits/${head}`]: { sha: head, parents: [{ sha: main$ }], commit: { tree: { sha: tree } } },
@@ -217,14 +225,28 @@ test('set-group marks only the merge-queue commit that lands exactly the approve
   const ok = github();
   assert.deepEqual(run(args, ok.gh), { code: 0, out: `agent-approvals: success set on merge group ${group} for ${head}` });
   assert.deepEqual(posts(ok.calls), [post(group)]);
-  const refKey = `repos/${repo}/git/matching-refs/heads/gh-readonly-queue/main/pr-7-${head}`;
   const groupKey = `repos/${repo}/commits/${group}`;
   const built = github().gh(['api', groupKey]);
+  // The queue entry is read from GitHub for this pull request; no branch name is derived.
+  const query = ok.calls.find(call => call.startsWith('api graphql '));
+  assert.match(query, /mergeQueueEntry \{ state headCommit \{ oid \} baseCommit \{ oid \} \}/);
+  assert.ok(query.endsWith(' -f owner=fixture-org -f name=fixture -F number=7'), query);
+  assert.ok(!ok.calls.some(call => call.includes('gh-readonly-queue')));
   for (const [overrides, reason] of [
-    [{ [refKey]: [] }, 'no merge-queue commit for the approved head'],
-    // A prefix match for another head, or another pull request, is not this group.
-    [{ [refKey]: [{ ref: `refs/heads/gh-readonly-queue/main/pr-7-${head}x`, object: { type: 'commit', sha: group } }] }, 'no merge-queue commit for the approved head'],
-    [{ [refKey]: [{ ref: `refs/heads/gh-readonly-queue/main/pr-7-${head}`, object: { type: 'tag', sha: group } }] }, 'no merge-queue commit for the approved head'],
+    // No entry, an entry not yet built or past its checks, or no commit for it.
+    [{ graphql: entry(undefined, { mergeQueueEntry: null }) }, 'the pull request has no merge-queue commit awaiting checks'],
+    ...['QUEUED', 'MERGEABLE', 'UNMERGEABLE', 'LOCKED', undefined].map(state => [{ graphql: entry({ state }) }, 'the pull request has no merge-queue commit awaiting checks']),
+    [{ graphql: entry({ headCommit: null }) }, 'the pull request has no merge-queue commit awaiting checks'],
+    [{ graphql: entry({ headCommit: { oid: group.slice(0, 12) } }) }, 'the pull request has no merge-queue commit awaiting checks'],
+    // GraphQL errors, or an answer without the pull request.
+    [{ graphql: { ...entry(), errors: [{ message: 'x' }] } }, 'the pull request head is not the approved head'],
+    [{ graphql: { data: { repository: null } } }, 'the pull request head is not the approved head'],
+    // The entry is for another head (pushed since), or was built on another base than main's current tip.
+    [{ graphql: entry(undefined, { headRefOid: 'd'.repeat(40) }) }, 'the pull request head is not the approved head'],
+    [{ graphql: entry({ baseCommit: { oid: 'f'.repeat(40) } }) }, 'the merge-queue entry is not built on main'],
+    [{ graphql: entry({ baseCommit: null }) }, 'the merge-queue entry is not built on main'],
+    // The queue rebuilt the entry after the caller scanned it.
+    [{ graphql: entry({ headCommit: { oid: 'f'.repeat(40) } }) }, 'the merge-queue commit is not the scanned commit'],
     [{ [`repos/${repo}/git/ref/heads/main`]: { object: {} } }, 'main could not be resolved'],
     // Queued behind another group, a merge commit, or built on an older main.
     [{ [groupKey]: { ...built, parents: [{ sha: 'f'.repeat(40) }] } }, 'the merge-queue commit is not built directly on main'],
@@ -240,7 +262,7 @@ test('set-group marks only the merge-queue commit that lands exactly the approve
     assert.deepEqual(run(args, gh), { code: 1, out: `agent-approvals: refused (${reason})` }, reason);
     assert.deepEqual(posts(calls), []);
   }
-  // The queue rebuilt the entry after the caller scanned it: the current queue commit is not the scanned one.
+  // The caller scanned another commit than the one the queue holds.
   const rebuilt = github();
   assert.deepEqual(run([...args.slice(0, -1), 'f'.repeat(40)], rebuilt.gh),
     { code: 1, out: 'agent-approvals: refused (the merge-queue commit is not the scanned commit)' });
@@ -249,6 +271,27 @@ test('set-group marks only the merge-queue commit that lands exactly the approve
   const minted = github({}, { statuses: { [group]: [{ id: 3, context: CONTEXT, state: 'success', creator: { login: 'github-actions[bot]' } }] } });
   assert.deepEqual(run(args, minted.gh), { code: 1, out: 'agent-approvals: refused (another account already set agent-approvals on this commit)' });
   assert.deepEqual(posts(minted.calls), []);
+});
+
+// Regression: the queue branch is named after the base GitHub built on, as in #36, not after the pull request head.
+// A lookup by `pr-<n>-<head>` finds nothing there; the queue entry GitHub reports is found whatever the branch name.
+test('set-group finds the queued commit as GitHub reports it for #36, whose branch is named after its base', t => {
+  assert.equal(realQueueBranch, `gh-readonly-queue/main/pr-36-${main$}`);
+  assert.ok(!realQueueBranch.includes(head));
+  const { root, report, binding } = layout(t);
+  const good = binding({ head, approvals: 2, reviews: [report('a.md'), report('b.md')] }, '36.json');
+  const pull = github().gh(['api', `repos/${repo}/pulls/7`]);
+  // GitHub's state: pull request 36 queued on main's tip, with only the base-named queue branch.
+  const real = {
+    [`repos/${repo}/pulls/36`]: pull,
+    [`repos/${repo}/git/matching-refs/heads/${realQueueBranch}`]: [{ ref: `refs/heads/${realQueueBranch}`, object: { type: 'commit', sha: group } }],
+    [`repos/${repo}/git/matching-refs/heads/gh-readonly-queue/main/pr-36-${head}`]: [],
+  };
+  const args = ['set-group', good, '--head', head, '--root', root, '--repo', repo, '--pr', '36', '--group', group];
+  const ok = github(real);
+  assert.deepEqual(run(args, ok.gh), { code: 0, out: `agent-approvals: success set on merge group ${group} for ${head}` });
+  assert.deepEqual(posts(ok.calls), [post(group)]);
+  assert.ok(ok.calls.some(call => call.startsWith('api graphql ') && call.endsWith(' -F number=36')));
 });
 
 test('the command line keeps GitHub output private and posts nothing on refusal', t => {
