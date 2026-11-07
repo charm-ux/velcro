@@ -1,0 +1,17 @@
+{
+  "files": {
+    "src/components/format-bytes/format-bytes.test.ts": "55eaf839f16745b92212cd6c0eb02fefc4a086d9340e553ca9867a67de78de99"
+  },
+  "tests": [
+    "<sl-format-bytes> > defaults  > default properties",
+    "<sl-format-bytes> > bytes > bytes : display formats",
+    "<sl-format-bytes> > bytes > bytes : display formats [#2]",
+    "<sl-format-bytes> > bytes > bytes : display formats [#3]",
+    "<sl-format-bytes> > bytes > bytes : display formats [#4]",
+    "<sl-format-bytes> > bits > bits : display formats",
+    "<sl-format-bytes> > bits > bits : display formats [#2]",
+    "<sl-format-bytes> > bits > bits : display formats [#3]",
+    "<sl-format-bytes> > bits > bits : display formats [#4]"
+  ],
+  "knownFailures": []
+}

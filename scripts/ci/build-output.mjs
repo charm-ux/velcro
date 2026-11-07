@@ -1,16 +1,23 @@
 // The build output that the CI build job shares with every later job (browser shards, upstream conformance, evidence) as
-// one workflow artifact: both dist trees, complete. `buildDigest` binds that whole output (every file's logical path, size
-// and SHA-256, so additions, removals and changes all count) to the source commit it was built from, which also binds the
-// tracked inputs the checks read from the checkout (the custom elements manifest, the specs, the examples). Bounded,
-// non-following walk; errors are fixed codes only.
+// one workflow artifact: both dist trees, complete, plus the files the build derives outside them that the later checks
+// read from the checkout (the custom elements manifest, the package root barrel and the two notice copies; scripts/sync.mjs,
+// ignored by git). `buildDigest` binds that whole output (every file's logical path, size and SHA-256, so additions,
+// removals and changes all count) to the source commit it was built from, which also binds the tracked inputs the checks
+// read from the checkout (the specs, the examples, the component records). Bounded, non-following walk; errors are fixed
+// codes only.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { lstatSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { readBounded } from '../site/tested.mjs';
 
-// Shared trees (relative to the repository root) and the logical label each gets (no "dist" segment: not a source path).
-export const SHARED = Object.freeze([['packages/velcro/dist', 'velcro'], ['packages/docs/dist', 'docs']]);
+// Shared trees and single files (relative to the repository root) and the logical label each gets (no "dist" segment: not
+// a source path). A label is never inside another label, so a mirror or staging tree keeps every entry apart.
+export const SHARED = Object.freeze([['packages/velcro/dist', 'velcro'], ['packages/docs/dist', 'docs'],
+  ['packages/velcro/custom-elements.json', 'velcro-derived/custom-elements.json'],
+  ['packages/velcro/src/index.ts', 'velcro-derived/src/index.ts'],
+  ['packages/velcro/THIRD_PARTY_NOTICES.md', 'velcro-derived/THIRD_PARTY_NOTICES.md'],
+  ['packages/docs/public/THIRD_PARTY_NOTICES.md', 'docs-derived/public/THIRD_PARTY_NOTICES.md']]);
 export const LIMITS = Object.freeze({ maxEntries: 12000, maxFileBytes: 4 * 1024 * 1024, maxTotalBytes: 96 * 1024 * 1024, maxDepth: 10 });
 
 export class BuildOutputError extends Error {
@@ -21,8 +28,8 @@ export class BuildOutputError extends Error {
 }
 const fail = code => { throw new BuildOutputError(code); };
 
-// Every regular file under the shared trees of `root`, in a fixed order, with its bytes. `trees` maps a directory under
-// `root` to its label; the staged upload uses the same labels under a different root.
+// Every regular file under the shared trees of `root` (and each shared single file), in a fixed order, with its bytes.
+// `trees` maps a directory or file under `root` to its label; the staged upload uses the same labels under a different root.
 export function collect(root, trees = SHARED) {
   const files = [];
   let entries = 0;
@@ -46,7 +53,15 @@ export function collect(root, trees = SHARED) {
     const dir = path.join(root, tree);
     let st;
     try { st = lstatSync(dir); } catch { fail('missing-tree'); }
-    if (!st.isDirectory()) fail('not-directory');
+    if (st.isFile()) {
+      if (++entries > LIMITS.maxEntries) fail('too-many-entries');
+      const bytes = readBounded(dir, LIMITS.maxFileBytes);
+      total += bytes.length;
+      if (total > LIMITS.maxTotalBytes) fail('too-large');
+      files.push({ tree, rel: label, bytes });
+      continue;
+    }
+    if (!st.isDirectory()) fail('not-regular');
     walk(dir, label, 0, tree);
   }
   if (!files.length) fail('empty');

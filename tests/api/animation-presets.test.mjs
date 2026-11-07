@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { assembleNotices } from '../../scripts/sync.mjs';
 import {
   fileLines,
   parseDataModule,
@@ -158,7 +159,7 @@ test('the vendored file, the notices and the docs name the package, version and 
   assert.match(header, /@shoelace-style\/animations 1\.2\.0/);
   assert.ok(header.includes(INTEGRITY), 'presets.ts header');
   assert.match(header, /SOURCE\.json/);
-  for (const f of ['THIRD_PARTY_NOTICES.md', 'packages/velcro/THIRD_PARTY_NOTICES.md', 'packages/docs/public/THIRD_PARTY_NOTICES.md']) {
-    assert.ok(readFileSync(path.join(repoRoot, f), 'utf8').includes(INTEGRITY), f);
-  }
+  // The package and site copies are assembled from the root file at build time (scripts/sync.mjs).
+  assert.ok(readFileSync(path.join(repoRoot, 'THIRD_PARTY_NOTICES.md'), 'utf8').includes(INTEGRITY), 'THIRD_PARTY_NOTICES.md');
+  assert.ok(assembleNotices(repoRoot).includes(INTEGRITY), 'assembled notices');
 });

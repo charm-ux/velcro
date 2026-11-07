@@ -31,6 +31,11 @@ let id = 0;
  *
  * @slot - The tab panel's content.
  *
+ * @inheritedEventDropped tab-show - Never emitted: it comes from core's internal `visible` property, which is inert here.
+ * @inheritedEventDropped tab-hide - Never emitted (see `tab-show`).
+ * @inheritedEventDropped tab-after-show - Never emitted (see `tab-show`).
+ * @inheritedEventDropped tab-after-hide - Never emitted (see `tab-show`).
+ *
  * @csspart base - The component's base wrapper.
  *
  * @cssproperty [--padding=0] - The tab panel's padding.

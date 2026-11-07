@@ -4,40 +4,42 @@
 // it. Measured in the browser: each candidate is set on the host and every computed style in the shadow tree and of
 // the slotted content is compared, in the default state, with each reflected boolean attribute set, and under real
 // :hover, :active (pointer held) and :focus-visible (keyboard modality) interaction in each of those.
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { makeProbe } from './support/probe.mjs';
 import { customElements, readJson, velcroManifestPath } from '../../scripts/api/model.mjs';
+import { readCatalog } from '../../scripts/site/catalog.mjs';
+
+const root = fileURLToPath(new URL('../../', import.meta.url));
 
 const require = createRequire(new URL('../../packages/velcro/package.json', import.meta.url));
 const core = JSON.parse(readFileSync(require.resolve('@charm-ux/core/custom-elements.json'), 'utf8'));
 const coreDecls = new Map(core.modules.flatMap(m => m.declarations ?? []).map(d => [d.name, d]));
 const elements = customElements(readJson(velcroManifestPath));
 
-// Content that exercises each component's slots, including the slotted icon rules of core's button styles.
-const CONTENT = {
-  'sl-button': '<svg slot="prefix" viewBox="0 0 10 10"></svg><svg viewBox="0 0 10 10"></svg>Label<span slot="suffix">s</span>',
-  'sl-badge': 'Badge',
-  'sl-card': '<div slot="header">h</div>Body<div slot="footer">f</div>',
-  'sl-progress-bar': 'Label',
-  'sl-progress-ring': 'Label',
-  'sl-include': '<div>x</div>',
-  'sl-mutation-observer': '<div>x</div>',
-  'sl-animation': '<div>x</div>',
-  'sl-popup': '<span slot="anchor">a</span><div>x</div>',
-  'sl-resize-observer': '<div>x</div>',
-  'sl-split-panel': '<div slot="start">a</div><div slot="end">b</div>',
-  'sl-visually-hidden': 'Hidden',
-  'sl-switch': 'Label<span slot="help-text">Help</span>',
-  'sl-tab-panel': 'Panel',
-};
-const ATTRS = { 'sl-progress-bar': { value: '40' }, 'sl-progress-ring': { value: '40' }, 'sl-format-bytes': { value: '1000' }, 'sl-format-number': { value: '1000' },
-  // A tab panel is display: none until active, and a probe with no box cannot be pointed at.
-  'sl-tab-panel': { active: '' } };
+// What each component's probe host gets: tests/product/<name>.probe.json when the component has one ({ "content":
+// "<html>", "attrs": { name: value }, "note": "why" }), else content that fills every slot its manifest declares. One
+// file per component, so adding a component never edits this spec.
+const probeFile = name => path.join(root, 'tests/product', `${name}.probe.json`);
+const fillSlots = decl => (decl.slots ?? []).map(s => (s.name ? `<div slot="${s.name}">${s.name}</div>` : 'Content')).join('');
+const PROBES = Object.fromEntries(readCatalog(root).map(({ name, tag }) => [tag, existsSync(probeFile(name))
+  ? JSON.parse(readFileSync(probeFile(name), 'utf8')) : { content: fillSlots(elements.get(tag) ?? {}) }]));
 // One valid value of each kind a core custom property takes: length, color, border style, border shorthand, a visible
 // box shadow, time, keyword, number, alignment.
 const VALUES = ['37px', 'rgb(1, 2, 3)', 'dotted', '3px solid rgb(1, 2, 3)', '2px 2px rgb(1, 2, 3)', '3s', 'none', '0.25', 'flex-end'];
+
+test('probe files belong to catalog components and hold only content, attributes and a note', () => {
+  const names = readCatalog(root).map(c => c.name);
+  for (const f of readdirSync(path.join(root, 'tests/product')).filter(f => f.endsWith('.probe.json'))) {
+    expect(names, f).toContain(f.replace(/\.probe\.json$/, ''));
+    const probe = JSON.parse(readFileSync(path.join(root, 'tests/product', f), 'utf8'));
+    expect(Object.keys(probe).every(k => ['content', 'attrs', 'note'].includes(k)), f).toBe(true);
+    expect(typeof probe.content, f).toBe('string');
+  }
+});
 
 // Each candidate is measured on its own, so the candidates are split into groups of at most GROUP, each its own test: the
 // slow components (sl-switch has 55 core candidates and 7 boolean states) then spread over workers instead of holding one
@@ -77,7 +79,7 @@ for (const [tag, decl] of elements) {
       host.shadowRoot.adoptedStyleSheets = [...host.shadowRoot.adoptedStyleSheets, freeze];
       window.probeMeasure = window.makeProbe(host).measure;
       window.probeState = async (attr, on) => { host.toggleAttribute(attr, on); await host.updateComplete; };
-    }, { tag, content: CONTENT[tag] ?? '', attrs: ATTRS[tag] ?? {} });
+    }, { tag, content: PROBES[tag]?.content ?? '', attrs: PROBES[tag]?.attrs ?? {} });
 
     const effective = new Set();
     const measure = async label => {

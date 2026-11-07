@@ -10,7 +10,7 @@
   },
   "scripts": {
     "generate:examples": "node scripts/generate-examples.mjs",
-    "build": "pnpm --filter @charm-ux/velcro run build && node scripts/generate-examples.mjs && litro generate",
+    "build": "pnpm --filter @charm-ux/velcro run build && node ../../scripts/sync.mjs notices packages/docs/public/THIRD_PARTY_NOTICES.md && node scripts/generate-examples.mjs && litro generate",
     "build:prefixed": "node scripts/build-prefixed.mjs",
     "preview": "node ./scripts/preview.mjs",
     "typecheck": "node scripts/generate-examples.mjs && tsc -p tsconfig.json --noEmit"

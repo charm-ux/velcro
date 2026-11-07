@@ -1,0 +1,25 @@
+{
+  "files": {
+    "src/components/badge/badge.test.ts": "5d2198fb7c6b7878090d5bbb8fc8e852c5863f21f232a47ed600a0e6ddcfcfc8"
+  },
+  "tests": [
+    "<sl-badge> > when provided no parameters > should pass accessibility tests with a role of status on the base part.",
+    "<sl-badge> > when provided no parameters > should render the child content provided",
+    "<sl-badge> > when provided no parameters > should default to square styling, with the primary color",
+    "<sl-badge> > when provided a pill parameter > should pass accessibility tests",
+    "<sl-badge> > when provided a pill parameter > should append the pill class to the classlist to render a pill",
+    "<sl-badge> > when provided a pulse parameter > should pass accessibility tests",
+    "<sl-badge> > when provided a pulse parameter > should append the pulse class to the classlist to render a pulse",
+    "<sl-badge> > when passed a variant attribute primary > should pass accessibility tests",
+    "<sl-badge> > when passed a variant attribute primary > should default to square styling, with the primary color",
+    "<sl-badge> > when passed a variant attribute success > should pass accessibility tests",
+    "<sl-badge> > when passed a variant attribute success > should default to square styling, with the primary color",
+    "<sl-badge> > when passed a variant attribute neutral > should pass accessibility tests",
+    "<sl-badge> > when passed a variant attribute neutral > should default to square styling, with the primary color",
+    "<sl-badge> > when passed a variant attribute warning > should pass accessibility tests",
+    "<sl-badge> > when passed a variant attribute warning > should default to square styling, with the primary color",
+    "<sl-badge> > when passed a variant attribute danger > should pass accessibility tests",
+    "<sl-badge> > when passed a variant attribute danger > should default to square styling, with the primary color"
+  ],
+  "knownFailures": []
+}

@@ -16,16 +16,16 @@ import { privacyScan, secretScan } from '../site/prepare.mjs';
 import { BuildOutputError, SHARED, buildDigest, collect, headSha } from './build-output.mjs';
 
 export { LIMITS, SHARED } from './build-output.mjs';
-// The upload staging tree, and where each shared tree goes in it: the artifact root holds velcro/dist and docs/dist, and
-// is downloaded into packages/.
+// The upload staging tree, and where each shared tree or file goes in it: the artifact root holds velcro/dist, docs/dist
+// and the derived files at their package paths (velcro/custom-elements.json, ...), and is downloaded into packages/.
 export const STAGING = '.airig/ci/product-build';
 export const STAGED = Object.freeze(SHARED.map(([tree, label]) => [tree.replace(/^packages\//, ''), label]));
 
 const fail = code => { throw new BuildOutputError(code); };
 const same = (a, b) => a.length === b.length && a.every((f, i) => f.rel === b[i].rel && f.bytes.equals(b[i].bytes));
 const inTree = (f, trees) => {
-  const [tree, label] = trees.find(([, l]) => f.rel.startsWith(`${l}/`));
-  return path.join(tree, f.rel.slice(label.length + 1));
+  const [tree, label] = trees.find(([, l]) => f.rel === l || f.rel.startsWith(`${l}/`));
+  return f.rel === label ? tree : path.join(tree, f.rel.slice(label.length + 1));
 };
 
 export async function scanBuildOutput(root, { expectDigest, sourceSha = headSha(root), privacy = privacyScan, secrets = secretScan } = {}) {

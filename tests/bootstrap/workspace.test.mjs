@@ -45,32 +45,21 @@ test('workspace file lists packages', () => {
 });
 
 const catalog = readCatalog(root);
-// The export contract follows the component catalog: fixed entries, ./<name> (and optionally ./<name>/class) per component.
+// The export contract follows the component catalog: fixed entries, ./<name> per component and ./<name>/class for a
+// component with a class.ts (read from the component folders, so no per-component list is kept here).
 const exportTargets = file => ({ types: `./dist/${file}.d.ts`, import: `./dist/${file}.js` });
 const prototypeExports = {
   '.': { types: './dist/index.d.ts', import: './dist/index.js' },
   ...Object.fromEntries(catalog.map(c => [`./${c.name}`, exportTargets(`components/${c.name}/index`)])),
-  './animation/class': exportTargets('components/animation/class'),
+  ...Object.fromEntries(catalog.filter(c => existsSync(join(root, 'packages/velcro/src/components', c.name, 'class.ts')))
+    .map(c => [`./${c.name}/class`, exportTargets(`components/${c.name}/class`)])),
   './animation/animations': exportTargets('components/animation/animations'),
   './utilities/animation': exportTargets('utilities/animation'),
   // The localization modules: Shoelace's dist/utilities/localize.js and its 29 dist/translations/<code>.js files.
   './utilities/localize': exportTargets('utilities/localize'),
   ...Object.fromEntries(['ar', 'cs', 'da', 'de', 'de-ch', 'en', 'en-gb', 'es', 'fa', 'fi', 'fr', 'he', 'hr', 'hu', 'id', 'it', 'ja', 'nb',
     'nl', 'nn', 'pl', 'pt', 'ru', 'sl', 'sv', 'tr', 'uk', 'zh-cn', 'zh-tw'].map(c => [`./translations/${c}`, exportTargets(`translations/${c}`)])),
-  './button/class': exportTargets('components/button/class'),
-  './card/class': exportTargets('components/card/class'),
-  './include/class': exportTargets('components/include/class'),
   './include/request': exportTargets('components/include/request'),
-  './mutation-observer/class': exportTargets('components/mutation-observer/class'),
-  './popup/class': exportTargets('components/popup/class'),
-  './progress-bar/class': exportTargets('components/progress-bar/class'),
-  './progress-ring/class': exportTargets('components/progress-ring/class'),
-  './relative-time/class': exportTargets('components/relative-time/class'),
-  './resize-observer/class': exportTargets('components/resize-observer/class'),
-  './skeleton/class': exportTargets('components/skeleton/class'),
-  './spinner/class': exportTargets('components/spinner/class'),
-  './split-panel/class': exportTargets('components/split-panel/class'),
-  './tab-panel/class': exportTargets('components/tab-panel/class'),
   './themes/dark.css': './themes/dark.css',
   './themes/light.css': './themes/light.css',
   './custom-elements.json': './custom-elements.json',
@@ -155,11 +144,18 @@ test('gitignore ignores scratch and does not conceal tracked security files', ()
   for (const p of ['.airig/x.md', '.worktrees/x/y', 'node_modules/x/y.js', 'dist/x.js', 'coverage/x', '.env', '.env.local', 'pkg.tgz', '.cache/x']) {
     assert.ok(ignored(p), `${p} should be ignored`);
   }
+  // Build output derived from the catalog and the component sources (scripts/sync.mjs, the manifest analyzer); never
+  // committed, so parallel component branches never edit them.
+  for (const p of ['packages/velcro/src/index.ts', 'packages/velcro/custom-elements.json', 'packages/velcro/THIRD_PARTY_NOTICES.md',
+    'packages/docs/public/THIRD_PARTY_NOTICES.md']) {
+    assert.ok(ignored(p), `${p} is derived at build time and should be ignored`);
+  }
   for (const p of [
     'AGENTS.md', 'package.json', 'pnpm-lock.yaml', '.npmrc', '.nvmrc', '.gitignore', '.changeset/config.json',
     'security/policy.json', 'security/gitleaks-checksums.json', 'scripts/security/privacy.mjs', '.githooks/pre-commit',
     '.github/workflows/ci.yml', 'tests/security/privacy.test.mjs', 'docs/contributing.md', 'packages/velcro/package.json',
-    'packages/velcro/CHANGELOG.md', 'packages/velcro/src/index.ts',
+    'packages/velcro/CHANGELOG.md', 'packages/docs/catalog.jsonl', 'THIRD_PARTY_NOTICES.md', '.gitattributes',
+    'packages/velcro/src/components/button/button.ts',
   ]) {
     assert.ok(!ignored(p), `${p} must not be ignored`);
   }

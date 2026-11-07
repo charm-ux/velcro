@@ -1,0 +1,15 @@
+{
+  "files": {
+    "src/components/animation/animation.test.ts": "c800ab0b07bf5cd4d64cf36180bb046817d33cf954f10082be394cf8aadc055a"
+  },
+  "tests": [
+    "<sl-animation> > renders",
+    "<sl-animation> > is accessible",
+    "<sl-animation> > emits the correct event on animation end",
+    "<sl-animation> > can be finished by hand",
+    "<sl-animation> > can be cancelled",
+    "<sl-animation> > animation start > does not start the animation by default",
+    "<sl-animation> > animation start > emits the correct event on animation start"
+  ],
+  "knownFailures": []
+}

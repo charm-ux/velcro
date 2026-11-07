@@ -1,0 +1,11 @@
+{
+  "files": {
+    "src/components/skeleton/skeleton.test.ts": "98fdfcc60c50ce8a5f5428a8d3b021d04e34910faeee866097ee55c203739c72"
+  },
+  "tests": [
+    "<sl-skeleton> > should render default skeleton",
+    "<sl-skeleton> > should set pulse effect by attribute",
+    "<sl-skeleton> > should set sheen effect by attribute"
+  ],
+  "knownFailures": []
+}

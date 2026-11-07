@@ -1,0 +1,25 @@
+{
+  "files": {
+    "src/components/card/card.test.ts": "398fefdfc41b5ecc40af686298b7fda44d300179ee9e46164b9c32b96b639641"
+  },
+  "tests": [
+    "<sl-card> > when provided no parameters > should pass accessibility tests",
+    "<sl-card> > when provided no parameters > should render the child content provided.",
+    "<sl-card> > when provided no parameters > should contain the class card.",
+    "<sl-card> > when provided an element in the slot \"header\" to render a header > should pass accessibility tests",
+    "<sl-card> > when provided an element in the slot \"header\" to render a header > should render the child content provided.",
+    "<sl-card> > when provided an element in the slot \"header\" to render a header > render the header content provided.",
+    "<sl-card> > when provided an element in the slot \"header\" to render a header > accept \"header\" as an assigned child in the shadow root.",
+    "<sl-card> > when provided an element in the slot \"header\" to render a header > should contain the class card--has-header.",
+    "<sl-card> > when provided an element in the slot \"footer\" to render a footer > should pass accessibility tests",
+    "<sl-card> > when provided an element in the slot \"footer\" to render a footer > should render the child content provided.",
+    "<sl-card> > when provided an element in the slot \"footer\" to render a footer > render the footer content provided.",
+    "<sl-card> > when provided an element in the slot \"footer\" to render a footer > accept \"footer\" as an assigned child in the shadow root.",
+    "<sl-card> > when provided an element in the slot \"footer\" to render a footer > should contain the class card--has-footer.",
+    "<sl-card> > when provided an element in the slot \"image\" to render a image > should pass accessibility tests",
+    "<sl-card> > when provided an element in the slot \"image\" to render a image > should render the child content provided.",
+    "<sl-card> > when provided an element in the slot \"image\" to render a image > accept \"image\" as an assigned child in the shadow root.",
+    "<sl-card> > when provided an element in the slot \"image\" to render a image > should contain the class card--has-image."
+  ],
+  "knownFailures": []
+}

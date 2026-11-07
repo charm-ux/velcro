@@ -2,324 +2,93 @@
   "name": "@charm-ux/velcro",
   "version": "0.1.0",
   "private": true,
-  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; animation, badge, button, card, divider, format-bytes, format-date, format-number, icon, include, mutation-observer, popup, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, split-panel, switch, tab-panel and visually-hidden only).",
+  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; the components listed in packages/docs/catalog.jsonl only).",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "customElements": "custom-elements.json",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./animation": {
-      "types": "./dist/components/animation/index.d.ts",
-      "import": "./dist/components/animation/index.js"
-    },
-    "./animation/class": {
-      "types": "./dist/components/animation/class.d.ts",
-      "import": "./dist/components/animation/class.js"
-    },
-    "./animation/animations": {
-      "types": "./dist/components/animation/animations.d.ts",
-      "import": "./dist/components/animation/animations.js"
-    },
-    "./badge": {
-      "types": "./dist/components/badge/index.d.ts",
-      "import": "./dist/components/badge/index.js"
-    },
-    "./button": {
-      "types": "./dist/components/button/index.d.ts",
-      "import": "./dist/components/button/index.js"
-    },
-    "./button/class": {
-      "types": "./dist/components/button/class.d.ts",
-      "import": "./dist/components/button/class.js"
-    },
-    "./card": {
-      "types": "./dist/components/card/index.d.ts",
-      "import": "./dist/components/card/index.js"
-    },
-    "./card/class": {
-      "types": "./dist/components/card/class.d.ts",
-      "import": "./dist/components/card/class.js"
-    },
-    "./divider": {
-      "types": "./dist/components/divider/index.d.ts",
-      "import": "./dist/components/divider/index.js"
-    },
-    "./format-bytes": {
-      "types": "./dist/components/format-bytes/index.d.ts",
-      "import": "./dist/components/format-bytes/index.js"
-    },
-    "./format-bytes/class": {
-      "types": "./dist/components/format-bytes/class.d.ts",
-      "import": "./dist/components/format-bytes/class.js"
-    },
-    "./format-date": {
-      "types": "./dist/components/format-date/index.d.ts",
-      "import": "./dist/components/format-date/index.js"
-    },
-    "./format-date/class": {
-      "types": "./dist/components/format-date/class.d.ts",
-      "import": "./dist/components/format-date/class.js"
-    },
-    "./format-number": {
-      "types": "./dist/components/format-number/index.d.ts",
-      "import": "./dist/components/format-number/index.js"
-    },
-    "./format-number/class": {
-      "types": "./dist/components/format-number/class.d.ts",
-      "import": "./dist/components/format-number/class.js"
-    },
-    "./icon": {
-      "types": "./dist/components/icon/index.d.ts",
-      "import": "./dist/components/icon/index.js"
-    },
-    "./icon/class": {
-      "types": "./dist/components/icon/class.d.ts",
-      "import": "./dist/components/icon/class.js"
-    },
-    "./include": {
-      "types": "./dist/components/include/index.d.ts",
-      "import": "./dist/components/include/index.js"
-    },
-    "./include/class": {
-      "types": "./dist/components/include/class.d.ts",
-      "import": "./dist/components/include/class.js"
-    },
-    "./include/request": {
-      "types": "./dist/components/include/request.d.ts",
-      "import": "./dist/components/include/request.js"
-    },
-    "./mutation-observer": {
-      "types": "./dist/components/mutation-observer/index.d.ts",
-      "import": "./dist/components/mutation-observer/index.js"
-    },
-    "./mutation-observer/class": {
-      "types": "./dist/components/mutation-observer/class.d.ts",
-      "import": "./dist/components/mutation-observer/class.js"
-    },
-    "./popup": {
-      "types": "./dist/components/popup/index.d.ts",
-      "import": "./dist/components/popup/index.js"
-    },
-    "./popup/class": {
-      "types": "./dist/components/popup/class.d.ts",
-      "import": "./dist/components/popup/class.js"
-    },
-    "./progress-bar": {
-      "types": "./dist/components/progress-bar/index.d.ts",
-      "import": "./dist/components/progress-bar/index.js"
-    },
-    "./progress-bar/class": {
-      "types": "./dist/components/progress-bar/class.d.ts",
-      "import": "./dist/components/progress-bar/class.js"
-    },
-    "./progress-ring": {
-      "types": "./dist/components/progress-ring/index.d.ts",
-      "import": "./dist/components/progress-ring/index.js"
-    },
-    "./progress-ring/class": {
-      "types": "./dist/components/progress-ring/class.d.ts",
-      "import": "./dist/components/progress-ring/class.js"
-    },
-    "./spinner": {
-      "types": "./dist/components/spinner/index.d.ts",
-      "import": "./dist/components/spinner/index.js"
-    },
-    "./spinner/class": {
-      "types": "./dist/components/spinner/class.d.ts",
-      "import": "./dist/components/spinner/class.js"
-    },
-    "./switch": {
-      "types": "./dist/components/switch/index.d.ts",
-      "import": "./dist/components/switch/index.js"
-    },
-    "./switch/class": {
-      "types": "./dist/components/switch/class.d.ts",
-      "import": "./dist/components/switch/class.js"
-    },
-    "./tab-panel": {
-      "types": "./dist/components/tab-panel/index.d.ts",
-      "import": "./dist/components/tab-panel/index.js"
-    },
-    "./tab-panel/class": {
-      "types": "./dist/components/tab-panel/class.d.ts",
-      "import": "./dist/components/tab-panel/class.js"
-    },
-    "./skeleton": {
-      "types": "./dist/components/skeleton/index.d.ts",
-      "import": "./dist/components/skeleton/index.js"
-    },
-    "./skeleton/class": {
-      "types": "./dist/components/skeleton/class.d.ts",
-      "import": "./dist/components/skeleton/class.js"
-    },
-    "./relative-time": {
-      "types": "./dist/components/relative-time/index.d.ts",
-      "import": "./dist/components/relative-time/index.js"
-    },
-    "./relative-time/class": {
-      "types": "./dist/components/relative-time/class.d.ts",
-      "import": "./dist/components/relative-time/class.js"
-    },
-    "./resize-observer": {
-      "types": "./dist/components/resize-observer/index.d.ts",
-      "import": "./dist/components/resize-observer/index.js"
-    },
-    "./resize-observer/class": {
-      "types": "./dist/components/resize-observer/class.d.ts",
-      "import": "./dist/components/resize-observer/class.js"
-    },
-    "./split-panel": {
-      "types": "./dist/components/split-panel/index.d.ts",
-      "import": "./dist/components/split-panel/index.js"
-    },
-    "./split-panel/class": {
-      "types": "./dist/components/split-panel/class.d.ts",
-      "import": "./dist/components/split-panel/class.js"
-    },
-    "./visually-hidden": {
-      "types": "./dist/components/visually-hidden/index.d.ts",
-      "import": "./dist/components/visually-hidden/index.js"
-    },
-    "./visually-hidden/class": {
-      "types": "./dist/components/visually-hidden/class.d.ts",
-      "import": "./dist/components/visually-hidden/class.js"
-    },
-    "./utilities/animation": {
-      "types": "./dist/utilities/animation.d.ts",
-      "import": "./dist/utilities/animation.js"
-    },
-    "./utilities/localize": {
-      "types": "./dist/utilities/localize.d.ts",
-      "import": "./dist/utilities/localize.js"
-    },
-    "./translations/ar": {
-      "types": "./dist/translations/ar.d.ts",
-      "import": "./dist/translations/ar.js"
-    },
-    "./translations/cs": {
-      "types": "./dist/translations/cs.d.ts",
-      "import": "./dist/translations/cs.js"
-    },
-    "./translations/da": {
-      "types": "./dist/translations/da.d.ts",
-      "import": "./dist/translations/da.js"
-    },
-    "./translations/de": {
-      "types": "./dist/translations/de.d.ts",
-      "import": "./dist/translations/de.js"
-    },
-    "./translations/de-ch": {
-      "types": "./dist/translations/de-ch.d.ts",
-      "import": "./dist/translations/de-ch.js"
-    },
-    "./translations/en": {
-      "types": "./dist/translations/en.d.ts",
-      "import": "./dist/translations/en.js"
-    },
-    "./translations/en-gb": {
-      "types": "./dist/translations/en-gb.d.ts",
-      "import": "./dist/translations/en-gb.js"
-    },
-    "./translations/es": {
-      "types": "./dist/translations/es.d.ts",
-      "import": "./dist/translations/es.js"
-    },
-    "./translations/fa": {
-      "types": "./dist/translations/fa.d.ts",
-      "import": "./dist/translations/fa.js"
-    },
-    "./translations/fi": {
-      "types": "./dist/translations/fi.d.ts",
-      "import": "./dist/translations/fi.js"
-    },
-    "./translations/fr": {
-      "types": "./dist/translations/fr.d.ts",
-      "import": "./dist/translations/fr.js"
-    },
-    "./translations/he": {
-      "types": "./dist/translations/he.d.ts",
-      "import": "./dist/translations/he.js"
-    },
-    "./translations/hr": {
-      "types": "./dist/translations/hr.d.ts",
-      "import": "./dist/translations/hr.js"
-    },
-    "./translations/hu": {
-      "types": "./dist/translations/hu.d.ts",
-      "import": "./dist/translations/hu.js"
-    },
-    "./translations/id": {
-      "types": "./dist/translations/id.d.ts",
-      "import": "./dist/translations/id.js"
-    },
-    "./translations/it": {
-      "types": "./dist/translations/it.d.ts",
-      "import": "./dist/translations/it.js"
-    },
-    "./translations/ja": {
-      "types": "./dist/translations/ja.d.ts",
-      "import": "./dist/translations/ja.js"
-    },
-    "./translations/nb": {
-      "types": "./dist/translations/nb.d.ts",
-      "import": "./dist/translations/nb.js"
-    },
-    "./translations/nl": {
-      "types": "./dist/translations/nl.d.ts",
-      "import": "./dist/translations/nl.js"
-    },
-    "./translations/nn": {
-      "types": "./dist/translations/nn.d.ts",
-      "import": "./dist/translations/nn.js"
-    },
-    "./translations/pl": {
-      "types": "./dist/translations/pl.d.ts",
-      "import": "./dist/translations/pl.js"
-    },
-    "./translations/pt": {
-      "types": "./dist/translations/pt.d.ts",
-      "import": "./dist/translations/pt.js"
-    },
-    "./translations/ru": {
-      "types": "./dist/translations/ru.d.ts",
-      "import": "./dist/translations/ru.js"
-    },
-    "./translations/sl": {
-      "types": "./dist/translations/sl.d.ts",
-      "import": "./dist/translations/sl.js"
-    },
-    "./translations/sv": {
-      "types": "./dist/translations/sv.d.ts",
-      "import": "./dist/translations/sv.js"
-    },
-    "./translations/tr": {
-      "types": "./dist/translations/tr.d.ts",
-      "import": "./dist/translations/tr.js"
-    },
-    "./translations/uk": {
-      "types": "./dist/translations/uk.d.ts",
-      "import": "./dist/translations/uk.js"
-    },
-    "./translations/zh-cn": {
-      "types": "./dist/translations/zh-cn.d.ts",
-      "import": "./dist/translations/zh-cn.js"
-    },
-    "./translations/zh-tw": {
-      "types": "./dist/translations/zh-tw.d.ts",
-      "import": "./dist/translations/zh-tw.js"
-    },
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./animation": { "types": "./dist/components/animation/index.d.ts", "import": "./dist/components/animation/index.js" },
+    "./animation/class": { "types": "./dist/components/animation/class.d.ts", "import": "./dist/components/animation/class.js" },
+    "./animation/animations": { "types": "./dist/components/animation/animations.d.ts", "import": "./dist/components/animation/animations.js" },
+    "./utilities/animation": { "types": "./dist/utilities/animation.d.ts", "import": "./dist/utilities/animation.js" },
+    "./badge": { "types": "./dist/components/badge/index.d.ts", "import": "./dist/components/badge/index.js" },
+    "./button": { "types": "./dist/components/button/index.d.ts", "import": "./dist/components/button/index.js" },
+    "./button/class": { "types": "./dist/components/button/class.d.ts", "import": "./dist/components/button/class.js" },
+    "./card": { "types": "./dist/components/card/index.d.ts", "import": "./dist/components/card/index.js" },
+    "./card/class": { "types": "./dist/components/card/class.d.ts", "import": "./dist/components/card/class.js" },
+    "./divider": { "types": "./dist/components/divider/index.d.ts", "import": "./dist/components/divider/index.js" },
+    "./format-bytes": { "types": "./dist/components/format-bytes/index.d.ts", "import": "./dist/components/format-bytes/index.js" },
+    "./format-bytes/class": { "types": "./dist/components/format-bytes/class.d.ts", "import": "./dist/components/format-bytes/class.js" },
+    "./format-date": { "types": "./dist/components/format-date/index.d.ts", "import": "./dist/components/format-date/index.js" },
+    "./format-date/class": { "types": "./dist/components/format-date/class.d.ts", "import": "./dist/components/format-date/class.js" },
+    "./format-number": { "types": "./dist/components/format-number/index.d.ts", "import": "./dist/components/format-number/index.js" },
+    "./format-number/class": { "types": "./dist/components/format-number/class.d.ts", "import": "./dist/components/format-number/class.js" },
+    "./icon": { "types": "./dist/components/icon/index.d.ts", "import": "./dist/components/icon/index.js" },
+    "./icon/class": { "types": "./dist/components/icon/class.d.ts", "import": "./dist/components/icon/class.js" },
+    "./include": { "types": "./dist/components/include/index.d.ts", "import": "./dist/components/include/index.js" },
+    "./include/class": { "types": "./dist/components/include/class.d.ts", "import": "./dist/components/include/class.js" },
+    "./include/request": { "types": "./dist/components/include/request.d.ts", "import": "./dist/components/include/request.js" },
+    "./mutation-observer": { "types": "./dist/components/mutation-observer/index.d.ts", "import": "./dist/components/mutation-observer/index.js" },
+    "./mutation-observer/class": { "types": "./dist/components/mutation-observer/class.d.ts", "import": "./dist/components/mutation-observer/class.js" },
+    "./popup": { "types": "./dist/components/popup/index.d.ts", "import": "./dist/components/popup/index.js" },
+    "./popup/class": { "types": "./dist/components/popup/class.d.ts", "import": "./dist/components/popup/class.js" },
+    "./progress-bar": { "types": "./dist/components/progress-bar/index.d.ts", "import": "./dist/components/progress-bar/index.js" },
+    "./progress-bar/class": { "types": "./dist/components/progress-bar/class.d.ts", "import": "./dist/components/progress-bar/class.js" },
+    "./progress-ring": { "types": "./dist/components/progress-ring/index.d.ts", "import": "./dist/components/progress-ring/index.js" },
+    "./progress-ring/class": { "types": "./dist/components/progress-ring/class.d.ts", "import": "./dist/components/progress-ring/class.js" },
+    "./relative-time": { "types": "./dist/components/relative-time/index.d.ts", "import": "./dist/components/relative-time/index.js" },
+    "./relative-time/class": { "types": "./dist/components/relative-time/class.d.ts", "import": "./dist/components/relative-time/class.js" },
+    "./resize-observer": { "types": "./dist/components/resize-observer/index.d.ts", "import": "./dist/components/resize-observer/index.js" },
+    "./resize-observer/class": { "types": "./dist/components/resize-observer/class.d.ts", "import": "./dist/components/resize-observer/class.js" },
+    "./skeleton": { "types": "./dist/components/skeleton/index.d.ts", "import": "./dist/components/skeleton/index.js" },
+    "./skeleton/class": { "types": "./dist/components/skeleton/class.d.ts", "import": "./dist/components/skeleton/class.js" },
+    "./spinner": { "types": "./dist/components/spinner/index.d.ts", "import": "./dist/components/spinner/index.js" },
+    "./spinner/class": { "types": "./dist/components/spinner/class.d.ts", "import": "./dist/components/spinner/class.js" },
+    "./split-panel": { "types": "./dist/components/split-panel/index.d.ts", "import": "./dist/components/split-panel/index.js" },
+    "./split-panel/class": { "types": "./dist/components/split-panel/class.d.ts", "import": "./dist/components/split-panel/class.js" },
+    "./switch": { "types": "./dist/components/switch/index.d.ts", "import": "./dist/components/switch/index.js" },
+    "./switch/class": { "types": "./dist/components/switch/class.d.ts", "import": "./dist/components/switch/class.js" },
+    "./tab-panel": { "types": "./dist/components/tab-panel/index.d.ts", "import": "./dist/components/tab-panel/index.js" },
+    "./tab-panel/class": { "types": "./dist/components/tab-panel/class.d.ts", "import": "./dist/components/tab-panel/class.js" },
+    "./visually-hidden": { "types": "./dist/components/visually-hidden/index.d.ts", "import": "./dist/components/visually-hidden/index.js" },
+    "./visually-hidden/class": { "types": "./dist/components/visually-hidden/class.d.ts", "import": "./dist/components/visually-hidden/class.js" },
+    "./utilities/localize": { "types": "./dist/utilities/localize.d.ts", "import": "./dist/utilities/localize.js" },
+    "./translations/ar": { "types": "./dist/translations/ar.d.ts", "import": "./dist/translations/ar.js" },
+    "./translations/cs": { "types": "./dist/translations/cs.d.ts", "import": "./dist/translations/cs.js" },
+    "./translations/da": { "types": "./dist/translations/da.d.ts", "import": "./dist/translations/da.js" },
+    "./translations/de": { "types": "./dist/translations/de.d.ts", "import": "./dist/translations/de.js" },
+    "./translations/de-ch": { "types": "./dist/translations/de-ch.d.ts", "import": "./dist/translations/de-ch.js" },
+    "./translations/en": { "types": "./dist/translations/en.d.ts", "import": "./dist/translations/en.js" },
+    "./translations/en-gb": { "types": "./dist/translations/en-gb.d.ts", "import": "./dist/translations/en-gb.js" },
+    "./translations/es": { "types": "./dist/translations/es.d.ts", "import": "./dist/translations/es.js" },
+    "./translations/fa": { "types": "./dist/translations/fa.d.ts", "import": "./dist/translations/fa.js" },
+    "./translations/fi": { "types": "./dist/translations/fi.d.ts", "import": "./dist/translations/fi.js" },
+    "./translations/fr": { "types": "./dist/translations/fr.d.ts", "import": "./dist/translations/fr.js" },
+    "./translations/he": { "types": "./dist/translations/he.d.ts", "import": "./dist/translations/he.js" },
+    "./translations/hr": { "types": "./dist/translations/hr.d.ts", "import": "./dist/translations/hr.js" },
+    "./translations/hu": { "types": "./dist/translations/hu.d.ts", "import": "./dist/translations/hu.js" },
+    "./translations/id": { "types": "./dist/translations/id.d.ts", "import": "./dist/translations/id.js" },
+    "./translations/it": { "types": "./dist/translations/it.d.ts", "import": "./dist/translations/it.js" },
+    "./translations/ja": { "types": "./dist/translations/ja.d.ts", "import": "./dist/translations/ja.js" },
+    "./translations/nb": { "types": "./dist/translations/nb.d.ts", "import": "./dist/translations/nb.js" },
+    "./translations/nl": { "types": "./dist/translations/nl.d.ts", "import": "./dist/translations/nl.js" },
+    "./translations/nn": { "types": "./dist/translations/nn.d.ts", "import": "./dist/translations/nn.js" },
+    "./translations/pl": { "types": "./dist/translations/pl.d.ts", "import": "./dist/translations/pl.js" },
+    "./translations/pt": { "types": "./dist/translations/pt.d.ts", "import": "./dist/translations/pt.js" },
+    "./translations/ru": { "types": "./dist/translations/ru.d.ts", "import": "./dist/translations/ru.js" },
+    "./translations/sl": { "types": "./dist/translations/sl.d.ts", "import": "./dist/translations/sl.js" },
+    "./translations/sv": { "types": "./dist/translations/sv.d.ts", "import": "./dist/translations/sv.js" },
+    "./translations/tr": { "types": "./dist/translations/tr.d.ts", "import": "./dist/translations/tr.js" },
+    "./translations/uk": { "types": "./dist/translations/uk.d.ts", "import": "./dist/translations/uk.js" },
+    "./translations/zh-cn": { "types": "./dist/translations/zh-cn.d.ts", "import": "./dist/translations/zh-cn.js" },
+    "./translations/zh-tw": { "types": "./dist/translations/zh-tw.d.ts", "import": "./dist/translations/zh-tw.js" },
     "./themes/dark.css": "./themes/dark.css",
     "./themes/light.css": "./themes/light.css",
     "./custom-elements.json": "./custom-elements.json",
-    "./react": {
-      "types": "./dist/react/index.d.ts",
-      "import": "./dist/react/index.js"
-    },
+    "./react": { "types": "./dist/react/index.d.ts", "import": "./dist/react/index.js" },
     "./react/*": "./dist/react/*",
     "./package.json": "./package.json"
   },
@@ -337,7 +106,7 @@
     "*.css"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && pnpm run analyze && tsc -p tsconfig.react.json && node scripts/build-icons.mjs",
+    "build": "node ../../scripts/sync.mjs barrel && tsc -p tsconfig.json && pnpm run analyze && tsc -p tsconfig.react.json && node scripts/build-icons.mjs && node ../../scripts/sync.mjs notices packages/velcro/THIRD_PARTY_NOTICES.md",
     "generate": "plop --plopfile plopfile.mjs",
     "analyze": "cem analyze"
   },
