@@ -87,8 +87,12 @@ const target = file => ({ types: `./dist/${file}.d.ts`, import: `./dist/${file}.
  * below stays ./<name> and ./<name>/class.
  */
 export const MODULE_EXPORTS = Object.freeze({
+  // Shoelace's dist/components/animation/animations.js (the animations namespace and the two utilities).
+  './animation/animations': ['animation', 'components/animation/animations'],
   // Shoelace's dist/components/include/request.js (requestInclude).
   './include/request': ['include', 'components/include/request'],
+  // Shoelace's dist/utilities/animation.js (the two utilities).
+  './utilities/animation': ['animation', 'utilities/animation'],
 });
 
 /**

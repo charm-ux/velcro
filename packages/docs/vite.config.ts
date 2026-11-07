@@ -32,7 +32,7 @@ export default defineConfig({
       // isolated example documents load. Keeping it a separate entry keeps it out of server rendering.
       input: { app: 'app.ts', velcro: 'velcro-entry.ts' },
       // Keep the `velcro` entry's exports (Vite drops entry exports in app builds by default): example documents
-      // import them through an import map.
+      // import them through an import map (the animation examples import Shoelace's animation utilities this way).
       preserveEntrySignatures: 'exports-only',
       output: {
         entryFileNames: '[name].js',

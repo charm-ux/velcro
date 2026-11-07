@@ -10,10 +10,11 @@ Shoelace members count when its own docs would list them (described and not priv
 whitespace, quote style and union order. Missing and mismatched entries form the ledger
 `docs/api/api-parity-ledger.json`, which may only shrink.
 
-Totals: 242 Shoelace entries compared, 227 matching, 15 mismatched, 0 missing; 47 Velcro-only and 65 inherited extras.
+Totals: 261 Shoelace entries compared, 246 matching, 15 mismatched, 0 missing; 49 Velcro-only and 66 inherited extras.
 
 | Component | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `sl-animation` | 19 | 19 | 0 | 0 | 2 | 1 |
 | `sl-badge` | 5 | 5 | 0 | 0 | 0 | 2 |
 | `sl-button` | 42 | 42 | 0 | 0 | 6 | 13 |
 | `sl-card` | 13 | 13 | 0 | 0 | 0 | 5 |
@@ -35,6 +36,25 @@ Totals: 242 Shoelace entries compared, 227 matching, 15 mismatched, 0 missing; 4
 | `sl-switch` | 33 | 33 | 0 | 0 | 19 | 3 |
 | `sl-tab-panel` | 5 | 5 | 0 | 0 | 2 | 1 |
 | `sl-visually-hidden` | 1 | 1 | 0 | 0 | 0 | 2 |
+
+## `sl-animation`
+
+Missing:
+
+- None.
+
+Mismatched:
+
+- None.
+
+Velcro-only (own):
+
+- `property dir`
+- `property lang`
+
+Inherited extras:
+
+- `event ready` (from @charm-ux/core CharmElement)
 
 ## `sl-badge`
 

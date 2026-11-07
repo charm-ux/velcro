@@ -193,6 +193,21 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   `packages/docs/examples/tab-panel/*.html` (example markup and wording adapted from
   `docs/pages/components/tab-panel.md`). The tab panel is built on the `@charm-ux/core` tab panel; no Shoelace runtime
   or source files are included.
+- Also used in: `packages/velcro/src/components/animation/animation.ts` (API documentation wording, the rendered
+  structure: one default slot, the Web Animations API calls, the preset and easing lookup, the `sl-start`, `sl-finish`
+  and `sl-cancel` events, adapted from `src/components/animation/animation.component.ts`, the order of its `@watch`
+  handlers from `src/internal/watch.ts`, and the restore of reflected properties' initial values from
+  `src/internal/shoelace-element.ts`), `packages/velcro/src/components/animation/animations.ts` (`getAnimationNames`
+  and `getEasingNames`, adapted from `src/components/animation/animations.ts`),
+  `packages/velcro/src/utilities/animation.ts` (adapted from `src/utilities/animation.ts`),
+  `packages/velcro/src/components/animation/animation.styles.ts` (styles concatenated from
+  `src/styles/component.styles.ts` and `src/components/animation/animation.styles.ts`, rules unchanged) and the docs
+  page and examples `packages/docs/pages/components/animation.ts` and `packages/docs/examples/animation/*.html`
+  (example markup and wording adapted from `docs/pages/components/animation.md`) and the React examples
+  `packages/docs/examples/animation/react/*.jsx` (copied from the same page's React examples; only the import lines
+  are changed to Velcro's React wrappers). The animation is built on the
+  `@charm-ux/core` base element; no Shoelace runtime is included. The animation presets come from
+  `@shoelace-style/animations` (next section).
 - Also used in: `tests/upstream/shoelace-2.20.1/` (test files only, never shipped): the upstream test files
   `src/components/<name>/<name>.test.ts` for each implemented component and the helper
   `src/internal/test/form-control-base-tests.ts`, copied unmodified from commit
@@ -311,6 +326,58 @@ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+## @shoelace-style/animations 1.2.0 (MIT), with animate.css (MIT)
+
+- Source: the published `@shoelace-style/animations` 1.2.0 npm package (https://github.com/shoelace-style/animations),
+  the version Shoelace 2.20.1's `package-lock.json` resolves, with npm integrity
+  `sha512-avvo1xxkLbv2dgtabdewBbqcJfV0e0zCwFqkPMnHFGbJbBHorRFfMAHh1NG9ymmXn0jW95ibUVH03E1NYXD6Gw==`. The record
+  `packages/velcro/src/components/animation/presets/SOURCE.json` pins that integrity, the sha256 of every file in the
+  tarball and a digest of its data; a test fails if the vendored data differs from the package's. Copyright (c) 2020
+  A Beautiful Site, LLC. The package generates its
+  keyframes from animate.css (https://github.com/animate-css/animate.css; its build declares animate.css ^4.1.1) and
+  ships animate.css's license as `dist/LICENSE`, Copyright (c) 2020 Daniel Eden.
+- Copied into: `packages/velcro/src/components/animation/presets/presets.ts`. The package's 98 animation modules
+  (`dist/<group>/<name>.js`) and its easings module (`dist/easings/easings.js`) are concatenated into one module in the
+  order of `dist/index.js`, with a group comment per group and TypeScript type annotations added; the keyframe and
+  easing values are unchanged. A change-notice header comment is at the top of the file.
+- License text of `@shoelace-style/animations`, verbatim from its `LICENSE.md`:
+
+```text
+Copyright (c) 2020 A Beautiful Site, LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+- License text of animate.css, verbatim from the package's `dist/LICENSE`:
+
+```text
+The MIT License (MIT)
+
+Copyright (c) 2020 Daniel Eden
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 ## Litro scaffold, @beatzball/create-litro 0.15.3 (Apache-2.0)

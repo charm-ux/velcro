@@ -1,0 +1,33 @@
+<div class="animation-keyframes">
+  <sl-animation easing="ease-in-out" duration="2000" play>
+    <div class="box"></div>
+  </sl-animation>
+</div>
+
+<script>
+  const animation = document.querySelector('.animation-keyframes sl-animation');
+  animation.keyframes = [
+    {
+      offset: 0,
+      easing: 'cubic-bezier(0.250, 0.460, 0.450, 0.940)',
+      fillMode: 'both',
+      transformOrigin: 'center center',
+      transform: 'rotate(0)'
+    },
+    {
+      offset: 1,
+      easing: 'cubic-bezier(0.250, 0.460, 0.450, 0.940)',
+      fillMode: 'both',
+      transformOrigin: 'center center',
+      transform: 'rotate(90deg)'
+    }
+  ];
+</script>
+
+<style>
+  .animation-keyframes .box {
+    width: 100px;
+    height: 100px;
+    background-color: var(--sl-color-primary-600);
+  }
+</style>

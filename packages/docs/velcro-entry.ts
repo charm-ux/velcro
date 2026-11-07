@@ -9,5 +9,6 @@ import { withBase } from './src/base.js';
 // Runs before any icon resolves: elements upgraded during evaluation draw in a later microtask.
 setBasePath(withBase('/'));
 
-// Re-exported so example documents can import Velcro's API from this same bundle (see exampleDocument's import map).
+// Re-exported so example documents can import Velcro's API from this same bundle (see exampleDocument's import map),
+// including Shoelace's animation utilities (`getAnimationNames`, `getEasingNames`) for the animation examples.
 export * from '@charm-ux/velcro';

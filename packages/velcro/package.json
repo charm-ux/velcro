@@ -2,7 +2,7 @@
   "name": "@charm-ux/velcro",
   "version": "0.1.0",
   "private": true,
-  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; badge, button, card, divider, format-bytes, format-date, format-number, icon, include, mutation-observer, popup, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, split-panel, switch, tab-panel and visually-hidden only).",
+  "description": "Velcro component library: Shoelace-style components on @charm-ux/core (prototype; animation, badge, button, card, divider, format-bytes, format-date, format-number, icon, include, mutation-observer, popup, progress-bar, progress-ring, relative-time, resize-observer, skeleton, spinner, split-panel, switch, tab-panel and visually-hidden only).",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,6 +12,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./animation": {
+      "types": "./dist/components/animation/index.d.ts",
+      "import": "./dist/components/animation/index.js"
+    },
+    "./animation/class": {
+      "types": "./dist/components/animation/class.d.ts",
+      "import": "./dist/components/animation/class.js"
+    },
+    "./animation/animations": {
+      "types": "./dist/components/animation/animations.d.ts",
+      "import": "./dist/components/animation/animations.js"
     },
     "./badge": {
       "types": "./dist/components/badge/index.d.ts",
@@ -176,6 +188,10 @@
     "./visually-hidden/class": {
       "types": "./dist/components/visually-hidden/class.d.ts",
       "import": "./dist/components/visually-hidden/class.js"
+    },
+    "./utilities/animation": {
+      "types": "./dist/utilities/animation.d.ts",
+      "import": "./dist/utilities/animation.js"
     },
     "./themes/dark.css": "./themes/dark.css",
     "./themes/light.css": "./themes/light.css",

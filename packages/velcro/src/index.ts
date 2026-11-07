@@ -1,3 +1,4 @@
+export * from './components/animation/index.js';
 export * from './components/badge/index.js';
 export * from './components/button/index.js';
 export * from './components/card/index.js';
