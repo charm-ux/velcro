@@ -263,11 +263,18 @@ test('a skip passes only when the vendored upstream file itself marks that exact
   // A scan with a dynamic title binds a skip only through the per-skip identity checks (next test).
   assert.equal(run('suite > x', { a: { skipped: ['suite > x'], declared: ['suite > x', 'other > x', 'y', null] } }).ok, true,
     'a dynamic title elsewhere does not block an unambiguous literal skip');
-  // The real vendored files: icon's own it.skip is the only upstream skip, bound to its full identity.
+  // The real vendored files: icon's and radio-group's own it.skip are the only upstream skips. Icon's is bound by the
+  // exact comparison; radio-group's file has dynamic titles (its form control base tests), so its skip is bound alone.
   const real = upstreamSkips(root, components);
-  assert.deepEqual(Object.keys(real), ['icon']);
+  assert.deepEqual(Object.keys(real), ['icon', 'radio-group']);
   assert.deepEqual(real.icon.skipped, ["<sl-icon> > svg sprite sheets > Should produce an error if the icon doesn't exist."]);
   assert.deepEqual([...real.icon.declared].sort(), [...inventory.icon].sort());
+  assert.deepEqual(real['radio-group'].skipped, ['when the value changes > should sync up radios and radio buttons if defined after radio group']);
+  assert.ok(real['radio-group'].declared.includes(null));
+  const skippedGroup = real['radio-group'].skipped[0];
+  const groupRun = evaluate(scoreboard(keyResults(inventory['radio-group'].map(t => r('radio-group', t, true, t === skippedGroup ? { skipped: true } : {})))),
+    {}, { 'radio-group': inventory['radio-group'] }, ['radio-group'], { 'radio-group': real['radio-group'] });
+  assert.deepEqual(groupRun.problems, []);
 });
 
 test('with dynamic titles in the scan, a skip binds only when its identity is literal, unique and inventoried', () => {

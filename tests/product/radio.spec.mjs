@@ -21,12 +21,12 @@ async function openExample(page, name = 'Overview') {
   await expect(frame.locator('sl-radio').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-radio'));
   await documentsLoaded(page);
-  // The example's stand-in group script checks a radio once sl-radio is defined.
+  // The example's radio group checks the radio matching its value once sl-radio is defined.
   await expect.poll(() => frame.locator('body').evaluate(() => [...document.querySelectorAll('sl-radio')].some(r => r.checked))).toBe(true);
   return { frame, requests };
 }
 
-// Appends markup to the example document (outside its stand-in group) and waits for every sl-radio in it to render.
+// Appends markup to the example document (outside its radio group) and waits for every sl-radio in it to render.
 async function mount(frame, markup) {
   await frame.locator('body').evaluate(async (body, markup) => {
     document.querySelector('#mount')?.remove();
@@ -51,7 +51,8 @@ test('docs page is prerendered with Velcro branding, prototype status, explicit 
   expect(html).toContain('Velcro is an unreleased prototype');
   expect(html).toContain('Upstream quirks matched');
   expect(html).toContain('Not implemented or unverified');
-  expect(html).toContain('Velcro has no &lt;sl-radio-group&gt; yet');
+  expect(html).toContain('The examples put the radios in Velcro&#39;s &lt;sl-radio-group&gt;');
+  expect(html).not.toContain('stand-in');
   expect(html.match(/<summary>React<\/summary>/g)).toHaveLength(4);
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
@@ -67,7 +68,7 @@ test('sl-radio registers as the exported class with no core marker attribute or 
     icon: customElements.get('sl-icon') === el.shadowRoot.querySelector('sl-icon')?.constructor,
   }));
   expect(r.ctor).toBe(true);
-  // The stand-in group checked this radio; size reflects its value, as in Shoelace.
+  // The radio group checked this radio; size reflects its value, as in Shoelace.
   expect(r.attributes).toEqual(['aria-checked', 'aria-disabled', 'id', 'role', 'size', 'tabindex', 'value']);
   expect(r.chDefined).toEqual([]);
   expect(r.icon).toBe(true);
@@ -166,7 +167,7 @@ test('the radio part of Shoelace\'s upstream test: clicking a disabled radio in 
   expect(await frame.locator('body').evaluate(() => [...document.querySelectorAll('sl-radio')].map(r => r.checked))).toEqual([true, false, false]);
 });
 
-test('stand-in group examples: the initial value is checked, a click moves the single checked radio and the tab stop', async ({ page }) => {
+test('radio group examples: the initial value is checked, a click moves the single checked radio and the tab stop', async ({ page }) => {
   const initial = await openExample(page, 'Initial Value');
   expect(await initial.frame.locator('body').evaluate(() => [...document.querySelectorAll('sl-radio')].map(r => r.checked))).toEqual([false, false, true]);
   const { frame } = await openExample(page);
@@ -175,7 +176,7 @@ test('stand-in group examples: the initial value is checked, a click moves the s
     .toEqual([[false, '-1'], [true, '0'], [false, '-1']]);
 });
 
-test('keyboard: only a checked radio is a tab stop; Space and arrows do nothing on a radio (Shoelace leaves them to the group); sl-focus and sl-blur fire', async ({ page }) => {
+test('keyboard: only a checked radio is a tab stop; outside a group Space and arrows do nothing on a radio (Shoelace leaves them to the group); sl-focus and sl-blur fire', async ({ page }) => {
   const { frame } = await openExample(page);
   const first = frame.locator('#demo-default');
   await first.evaluate(el => {
@@ -202,17 +203,21 @@ test('keyboard: only a checked radio is a tab stop; Space and arrows do nothing 
       focused: el.shadowRoot.querySelector('[part="base"]').classList.contains('radio--focused') };
   });
   expect(ring).toEqual({ style: 'solid', width: '3px', offset: '1px', focused: true });
-  for (const key of ['ArrowDown', 'ArrowRight', 'Space']) await page.keyboard.press(key);
-  expect(await frame.locator('body').evaluate(() => [...document.querySelectorAll('sl-radio')].map(r => r.checked))).toEqual([true, false, false]);
   // Unchecked radios have tabindex="-1", so Tab leaves the group.
   await page.keyboard.press('Tab');
   expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('end');
   expect(await first.evaluate(() => window.__events)).toEqual(['sl-focus:true:true', 'sl-blur:true:true']);
   expect(await first.evaluate(el => el.shadowRoot.querySelector('[part="base"]').classList.contains('radio--focused'))).toBe(false);
-  // Space on a focused, unchecked radio does not check it either.
-  await frame.locator('sl-radio[value="3"]').focus();
+  // Outside a radio group, Space and the arrow keys do nothing on a radio, checked or not.
+  await mount(frame, '<sl-radio id="solo-1" value="a">A</sl-radio><sl-radio id="solo-2" value="b">B</sl-radio>');
+  const solo = () => frame.locator('#mount').evaluate(host => [...host.querySelectorAll('sl-radio')].map(r => r.checked));
+  await frame.locator('#solo-1').evaluate(el => { el.checked = true; });
+  await frame.locator('#solo-1').focus();
+  for (const key of ['ArrowDown', 'ArrowRight', 'ArrowUp', 'Space']) await page.keyboard.press(key);
+  expect(await solo()).toEqual([true, false]);
+  await frame.locator('#solo-2').focus();
   await page.keyboard.press('Space');
-  expect(await frame.locator('sl-radio[value="3"]').evaluate(el => el.checked)).toBe(false);
+  expect(await solo()).toEqual([true, false]);
 });
 
 test('computed styles match Shoelace: toggle and font sizes, checked colors, label spacing and the disabled opacity', async ({ page }) => {
@@ -453,7 +458,7 @@ test('no upstream Shoelace runtime is requested or defined; all requests stay on
 });
 
 // Shoelace's four React examples, ported in packages/docs/examples/radio/react/*.jsx (the files the docs page shows), with
-// the stand-in group, bundled with React 19 and the generated wrapper, resolved through the package's real export map.
+// Velcro's radio group, bundled with React 19 and the generated wrapper, resolved through the package's real export map.
 test.describe('React examples', () => {
   const velcroDir = fileURLToPath(new URL('../../packages/velcro/', import.meta.url));
   const reactDir = fileURLToPath(new URL('../../packages/docs/examples/radio/react/', import.meta.url));

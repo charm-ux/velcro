@@ -1,0 +1,10 @@
+{
+  "files": {
+    "src/components/radio-button/radio-button.test.ts": "f78f2b1cbea014192eb64c085d7837695a02ea5ecf5122c43166689f9b74a1d3"
+  },
+  "tests": [
+    "<sl-radio-button> > should not get checked when disabled",
+    "<sl-radio-button> > should receive positional data attributes from <sl-button-group>"
+  ],
+  "knownFailures": []
+}
