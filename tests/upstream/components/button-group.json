@@ -1,0 +1,13 @@
+{
+  "files": {
+    "src/components/button-group/button-group.test.ts": "8882938186b63de00d266ee72089184de074f550a2f81cafe51aac01cfbe2354"
+  },
+  "tests": [
+    "<sl-button-group> > defaults  > passes accessibility test",
+    "<sl-button-group> > defaults  > default label empty",
+    "<sl-button-group> > slotted button data attributes > slotted buttons have the right data attributes applied based on their order",
+    "<sl-button-group> > focus and blur events > toggles focus data attribute to slotted buttons on focus/blur",
+    "<sl-button-group> > mouseover and mouseout events > toggles hover data attribute to slotted buttons on mouseover/mouseout"
+  ],
+  "knownFailures": []
+}
