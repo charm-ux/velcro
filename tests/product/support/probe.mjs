@@ -24,6 +24,8 @@ export function makeProbe(host) {
   // even within one task. Before each measurement, every shadow root in the tree (nested ones too: sl-button renders an
   // animating sl-spinner while loading) gets a sheet freezing its animations and transitions, and every animation of a
   // measured node is paused. Each measurement does this again, because a state change can render new shadow roots.
+  // pause() (and a paused play state) only schedules the pause, for the next animation update; until then the
+  // animation keeps its start time and runs on. Setting its current time completes the pause at once, at that time.
   let freezeSheet;
   const freeze = () => {
     if (!freezeSheet) {
@@ -35,7 +37,12 @@ export function makeProbe(host) {
       for (const el of root.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
     };
     walk(host.shadowRoot);
-    for (const el of nodes()) for (const animation of el.getAnimations()) animation.pause();
+    for (const el of nodes()) {
+      for (const animation of el.getAnimations()) {
+        animation.pause();
+        if (animation.currentTime !== null) animation.currentTime = animation.currentTime;
+      }
+    }
   };
   const differs = (a, b) => {
     if (a.length !== b.length) return true;

@@ -41,7 +41,8 @@ test('candidates that feed one fallback chain, and unrelated ones, are told apar
 // with CSS or with the Web Animations API. WebKit samples a running animation at every read, so an unfrozen one makes
 // every candidate look effective; in every engine it moves between measurements. The probe must freeze nested shadow
 // roots too, not only the host's, and pause script-driven animations, which no style sheet pauses. A transition in a
-// nested shadow root would also hide a candidate's effect behind its start value.
+// nested shadow root would also hide a candidate's effect behind its start value. A pause only scheduled (pending until
+// the next animation update) is not a freeze yet: every animation must be paused, and not pending, once measured.
 test('animations and transitions in a nested shadow root neither count as an effect nor hide one', async ({ page }) => {
   await page.setContent('<!DOCTYPE html><html><body></body></html>');
   const result = await page.evaluate(async source => {
@@ -65,10 +66,12 @@ test('animations and transitions in a nested shadow root neither count as an eff
     await later();
     const probe = (0, eval)(`(${source})`)(host);
     const hit = probe.measure(['--unused', '--used', '--also-unused'], ['37px', 'rgb(1, 2, 3)', 'dotted', 'none']);
+    const animations = [...inner.querySelectorAll('*')].flatMap(el => el.getAnimations());
+    const unfrozen = animations.filter(animation => animation.playState !== 'paused' || animation.pending).length;
     const before = read();
     await later();
     const after = read();
-    return { hit, moved: { css: after[0] !== before[0], script: after[1] !== before[1] } };
+    return { hit, animations: animations.length, unfrozen, moved: { css: after[0] !== before[0], script: after[1] !== before[1] } };
   }, makeProbe.toString());
-  expect(result).toEqual({ hit: ['--used'], moved: { css: false, script: false } });
+  expect(result).toEqual({ hit: ['--used'], animations: 2, unfrozen: 0, moved: { css: false, script: false } });
 });
