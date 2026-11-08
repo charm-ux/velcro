@@ -17,7 +17,10 @@ async function openExample(page) {
   await openDocs(page, PAGE);
   const frame = page.frameLocator(`iframe.example[title="${TITLE}"]`);
   await expect(frame.locator('sl-menu-label').first()).toBeVisible();
-  await frame.locator('body').evaluate(() => customElements.whenDefined('sl-menu-label'));
+  await frame.locator('body').evaluate(async () => {
+    await Promise.all(['sl-menu-label', 'sl-menu', 'sl-menu-item'].map(t => customElements.whenDefined(t)));
+    await Promise.all([...document.querySelectorAll('sl-menu, sl-menu-item, sl-menu-label')].map(el => el.updateComplete));
+  });
   await documentsLoaded(page);
   return { frame, requests };
 }
@@ -42,7 +45,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the quirk
   expect(html).toContain('Upstream quirks matched');
   expect(html).toContain('Not implemented or unverified');
   expect(html).toContain('without changing the shared core prefix');
-  expect(html).toContain('sl-menu and sl-menu-item, which Velcro does not implement yet');
+  expect(html).toContain('with live sl-menu and sl-menu-item elements');
   expect(html).toContain('does not hide the label');
   // The verification wording says which engines ran locally and that Firefox is CI-only, and the accessibility-tree check is named for what it is.
   expect(html).toContain('was run locally in Chromium and WebKit only, and Firefox is covered only by the project&#39;s CI run');
@@ -147,7 +150,7 @@ test('::part(base) from the page styles the label, and the label aligns with the
   const { frame } = await openExample(page);
   const r = await frame.locator('body').evaluate(() => {
     const [first, second] = document.querySelectorAll('sl-menu-label');
-    const item = document.querySelector('.menu-label-item');
+    const item = document.querySelector('sl-menu-item');
     const sheet = new CSSStyleSheet();
     sheet.replaceSync('sl-menu-label#styled::part(base) { text-transform: uppercase; }');
     document.adoptedStyleSheets = [sheet];
@@ -156,10 +159,10 @@ test('::part(base) from the page styles the label, and the label aligns with the
     return {
       uppercase: getComputedStyle(first.shadowRoot.querySelector('[part="base"]')).textTransform,
       untouched: getComputedStyle(second.shadowRoot.querySelector('[part="base"]')).textTransform,
-      // Label text and item text start at the same inline offset: both use the same 28px start padding.
+      // The label and the real menu item start at the same inline offset (both are blocks in the menu).
       alignedStart: left(first) === left(item),
       labelPadding: getComputedStyle(first.shadowRoot.querySelector('[part="base"]')).paddingLeft,
-      itemPadding: getComputedStyle(item).paddingLeft,
+      itemLabelStart: item.shadowRoot.querySelector('.menu-item__label').getBoundingClientRect().left - left(item),
       hostWidth: first.getBoundingClientRect().width,
       menuWidth: first.parentElement.getBoundingClientRect().width,
     };
@@ -167,7 +170,9 @@ test('::part(base) from the page styles the label, and the label aligns with the
   expect(r.uppercase).toBe('uppercase');
   expect(r.untouched).toBe('none');
   expect(r.alignedStart).toBe(true);
-  expect(r.labelPadding).toBe(r.itemPadding);
+  expect(r.labelPadding).toBe('28px');
+  // Shoelace's own design: an item's label starts after its 2px padding and the 1.5em check mark column, not at the label's 28px.
+  expect(r.itemLabelStart).toBeGreaterThan(0);
   // The host is a block, so it fills the 200px menu (less its 1px borders) while its base shrinks to the text.
   expect(r.hostWidth).toBe(r.menuWidth - 2);
 });
@@ -243,12 +248,19 @@ test('semantics: no role, no ARIA, no focus stop and no relationship to the foll
 // query, unlike text or visibility locators, which see aria-hidden content.
 test('accessibility tree (Playwright ARIA snapshot): the labels are plain text between the items, and aria-hidden removes them', async ({ page }) => {
   const { frame } = await openExample(page);
-  const menu = frame.locator('.menu-label-menu');
-  // Playwright joins adjacent text, so each group reads as one run of plain text (no role, no group name) around the separator.
+  const menu = frame.locator('sl-menu');
+  // In the real menu the labels are plain text between menu items (no role, no group name), around the separator.
   await expect(menu).toMatchAriaSnapshot(`
-    - text: Fruits Apple Banana Orange
-    - separator
-    - text: Vegetables Broccoli Carrot Zucchini
+    - menu:
+      - text: Fruits
+      - menuitem "Apple"
+      - menuitem "Banana"
+      - menuitem "Orange"
+      - separator
+      - text: Vegetables
+      - menuitem "Broccoli"
+      - menuitem "Carrot"
+      - menuitem "Zucchini"
   `);
   // On its own, each label is exactly its text.
   await expect(frame.locator('sl-menu-label').first()).toMatchAriaSnapshot('- text: Fruits');
@@ -263,9 +275,10 @@ test('accessibility tree (Playwright ARIA snapshot): the labels are plain text b
 
 test('user-select: the label cannot be selected as text, as in Shoelace (a double click on its text selects nothing)', async ({ page }) => {
   const { frame } = await openExample(page);
-  // The same gesture on an item's text selects the word, so the empty selection below comes from the label's style.
+  // The same gesture on plain text selects the word, so the empty selection below comes from the label's style.
   const selection = () => frame.locator('body').evaluate(() => getSelection()?.toString());
-  await frame.locator('.menu-label-item').first().dblclick({ position: { x: 40, y: 16 } });
+  await mount(frame, '<p id="plain" style="margin: 0; padding: 8px 28px">Apple banana</p>');
+  await frame.locator('#plain').dblclick({ position: { x: 40, y: 16 } });
   expect(await selection()).toBe('Apple');
   await frame.locator('body').evaluate(() => getSelection().removeAllRanges());
   await frame.locator('sl-menu-label').first().dblclick({ position: { x: 40, y: 16 } });
@@ -337,7 +350,7 @@ test('no properties, methods or Shoelace events of its own; only the inherited c
   expect(r.own).toEqual(['dir', 'lang', 'render'].sort());
 });
 
-test('the example renders two labels and a divider in its own document, with the stand-in menu around them', async ({ page }) => {
+test('the example renders two labels and a divider in a live menu in its own document', async ({ page }) => {
   await openDocs(page, PAGE);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual([TITLE]);
@@ -345,11 +358,11 @@ test('the example renders two labels and a divider in its own document, with the
   await expect(frame.locator('sl-menu-label').first()).toBeVisible();
   await expect(frame.locator('sl-menu-label')).toHaveText(['Fruits', 'Vegetables']);
   await expect(frame.locator('sl-divider')).toHaveCount(1);
-  await expect(frame.locator('.menu-label-item')).toHaveText(['Apple', 'Banana', 'Orange', 'Broccoli', 'Carrot', 'Zucchini']);
-  expect(await frame.locator('.menu-label-item').evaluateAll(items => items.map(i => i.dataset.value))).toEqual(['apple', 'banana', 'orange', 'broccoli', 'carrot', 'zucchini']);
+  await expect(frame.locator('sl-menu-item')).toHaveText(['Apple', 'Banana', 'Orange', 'Broccoli', 'Carrot', 'Zucchini']);
+  expect(await frame.locator('sl-menu-item').evaluateAll(items => items.map(i => i.value))).toEqual(['apple', 'banana', 'orange', 'broccoli', 'carrot', 'zucchini']);
   expect(await frame.locator('sl-menu-label').first().evaluate(el => Boolean(el.shadowRoot?.querySelector('[part~="base"]')))).toBe(true);
-  // The stand-in menu has the 200px limit of Shoelace's example.
-  expect(await frame.locator('.menu-label-menu').evaluate(el => el.getBoundingClientRect().width)).toBe(200);
+  // The menu has the 200px limit of Shoelace's example.
+  expect(await frame.locator('sl-menu').evaluate(el => [el.getBoundingClientRect().width, el.getAttribute('role')])).toEqual([200, 'menu']);
 });
 
 // Shoelace's React example, ported in packages/docs/examples/menu-label/react/basic.jsx (the file the docs page shows),
@@ -412,8 +425,8 @@ test.describe('React example', () => {
     await page.waitForFunction(() => typeof window.renderExample === 'function');
     await page.evaluate(async () => {
       window.renderExample();
-      await customElements.whenDefined('sl-menu-label');
-      await Promise.all([...document.querySelectorAll('sl-menu-label')].map(el => el.updateComplete));
+      await Promise.all(['sl-menu-label', 'sl-menu', 'sl-menu-item'].map(t => customElements.whenDefined(t)));
+      await Promise.all([...document.querySelectorAll('sl-menu-label, sl-menu-item')].map(el => el.updateComplete));
     });
     const r = await page.evaluate(() => {
       const labels = [...document.querySelectorAll('sl-menu-label')];
@@ -421,7 +434,7 @@ test.describe('React example', () => {
       return {
         labels: labels.map(l => l.textContent),
         dividers: document.querySelectorAll('sl-divider').length,
-        items: [...document.querySelectorAll('[data-value]')].map(i => i.dataset.value),
+        items: [...document.querySelectorAll('sl-menu-item')].map(i => i.value),
         menuWidth: labels[0].parentElement.getBoundingClientRect().width,
         base: { display: cs.display, padding: cs.padding, fontSize: cs.fontSize, fontWeight: cs.fontWeight },
         errors: window.errors,
@@ -444,5 +457,5 @@ test('no upstream Shoelace runtime is requested or defined; all requests stay on
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);
-  expect(await frame.locator('body').evaluate(() => Boolean(window.Shoelace || document.querySelector('script[src*="shoelace"]') || customElements.get('sl-menu') || customElements.get('sl-menu-item')))).toBe(false);
+  expect(await frame.locator('body').evaluate(() => Boolean(window.Shoelace || document.querySelector('script[src*="shoelace"]')))).toBe(false);
 });

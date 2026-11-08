@@ -1,0 +1,14 @@
+{
+  "files": {
+    "src/components/menu/menu.test.ts": "fb3aa95d52394091c6ec21473dbd03d322a050a04f09de2a0cd1ac7e1fe072f7"
+  },
+  "tests": [
+    "<sl-menu> > emits sl-select with the correct event detail when clicking an item",
+    "<sl-menu> > can be selected via keyboard",
+    "<sl-menu> > does not select disabled items when clicking",
+    "<sl-menu> > does not select disabled items when pressing enter",
+    "<sl-menu> > Should fire \"sl-select\" when clicking an element within a menu-item",
+    "<sl-menu> > Should be able to check a checkbox menu item in a submenu"
+  ],
+  "knownFailures": []
+}

@@ -1,0 +1,25 @@
+<sl-menu style="max-width: 200px;">
+  <sl-menu-item value="undo">Undo</sl-menu-item>
+  <sl-menu-item value="redo">Redo</sl-menu-item>
+  <sl-divider></sl-divider>
+  <sl-menu-item value="cut">Cut</sl-menu-item>
+  <sl-menu-item value="copy">Copy</sl-menu-item>
+  <sl-menu-item value="paste">Paste</sl-menu-item>
+  <sl-divider></sl-divider>
+  <sl-menu-item>
+    Find
+    <sl-menu slot="submenu">
+      <sl-menu-item value="find">Find…</sl-menu-item>
+      <sl-menu-item value="find-previous">Find Next</sl-menu-item>
+      <sl-menu-item value="find-next">Find Previous</sl-menu-item>
+    </sl-menu>
+  </sl-menu-item>
+  <sl-menu-item>
+    Transformations
+    <sl-menu slot="submenu">
+      <sl-menu-item value="uppercase">Make uppercase</sl-menu-item>
+      <sl-menu-item value="lowercase">Make lowercase</sl-menu-item>
+      <sl-menu-item value="capitalize">Capitalize</sl-menu-item>
+    </sl-menu>
+  </sl-menu-item>
+</sl-menu>
