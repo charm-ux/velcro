@@ -97,25 +97,56 @@ export async function pendingLoad(page) {
 }
 
 // What the page is still waiting for, for a docsReady failure message: diagnostics only, never a condition of the wait.
-const pendingReady = page => page.evaluate(() => {
-  const outlet = document.querySelector('litro-outlet');
-  if (!outlet) return 'no litro-outlet';
-  const frames = [];
-  const walk = root => {
-    for (const el of root.querySelectorAll('*')) {
-      if (el.localName === 'iframe') frames.push(el);
-      if (el.shadowRoot) walk(el.shadowRoot);
-    }
-  };
-  walk(outlet);
-  const loading = frames.filter(f => { try { return f.contentDocument?.readyState !== 'complete'; } catch { return false; } });
+// It reports state only, from a closed set of words and counts: nothing the page supplies (text, URLs, an exception's
+// message) reaches the test output, and a page that cannot be read is reported as such.
+const READY_STATES = new Set(['loading', 'interactive', 'complete']);
+const count = n => (Number.isSafeInteger(n) && n >= 0 ? String(n) : 'unknown');
+async function pendingReady(page) {
+  let raw;
+  try {
+    raw = await page.evaluate(() => {
+      try {
+        const outlet = document.querySelector('litro-outlet');
+        if (!outlet) return { outlet: false };
+        const frames = [];
+        const walk = root => {
+          for (const el of root.querySelectorAll('*')) {
+            if (el.localName === 'iframe') frames.push(el);
+            if (el.shadowRoot) walk(el.shadowRoot);
+          }
+        };
+        walk(outlet);
+        const loading = frames.filter(f => {
+          try {
+            return f.contentDocument?.readyState !== 'complete';
+          } catch {
+            return false;
+          }
+        });
+        return {
+          outlet: true,
+          document: document.readyState,
+          settled: outlet.hasAttribute('data-litro-settled'),
+          pages: outlet.children.length,
+          frames: frames.length,
+          loading: loading.length,
+        };
+      } catch {
+        return null;
+      }
+    });
+  } catch {
+    return 'unavailable (the page did not answer)';
+  }
+  if (!raw || typeof raw !== 'object') return 'unavailable (the page could not be read)';
+  if (raw.outlet !== true) return 'no litro-outlet';
   return [
-    `document ${document.readyState}`,
-    `router ${outlet.hasAttribute('data-litro-settled') ? 'settled' : 'not settled'}`,
-    `${outlet.children.length} page(s) in the outlet`,
-    `${loading.length} of ${frames.length} frames loading`,
+    `document ${READY_STATES.has(raw.document) ? raw.document : 'unknown'}`,
+    `router ${raw.settled === true ? 'settled' : raw.settled === false ? 'not settled' : 'unknown'}`,
+    `${count(raw.pages)} page(s) in the outlet`,
+    `${count(raw.loading)} of ${count(raw.frames)} frames loading`,
   ].join(', ');
-}).catch(error => `state unreadable (${error.message.split('\n')[0]})`);
+}
 
 export async function docsReady(page, { timeout = BOUND_MS } = {}) {
   try {

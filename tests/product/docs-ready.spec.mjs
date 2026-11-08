@@ -225,14 +225,16 @@ test('a client-side navigation clears the signal until the next page is ready', 
   ]);
 });
 
-// The stray signal and the probe come from separate init scripts, whose order Playwright does not define: the probe
-// records a signal present when it attaches as well as one set later, so either order is checked here.
+// The probe records a signal present when its DOMContentLoaded listener attaches as well as one set later. Playwright
+// does not define the order of separate init scripts, so both run from one script here, in each order: with the stray
+// signal's listener first, the signal is already present when the probe attaches.
 for (const order of ['probe first', 'stray signal first']) {
   test(`negative control: the probe reports a signal set before the remount (${order})`, async ({ page }) => {
     const stray = () => {
       if (window === window.top) document.addEventListener('DOMContentLoaded', () => document.querySelector('litro-outlet').setAttribute('data-docs-ready', ''));
     };
-    for (const script of order === 'probe first' ? [probe, stray] : [stray, probe]) await page.addInitScript(script);
+    const scripts = order === 'probe first' ? [probe, stray] : [stray, probe];
+    await page.addInitScript({ content: scripts.map(script => `(${script})();`).join('\n') });
     await page.goto('/components/button');
     // The stray signal is up from the start, so wait for the app's own signal: the second one recorded.
     await expect.poll(() => page.evaluate(() => window.__signals.length), { timeout: 20_000 }).toBe(2);
