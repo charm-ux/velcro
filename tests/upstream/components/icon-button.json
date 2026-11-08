@@ -1,0 +1,30 @@
+{
+  "files": {
+    "src/components/icon-button/icon-button.test.ts": "b1c9235e03d72e060413930b3bf6e8a41eae5c3c0dca7a23616be84d1e4aed86"
+  },
+  "tests": [
+    "<sl-icon-button> > defaults  > default properties",
+    "<sl-icon-button> > defaults  > renders as a button by default",
+    "<sl-icon-button> > when styling the host element > renders the correct color and font size",
+    "<sl-icon-button> > when icon attributes are present > renders an sl-icon from a library",
+    "<sl-icon-button> > when icon attributes are present > renders an sl-icon from a src",
+    "<sl-icon-button> > when href is present > renders as an anchor",
+    "<sl-icon-button> > when href is present > the anchor rel is not present",
+    "<sl-icon-button> > when href is present > and target is present > the anchor target is the provided target: _blank",
+    "<sl-icon-button> > when href is present > and target is present > the anchor rel is set to 'noreferrer noopener'",
+    "<sl-icon-button> > when href is present > and target is present > the anchor target is the provided target: _parent",
+    "<sl-icon-button> > when href is present > and target is present > the anchor rel is set to 'noreferrer noopener' [#2]",
+    "<sl-icon-button> > when href is present > and target is present > the anchor target is the provided target: _self",
+    "<sl-icon-button> > when href is present > and target is present > the anchor rel is set to 'noreferrer noopener' [#3]",
+    "<sl-icon-button> > when href is present > and target is present > the anchor target is the provided target: _top",
+    "<sl-icon-button> > when href is present > and target is present > the anchor rel is set to 'noreferrer noopener' [#4]",
+    "<sl-icon-button> > when href is present > and download is present > the anchor download attribute is the provided download",
+    "<sl-icon-button> > when label is present > the internal aria-label attribute is set to the provided label when rendering a button",
+    "<sl-icon-button> > when label is present > the internal aria-label attribute is set to the provided label when rendering an anchor",
+    "<sl-icon-button> > when disabled is present > the internal button has a disabled attribute when rendering a button",
+    "<sl-icon-button> > when disabled is present > the internal anchor has an aria-disabled attribute when rendering an anchor",
+    "<sl-icon-button> > when using methods > should emit sl-focus and sl-blur when the button is focused and blurred",
+    "<sl-icon-button> > when using methods > should emit a click event when calling click()"
+  ],
+  "knownFailures": []
+}

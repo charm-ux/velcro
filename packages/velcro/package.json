@@ -32,6 +32,8 @@
     "./format-number/class": { "types": "./dist/components/format-number/class.d.ts", "import": "./dist/components/format-number/class.js" },
     "./icon": { "types": "./dist/components/icon/index.d.ts", "import": "./dist/components/icon/index.js" },
     "./icon/class": { "types": "./dist/components/icon/class.d.ts", "import": "./dist/components/icon/class.js" },
+    "./icon-button": { "types": "./dist/components/icon-button/index.d.ts", "import": "./dist/components/icon-button/index.js" },
+    "./icon-button/class": { "types": "./dist/components/icon-button/class.d.ts", "import": "./dist/components/icon-button/class.js" },
     "./include": { "types": "./dist/components/include/index.d.ts", "import": "./dist/components/include/index.js" },
     "./include/class": { "types": "./dist/components/include/class.d.ts", "import": "./dist/components/include/class.js" },
     "./include/request": { "types": "./dist/components/include/request.d.ts", "import": "./dist/components/include/request.js" },

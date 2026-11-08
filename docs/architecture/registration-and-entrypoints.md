@@ -141,10 +141,10 @@ counterpart registered first, and core logic that finds elements by marker attri
 as `[accordion-item]` or `closest('[menu]')`) has to be replaced in the Velcro subclass. Any actual
 core change still needs a failing reproduction and separate approval.
 
-`sl-avatar` does not use the scope resolver: its template renders a literal `<sl-icon>`, and, like Shoelace's base
-element with `static dependencies`, its constructor defines Velcro's `sl-icon` when that tag is not defined yet (falling
-back to an anonymous subclass when the platform refuses the class itself), so its class-only entry needs no extra
-registration. Other class-only entries (for example button's `sl-spinner`) do not do this yet.
+`sl-avatar` and `sl-icon-button` do not use the scope resolver: their templates render a literal `<sl-icon>`, and, like
+Shoelace's base element with `static dependencies`, their constructors define Velcro's `sl-icon` when that tag is not
+defined yet (falling back to an anonymous subclass when the platform refuses the class itself), so their class-only
+entries need no extra registration. Other class-only entries (for example button's `sl-spinner`) do not do this yet.
 
 Do not treat these as solutions by themselves:
 
