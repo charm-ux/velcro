@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
 
@@ -14,8 +14,7 @@ const TITLES = ['Overview', 'Initial Value', 'Disabled', 'Sizes'];
 async function openExample(page, name = 'Overview') {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
-  // Litro's client router remounts the page component once after load, which reloads the iframe; wait for it to settle.
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
+  await openDocs(page, PAGE);
   await expect(page.locator(`iframe.example[title="Radio example: ${name}"]`)).toHaveCount(1);
   const frame = page.frameLocator(`iframe.example[title="Radio example: ${name}"]`);
   await expect(frame.locator('sl-radio').first()).toBeVisible();
@@ -439,7 +438,7 @@ test('inherited core ready event: dispatched once on the element after the first
 });
 
 test('every docs example renders in its own document', async ({ page }) => {
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
+  await openDocs(page, PAGE);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual(TITLES.map(t => `Radio example: ${t}`));
   for (const title of titles) {

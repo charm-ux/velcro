@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { documentsLoaded, pendingLoad, watchNetwork } from './support/loaded.mjs';
+import { randomUUID } from 'node:crypto';
+import { docsReady, documentsLoaded, pendingLoad, watchNetwork } from './support/loaded.mjs';
 
 // Controls for the post-remount wait in support/loaded.mjs, on a synthetic page served by a route. As on the docs
-// site, the example iframe is added inside a shadow root after the page has loaded, and the page carries the router's
-// settled marker. Each control holds one request open and then releases it.
+// site, the example iframe is added inside a shadow root after the page has loaded, and the page carries the docs app's
+// ready signal. Each control holds one request open and then releases it.
 const ORIGIN = 'https://example.com';
-const fixture = afterLoad => `<!doctype html><title>fixture</title><litro-outlet data-litro-settled></litro-outlet>
+const fixture = afterLoad => `<!doctype html><title>fixture</title><litro-outlet data-docs-ready></litro-outlet>
 <docs-page></docs-page><script>addEventListener('load', () => { ${afterLoad} });</script>`;
 const SHADOW_FRAME = `const root = document.querySelector('docs-page').attachShadow({ mode: 'open' });
   const frame = document.createElement('iframe');
@@ -58,3 +59,26 @@ test('refuses a page it did not watch from the start', async ({ browser }) => {
   await expect(pendingLoad(unwatched)).rejects.toThrow('call watchNetwork(page) before the page loads');
   await context.close();
 });
+
+// When docsReady reaches its bound, its failure describes the page's state in its own words and counts only: whatever
+// the page supplies (an exception's message, a property's value) stays out of the test output. Each page here plants a
+// marker generated for this run where the description reads the page, and the failure must not contain it.
+const PLANTS = {
+  'an exception thrown while the page is read': marker => { document.querySelector = () => { throw new Error(marker); }; },
+  'a document state the page made up': marker => { Object.defineProperty(document, 'readyState', { get: () => marker }); },
+  'counts and flags the page made up': marker => {
+    const outlet = document.querySelector('litro-outlet');
+    Object.defineProperty(outlet, 'children', { get: () => ({ length: marker }) });
+    outlet.hasAttribute = () => marker;
+  },
+};
+for (const [plant, script] of Object.entries(PLANTS)) {
+  test(`a docsReady failure reports only state, never page content: ${plant}`, async ({ page }) => {
+    const marker = `marker-${randomUUID()}`;
+    await page.setContent('<!doctype html><title>fixture</title><litro-outlet><docs-page></docs-page></litro-outlet>');
+    await page.evaluate(script, marker);
+    const error = await docsReady(page, { timeout: 200 }).then(() => null, e => e);
+    expect(error?.message).toContain('Page state at the bound: ');
+    expect(error.message).not.toContain(marker);
+  });
+}

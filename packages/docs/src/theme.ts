@@ -2,7 +2,8 @@
  * Head script adapted from @beatzball/create-litro (Litro, Copyright 2026 beatzball, Apache License 2.0), Starlight
  * recipe `recipes/starlight/template/src/route-meta.ts`. See THIRD_PARTY_NOTICES.md.
  * Changes: three-way light/dark/system preference with an in-memory choice that wins after a failed storage write, the sl-theme-dark/sl-theme-light class
- * instead of data-theme, a storage listener and a small API for the header control; the palette is Velcro's own.
+ * instead of data-theme, a storage listener and a small API for the header control; the palette is Velcro's own; a
+ * modulepreload for the Velcro runtime.
  */
 /**
  * Site theme: the docs palette and the head script that applies the reader's light / dark / system choice.
@@ -16,6 +17,8 @@
  * there is no flash of the wrong theme. Storage may be unavailable (site data blocked); every access is guarded and the
  * choice then holds for the current page only. A reader who has chosen "system" keeps following system changes.
  */
+import { withBase } from './base.js';
+
 export const THEME_STORAGE_KEY = 'velcro-docs-theme';
 export type ThemePreference = 'light' | 'dark' | 'system';
 
@@ -90,8 +93,14 @@ const script = [
   '})();',
 ].join('');
 
-/** Markup for every page's <head>: the palette, then the synchronous theme script. */
-export const themeHead = `<style id="velcro-docs-palette">${style}</style><script id="velcro-docs-theme">${script}</script>`;
+// The page's own request for Velcro's runtime bundle (app-main.ts imports it), started from <head>. Each example iframe
+// loads the same bundle; WebKit attaches a later request for it to one already in flight, and when the client router's
+// remount removes the prerendered example frames it cancels their request, failing the page's import with it. Started
+// here, the request belongs to the page before any example frame exists.
+const runtimePreload = `<link rel="modulepreload" href="${withBase('/_litro/velcro.js')}">`;
+
+/** Markup for every page's <head>: the runtime preload, the palette, then the synchronous theme script. */
+export const themeHead = `${runtimePreload}<style id="velcro-docs-palette">${style}</style><script id="velcro-docs-theme">${script}</script>`;
 
 interface ThemeApi {
   get(): ThemePreference;

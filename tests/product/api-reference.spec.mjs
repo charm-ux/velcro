@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test';
 import { apiModel, customElements, readJson, velcroManifestPath } from '../../scripts/api/model.mjs';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 import { guardCdn } from './support/cdn.mjs';
+import { openDocs } from './support/loaded.mjs';
 
 // The icon page loads its CDN icon library examples only on request; no test here asks, and none reaches a CDN (support/cdn.mjs).
 let cdnRequests = [];
@@ -25,8 +26,8 @@ const expected = model => ({
 
 for (const { name, tag } of readCatalog()) {
   test(`${tag}: the API tables on /components/${name} match the Custom Elements Manifest`, async ({ page }) => {
-    // Litro's client router remounts the page component once after load; let it settle, and retry reads below.
-    await page.goto(`/components/${name}`, { waitUntil: 'networkidle' });
+    // Litro's client router remounts the page component once after load; openDocs waits for it. Reads below still retry.
+    await openDocs(page, `/components/${name}`);
     const want = expected(apiModel(elements.get(tag)));
     for (const [section, rows] of Object.entries(want)) {
       const heading = page.locator(`h2#${section}`);
@@ -46,7 +47,7 @@ for (const { name, tag } of readCatalog()) {
 }
 
 test('inherited members name their core origin on the page', async ({ page }) => {
-  await page.goto('/components/button', { waitUntil: 'networkidle' });
+  await openDocs(page, '/components/button');
   // sl-button redeclares disabled with Shoelace's default; toggle is a core extension it inherits unchanged.
   const toggle = page.locator('table[data-api="attributes"] tr[data-name="toggle"] td').last();
   await expect(toggle).toHaveText('Inherited from @charm-ux/core CoreButton');

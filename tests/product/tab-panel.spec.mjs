@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
 
@@ -8,8 +8,7 @@ const PAGE = '/components/tab-panel';
 async function openExample(page, name = 'Overview') {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
-  // Litro's client router remounts the page component once after load, which reloads the iframe; wait for it to settle.
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
+  await openDocs(page, PAGE);
   const frame = page.frameLocator(`iframe.example[title="Tab Panel example: ${name}"]`);
   await expect(frame.locator('sl-tab-panel[active]').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-tab-panel'));
@@ -412,7 +411,7 @@ test('the overview example makes one panel active at a time, and a disabled butt
 });
 
 test('every docs example renders in its own document', async ({ page }) => {
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
+  await openDocs(page, PAGE);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual(['Overview', 'Custom padding'].map(t => `Tab Panel example: ${t}`));
   for (const title of titles) {

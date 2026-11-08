@@ -4,19 +4,23 @@ import { fileURLToPath } from 'node:url';
 import { collectRequestFailures } from './request-failures.mjs';
 import { buildFixtures, openFixturePage, ORIGIN } from './support/fixtures.mjs';
 import { guardCdn, stubCdn } from './support/cdn.mjs';
+import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 const PAGE = '/components/icon';
 const source = fileURLToPath(new URL('../../packages/velcro/assets/bootstrap-icons/', import.meta.url));
 const dist = fileURLToPath(new URL('../../packages/velcro/dist/assets/icons/', import.meta.url));
 
 async function openPage(page) {
+  watchNetwork(page);
   const cdn = guardCdn(page);
   const requests = [];
   page.on('request', request => requests.push(request.url()));
   const failures = collectRequestFailures(page);
-  // Litro's client router remounts the page component once after load, which reloads the iframes; wait for it to settle.
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
-  await page.waitForLoadState('networkidle');
+  await openDocs(page, PAGE);
+  // The specs check the requests the page made, so this also waits for the network to go quiet (an example can fetch
+  // after its document has loaded). documentsLoaded, not Playwright's networkidle: WebKit can leave the latter pending
+  // for good after the router's remount.
+  await documentsLoaded(page);
   return { cdn, requests, failures };
 }
 
@@ -123,7 +127,7 @@ test('CDN icon library examples load only on request, then resolve the documente
   await expect(buttons).toHaveCount(11);
   await expect(page.locator('iframe[title="Icon example: Boxicons"]')).toHaveCount(0);
   expect(cdn).toEqual([]);
-  // From here the CDN is answered locally (installed now, after the page settled: see support/cdn.mjs).
+  // From here the CDN is answered locally (installed now, after the docs page is ready: see support/cdn.mjs).
   const answered = await stubCdn(page);
   while (await buttons.count()) {
     await buttons.first().click();

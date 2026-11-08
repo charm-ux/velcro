@@ -20,6 +20,30 @@ export function makeProbe(host) {
     }
     return out;
   };
+  // Running animations and transitions would make snapshots differ: WebKit samples a running animation at every read,
+  // even within one task. Before each measurement, every shadow root in the tree (nested ones too: sl-button renders an
+  // animating sl-spinner while loading) gets a sheet freezing its animations and transitions, and every animation of a
+  // measured node is paused. Each measurement does this again, because a state change can render new shadow roots.
+  // pause() (and a paused play state) only schedules the pause, for the next animation update; until then the
+  // animation keeps its start time and runs on. Setting its current time completes the pause at once, at that time.
+  let freezeSheet;
+  const freeze = () => {
+    if (!freezeSheet) {
+      freezeSheet = new CSSStyleSheet();
+      freezeSheet.replaceSync('*, :host { animation-play-state: paused !important; animation-delay: 0s !important; transition: none !important; }');
+    }
+    const walk = root => {
+      if (!root.adoptedStyleSheets.includes(freezeSheet)) root.adoptedStyleSheets = [...root.adoptedStyleSheets, freezeSheet];
+      for (const el of root.querySelectorAll('*')) if (el.shadowRoot) walk(el.shadowRoot);
+    };
+    walk(host.shadowRoot);
+    for (const el of nodes()) {
+      for (const animation of el.getAnimations()) {
+        animation.pause();
+        if (animation.currentTime !== null) animation.currentTime = animation.currentTime;
+      }
+    }
+  };
   const differs = (a, b) => {
     if (a.length !== b.length) return true;
     for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return true;
@@ -30,6 +54,7 @@ export function makeProbe(host) {
     // tree changes (stopping at its first changing value). getComputedStyle recalculates synchronously, so the current state
     // (including a held pointer) is measured as is. No candidate is ever skipped on the strength of another's result.
     measure(candidates, values) {
+      freeze();
       const base = snapshot();
       const hit = [];
       for (const name of candidates) {

@@ -1,9 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
-
-test.beforeEach(({ page }) => watchNetwork(page));
+import { openDocs } from './support/loaded.mjs';
 
 const read = path => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const SOURCES = ['light', 'dark'];
@@ -64,13 +62,10 @@ test('light and dark define exactly the same tokens, with the upstream selectors
 });
 
 async function openFrame(page) {
-  await page.goto('/components/card', { waitUntil: 'networkidle' });
-  // The client router replaces the prerendered page once; until it has settled there can be two example iframes.
-  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
+  await openDocs(page, '/components/card');
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-basic')).toBeVisible();
   await frame.locator('#demo-basic').evaluate(() => customElements.whenDefined('sl-card'));
-  await documentsLoaded(page);
   return frame;
 }
 

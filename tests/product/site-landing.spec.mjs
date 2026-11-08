@@ -1,6 +1,7 @@
 // The landing page: hero, feature rows, install command and a showcase that renders every catalog component live.
 import { expect, test } from '@playwright/test';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
+import { openDocs } from './support/loaded.mjs';
 
 const catalog = readCatalog();
 
@@ -25,8 +26,7 @@ test('the prerendered landing page carries the hero, the install command and one
 test('showcase: every catalog component is rendered live, upgraded, and links to its docs page', async ({ page }) => {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto('/', { waitUntil: 'networkidle' });
-  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
+  await openDocs(page, '/');
   const tiles = page.locator('#showcase [data-component]');
   await expect(tiles).toHaveCount(catalog.length);
   expect(await tiles.evaluateAll(els => els.map(e => e.dataset.component))).toEqual(catalog.map(c => c.name));
@@ -54,8 +54,7 @@ test('hero, feature rows and the copy button', async ({ page, context, browserNa
     window.__copied = [];
     navigator.clipboard.writeText = text => { window.__copied.push(text); return original(text); };
   });
-  await page.goto('/', { waitUntil: 'networkidle' });
-  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
+  await openDocs(page, '/');
   await expect(page.getByRole('heading', { level: 1, name: 'Velcro' })).toBeVisible();
   await expect(page.locator('.row')).toHaveCount(3);
   await page.getByRole('button', { name: 'Copy' }).click();
