@@ -1,0 +1,21 @@
+<div class="tags-removable">
+  <sl-tag size="small" removable>Small</sl-tag>
+  <sl-tag size="medium" removable>Medium</sl-tag>
+  <sl-tag size="large" removable>Large</sl-tag>
+</div>
+
+<script>
+  const div = document.querySelector('.tags-removable');
+
+  div.addEventListener('sl-remove', event => {
+    const tag = event.target;
+    tag.style.opacity = '0';
+    setTimeout(() => (tag.style.opacity = '1'), 2000);
+  });
+</script>
+
+<style>
+  .tags-removable sl-tag {
+    transition: var(--sl-transition-medium) opacity;
+  }
+</style>
