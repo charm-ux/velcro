@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { devNull, tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { CONTEXT, DESCRIPTION, main } from '../../scripts/merge/agent-approvals.mjs';
+import { CONTEXT, DESCRIPTION, gitRunner, main } from '../../scripts/merge/agent-approvals.mjs';
 
 const script = new URL('../../scripts/merge/agent-approvals.mjs', import.meta.url).pathname;
 // Pinned from a real queue run (#36): its head, and the main tip GitHub built its queue entry on. GitHub named that
@@ -14,6 +14,8 @@ const main$ = 'b48b57e7f68bbded8b47d0a2a5702ce07be097b6';
 const realQueueBranch = 'gh-readonly-queue/main/pr-36-b48b57e7f68bbded8b47d0a2a5702ce07be097b6';
 const group = 'e'.repeat(40);
 const tree = '7'.repeat(40);
+// The tree of the approved head merged onto a main that moved after the approval.
+const merged = '9'.repeat(40);
 const repo = 'fixture-org/fixture';
 
 // A scratch coordinator layout: <root>/approvals/<n>.json and <root>/reviews/<round>/reports/<reviewer>.md.
@@ -40,7 +42,8 @@ const entry = (fields = {}, pull = {}) => ({ data: { repository: { pullRequest: 
 const me = 'owner-fixture';
 function github(overrides = {}, { statuses = {}, afterPost = () => {} } = {}) {
   const calls = [];
-  const lists = { [head]: [...(statuses[head] ?? [])], [group]: [...(statuses[group] ?? [])] };
+  const lists = {};
+  const list = sha => (lists[sha] ??= [...(statuses[sha] ?? [])]);
   let id = 100;
   const answers = {
     user: { login: me },
@@ -57,13 +60,13 @@ function github(overrides = {}, { statuses = {}, afterPost = () => {} } = {}) {
     calls.push(args.join(' '));
     if (args[1] === '--method') {
       const sha = args[3].split('/').pop();
-      lists[sha].unshift({ id: id++, context: CONTEXT, state: 'success', creator: { login: me } });
-      afterPost(lists[sha]);
+      list(sha).unshift({ id: id++, context: CONTEXT, state: 'success', creator: { login: me } });
+      afterPost(list(sha));
       return { state: 'success' };
     }
     const key = args[1];
     const listing = /^repos\/[^/]+\/[^/]+\/commits\/([0-9a-f]{40})\/statuses\?per_page=100$/.exec(key);
-    if (listing && !Object.hasOwn(answers, key)) return lists[listing[1]];
+    if (listing && !Object.hasOwn(answers, key)) return list(listing[1]);
     if (!Object.hasOwn(answers, key)) throw new Error(`unexpected request ${key}`);
     if (answers[key] instanceof Error) throw answers[key];
     return answers[key];
@@ -73,7 +76,21 @@ function github(overrides = {}, { statuses = {}, afterPost = () => {} } = {}) {
 
 const posts = calls => calls.filter(call => call.startsWith('api --method POST'));
 const post = sha => `api --method POST repos/${repo}/statuses/${sha} -f state=success -f context=${CONTEXT} -f description=${DESCRIPTION}`;
-const run = (args, gh) => { const out = []; const code = main(args, { gh, write: text => out.push(text) }); return { code, out: out.join('').trim() }; };
+// A scripted local Git: records every call and answers `git merge-tree` with `answer` (or throws it, if an Error).
+function localGit(answer = { status: 0, stdout: `${merged}\n` }) {
+  const calls = [];
+  const git = args => {
+    calls.push(args.join(' '));
+    if (answer instanceof Error) throw answer;
+    return answer;
+  };
+  return { git, calls };
+}
+const run = (args, gh, git = localGit().git) => {
+  const out = [];
+  const code = main(args, { gh, git, write: text => out.push(text) });
+  return { code, out: out.join('').trim() };
+};
 
 test('check accepts two distinct APPROVED reports bound to the exact head', t => {
   const { root, report, binding } = layout(t);
@@ -223,8 +240,11 @@ test('set-group marks only the merge-queue commit that lands exactly the approve
   const good = binding({ head, approvals: 2, reviews: [report('a.md'), report('b.md')] });
   const args = ['set-group', good, '--head', head, '--root', root, '--repo', repo, '--pr', '7', '--group', group];
   const ok = github();
-  assert.deepEqual(run(args, ok.gh), { code: 0, out: `agent-approvals: success set on merge group ${group} for ${head}` });
+  const noMerge = localGit();
+  assert.deepEqual(run(args, ok.gh, noMerge.git), { code: 0, out: `agent-approvals: success set on merge group ${group} for ${head}` });
   assert.deepEqual(posts(ok.calls), [post(group)]);
+  // The exact tree on a head that already contains main needs no local merge.
+  assert.deepEqual(noMerge.calls, []);
   const groupKey = `repos/${repo}/commits/${group}`;
   const built = github().gh(['api', groupKey]);
   // The queue entry is read from GitHub for this pull request; no branch name is derived.
@@ -251,11 +271,12 @@ test('set-group marks only the merge-queue commit that lands exactly the approve
     // Queued behind another group, a merge commit, or built on an older main.
     [{ [groupKey]: { ...built, parents: [{ sha: 'f'.repeat(40) }] } }, 'the merge-queue commit is not built directly on main'],
     [{ [groupKey]: { ...built, parents: [{ sha: main$ }, { sha: head }] } }, 'the merge-queue commit is not built directly on main'],
-    // Content that differs from the approved head in any way.
-    [{ [groupKey]: { ...built, commit: { tree: { sha: '8'.repeat(40) } } } }, 'the merge-queue commit does not have the approved tree'],
+    // Content that differs from the approved head in any way, and from the approved head merged onto main.
+    [{ [groupKey]: { ...built, commit: { tree: { sha: '8'.repeat(40) } } } }, 'the merge-queue commit is not the approved head merged onto main'],
     [{ [groupKey]: { ...built, commit: {} } }, 'the merge-queue commit does not have the approved tree'],
-    [{ [`repos/${repo}/compare/${main$}...${head}`]: { status: 'diverged', ahead_by: 1, behind_by: 1 } }, 'the approved head does not contain main'],
-    [{ [`repos/${repo}/compare/${main$}...${head}`]: { status: 'identical', ahead_by: 0, behind_by: 0 } }, 'the approved head does not contain main'],
+    // The approved tree on a head that lacks main's tip would drop main's changes unless the merge equals it.
+    [{ [`repos/${repo}/compare/${main$}...${head}`]: { status: 'diverged', ahead_by: 1, behind_by: 1 } }, 'the merge-queue commit is not the approved head merged onto main'],
+    [{ [`repos/${repo}/compare/${main$}...${head}`]: { status: 'identical', ahead_by: 0, behind_by: 0 } }, 'the merge-queue commit is not the approved head merged onto main'],
     [{ [`repos/${repo}/pulls/7`]: { ...github().gh(['api', `repos/${repo}/pulls/7`]), state: 'closed' } }, 'the pull request is not open and ready'],
   ]) {
     const { gh, calls } = github(overrides);
@@ -271,6 +292,142 @@ test('set-group marks only the merge-queue commit that lands exactly the approve
   const minted = github({}, { statuses: { [group]: [{ id: 3, context: CONTEXT, state: 'success', creator: { login: 'github-actions[bot]' } }] } });
   assert.deepEqual(run(args, minted.gh), { code: 1, out: 'agent-approvals: refused (another account already set agent-approvals on this commit)' });
   assert.deepEqual(posts(minted.calls), []);
+});
+
+// Main moved after the approval: the queue squashes the approved head onto the new tip, so the queued tree is the
+// merge, not the head's tree. GitHub answers for that state; `behind` is the compare of the new tip with the head.
+const behind = { status: 'diverged', ahead_by: 1, behind_by: 1 };
+const moved = (overrides = {}) => ({
+  [`repos/${repo}/commits/${group}`]: { sha: group, parents: [{ sha: main$ }], commit: { tree: { sha: merged } } },
+  [`repos/${repo}/compare/${main$}...${head}`]: behind,
+  ...overrides,
+});
+
+test('set-group marks the queue commit that is the approved head merged cleanly onto a main that moved', t => {
+  const { root, report, binding } = layout(t);
+  const good = binding({ head, approvals: 2, reviews: [report('a.md'), report('b.md')] });
+  const args = ['set-group', good, '--head', head, '--root', root, '--repo', repo, '--pr', '7', '--group', group];
+  const ok = github(moved());
+  const local = localGit();
+  assert.deepEqual(run(args, ok.gh, local.git), { code: 0, out: `agent-approvals: success set on merge group ${group} for ${head}` });
+  assert.deepEqual(posts(ok.calls), [post(group)]);
+  // The merge is computed from the queue entry's base (main's tip, the single parent) and the approved head only.
+  assert.deepEqual(local.calls, [`merge-tree --write-tree --no-messages ${main$} ${head}`]);
+  // When main's new changes are already in the head, the merge is the head's own tree, which is then accepted too.
+  assert.equal(run(args, github({ [`repos/${repo}/compare/${main$}...${head}`]: behind }).gh, localGit({ status: 0, stdout: `${tree}\n` }).git).code, 0);
+
+  const groupKey = `repos/${repo}/commits/${group}`;
+  const built = moved()[groupKey];
+  const conflicted = { status: 1, stdout: `${merged}\n100644 ${'a'.repeat(40)} 1\tshared.txt\n` };
+  for (const [overrides, answer, reason, merges] of [
+    // A tampered tree: neither the approved tree nor the merge.
+    [{ [groupKey]: { ...built, commit: { tree: { sha: '8'.repeat(40) } } } }, undefined, 'the merge-queue commit is not the approved head merged onto main', 1],
+    // The approved tree without main's new changes.
+    [{ [groupKey]: { ...built, commit: { tree: { sha: tree } } } }, undefined, 'the merge-queue commit is not the approved head merged onto main', 1],
+    // A conflicted merge, even when the queue commit carries Git's conflicted tree.
+    [{}, conflicted, 'the approved head conflicts with main', 1],
+    [{ [groupKey]: { ...built, commit: { tree: { sha: merged } } } }, { status: 1, stdout: `${merged}\n` }, 'the approved head conflicts with main', 1],
+    // Git could not compute the merge: a missing commit, no Git, a crash or unexpected output.
+    [{}, { status: 128, stdout: '' }, 'the merge onto main could not be computed locally', 1],
+    [{}, { status: null, stdout: '' }, 'the merge onto main could not be computed locally', 1],
+    [{}, new Error('spawn failed'), 'the merge onto main could not be computed locally', 1],
+    [{}, { status: 0, stdout: `${merged}\nextra\n` }, 'the merge onto main could not be computed locally', 1],
+    [{}, { status: 0, stdout: merged.slice(0, 12) }, 'the merge onto main could not be computed locally', 1],
+    // A stale approval: the pull request's head moved after the approval (GitHub's REST and GraphQL views).
+    [{ graphql: entry(undefined, { headRefOid: 'd'.repeat(40) }) }, undefined, 'the pull request head is not the approved head', 0],
+    [{ [`repos/${repo}/pulls/7`]: { ...github().gh(['api', `repos/${repo}/pulls/7`]), head: { sha: 'd'.repeat(40), repo: { full_name: repo } } } },
+      undefined, 'the pull request head is not the approved head', 0],
+    // Extra parents: a merge commit, or a commit stacked on another queue entry.
+    [{ [groupKey]: { ...built, parents: [{ sha: main$ }, { sha: head }] } }, undefined, 'the merge-queue commit is not built directly on main', 0],
+    [{ [groupKey]: { ...built, parents: [] } }, undefined, 'the merge-queue commit is not built directly on main', 0],
+    // The wrong base: a parent that is not main's tip, or an entry built on another base than main's tip.
+    [{ [groupKey]: { ...built, parents: [{ sha: 'f'.repeat(40) }] } }, undefined, 'the merge-queue commit is not built directly on main', 0],
+    [{ graphql: entry({ baseCommit: { oid: 'f'.repeat(40) } }) }, undefined, 'the merge-queue entry is not built on main', 0],
+    [{ [`repos/${repo}/git/ref/heads/main`]: { object: { sha: 'f'.repeat(40) } } }, undefined, 'the merge-queue entry is not built on main', 0],
+  ]) {
+    const { gh, calls } = github(moved(overrides));
+    const local = localGit(answer);
+    assert.deepEqual(run(args, gh, local.git), { code: 1, out: `agent-approvals: refused (${reason})` }, reason);
+    assert.deepEqual(posts(calls), [], reason);
+    assert.equal(local.calls.length, merges, reason);
+  }
+  // A binding for an earlier head never reaches GitHub or Git.
+  const stale = binding({ head: 'd'.repeat(40), approvals: 2, reviews: [report('c.md', `APPROVED\n${'d'.repeat(40)}\n`), report('d.md', `APPROVED\n${'d'.repeat(40)}\n`)] }, 'stale.json');
+  const none = github(moved());
+  const untouched = localGit();
+  assert.deepEqual(run([...args.slice(0, 1), stale, ...args.slice(2)], none.gh, untouched.git),
+    { code: 1, out: 'agent-approvals: refused (the binding names a different head)' });
+  assert.deepEqual([none.calls, untouched.calls], [[], []]);
+});
+
+// The same rule against real Git: a scratch repository where main moved after the approval.
+const fixtureEmail = ['velcro-test', 'example.invalid'].join('@');
+const fixtureEnv = { ...process.env, GIT_CONFIG_GLOBAL: devNull, GIT_CONFIG_SYSTEM: devNull, GIT_CONFIG_NOSYSTEM: '1',
+  GIT_AUTHOR_NAME: 'velcro-test', GIT_AUTHOR_EMAIL: fixtureEmail, GIT_COMMITTER_NAME: 'velcro-test', GIT_COMMITTER_EMAIL: fixtureEmail };
+function scratch(t) {
+  const dir = mkdtempSync(path.join(tmpdir(), 'velcro-queue-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const git = (...args) => {
+    const r = spawnSync('git', ['-c', 'init.defaultBranch=main', '-c', 'commit.gpgsign=false', '-c', `core.hooksPath=${devNull}`, ...args],
+      { cwd: dir, env: fixtureEnv, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 60000 });
+    assert.equal(r.status, 0, `git ${args[0]} failed`);
+    return r.stdout.trim();
+  };
+  // Commits `files` on top of `parent` (or as a root) and returns its OID.
+  const commit = (parent, files, message) => {
+    if (parent) git('checkout', '-q', '--detach', parent);
+    for (const [name, text] of Object.entries(files)) writeFileSync(path.join(dir, name), text);
+    git('add', '--', ...Object.keys(files));
+    git('commit', '-q', '-m', message);
+    return git('rev-parse', 'HEAD');
+  };
+  git('init', '-q');
+  return { dir, git, commit };
+}
+
+test('set-group binds a real squash of the approved head onto a moved main and refuses a conflict or tampering', t => {
+  const { dir, git, commit } = scratch(t);
+  const base = commit(null, { 'a.txt': 'a\n', 'b.txt': 'b\n' }, 'base');
+  const tip = commit(base, { 'a.txt': 'a from main\n' }, 'main moved');
+  const approved = commit(base, { 'b.txt': 'b from the pull request\n' }, 'approved change');
+  const clashing = commit(base, { 'a.txt': 'a from the pull request\n' }, 'clashing change');
+  // What the queue squashes, built independently of merge-tree: main's tip plus the approved change.
+  const queued = commit(tip, { 'b.txt': 'b from the pull request\n' }, 'queued squash');
+  const treeOf = oid => git('rev-parse', `${oid}^{tree}`);
+  const { root, report, binding } = layout(t);
+  // GitHub's view of a pull request at `pr` queued on `tip` as `queue` with `queueTree`.
+  const view = (pr, queueTree, queue = queued) => {
+    const pull = github().gh(['api', `repos/${repo}/pulls/7`]);
+    return github({
+      [`repos/${repo}/pulls/7`]: { ...pull, head: { ...pull.head, sha: pr } },
+      graphql: { data: { repository: { pullRequest: { headRefOid: pr,
+        mergeQueueEntry: { state: 'AWAITING_CHECKS', headCommit: { oid: queue }, baseCommit: { oid: tip } } } } } },
+      [`repos/${repo}/git/ref/heads/main`]: { object: { sha: tip } },
+      [`repos/${repo}/commits/${queue}`]: { sha: queue, parents: [{ sha: tip }], commit: { tree: { sha: queueTree } } },
+      [`repos/${repo}/commits/${pr}`]: { sha: pr, parents: [{ sha: base }], commit: { tree: { sha: treeOf(pr) } } },
+      [`repos/${repo}/compare/${tip}...${pr}`]: { status: 'diverged', ahead_by: 1, behind_by: 1 },
+    });
+  };
+  const bound = pr => binding({ head: pr, approvals: 2, reviews: [report(`${pr}-a.md`, `APPROVED\n${pr}\n`), report(`${pr}-b.md`, `APPROVED\n${pr}\n`)] }, `${pr}.json`);
+  const args = (pr, queue = queued) => ['set-group', bound(pr), '--head', pr, '--root', root, '--repo', repo, '--pr', '7', '--group', queue];
+  const real = cwd => args => gitRunner(args, cwd);
+
+  const ok = view(approved, treeOf(queued));
+  assert.deepEqual(run(args(approved), ok.gh, real(dir)), { code: 0, out: `agent-approvals: success set on merge group ${queued} for ${approved}` });
+  assert.deepEqual(posts(ok.calls), [post(queued)]);
+  for (const [pr, queueTree, cwd, reason] of [
+    // The approved head's own tree drops main's change; another tree lands something else.
+    [approved, treeOf(approved), dir, 'the merge-queue commit is not the approved head merged onto main'],
+    [approved, treeOf(tip), dir, 'the merge-queue commit is not the approved head merged onto main'],
+    // Both sides changed a.txt.
+    [clashing, treeOf(queued), dir, 'the approved head conflicts with main'],
+    // A directory without the commits.
+    [approved, treeOf(queued), root, 'the merge onto main could not be computed locally'],
+  ]) {
+    const { gh, calls } = view(pr, queueTree);
+    assert.deepEqual(run(args(pr), gh, real(cwd)), { code: 1, out: `agent-approvals: refused (${reason})` }, reason);
+    assert.deepEqual(posts(calls), [], reason);
+  }
 });
 
 // Regression: the queue branch is named after the base GitHub built on, as in #36, not after the pull request head.
