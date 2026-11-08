@@ -4,7 +4,7 @@
   `src/components/button-group/button-group.component.ts`, and the restore of reflected properties' initial values from
   `src/internal/shoelace-element.ts`), `packages/velcro/src/components/button-group/button-group.styles.ts` (styles
   concatenated from `src/styles/component.styles.ts` and `src/components/button-group/button-group.styles.ts`, rules
-  unchanged) and the docs page and examples `packages/docs/pages/components/button-group.ts` and
-  `packages/docs/examples/button-group/*.html` (example markup and wording adapted from
-  `docs/pages/components/button-group.md`). The button group is built on the `@charm-ux/core` button group; no Shoelace
+  unchanged) and the docs page and examples `packages/docs/pages/components/button-group.ts`,
+  `packages/docs/examples/button-group/*.html` and `packages/docs/examples/button-group/react/*.jsx` (example markup,
+  React snippets and wording adapted from `docs/pages/components/button-group.md`). The button group is built on the `@charm-ux/core` button group; no Shoelace
   runtime or source files are included.

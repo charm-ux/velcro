@@ -7,7 +7,7 @@ How entries are compared: [docs/api-parity.md](../../api-parity.md).
 
 | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 3 | 3 | 0 | 0 | 2 | 7 |
+| 3 | 3 | 0 | 0 | 6 | 3 |
 
 ## Missing
 
@@ -21,13 +21,13 @@ How entries are compared: [docs/api-parity.md](../../api-parity.md).
 
 - `property defaultSlot`
 - `property disableRole`
+- `property select`
+- `property split`
+- `property toolbar`
+- `property vertical`
 
 ## Inherited extras
 
 - `property dir` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
-- `property select` (from @charm-ux/core CoreButtonGroup)
-- `property split` (from @charm-ux/core CoreButtonGroup)
-- `property toolbar` (from @charm-ux/core CoreButtonGroup)
-- `property vertical` (from @charm-ux/core CoreButtonGroup)
 - `event ready` (from @charm-ux/core CharmElement)

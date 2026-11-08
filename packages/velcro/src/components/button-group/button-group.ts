@@ -18,10 +18,11 @@ import styles from './button-group.styles.js';
  * Velcro extensions inherited from the core button group and kept working: `select` (`single` or `multiple` marks the
  * slotted `<sl-button>` elements as toggle buttons; `single` also un-presses the others when one is toggled) and
  * `toolbar` (the base element gets `role="toolbar"`, the buttons get a roving tab index, and the arrow keys move focus
- * between the slotted elements). They only act when set and do not change Shoelace's behavior. The core `vertical` and
- * `split` attributes are accepted but have no effect: they only drive core's own button styles, which this component
- * does not use. Core's `button-group-button-position` attribute is not written to the buttons, and core's
- * `--button-group-*` custom properties and `button-group-base` part do not exist.
+ * between the slotted elements). They only act while set, are released when removed (the key handler, the roving tab
+ * index and the `toggle` attribute the group wrote are taken back) and do not change Shoelace's behavior. The core
+ * `vertical` and `split` attributes are accepted and reflected but have no effect: they only drive core's own button
+ * styles, which this component does not use. Core's `button-group-button-position` attribute is not written to the
+ * buttons, and core's `--button-group-*` custom properties and `button-group-base` part do not exist.
  *
  * @tag sl-button-group
  * @status prototype
@@ -55,6 +56,15 @@ export class VelcroButtonGroup extends CoreButtonGroup {
 
   private velcroDir?: string;
 
+  // What the extensions wrote, so that removing an extension can take it back and leave a plain Shoelace group: the
+  // `tabindex` a button or slotted element had before the roving tab index (null: none), the buttons that got `toggle`
+  // from the group, and the nested groups that got `toolbar` from it. Weak: nothing here keeps an element alive.
+  private readonly savedTabindex = new WeakMap<Element, string | null>();
+
+  private readonly toggleAdded = new WeakSet<Element>();
+
+  private readonly toolbarAdded = new WeakSet<Element>();
+
   // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
   // initial value (undefined). Core's `dir` would return the computed direction instead.
   // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
@@ -82,6 +92,40 @@ export class VelcroButtonGroup extends CoreButtonGroup {
    */
   @property()
   public override label = '';
+
+  /**
+   * Velcro extension (core), inert: accepted and reflected for compatibility with the core button group, but without
+   * effect. Core uses it to style its own buttons, which this group does not do; Shoelace has no such attribute, and the
+   * group never stacks its buttons vertically.
+   */
+  @property({ type: Boolean, reflect: true })
+  public override vertical?: boolean;
+
+  /**
+   * Velcro extension (core), inert: accepted and reflected for compatibility with the core button group, but without
+   * effect. Core uses it to remove the gap and border radius between its own buttons, which this group does not do;
+   * Shoelace has no such attribute.
+   */
+  @property({ type: Boolean, reflect: true })
+  public override split?: boolean;
+
+  /**
+   * Velcro extension (core): `single` or `multiple` makes the slotted `<sl-button>` elements toggle buttons; with `single`
+   * pressing one un-presses the others. Not part of Shoelace's button group. Setting it after the buttons are slotted
+   * applies when the slot next changes, as in core. Removing it takes the `toggle` attribute back from the buttons the
+   * group gave it to; their `pressed` state stays.
+   */
+  @property({ reflect: true })
+  public override select?: 'single' | 'multiple' | null;
+
+  /**
+   * Velcro extension (core): gives the base element `role="toolbar"`, the buttons a roving tab index and the arrow keys
+   * focus movement between the slotted elements, and applies `toolbar` to nested button groups. Not part of Shoelace's
+   * button group. Removing it takes the key handler, the roving tab index and the `toolbar` attribute it gave nested
+   * groups back.
+   */
+  @property({ type: Boolean, reflect: true })
+  public override toolbar?: boolean;
 
   // Upstream behavior: the first time any observed attribute changes (including `dir` and `lang`), the values of all
   // reflected properties that are not null are recorded, and when one of them later becomes null (its attribute was
@@ -119,6 +163,60 @@ export class VelcroButtonGroup extends CoreButtonGroup {
         self[prop] = value;
       }
     });
+  }
+
+  // Removing an extension: core adds the toolbar key handler and writes `toggle` and the roving tab index, and never
+  // takes them back, so a group that lost `toolbar` or `select` would keep acting on them. The final values are read here,
+  // after the reflected-property restore in `willUpdate` has had its say.
+  protected override updated(changed: PropertyValues<this>) {
+    super.updated(changed);
+    if (changed.has('toolbar') && changed.get('toolbar') && !this.toolbar) {
+      this.releaseToolbar();
+    }
+    if (changed.has('select') && changed.get('select') && !this.select) {
+      this.releaseSelect();
+    }
+  }
+
+  private releaseToolbar() {
+    this.removeEventListener('keydown', this.handleKeyDown);
+    new Set<Element>([...this.buttons, ...this.slottedElements]).forEach(el => {
+      if (this.savedTabindex.has(el)) {
+        const saved = this.savedTabindex.get(el) ?? null;
+        if (saved === null) {
+          el.removeAttribute('tabindex');
+        } else {
+          el.setAttribute('tabindex', saved);
+        }
+        this.savedTabindex.delete(el);
+      }
+    });
+    this.slottedElements.forEach(el => {
+      [el, ...el.querySelectorAll('*')].forEach(candidate => {
+        if (candidate instanceof CoreButtonGroup && this.toolbarAdded.has(candidate)) {
+          this.toolbarAdded.delete(candidate);
+          candidate.removeAttribute('toolbar');
+        }
+      });
+    });
+    this.focusedIndex = 0;
+    this.prevSelectedIndex = 0;
+  }
+
+  private releaseSelect() {
+    this.removeEventListener('change', this.handleToggleChange);
+    this.buttons.forEach(button => {
+      if (this.toggleAdded.has(button)) {
+        this.toggleAdded.delete(button);
+        button.removeAttribute('toggle');
+      }
+    });
+  }
+
+  private saveTabindex(el: Element) {
+    if (!this.savedTabindex.has(el)) {
+      this.savedTabindex.set(el, el.getAttribute('tabindex'));
+    }
   }
 
   private handleFocus(event: Event) {
@@ -169,25 +267,35 @@ export class VelcroButtonGroup extends CoreButtonGroup {
   protected override setAttributes() {
     this.buttons.forEach((button, index) => {
       if (this.select) {
+        if (!button.hasAttribute('toggle')) {
+          this.toggleAdded.add(button);
+        }
         button.setAttribute('toggle', '');
       }
       if (this.toolbar) {
+        this.saveTabindex(button);
         button.tabIndex = index === 0 ? 0 : -1;
       }
     });
     if (this.toolbar) {
       // Propagate toolbar to child button groups, including nested ones (as core does).
       this.slottedElements.forEach(el => {
-        if (el instanceof CoreButtonGroup) {
-          el.setAttribute('toolbar', '');
-        }
-        el.querySelectorAll('*').forEach(descendant => {
-          if (descendant instanceof CoreButtonGroup) {
-            descendant.setAttribute('toolbar', '');
+        [el, ...el.querySelectorAll('*')].forEach(candidate => {
+          if (candidate instanceof CoreButtonGroup) {
+            if (!candidate.hasAttribute('toolbar')) {
+              this.toolbarAdded.add(candidate);
+            }
+            candidate.setAttribute('toolbar', '');
           }
         });
       });
     }
+  }
+
+  // The arrow keys move the roving tab index to slotted elements, which core writes without remembering what was there.
+  protected override setFocus(prevIndex: number, newIndex: number) {
+    [this.slottedElements[prevIndex], this.slottedElements[newIndex]].forEach(el => el && this.saveTabindex(el));
+    super.setFocus(prevIndex, newIndex);
   }
 
   // Core gives tooltips in a group a larger distance. Shoelace does not, and the tooltip is whatever `sl-tooltip` is.
