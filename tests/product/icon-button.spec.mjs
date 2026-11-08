@@ -31,6 +31,12 @@ async function openPage(page) {
   return { frame, requests, example: section => page.frameLocator(`iframe.example[title="${title(section)}"]`) };
 }
 
+// Gives the example document real focus with a pointer click on its page background (nothing there is interactive). Firefox
+// dispatches no focus events, and sends key presses elsewhere, for a script's focus() in an iframe that has never had focus.
+async function focusDocument(frame) {
+  await frame.locator('html').click({ position: { x: 1, y: 1 } });
+}
+
 // Appends markup to the example document and waits for every sl-icon-button in it to render.
 async function mount(frame, markup) {
   await frame.locator('body').evaluate(async (body, markup) => {
@@ -205,6 +211,7 @@ test('hover and focus-visible take the primary color and the focus ring, active 
   // the button before it, because engines differ on whether a script's focus() counts as keyboard modality.
   await mount(frame, '<div id="tab"><button id="before">before</button><sl-icon-button id="after" name="gear" label="After"></sl-icon-button></div>');
   const after = frame.locator('#after');
+  await focusDocument(frame);
   await frame.locator('#before').focus();
   await el.page().keyboard.press('Tab');
   expect(await after.evaluate(e => e.shadowRoot.activeElement === e.button)).toBe(true);
@@ -270,6 +277,7 @@ test('keyboard: Enter and Space on the focused button click it; a pointer click 
   const { frame } = await openPage(page);
   await mount(frame, '<div id="k"><sl-icon-button name="gear" label="Settings"></sl-icon-button></div>');
   const el = frame.locator('#k sl-icon-button');
+  await focusDocument(frame);
   await el.evaluate(e => { window.kc = 0; e.addEventListener('click', () => window.kc++); e.focus(); });
   await el.page().keyboard.press('Enter');
   await el.page().keyboard.press('Space');
@@ -281,6 +289,7 @@ test('keyboard: Enter and Space on the focused button click it; a pointer click 
 test('focus(), blur() and sl-focus / sl-blur: the inner button is focused, the events bubble, are composed and uncancelable with an empty detail', async ({ page }) => {
   const { frame } = await openPage(page);
   await mount(frame, '<div id="f"><sl-icon-button name="gear" label="Settings"></sl-icon-button></div>');
+  await focusDocument(frame);
   const r = await frame.locator('#f').evaluate(async wrap => {
     const el = wrap.querySelector('sl-icon-button');
     const log = [];
