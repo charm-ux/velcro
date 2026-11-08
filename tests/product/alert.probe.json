@@ -1,0 +1,5 @@
+{
+  "note": "The host is display: contents and the base is hidden while closed, so open keeps the base rendered.",
+  "content": "<span slot=\"icon\">!</span>Message",
+  "attrs": { "open": "" }
+}

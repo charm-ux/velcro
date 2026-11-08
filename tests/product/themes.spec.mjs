@@ -6,10 +6,21 @@ import { openDocs } from './support/loaded.mjs';
 const read = path => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const SOURCES = ['light', 'dark'];
 
-// SHA-256 of Shoelace 2.20.1 src/themes/<name>.css. Each Velcro theme is that file with a provenance comment on top.
+// SHA-256 of Shoelace 2.20.1 src/themes/<name>.css. Each Velcro theme is that file with a provenance comment on top and
+// its `/* _utility.css */` marker replaced by src/themes/_utility.css, as Shoelace's theme build does for its dist themes.
 const UPSTREAM_SHA256 = {
   light: '2f9e798c64b04a92ef41ae4d4a1a0392a29124ce35817fc5310c045407783147',
   dark: 'd326a50fa1cae6fcb6919cd6d660d66a7a78cba8dff57366c0cc7b4ffacc88fa',
+};
+// SHA-256 of Shoelace 2.20.1 src/themes/_utility.css (the toast stack and scroll lock rules).
+const UTILITY_SHA256 = '1a3801c609954e832dcd6bcb9dd58ac44a8f0878e2646eba2f94adb8c8c3b539';
+const UTILITY_MARKER = '/* _utility.css */\n';
+// The embedded utility file runs from its own leading comment to the end of the theme.
+const UTILITY_START = '/*\n * This file contains utility classes';
+const splitUtility = css => {
+  const at = css.indexOf(UTILITY_START);
+  expect(at, 'embedded _utility.css').toBeGreaterThan(0);
+  return { theme: css.slice(0, at), utility: css.slice(at) };
 };
 
 const DARK_EXPECTED = {
@@ -42,17 +53,19 @@ function parseTheme(css) {
 }
 
 for (const name of SOURCES) {
-  test(`${name} theme is identical to Shoelace 2.20.1 (same selectors, color-scheme and token values) apart from the provenance header`, () => {
+  test(`${name} theme is identical to Shoelace 2.20.1's built theme (same selectors, color-scheme, token values and utility rules) apart from the provenance header`, () => {
     const css = read(`packages/velcro/themes/${name}.css`);
     expect(css).toMatch(/^\/\*\n \* Velcro \w+ theme\. Copied from Shoelace v2\.20\.1/);
     expect(css).toContain('THIRD_PARTY_NOTICES.md');
-    expect(sha(stripHeader(css))).toBe(UPSTREAM_SHA256[name]);
+    const { theme, utility } = splitUtility(stripHeader(css));
+    expect(sha(theme + UTILITY_MARKER)).toBe(UPSTREAM_SHA256[name]);
+    expect(sha(utility)).toBe(UTILITY_SHA256);
   });
 }
 
 test('light and dark define exactly the same tokens, with the upstream selectors and color-scheme', () => {
-  const light = parseTheme(read('packages/velcro/themes/light.css'));
-  const dark = parseTheme(read('packages/velcro/themes/dark.css'));
+  const light = parseTheme(splitUtility(read('packages/velcro/themes/light.css')).theme);
+  const dark = parseTheme(splitUtility(read('packages/velcro/themes/dark.css')).theme);
   expect(light.tokens.size).toBeGreaterThan(300);
   expect([...dark.tokens.keys()].sort()).toEqual([...light.tokens.keys()].sort());
   expect(light.selectors).toEqual([':root', ':host', '.sl-theme-light']);
