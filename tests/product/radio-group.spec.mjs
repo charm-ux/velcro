@@ -216,6 +216,8 @@ test('keyboard: Tab reaches the checked radio, arrows move and wrap the selectio
 test('keyboard with radio buttons: arrows move the checked state and focus the inner button', async ({ page }) => {
   const { frame } = await openExample(page, 'Radio Buttons');
   const group = frame.locator('sl-radio-group');
+  // A real click gives the example's document focus first (Firefox does not move focus inside an unfocused frame).
+  await frame.locator('body').click({ position: { x: 1, y: 1 } });
   await frame.locator('sl-radio-button[value="1"]').evaluate(el => el.focus());
   await page.keyboard.press('ArrowRight');
   expect(await radios(frame, 'sl-radio-group')).toEqual(['1:false', '2:true', '3:false']);
@@ -226,6 +228,8 @@ test('keyboard with radio buttons: arrows move the checked state and focus the i
 test('clicking the label focuses the checked radio, or the first enabled one; focus() does the same', async ({ page }) => {
   const { frame } = await openExample(page);
   await mount(frame, `${GROUP}<sl-radio-group id="other" label="Other"><sl-radio value="x" disabled>X</sl-radio><sl-radio value="y">Y</sl-radio></sl-radio-group>`);
+  // A real click gives the example's document focus first (Firefox does not move focus inside an unfocused frame).
+  await frame.locator('body').click({ position: { x: 1, y: 1 } });
   await frame.locator('#mount sl-radio-group').first().evaluate(el => el.shadowRoot.querySelector('#label').click());
   expect(await frame.locator('body').evaluate(() => document.activeElement?.getAttribute('value'))).toBe('b');
   await frame.locator('#other').evaluate(el => el.focus());
