@@ -647,3 +647,94 @@ test('no upstream Shoelace runtime is requested or defined; no request leaves th
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);
   expect(await frame.locator('body').evaluate(() => Boolean(window.Shoelace || document.querySelector('script[src*="shoelace"]')))).toBe(false);
 });
+
+// The class-only entry (@charm-ux/velcro/avatar/class), bundled alone through the package's real export map: no
+// registering entry, no aggregate and no docs page. Shoelace's avatar declares sl-icon in `static dependencies`, and its
+// base element defines each missing dependency when an avatar is constructed; Velcro's does the same.
+test.describe('class-only entry', () => {
+  let bundle;
+
+  test.beforeAll(async () => {
+    const fromDocs = createRequire(path.join(docsDir, 'package.json'));
+    const { build } = await import(pathToFileURL(fromDocs.resolve('vite')).href);
+    const dir = mkdtempSync(path.join(tmpdir(), 'velcro-avatar-class-'));
+    try {
+      const entry = path.join(dir, 'entry.js');
+      writeFileSync(entry, `
+        import { SlAvatar, VelcroAvatar } from '@charm-ux/velcro/avatar/class';
+        window.avatarClass = { SlAvatar, VelcroAvatar };
+      `);
+      const out = await build({
+        configFile: false, logLevel: 'silent', root: dir,
+        plugins: [{
+          name: 'velcro-package-exports',
+          async resolveId(id) {
+            if (!id.startsWith('@charm-ux/velcro/')) return null;
+            return (await this.resolve(id, path.join(docsDir, 'app.ts'), { skipSelf: true })) ?? null;
+          },
+        }],
+        build: { write: false, minify: false, rollupOptions: { input: entry, output: { format: 'es', codeSplitting: false } } },
+      });
+      bundle = (Array.isArray(out) ? out[0] : out).output.find(o => o.type === 'chunk').code;
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  async function load(page) {
+    const pageErrors = [];
+    page.on('pageerror', e => pageErrors.push(e.message));
+    const themeCss = readFileSync(path.join(velcroDir, 'themes/light.css'), 'utf8');
+    await page.setContent('<!DOCTYPE html><html class="sl-theme-light"><body></body></html>');
+    await page.addStyleTag({ content: themeCss });
+    await page.addScriptTag({ type: 'module', content: bundle });
+    await page.waitForFunction(() => Boolean(window.avatarClass));
+    return pageErrors;
+  }
+
+  test('importing defines nothing; constructing an avatar defines Velcro\'s sl-icon, so the default icon renders', async ({ page }) => {
+    const pageErrors = await load(page);
+    const r = await page.evaluate(async () => {
+      const { SlAvatar, VelcroAvatar } = window.avatarClass;
+      const tags = () => ['sl-avatar', 'sl-icon'].map(t => customElements.get(t)?.name ?? null);
+      const afterImport = tags();
+      customElements.define('sl-avatar', SlAvatar);
+      const afterDefine = tags();
+      const avatar = document.createElement('sl-avatar');
+      avatar.label = 'User avatar';
+      document.body.append(avatar);
+      await avatar.updateComplete;
+      const icon = avatar.shadowRoot.querySelector('slot[name="icon"] sl-icon');
+      await icon.updateComplete;
+      return {
+        afterImport, afterDefine, afterConstruct: tags(), alias: SlAvatar === VelcroAvatar,
+        iconClass: customElements.get('sl-icon') === icon.constructor && icon.constructor.baseName,
+        name: icon.getAttribute('name'), library: icon.getAttribute('library'),
+      };
+    });
+    expect(r).toEqual({
+      afterImport: [null, null], afterDefine: ['VelcroAvatar', null], afterConstruct: ['VelcroAvatar', 'VelcroIcon'], alias: true,
+      iconClass: 'icon', name: 'person-fill', library: 'system',
+    });
+    await expect.poll(() => page.locator('sl-avatar sl-icon').evaluate(i => Boolean(i.shadowRoot.querySelector('svg')))).toBe(true);
+    const box = await page.locator('sl-avatar').evaluate(a => a.shadowRoot.querySelector('[part="icon"] sl-icon').getBoundingClientRect().width);
+    expect(box).toBeGreaterThan(0);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('an sl-icon another constructor already owns is left in place, without an error', async ({ page }) => {
+    const pageErrors = await load(page);
+    const r = await page.evaluate(async () => {
+      class OtherIcon extends HTMLElement {}
+      customElements.define('sl-icon', OtherIcon);
+      customElements.define('sl-avatar', window.avatarClass.SlAvatar);
+      const avatar = document.createElement('sl-avatar');
+      document.body.append(avatar);
+      await avatar.updateComplete;
+      const icon = avatar.shadowRoot.querySelector('slot[name="icon"] sl-icon');
+      return [customElements.get('sl-icon') === OtherIcon, icon instanceof OtherIcon];
+    });
+    expect(r).toEqual([true, true]);
+    expect(pageErrors).toEqual([]);
+  });
+});

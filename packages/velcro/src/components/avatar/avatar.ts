@@ -9,11 +9,14 @@ import { html, type PropertyValues } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { CoreAvatar } from '@charm-ux/core/dist/components/avatar/avatar.js';
+import { defineVelcroComponent, type VelcroComponentConstructor } from '../../utilities/registration.js';
+import { VelcroIcon } from '../icon/class.js';
 import styles from './avatar.styles.js';
 
 /**
  * Avatars are used to represent a person or object. API modelled on Shoelace's `sl-avatar`. The default icon is an
- * `<sl-icon>` from the `system` icon library, as in Shoelace; the registering entry registers Velcro's `sl-icon` too.
+ * `<sl-icon>` from the `system` icon library, as in Shoelace. Like Shoelace's, constructing an avatar defines its
+ * dependency `<sl-icon>` (Velcro's) when no element owns that tag yet, so the class-only entry needs no extra step.
  *
  * Velcro extension inherited from core and kept: the non-bubbling `ready` event, emitted on the first update.
  *
@@ -38,6 +41,19 @@ export class VelcroAvatar extends CoreAvatar {
   // `:host([hidden]) { display: none !important }`, focus outlines and form-control resets. Shoelace's avatar has none
   // of these: its `:host { display: inline-block }` wins over the browser's `[hidden]` rule (an upstream quirk).
   public static override styles = [styles];
+
+  // Shoelace's `static dependencies` for the avatar: the elements its template renders, by tag. As in Shoelace's base
+  // element, each one that is not defined yet is defined when an avatar is constructed, and a tag that another
+  // constructor already owns is left alone. Core's own array-typed `dependencies` (registration in core's scope) stays
+  // empty, as core's avatar declares it. Not part of the documented API (Shoelace's manifest does not document it).
+  private static readonly shoelaceDependencies: Record<string, VelcroComponentConstructor> = { 'sl-icon': VelcroIcon };
+
+  public constructor() {
+    super();
+    for (const [tag, component] of Object.entries(VelcroAvatar.shoelaceDependencies)) {
+      if (!customElements.get(tag)) defineVelcroComponent(component);
+    }
+  }
 
   // Shoelace's base element restores a reflected property's initial value when its attribute is removed (see
   // attributeChangedCallback). `shape` is the only reflected property here.
