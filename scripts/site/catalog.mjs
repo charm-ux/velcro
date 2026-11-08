@@ -100,6 +100,8 @@ export const MODULE_EXPORTS = Object.freeze({
   './include/request': ['include', 'components/include/request'],
   // Shoelace's dist/utilities/animation.js (the two utilities).
   './utilities/animation': ['animation', 'utilities/animation'],
+  // Shoelace's dist/utilities/form.js (serialize and getFormControls), which every form control's tests and users import.
+  './utilities/form': [PACKAGE_OWNER, 'utilities/form'],
   // Shoelace's dist/utilities/localize.js (registerTranslation, the Translation type and the LocalizeController).
   './utilities/localize': [PACKAGE_OWNER, 'utilities/localize'],
   // Shoelace's 29 dist/translations/<code>.js files, each registering its translation when imported.

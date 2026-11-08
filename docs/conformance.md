@@ -4,7 +4,10 @@ Velcro runs Shoelace 2.20.1's own component test files, vendored unmodified in
 `tests/upstream/shoelace-2.20.1/` (upstream commit `fb59fda70ed737c92611051b49bc7e3a5fed5dc5`, MIT), against
 Velcro's components in Chromium. A resolver plugin points each test's Shoelace library import
 (`dist/shoelace.js`) at Velcro's package root, which registers every component, and a test's own
-`./<name>.js` at Velcro's registering entry for that component; no test is edited, and Velcro skips none.
+`./<name>.js` at Velcro's registering entry for that component, and a test's `../../utilities/<name>.js` import (for
+example the textarea test's `serialize`) at Velcro's export of the same utility, so the test runs against Velcro's
+module. The vendored upstream copy of such a helper stays pinned in the record of the component that brings it. No
+test is edited, and Velcro skips none.
 A test that upstream itself marks `it.skip` in its vendored file is reported as skipped, and the gate allows
 only those. Run it with `pnpm test:upstream`; it prints each component's passed, failed and skipped counts and the
 totals, and keeps a machine-readable scoreboard in the ignored `.airig/upstream/`.
