@@ -1,7 +1,8 @@
-// The manifest build looks through a Velcro-local typing class (sl-textarea's CoreTextAreaTyping, which only loosens inherited
-// property declarations) and reports the core class it extends as the component's superclass. That step must change the
-// output for such a component only: every other component's superclass stays what its source says, and the step touches
-// nothing but `superclass`. Both are checked here, on fixtures of the plugin and on the analysis of the current sources.
+// The manifest build looks through a Velcro-local typing class (sl-textarea's CoreTextAreaTyping, sl-input's CoreInputTyping
+// and sl-tooltip's CoreTooltipTyping, which only loosen the types of inherited members) and reports the core class it extends as the
+// component's superclass. That step must change the output for such a component only: every other component's
+// superclass stays what its source says, and the step touches nothing but `superclass`. Both are checked here, on
+// fixtures of the plugin and on the analysis of the current sources.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -67,6 +68,7 @@ test('every other superclass shape is unchanged by the typing-class step (apart 
 // `declared` lists the loosened `declare <name>: any;` fields; `accessors` the loosened accessor pairs (an inherited core
 // accessor cannot be redeclared as a field, so it is overridden by a get/set pair typed `any` that only forwards to core's).
 const TYPING_CLASS_COMPONENTS = {
+  'sl-input': { typingClass: 'CoreInputTyping', coreClass: 'CoreInput', declared: ['max', 'min', 'step'], accessors: [] },
   'sl-textarea': { typingClass: 'CoreTextAreaTyping', coreClass: 'CoreTextArea', declared: ['autocomplete', 'resize'], accessors: [] },
   'sl-tooltip': { typingClass: 'CoreTooltipTyping', coreClass: 'CoreTooltip', declared: ['popup'], accessors: ['placement'] },
 };
@@ -107,5 +109,5 @@ test('on the current sources every component reports the superclass its source e
       }
     }
   }
-  assert.deepEqual(seen.sort(), Object.keys(TYPING_CLASS_COMPONENTS));
+  assert.deepEqual(seen.sort(), Object.keys(TYPING_CLASS_COMPONENTS).sort());
 });

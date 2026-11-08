@@ -13,6 +13,7 @@
 {"name":"icon","title":"Icon","tag":"sl-icon","example":"sl-icon"}
 {"name":"icon-button","title":"Icon Button","tag":"sl-icon-button","example":"#demo-default"}
 {"name":"include","title":"Include","tag":"sl-include","example":"#demo-default"}
+{"name":"input","title":"Input","tag":"sl-input","example":"#demo-default"}
 {"name":"menu-label","title":"Menu Label","tag":"sl-menu-label","example":"sl-menu-label"}
 {"name":"mutation-observer","title":"Mutation Observer","tag":"sl-mutation-observer","example":"#demo-observer"}
 {"name":"popup","title":"Popup","tag":"sl-popup","example":"#demo-default"}
