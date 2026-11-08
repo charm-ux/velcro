@@ -1135,7 +1135,8 @@ test('upstream quirks matched: hidden does not hide it, form="" and aria-describ
   await mount(frame, `
     <sl-input id="h" hidden></sl-input><sl-input id="v" value="a"></sl-input><sl-input id="clr" clearable value="a"></sl-input>
     <sl-input id="conv" value="42"></sl-input><sl-input id="pw" type="text" password-toggle></sl-input>
-    <sl-input id="spell" spellcheck></sl-input><sl-input id="spell-true" spellcheck="true"></sl-input><sl-input id="spell-false" spellcheck="false"></sl-input>`);
+    <sl-input id="spell" spellcheck></sl-input><sl-input id="spell-true" spellcheck="true"></sl-input><sl-input id="spell-false" spellcheck="false"></sl-input>
+    <sl-input id="spell-on" spellcheck="on"></sl-input><sl-input id="spell-upper" spellcheck="FALSE"></sl-input>`);
   // Shoelace's :host { display: block } outranks the user agent's [hidden] rule.
   expect(await frame.locator('#h').evaluate(el => getComputedStyle(el).display)).toBe('block');
   const r = await frame.locator('body').evaluate(async () => {
@@ -1167,7 +1168,7 @@ test('upstream quirks matched: hidden does not hide it, form="" and aria-describ
       // A text input converts through the in-memory inputs: a number from "42", and no date.
       conversions: [conv.valueAsNumber, conv.valueAsDate],
       textToggle: Boolean(document.querySelector('#pw').shadowRoot.querySelector('[part="password-toggle-button"]')),
-      spellcheck: { bare: spell('#spell'), explicitTrue: spell('#spell-true'), explicitFalse: spell('#spell-false') },
+      spellcheck: { bare: spell('#spell'), explicitTrue: spell('#spell-true'), explicitFalse: spell('#spell-false'), onValue: spell('#spell-on'), upperFalse: spell('#spell-upper') },
       removed, renderError, thrown, pickerSupported: 'showPicker' in HTMLInputElement.prototype,
     };
   });
@@ -1176,8 +1177,8 @@ test('upstream quirks matched: hidden does not hide it, form="" and aria-describ
   expect(r.removed).toEqual([null, null]);
   expect(r.conversions).toEqual([42, null]);
   expect(r.textToggle).toBe(true);
-  // The converter reads the empty value of a bare attribute as false.
-  expect(r.spellcheck).toEqual({ bare: [false, 'false'], explicitTrue: [true, 'true'], explicitFalse: [false, 'false'] });
+  // The converter reads the empty value of a bare attribute as false and every other value but the exact string "false" as true.
+  expect(r.spellcheck).toEqual({ bare: [false, 'false'], explicitTrue: [true, 'true'], explicitFalse: [false, 'false'], onValue: [true, 'true'], upperFalse: [true, 'true'] });
   expect(r.renderError).toBe(true);
   // showPicker() is the one that checks the platform first: it throws before the first render only where the engine has a
   // picker API (and so reaches the missing inner input); where it has none, it is a no-op, as in Shoelace.
