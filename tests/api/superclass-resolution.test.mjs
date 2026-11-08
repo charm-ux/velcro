@@ -64,7 +64,12 @@ test('every other superclass shape is unchanged by the typing-class step (apart 
 // The real sources: each component's superclass in the analyzed manifest is what its `extends` clause names. A component
 // that extends a class imported from core must report that class; only a component that extends a class of its own folder
 // (a typing class) may report something else, and it must be listed here, so a second typing class is a conscious change.
-const TYPING_CLASS_COMPONENTS = { 'sl-textarea': { typingClass: 'CoreTextAreaTyping', coreClass: 'CoreTextArea' } };
+// `declared` lists the loosened `declare <name>: any;` fields; `accessors` the loosened accessor pairs (an inherited core
+// accessor cannot be redeclared as a field, so it is overridden by a get/set pair typed `any` that only forwards to core's).
+const TYPING_CLASS_COMPONENTS = {
+  'sl-textarea': { typingClass: 'CoreTextAreaTyping', coreClass: 'CoreTextArea', declared: ['autocomplete', 'resize'], accessors: [] },
+  'sl-tooltip': { typingClass: 'CoreTooltipTyping', coreClass: 'CoreTooltip', declared: ['popup'], accessors: ['placement'] },
+};
 
 test('on the current sources every component reports the superclass its source extends, except the listed typing-class components', () => {
   const manifest = analyzeVelcro();
@@ -91,7 +96,14 @@ test('on the current sources every component reports the superclass its source e
         // The typing class itself extends that core class and declares nothing that is not a loosened core member.
         const typing = readFileSync(path.join(path.dirname(path.join(pkgDir, mod.path)), imported.replace(/\.js$/, '.ts')), 'utf8');
         assert.match(typing, new RegExp(`class ${expected.typingClass} extends ${expected.coreClass} \\{`));
-        assert.deepEqual([...typing.matchAll(/^\s+declare (\w+): any;$/gm)].map(m => m[1]).sort(), ['autocomplete', 'resize']);
+        assert.deepEqual([...typing.matchAll(/^\s+declare (\w+): any;$/gm)].map(m => m[1]).sort(), expected.declared);
+        const body = typing.slice(typing.indexOf(`class ${expected.typingClass} `));
+        const getters = [...body.matchAll(/^\s+public override get (\w+)\(\): any \{\n\s+return super\.\1;\n\s+\}$/gm)].map(m => m[1]);
+        const setters = [...body.matchAll(/^\s+public override set (\w+)\(value: any\) \{\n\s+super\.\1 = value;\n\s+\}$/gm)].map(m => m[1]);
+        assert.deepEqual([getters.sort(), setters.sort()], [expected.accessors, expected.accessors]);
+        // Nothing else: every member line of the class body is a comment, a loosened declaration or part of those pairs.
+        const members = body.split('\n').slice(1).filter(l => /^  \S/.test(l) && !/^  (\/\/|\/\*\*|\}|declare \w+: any;|public override (get|set) \w+\()/.test(l));
+        assert.deepEqual(members, [], `${expected.typingClass} declares only loosened core members`);
       }
     }
   }
