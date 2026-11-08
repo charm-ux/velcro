@@ -101,6 +101,8 @@ export class VelcroTooltip extends CoreTooltipTyping {
   // Not part of the documented API (Shoelace's manifest lists `dependencies` without a description).
   private static readonly shoelaceDependencies: readonly VelcroComponentConstructor[] = [VelcroPopup];
 
+  // As in Shoelace: the controller re-renders the tooltip when the document's language or direction changes. The
+  // animations' direction is resolved by animationDirection(), as Shoelace's controller resolves it.
   private readonly localize = new LocalizeController(this);
   private closeWatcher: CloseWatcher | null = null;
 
@@ -156,6 +158,15 @@ export class VelcroTooltip extends CoreTooltipTyping {
   }
   public override set dir(value: string) {
     this.velcroDir = value;
+  }
+
+  /**
+   * The direction the show and hide animations use, as Shoelace's localization controller resolves it: the host's `dir`
+   * property (set directly or through the attribute), else the document's `dir`, else `ltr`, lower-cased. Velcro's
+   * shared controller reads the host attribute instead, which misses a direction set only through the property.
+   */
+  private animationDirection(): string {
+    return `${this.velcroDir || document.documentElement.dir || 'ltr'}`.toLowerCase();
   }
 
   /** The element's language, as set by the `lang` attribute or property. Not reflected. */
@@ -461,7 +472,7 @@ export class VelcroTooltip extends CoreTooltipTyping {
       await stopAnimations(this.body);
       this.body.hidden = false;
       this.popup.active = true;
-      const { keyframes, options } = getAnimation(this, 'tooltip.show', { dir: this.localize.dir() });
+      const { keyframes, options } = getAnimation(this, 'tooltip.show', { dir: this.animationDirection() });
       await animateTo(this.popup.popup, keyframes, options);
       this.popup.reposition();
 
@@ -473,7 +484,7 @@ export class VelcroTooltip extends CoreTooltipTyping {
       document.removeEventListener('keydown', this.handleDocumentKeyDown);
 
       await stopAnimations(this.body);
-      const { keyframes, options } = getAnimation(this, 'tooltip.hide', { dir: this.localize.dir() });
+      const { keyframes, options } = getAnimation(this, 'tooltip.hide', { dir: this.animationDirection() });
       await animateTo(this.popup.popup, keyframes, options);
       this.popup.active = false;
       this.body.hidden = true;

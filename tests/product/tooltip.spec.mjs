@@ -158,11 +158,21 @@ test('computed styles match Shoelace: display contents, token colors, font, padd
     const s = getComputedStyle(body);
     return {
       host: getComputedStyle(el).display,
-      body: [s.backgroundColor, s.color, s.fontFamily, s.fontSize, s.fontWeight, s.lineHeight, s.padding, s.borderRadius, s.maxWidth, s.width === 'max-content' || true,
+      body: [s.backgroundColor, s.color, s.fontFamily, s.fontSize, s.fontWeight, s.lineHeight, s.padding, s.borderRadius, s.maxWidth, s.width,
         s.textAlign, s.whiteSpace, s.pointerEvents, s.userSelect || s.webkitUserSelect, s.display],
       z: getComputedStyle(popup).zIndex,
       arrow: [getComputedStyle(arrow).backgroundColor, getComputedStyle(arrow).width],
-      origin: getComputedStyle(popup).transformOrigin.split(' ')[1],
+      origin: getComputedStyle(popup).transformOrigin.split(' ').map(parseFloat),
+      popupBox: [popup.getBoundingClientRect().width, popup.getBoundingClientRect().height],
+      // The body's width is max-content: the width of its content laid out on one line, plus its padding.
+      maxContent: (() => {
+        const probe = body.cloneNode(true);
+        probe.style.cssText = 'position: absolute; visibility: hidden; width: max-content; max-width: none';
+        body.parentNode.append(probe);
+        const w = getComputedStyle(probe).width;
+        probe.remove();
+        return w;
+      })(),
     };
   });
   const [bg, color, font, size, weight, line, padding, radius, z, arrowSize] = await Promise.all([
@@ -174,14 +184,15 @@ test('computed styles match Shoelace: display contents, token colors, font, padd
   ]);
   const rootFontSize = await frame.locator('html').evaluate(el => parseFloat(getComputedStyle(el).fontSize));
   expect(r.host).toBe('contents');
-  expect(r.body).toEqual([bg[0], color[0], font[0], size[0], weight[0], line[0], padding[0], radius[0], `${20 * rootFontSize}px`, true,
+  expect(r.body).toEqual([bg[0], color[0], font[0], size[0], weight[0], line[0], padding[0], radius[0], `${20 * rootFontSize}px`, r.maxContent,
     'start', 'normal', 'none', 'none', 'block']);
   expect(r.z).toBe(z[0]);
   expect(r.arrow[0]).toBe(bg[0]);
   // sl-popup draws the arrow as a rotated square whose side is twice the arrow size's diagonal (size * 0.7071).
   expect(parseFloat(r.arrow[1])).toBeCloseTo(parseFloat(arrowSize[0]) * 0.7071 * 2, 1);
-  // The tooltip is above its target, so the popup scales from its bottom edge.
-  expect(r.origin).toMatch(/px$/);
+  // The tooltip is above its target, so the popup scales from its bottom edge: transform-origin is bottom (center x).
+  expect(r.origin[0]).toBeCloseTo(r.popupBox[0] / 2, 0);
+  expect(r.origin[1]).toBeCloseTo(r.popupBox[1], 0);
 });
 
 test('hover: shows after --show-delay with sl-show then sl-after-show, and hides on mouse out after --hide-delay', async ({ page }) => {
@@ -229,6 +240,21 @@ test('focus shows and blur hides by default; trigger="click" toggles on click on
   await expect.poll(async () => (await state(frame)).hidden).toBe(false);
 });
 
+test('upstream quirk: a tooltip rendered with open ignores Escape until it is opened again', async ({ page }) => {
+  const { frame } = await openExample(page);
+  await mount(frame, '<sl-tooltip id="t" content="Tip" trigger="manual" open><button id="b">Target</button></sl-tooltip><input id="field">');
+  await expect.poll(async () => state(frame)).toEqual({ open: true, hidden: false, active: true });
+  await frame.locator('#field').focus();
+  await frame.locator('#field').press('Escape');
+  await frame.locator('body').evaluate(() => new Promise(r => setTimeout(r, 300)));
+  // The first render shows it without the open handler, so neither CloseWatcher nor the keydown listener is installed.
+  expect(await state(frame)).toEqual({ open: true, hidden: false, active: true });
+  // Once it is closed and opened again, Escape hides it.
+  await frame.locator('#t').evaluate(async el => { await el.hide(); await el.show(); });
+  await frame.locator('#field').press('Escape');
+  await expect.poll(async () => state(frame)).toEqual({ open: false, hidden: true, active: false });
+});
+
 test('Escape hides an open tooltip from anywhere in the document', async ({ page }) => {
   const { frame } = await openExample(page);
   await mount(frame, '<sl-tooltip id="t" content="Tip" trigger="manual"><button id="b">Target</button></sl-tooltip><input id="field">');
@@ -258,7 +284,7 @@ test('disabled: triggers do not show it; becoming disabled hides an open tooltip
   expect(await state(frame)).toEqual({ open: false, hidden: true, active: false });
 });
 
-test('show() and hide() resolve after the after-events and return undefined when already in that state', async ({ page }) => {
+test('show() and hide() resolve after the after-events and resolve to undefined at once when already in that state', async ({ page }) => {
   const { frame } = await openExample(page);
   await mount(frame, '<sl-tooltip id="t" content="Tip" trigger="manual"><button>Target</button></sl-tooltip>');
   const r = await frame.locator('#t').evaluate(async el => {
@@ -478,19 +504,34 @@ test.describe('animation registry', () => {
     const r = await page.evaluate(async () => {
       const { setDefaultAnimation, setAnimation, getAnimation } = window.registry;
       setDefaultAnimation('tooltip.show', { keyframes: [{ opacity: 0.1 }, { opacity: 1 }], rtlKeyframes: [{ opacity: 0.9 }, { opacity: 1 }], options: { duration: 10 } });
-      // Velcro's localization module reads the dir attribute (see the localize module), so the attribute is set.
-      document.getElementById('b').setAttribute('dir', 'rtl');
+      // As Shoelace's localization controller does, the direction is the host's dir property (not reflected), so a
+      // direction set only through the property is used.
+      document.getElementById('b').dir = 'rtl';
       const ltr = await window.cycle('a');
       const rtl = await window.cycle('b');
       const own = { keyframes: [{ opacity: 0.2 }], rtlKeyframes: [{ opacity: 0.8 }], options: { duration: 5 } };
       setAnimation(document.getElementById('a'), 'custom', own);
+      const a = document.getElementById('a');
+      // The property beats a conflicting attribute: the attribute says rtl, the property set afterwards says ltr.
+      a.setAttribute('dir', 'rtl');
+      a.dir = 'ltr';
+      const conflict = [a.getAttribute('dir'), (await window.cycle('a'))[0].keyframes];
+      // With no host direction, the document's dir is used (case-insensitively, as upstream lower-cases it).
+      a.removeAttribute('dir');
+      a.dir = '';
+      document.documentElement.dir = 'RTL';
+      await new Promise(r => setTimeout(r));
+      const fromDocument = (await window.cycle('a'))[0].keyframes;
+      document.documentElement.dir = '';
       return {
+        bAttr: document.getElementById('b').hasAttribute('dir'), conflict, fromDocument,
         ltr: ltr[0].keyframes, rtl: rtl[0].keyframes,
         ownLtr: getAnimation(document.getElementById('a'), 'custom', { dir: 'ltr' }).keyframes,
         ownRtl: getAnimation(document.getElementById('a'), 'custom', { dir: 'rtl' }).keyframes,
       };
     });
     expect(r).toEqual({
+      bAttr: false, conflict: ['rtl', [{ opacity: 0.1 }, { opacity: 1 }]], fromDocument: [{ opacity: 0.9 }, { opacity: 1 }],
       ltr: [{ opacity: 0.1 }, { opacity: 1 }], rtl: [{ opacity: 0.9 }, { opacity: 1 }],
       ownLtr: [{ opacity: 0.2 }], ownRtl: [{ opacity: 0.8 }],
     });
