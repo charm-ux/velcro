@@ -10,7 +10,7 @@ import { reactWrapperPage } from './support/react.mjs';
 test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/icon-button';
-// Shoelace 2.20.1's icon button page has six examples, in this order. The tooltip one needs sl-tooltip, which Velcro lacks, so it is
+// Shoelace 2.20.1's icon button page has six examples, in this order. The tooltip one was ported before Velcro had sl-tooltip, so it is
 // source only (no iframe, no React version); the other five are live and each has a React version.
 const ORDER = [['basic', 'Default'], ['sizes', 'Sizes'], ['colors', 'Colors'], ['link-buttons', 'Link Buttons'], ['tooltip', 'Icon Button with Tooltip'], ['disabled', 'Disabled']];
 const SECTIONS = ORDER.filter(([id]) => id !== 'tooltip').map(([, section]) => section);
@@ -62,9 +62,9 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
   expect(examplesPart).toContain('Use the <code>disabled</code> attribute to disable the icon button.');
   expect(examplesPart).toContain('Use the <code>href</code> attribute to convert the button to a link.');
   expect(examplesPart).toContain("inherit their parent element's <code>font-size</code>");
-  // The tooltip example needs sl-tooltip, which Velcro lacks: source only, no iframe and no React version.
+  // The tooltip example was ported before Velcro had sl-tooltip: source only, no iframe and no React version.
   expect(html).toContain('id="tooltip"');
-  expect(html).toContain('Velcro has no <code>sl-tooltip</code> yet');
+  expect(html).toContain('This port predates Velcro\'s <code>sl-tooltip</code>');
   expect(html).not.toContain(`title="${title('Icon Button with Tooltip')}"`);
   expect(html).toContain('&lt;sl-tooltip content=&quot;Settings&quot;&gt;');
   expect(html).toContain('does not hide the icon button');

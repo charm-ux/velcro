@@ -1,0 +1,17 @@
+{
+  "files": {
+    "src/components/tooltip/tooltip.test.ts": "72c0730c642ab16e9dc80c9d8ecd358672161cfe83fb567d77765ff28fbaf6f4"
+  },
+  "tests": [
+    "<sl-tooltip> > should be visible with the open attribute",
+    "<sl-tooltip> > should not be visible without the open attribute",
+    "<sl-tooltip> > should emit sl-show and sl-after-show when calling show()",
+    "<sl-tooltip> > should emit sl-hide and sl-after-hide when calling hide()",
+    "<sl-tooltip> > should emit sl-show and sl-after-show when setting open = true",
+    "<sl-tooltip> > should emit sl-hide and sl-after-hide when setting open = false",
+    "<sl-tooltip> > should hide the tooltip when tooltip is visible and disabled becomes true",
+    "<sl-tooltip> > should show when open initially",
+    "<sl-tooltip> > should not accept user selection on the tooltip"
+  ],
+  "knownFailures": []
+}

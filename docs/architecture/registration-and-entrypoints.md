@@ -145,7 +145,8 @@ core change still needs a failing reproduction and separate approval.
 Shoelace's base element with `static dependencies`, their constructors define Velcro's `sl-icon` when that tag is not
 defined yet (falling back to an anonymous subclass when the platform refuses the class itself), so their class-only
 entries need no extra registration. `sl-tag` does the same for its remove button: it renders a literal
-`<sl-icon-button>`, so its constructor defines Velcro's `sl-icon-button` (and that one defines `sl-icon`). Other
+`<sl-icon-button>`, so its constructor defines Velcro's `sl-icon-button` (and that one defines `sl-icon`), and `sl-tooltip` does it for the
+`<sl-popup>` it renders. Other
 class-only entries (for example button's `sl-spinner`) do not do this yet.
 
 Do not treat these as solutions by themselves:

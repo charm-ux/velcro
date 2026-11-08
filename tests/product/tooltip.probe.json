@@ -1,0 +1,5 @@
+{
+  "note": "The host is display: contents, so the probe needs a slotted target; open and manual keep the body rendered.",
+  "content": "<button>Target</button><span slot=\"content\">Tip</span>",
+  "attrs": { "content": "Tip", "open": "", "trigger": "manual" }
+}

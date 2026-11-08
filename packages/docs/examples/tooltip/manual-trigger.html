@@ -1,0 +1,12 @@
+<sl-button style="margin-right: 4rem;">Toggle Manually</sl-button>
+
+<sl-tooltip content="This is an avatar" trigger="manual" class="manual-tooltip">
+  <sl-avatar label="User"></sl-avatar>
+</sl-tooltip>
+
+<script>
+  const tooltip = document.querySelector('.manual-tooltip');
+  const toggle = tooltip.previousElementSibling;
+
+  toggle.addEventListener('click', () => (tooltip.open = !tooltip.open));
+</script>
