@@ -206,7 +206,7 @@ function main() {
         const log = readFileSync(path.join(scratch, 'upstream-conformance.log'), 'utf8');
         const { lines } = summarizeUpstream(log, { inventory: readInventory(root), catalog: new Set(readCatalog(root).map(c => c.name)) });
         for (const line of lines) process.stdout.write(`verify:product: ${line}\n`);
-      } catch { process.stdout.write('verify:product: no readable upstream result to summarize\n'); }
+      } catch { process.stdout.write('verify:product: upstream blocked: internal\n'); }
       return fail('blocked (upstream conformance differs from the component records in tests/upstream/components/)');
     }
     if (stage === 'upstream') {

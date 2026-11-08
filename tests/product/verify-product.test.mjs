@@ -197,6 +197,7 @@ test('CLI prints a bounded, closed-vocabulary summary when the upstream conforma
     `test:upstream: problem: outcome not in inventory for no-such-component: ${real}`,
     'test:upstream: total 10, passed 7, failed 3; scoreboard in ignored .airig/upstream/',
     `test:upstream: vendored upstream files changed (modified: ${where}/a.test.ts)`,
+    `test:upstream: a message nobody wrote ${secret} ${where}`,
   ].join('\n');
   const shim = orderShim.replace('echo upstream >> calls.log; [ -z "$UPSTREAM_FAIL" ] || exit 1',
     `echo upstream >> calls.log; printf '%s\\n' "$UPSTREAM_LOG"; exit 1`);
@@ -212,7 +213,8 @@ test('CLI prints a bounded, closed-vocabulary summary when the upstream conforma
   try {
     const out = runCli(dir, true, { UPSTREAM_LOG: log });
     assert.match(out, /verify:product: upstream-conformance failed/);
-    assert.match(out, new RegExp(`verify:product: upstream: total 10, passed 7, failed 3\\nverify:product: upstream blocked: vendor-changed\\nverify:product: upstream problem infrastructure: tab\\n`));
+    assert.match(out, /verify:product: upstream blocked: vendor-changed\nverify:product: upstream blocked: internal\nverify:product: upstream problem infrastructure: tab\n/);
+    assert.doesNotMatch(out, /total 10|passed 7|nobody/);
     assert.ok(out.includes(`verify:product: upstream failed: tab: ${real}\n`));
     assert.ok(out.includes('verify:product: upstream missing: tab: unlisted title\n'));
     assert.ok(out.includes('verify:product: upstream unexpected: unlisted component: unlisted title\n'));
