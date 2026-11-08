@@ -2,10 +2,10 @@ import { expect, test } from '@playwright/test';
 import { documentsLoaded, pendingLoad, watchNetwork } from './support/loaded.mjs';
 
 // Controls for the post-remount wait in support/loaded.mjs, on a synthetic page served by a route. As on the docs
-// site, the example iframe is added inside a shadow root after the page has loaded, and the page carries the router's
-// settled marker. Each control holds one request open and then releases it.
+// site, the example iframe is added inside a shadow root after the page has loaded, and the page carries the docs app's
+// ready signal. Each control holds one request open and then releases it.
 const ORIGIN = 'https://example.com';
-const fixture = afterLoad => `<!doctype html><title>fixture</title><litro-outlet data-litro-settled></litro-outlet>
+const fixture = afterLoad => `<!doctype html><title>fixture</title><litro-outlet data-docs-ready></litro-outlet>
 <docs-page></docs-page><script>addEventListener('load', () => { ${afterLoad} });</script>`;
 const SHADOW_FRAME = `const root = document.querySelector('docs-page').attachShadow({ mode: 'open' });
   const frame = document.createElement('iframe');

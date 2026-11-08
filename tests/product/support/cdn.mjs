@@ -1,9 +1,9 @@
 // The icon docs page registers third-party icon libraries that load from jsDelivr, but only when the reader asks for them.
 // Tests never reach the CDN. guardCdn records any request to it without intercepting anything; the specs assert that it
 // stays empty. stubCdn answers CDN requests locally with a small generated SVG (CORS-enabled, like the CDN) and records
-// them; install it only after the page has settled. Once a route exists, Playwright turns off the HTTP cache, and WebKit
-// then requests the sprite sheet once per <use> (about 2000 times on the icon page). It also leaves the requests of the
-// example frames the client router replaced unfinished, so the page never reaches network idle.
+// them; install it only after the docs page is ready (support/loaded.mjs). Once a route exists, Playwright turns off the
+// HTTP cache, and WebKit then requests the sprite sheet once per <use> (about 2000 times on the icon page). It also leaves
+// the requests of the example frames the client router replaced unfinished, so the page never reaches network idle.
 export const CDN_HOST = 'cdn.jsdelivr.net';
 
 export function guardCdn(page) {

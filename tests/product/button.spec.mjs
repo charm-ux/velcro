@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+import { documentsLoaded, exampleFits, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
 
@@ -8,10 +8,7 @@ const PAGE = '/components/button';
 async function openExample(page, name = 'Overview') {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
-  // Litro's client router remounts the page component once after load, which reloads the iframe; wait for it to settle.
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
-  // The client router replaces the prerendered page once; until it has settled there can be two copies of each example iframe.
-  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
+  await openDocs(page, PAGE);
   const frame = page.frameLocator(`iframe.example[title="Button example: ${name}"]`);
   await expect(frame.locator('sl-button').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-button'));
@@ -174,6 +171,8 @@ test('disabled link: click() and a real pointer click each reach the host once a
   });
   expect(before.anchorHref).toBeNull();
   expect(before.ariaDisabled).toBe('true');
+  // The forced pointer click below must not race the example frame growing to fit the new button.
+  await exampleFits(frame);
   await frame.locator('#demo-disabled-link').evaluate(el => el.click());
   await frame.locator('#demo-disabled-link').click({ force: true });
   await page.waitForTimeout(100);
@@ -239,6 +238,8 @@ test('extensions: shows / hides / toggles do nothing while disabled (link or nat
       return [id, { calls: [...state.calls], clicks: state.clicks, expandedUnchanged: document.getElementById(id).expanded === state.expanded }];
     })),
   }), cases);
+  // The forced pointer clicks below must not race the example frame growing to fit the new buttons.
+  await exampleFits(frame);
   for (const { id } of cases) {
     await frame.locator(`#${id}`).evaluate(el => el.click());
     await frame.locator(`#${id}`).click({ force: true });
@@ -427,6 +428,8 @@ test('forms: type=reset resets the form and, as in Shoelace, the button value to
     });
     await host.querySelector('sl-button').updateComplete;
   });
+  // The forced pointer click below must not race the example frame growing to fit the new form.
+  await exampleFits(frame);
   await frame.locator('#disabled-submit').click({ force: true });
   await page.waitForTimeout(100);
   expect(await frame.locator('body').evaluate(() => window.__disabledSubmits)).toBe(0);
@@ -527,9 +530,7 @@ test('rendering: caret, spinner, rel default, reflected-attribute restore and th
 });
 
 test('every docs example renders in its own document', async ({ page }) => {
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
-  // The client router replaces the prerendered page once; until it has settled there can be two copies of each example iframe.
-  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
+  await openDocs(page, PAGE);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles.length).toBeGreaterThanOrEqual(15);
   for (const title of titles) {

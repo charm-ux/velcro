@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
 
@@ -8,10 +8,7 @@ const PAGE = '/components/progress-ring';
 async function openExample(page) {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
-  // Litro's client router remounts the page component once after load, which reloads the iframes; wait for it to settle.
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
-  // The client router replaces the prerendered page once; until it has settled there can be two example iframes.
-  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
+  await openDocs(page, PAGE);
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-default')).toBeVisible();
   await expect(frame.locator('#demo-values')).toBeVisible();

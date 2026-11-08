@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
 
@@ -9,8 +9,7 @@ const TITLES = { overview: 'Mutation Observer example: Overview', 'child-list': 
 async function openExample(page, which = 'overview') {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
-  // Litro's client router remounts the page component once after load, which reloads the iframes; wait for it to settle.
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
+  await openDocs(page, PAGE);
   const frame = page.frameLocator(`iframe[title="${TITLES[which]}"]`);
   await expect(frame.locator('#demo-observer')).toBeAttached();
   await frame.locator('#demo-observer').evaluate(() => customElements.whenDefined('sl-mutation-observer'));

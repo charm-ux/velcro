@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
 
@@ -42,9 +42,8 @@ const IDS = {
 async function openExample(page, which = 'overview') {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
-  // Litro's client router remounts the page component once after load, which reloads the iframes; wait for it to settle.
-  // Under load the old and the remounted iframe can both be present for a moment, so wait for exactly one.
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
+  // Once the docs page is ready the remount has finished: the old iframes are gone and each example has one.
+  await openDocs(page, PAGE);
   const iframe = page.locator(`iframe[title="${TITLES[which]}"]`);
   await expect(iframe).toHaveCount(1);
   const frame = page.frameLocator(`iframe[title="${TITLES[which]}"]`);

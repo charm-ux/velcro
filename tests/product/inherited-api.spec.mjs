@@ -10,6 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { makeProbe } from './support/probe.mjs';
+import { openDocs } from './support/loaded.mjs';
 import { customElements, readJson, velcroManifestPath } from '../../scripts/api/model.mjs';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 
@@ -60,7 +61,7 @@ for (const [tag, decl] of elements) {
     expect(parent, `${tag} superclass in core's manifest`).toBeTruthy();
     const booleans = (decl.attributes ?? []).filter(a => a.type?.text?.replace(/ \| undefined/, '') === 'boolean').map(a => a.name);
 
-    await page.goto('/components/button', { waitUntil: 'networkidle' });
+    await openDocs(page, '/components/button');
     await page.evaluate(t => customElements.whenDefined(t), tag);
     const candidates = all.slice(group * GROUP, (group + 1) * GROUP);
     await page.evaluate(`window.makeProbe = ${makeProbe}`);
