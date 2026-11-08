@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
+import { documentsLoaded, exampleFits, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
@@ -390,11 +390,37 @@ test('disabled example: the host has disabled, the inner native button is disabl
     host: [true, ''], base: ['button', true, 'true', '-1', 'Settings'], look: ['0.5', 'not-allowed'], classes: 'icon-button icon-button--disabled',
   });
   await expect(frame.locator('body')).toMatchAriaSnapshot('- button "Settings" [disabled]');
-  // It cannot be focused or clicked by the pointer: the example's own button swallows both.
-  await el.evaluate(e => { window.disabledClicks = 0; e.addEventListener('click', () => window.disabledClicks++); });
-  const box = await el.boundingBox();
-  await el.page().mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-  expect(await el.evaluate(e => [window.disabledClicks, e.shadowRoot.activeElement])).toEqual([0, null]);
+  // The pointer cannot click it. The click must provably land on the button, and an enabled twin clicked the same way must count a
+  // click, so a click that missed (below the viewport, say) or a button that was not disabled both fail here. The twin is not
+  // checked for focus: WebKit does not focus a button on a pointer click.
+  await mount(frame, '<sl-icon-button id="twin" name="gear" label="Settings"></sl-icon-button>');
+  await exampleFits(frame);
+  const disabled = frame.locator('sl-icon-button[disabled]');
+  const twin = frame.locator('#twin');
+  await expect(frame.locator('sl-icon-button')).toHaveCount(2);
+  for (const target of [disabled, twin]) await target.evaluate(e => { e.clicks = 0; e.addEventListener('click', () => e.clicks++); });
+  const viewport = page.viewportSize();
+  const pointerClick = async target => {
+    await target.scrollIntoViewIfNeeded();
+    const box = await target.boundingBox();
+    expect(box.width).toBeGreaterThan(0);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+    // The topmost element at the click point, in the example's own document, is this icon button and its inner button.
+    const hit = await target.evaluate(e => {
+      const r = e.getBoundingClientRect();
+      const x = r.x + r.width / 2;
+      const y = r.y + r.height / 2;
+      return [document.elementFromPoint(x, y) === e, e.shadowRoot.elementFromPoint(x, y) === e.button];
+    });
+    expect(hit).toEqual([true, true]);
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  };
+  await pointerClick(twin);
+  await expect.poll(() => twin.evaluate(e => e.clicks)).toBe(1);
+  await pointerClick(disabled);
+  await page.waitForTimeout(100);
+  expect(await disabled.evaluate(e => [e.clicks, e.shadowRoot.activeElement])).toEqual([0, null]);
 });
 
 test('upstream quirk: the hidden attribute does not hide the icon button, because the host\'s own display: inline-block outranks the browser rule', async ({ page }) => {
@@ -801,7 +827,7 @@ test.describe('class-only entry', () => {
     const r = await page.evaluate(async () => {
       const button = document.querySelector('sl-icon-button');
       const log = [];
-      const record = e => log.push({ type: e.type, target: e.target === button, bubbles: e.bubbles, composed: e.composed, cancelable: e.cancelable, detail: e.detail });
+      const record = e => log.push({ type: e.type, target: e.target === button, bubbles: e.bubbles, composed: e.composed, cancelable: e.cancelable, detail: e.detail, ctor: e.constructor.name });
       document.body.addEventListener('sl-focus', record);
       document.body.addEventListener('sl-blur', record);
       const state = () => [document.activeElement === button, button.shadowRoot.activeElement === button.button, [...button.button.classList].join(' ')];
@@ -811,17 +837,27 @@ test.describe('class-only entry', () => {
       const focused = state();
       button.blur();
       await button.updateComplete;
-      return { initial, focused, blurred: state(), log };
+      const blurred = state();
+      // The options pass straight to the inner button, which is then really focused again.
+      let received;
+      const nativeFocus = button.button.focus;
+      button.button.focus = options => { received = options; nativeFocus.call(button.button, options); };
+      button.focus({ preventScroll: true });
+      button.button.focus = nativeFocus;
+      await button.updateComplete;
+      return { initial, focused, blurred, refocused: state(), received, log };
     });
     expect(r.initial).toEqual([false, false, 'icon-button']);
     expect(r.focused).toEqual([true, true, 'icon-button icon-button--focused']);
     expect(r.blurred).toEqual([false, false, 'icon-button']);
-    const base = { target: true, bubbles: true, composed: true, cancelable: false, detail: {} };
-    expect(r.log).toEqual([{ type: 'sl-focus', ...base }, { type: 'sl-blur', ...base }]);
+    expect(r.refocused).toEqual([true, true, 'icon-button icon-button--focused']);
+    expect(r.received).toEqual({ preventScroll: true });
+    const base = { target: true, bubbles: true, composed: true, cancelable: false, detail: {}, ctor: 'CustomEvent' };
+    expect(r.log).toEqual([{ type: 'sl-focus', ...base }, { type: 'sl-blur', ...base }, { type: 'sl-focus', ...base }]);
     expect(pageErrors).toEqual([]);
   });
 
-  test('keyboard: Tab focuses the inner button and Shift+Tab leaves it (sl-focus, sl-blur); Enter and Space click it; a pointer click clicks it once', async ({ page }) => {
+  test('keyboard: Tab and Shift+Tab move focus into and out of the inner button (sl-focus, sl-blur); Enter and Space click it; a pointer click clicks it once', async ({ page }) => {
     const pageErrors = await load(page);
     await define(page, '<button id="before">before</button><sl-icon-button></sl-icon-button><button id="after">after</button>');
     await page.evaluate(() => {
@@ -832,17 +868,29 @@ test.describe('class-only entry', () => {
       button.addEventListener('sl-blur', () => window.log.push('sl-blur'));
     });
     const inner = () => page.evaluate(() => document.querySelector('sl-icon-button').shadowRoot.activeElement === document.querySelector('sl-icon-button').button);
+    const active = () => page.evaluate(() => document.activeElement.id || document.activeElement.localName);
+    const log = () => page.evaluate(() => [...window.log]);
     await page.locator('#before').focus();
     await page.keyboard.press('Tab');
     await expect.poll(inner).toBe(true);
     await page.keyboard.press('Enter');
     await page.keyboard.press('Space');
-    await expect.poll(() => page.evaluate(() => window.log)).toEqual(['sl-focus', 'click', 'click']);
+    await expect.poll(log).toEqual(['sl-focus', 'click', 'click']);
+    // Forward out of the button, back into it, and back out to where the walk started.
     await page.keyboard.press('Tab');
-    await expect.poll(() => page.evaluate(() => document.activeElement.id)).toBe('after');
+    await expect.poll(active).toBe('after');
     expect(await inner()).toBe(false);
+    await expect.poll(log).toEqual(['sl-focus', 'click', 'click', 'sl-blur']);
+    await page.keyboard.press('Shift+Tab');
+    await expect.poll(inner).toBe(true);
+    await expect.poll(log).toEqual(['sl-focus', 'click', 'click', 'sl-blur', 'sl-focus']);
+    await page.keyboard.press('Shift+Tab');
+    await expect.poll(active).toBe('before');
+    expect(await inner()).toBe(false);
+    await expect.poll(log).toEqual(['sl-focus', 'click', 'click', 'sl-blur', 'sl-focus', 'sl-blur']);
+    // A pointer click adds exactly one click (whether it also focuses the button depends on the engine).
     await page.locator('sl-icon-button').click();
-    expect(await page.evaluate(() => window.log.filter(e => e === 'click').length)).toBe(3);
+    expect((await log()).filter(e => e === 'click').length).toBe(3);
     expect(pageErrors).toEqual([]);
   });
 
