@@ -36,3 +36,39 @@ test('candidates that feed one fallback chain, and unrelated ones, are told apar
   await setup(page, ':host { display: block; } div { color: var(--first, var(--second, rgb(9, 9, 9))); }');
   expect(await page.evaluate(v => window.probe.measure(['--second', '--first', '--other'], v), VALUES)).toEqual(['--second', '--first']);
 });
+
+// A component can render another that animates in its own shadow root (sl-button renders an sl-spinner while loading),
+// with CSS or with the Web Animations API. WebKit samples a running animation at every read, so an unfrozen one makes
+// every candidate look effective; in every engine it moves between measurements. The probe must freeze nested shadow
+// roots too, not only the host's, and pause script-driven animations, which no style sheet pauses. A transition in a
+// nested shadow root would also hide a candidate's effect behind its start value.
+test('animations and transitions in a nested shadow root neither count as an effect nor hide one', async ({ page }) => {
+  await page.setContent('<!DOCTYPE html><html><body></body></html>');
+  const result = await page.evaluate(async source => {
+    customElements.define('x-probe-spin', class extends HTMLElement {
+      constructor() {
+        super();
+        this.attachShadow({ mode: 'open' }).innerHTML = '<style>@keyframes spin { to { transform: rotate(360deg); } }'
+          + ' i { display: block; width: 10px; height: 10px; animation: spin 1s linear infinite; }'
+          + ' u { display: block; padding-left: var(--used, 0px); transition: padding-left 10s linear; }</style><i></i><b>x</b><u>y</u>';
+        this.shadowRoot.querySelector('b').animate([{ opacity: 1 }, { opacity: 0 }], { duration: 1000, iterations: Infinity });
+      }
+    });
+    customElements.define('x-probe-outer', class extends HTMLElement {
+      constructor() { super(); this.attachShadow({ mode: 'open' }).innerHTML = '<div part="inner">x</div><x-probe-spin></x-probe-spin>'; }
+    });
+    const host = document.createElement('x-probe-outer');
+    document.body.append(host);
+    const inner = host.shadowRoot.querySelector('x-probe-spin').shadowRoot;
+    const read = () => [getComputedStyle(inner.querySelector('i')).transform, getComputedStyle(inner.querySelector('b')).opacity];
+    const later = () => new Promise(resolve => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(resolve)), 100));
+    await later();
+    const probe = (0, eval)(`(${source})`)(host);
+    const hit = probe.measure(['--unused', '--used', '--also-unused'], ['37px', 'rgb(1, 2, 3)', 'dotted', 'none']);
+    const before = read();
+    await later();
+    const after = read();
+    return { hit, moved: { css: after[0] !== before[0], script: after[1] !== before[1] } };
+  }, makeProbe.toString());
+  expect(result).toEqual({ hit: ['--used'], moved: { css: false, script: false } });
+});
