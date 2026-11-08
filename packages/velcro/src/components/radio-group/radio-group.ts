@@ -125,14 +125,7 @@ export class VelcroRadioGroup extends CoreRadioGroup {
   public constructor() {
     super();
     constructed.add(this);
-    for (const component of VelcroRadioGroup.shoelaceDependencies) {
-      if (customElements.get(`sl-${component.baseName}`)) continue;
-      try {
-        defineVelcroComponent(component);
-      } catch {
-        defineVelcroComponent(class extends component {});
-      }
-    }
+    for (const component of VelcroRadioGroup.shoelaceDependencies) defineVelcroComponent(component);
   }
 
   protected readonly formControlController = new FormControlController(this);

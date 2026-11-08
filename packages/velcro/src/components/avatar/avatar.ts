@@ -53,14 +53,7 @@ export class VelcroAvatar extends CoreAvatar {
 
   public constructor() {
     super();
-    for (const component of VelcroAvatar.shoelaceDependencies) {
-      if (customElements.get(`sl-${component.baseName}`)) continue;
-      try {
-        defineVelcroComponent(component);
-      } catch {
-        defineVelcroComponent(class extends component {});
-      }
-    }
+    for (const component of VelcroAvatar.shoelaceDependencies) defineVelcroComponent(component);
   }
 
   // Shoelace's base element restores a reflected property's initial value when its attribute is removed (see

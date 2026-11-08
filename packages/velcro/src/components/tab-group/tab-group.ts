@@ -65,7 +65,8 @@ export class VelcroTabGroup extends CharmElement {
   // Shoelace's `static dependencies` for the tab group: the elements its template renders. Shoelace keys them by tag;
   // here the tag is derived from each class's `baseName`, the same tag `defineVelcroComponent` defines and the template
   // renders. As in Shoelace's base element, each one that is not defined yet is defined when a tab group is constructed,
-  // and a tag that another constructor already owns is left alone (without Shoelace's version warning). If the platform
+  // and a tag that another constructor already owns is left alone (with Shoelace's version warning when the versions
+  // differ). If the platform
   // refuses the class itself (for example because it is already registered under another tag), an anonymous subclass is
   // defined instead, as Shoelace does. Core's own array-typed `dependencies` (registration in core's scope) stays empty.
   private static readonly shoelaceDependencies: readonly VelcroComponentConstructor[] = [
@@ -75,14 +76,7 @@ export class VelcroTabGroup extends CharmElement {
 
   public constructor() {
     super();
-    for (const component of VelcroTabGroup.shoelaceDependencies) {
-      if (customElements.get(`sl-${component.baseName}`)) continue;
-      try {
-        defineVelcroComponent(component);
-      } catch {
-        defineVelcroComponent(class extends component {});
-      }
-    }
+    for (const component of VelcroTabGroup.shoelaceDependencies) defineVelcroComponent(component);
   }
 
   // Shoelace's base element restores a reflected property's initial value when its attribute is removed. The tab group

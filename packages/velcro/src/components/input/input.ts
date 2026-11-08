@@ -371,14 +371,7 @@ export class VelcroInput extends CoreInputTyping {
   public constructor() {
     super();
     this.clearCoreDefaults();
-    for (const component of VelcroInput.shoelaceDependencies) {
-      if (customElements.get(`sl-${component.baseName}`)) continue;
-      try {
-        defineVelcroComponent(component);
-      } catch {
-        defineVelcroComponent(class extends component {});
-      }
-    }
+    for (const component of VelcroInput.shoelaceDependencies) defineVelcroComponent(component);
   }
 
   // Core's constructors give two properties values that Shoelace's input does not have: Shoelace leaves

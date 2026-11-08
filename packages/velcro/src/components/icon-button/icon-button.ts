@@ -49,14 +49,7 @@ export class VelcroIconButton extends CharmElement {
 
   public constructor() {
     super();
-    for (const component of VelcroIconButton.shoelaceDependencies) {
-      if (customElements.get(`sl-${component.baseName}`)) continue;
-      try {
-        defineVelcroComponent(component);
-      } catch {
-        defineVelcroComponent(class extends component {});
-      }
-    }
+    for (const component of VelcroIconButton.shoelaceDependencies) defineVelcroComponent(component);
   }
 
   // Shoelace's base element restores a reflected property's initial value when its attribute is removed (see

@@ -64,54 +64,77 @@ test('registering the same constructor again is idempotent', async ({ page }) =>
   expect(r).toEqual(['sl-idem', 'sl-idem', 'sl-idem', true]);
 });
 
-test('a different constructor for the same tag is a clear collision and the registry is unchanged', async ({ page }) => {
+// The helper registers a tag as Shoelace 2.20.1's `ShoelaceElement.define` does; a tag clash never throws.
+// `console.warn` is recorded in the page, so "no warning" is asserted, not assumed.
+const recordWarnings = page => page.evaluate(() => {
+  window.warnings = [];
+  console.warn = (...args) => window.warnings.push(args.map(String).join(' '));
+});
+
+test('a tag another constructor owns is left alone, without an error or a warning when neither declares a version', async ({ page }) => {
   await load(page);
+  await recordWarnings(page);
   const r = await page.evaluate(() => {
     const Foreign = make();
     customElements.define('sl-clash', Foreign);
-    const Ours = make('clash');
-    let error;
-    try {
-      define(Ours);
-    } catch (e) {
-      error = { name: e.name, message: e.message };
-    }
-    const Second = make('twice');
-    define(make('twice'));
-    let second;
-    try {
-      define(Second);
-    } catch (e) {
-      second = e.message;
-    }
-    return { error, kept: customElements.get('sl-clash') === Foreign, second };
+    const tag = define(make('clash'));
+    return { tag, kept: customElements.get('sl-clash') === Foreign, warnings };
   });
-  expect(r.error.name).toBe('Error');
-  expect(r.error.message).toContain('<sl-clash>');
-  expect(r.error.message).toContain('already defined by a different constructor');
-  expect(r.kept).toBe(true);
-  expect(r.second).toContain('<sl-twice>');
+  expect(r).toEqual({ tag: 'sl-clash', kept: true, warnings: [] });
 });
 
-test('a constructor already registered under another tag is rejected with a generic error that keeps the native cause', async ({ page }) => {
+test('a version mismatch with the existing constructor logs Shoelace\'s warning; matching versions log nothing', async ({ page }) => {
   await load(page);
+  await recordWarnings(page);
+  const r = await page.evaluate(() => {
+    const run = (baseName, existingVersion, newVersion) => {
+      const Existing = make();
+      if (existingVersion !== undefined) Existing.version = existingVersion;
+      customElements.define(`sl-${baseName}`, Existing);
+      const New = make(baseName);
+      if (newVersion !== undefined) New.version = newVersion;
+      warnings.length = 0;
+      define(New);
+      return { kept: customElements.get(`sl-${baseName}`) === Existing, warnings: warnings.slice() };
+    };
+    return {
+      existingOnly: run('v-existing', '2.20.1', undefined),
+      newOnly: run('v-new', undefined, '1.0.0'),
+      different: run('v-different', '2.20.1', '1.0.0'),
+      same: run('v-same', '2.20.1', '2.20.1'),
+      emptyIsUnknown: run('v-empty', '', undefined),
+    };
+  });
+  expect(r).toEqual({
+    existingOnly: { kept: true, warnings: ['Attempted to register <sl-v-existing> (unknown version), but <sl-v-existing> v2.20.1 has already been registered.'] },
+    newOnly: { kept: true, warnings: ['Attempted to register <sl-v-new> v1.0.0, but <sl-v-new> (unknown version) has already been registered.'] },
+    different: { kept: true, warnings: ['Attempted to register <sl-v-different> v1.0.0, but <sl-v-different> v2.20.1 has already been registered.'] },
+    same: { kept: true, warnings: [] },
+    emptyIsUnknown: { kept: true, warnings: [] },
+  });
+});
+
+test('a constructor already registered under another tag is defined as an anonymous subclass of it', async ({ page }) => {
+  await load(page);
+  await recordWarnings(page);
   const r = await page.evaluate(() => {
     const A = make('moved');
     customElements.define('other-tag', A);
-    try {
-      define(A);
-    } catch (e) {
-      return { message: e.message, cause: e.cause?.name, registered: customElements.get('sl-moved') };
-    }
-    return 'no error';
+    const tag = define(A);
+    const defined = customElements.get('sl-moved');
+    return {
+      tag,
+      subclass: Boolean(defined) && defined !== A && Object.getPrototypeOf(defined) === A,
+      other: customElements.get('other-tag') === A,
+      created: document.createElement('sl-moved') instanceof A,
+      again: define(A) === 'sl-moved' && customElements.get('sl-moved') === defined,
+      warnings,
+    };
   });
-  expect(r.message).toContain('<sl-moved>');
-  expect(r.message).toContain('customElements.define failed');
-  expect(r.cause).toBe('NotSupportedError');
-  expect(r.registered).toBeUndefined();
+  expect(r).toEqual({ tag: 'sl-moved', subclass: true, other: true, created: true, again: true, warnings: [] });
 });
 
-test('an exception from native define metadata is not misreported as a duplicate registration', async ({ page }) => {
+test('an exception from native define metadata propagates unchanged and leaves the tag undefined', async ({ page }) => {
   await load(page);
   const r = await page.evaluate(() => {
     const sentinel = new Error('metadata getter sentinel');
@@ -122,19 +145,13 @@ test('an exception from native define metadata is not misreported as a duplicate
     try {
       define(Broken);
     } catch (e) {
-      error = { message: e.message, causeIsSentinel: e.cause === sentinel };
+      error = e;
     }
     // The class is still unregistered, so it can be defined correctly afterwards.
     const Fixed = make('broken-meta');
-    return { error, tag: customElements.get('sl-broken-meta'), retry: define(Fixed), after: customElements.get('sl-broken-meta') === Fixed };
+    return { same: error === sentinel, tag: customElements.get('sl-broken-meta'), retry: define(Fixed), after: customElements.get('sl-broken-meta') === Fixed };
   });
-  expect(r.error.message).toContain('<sl-broken-meta>');
-  expect(r.error.message).toContain('customElements.define failed');
-  expect(r.error.message).not.toMatch(/already|different tag/);
-  expect(r.error.causeIsSentinel).toBe(true);
-  expect(r.tag).toBeUndefined();
-  expect(r.retry).toBe('sl-broken-meta');
-  expect(r.after).toBe(true);
+  expect(r).toEqual({ same: true, tag: undefined, retry: 'sl-broken-meta', after: true });
 });
 
 test('constructors without a usable static baseName are rejected with a TypeError', async ({ page }) => {
