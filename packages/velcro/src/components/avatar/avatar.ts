@@ -42,16 +42,24 @@ export class VelcroAvatar extends CoreAvatar {
   // of these: its `:host { display: inline-block }` wins over the browser's `[hidden]` rule (an upstream quirk).
   public static override styles = [styles];
 
-  // Shoelace's `static dependencies` for the avatar: the elements its template renders, by tag. As in Shoelace's base
-  // element, each one that is not defined yet is defined when an avatar is constructed, and a tag that another
-  // constructor already owns is left alone. Core's own array-typed `dependencies` (registration in core's scope) stays
-  // empty, as core's avatar declares it. Not part of the documented API (Shoelace's manifest does not document it).
-  private static readonly shoelaceDependencies: Record<string, VelcroComponentConstructor> = { 'sl-icon': VelcroIcon };
+  // Shoelace's `static dependencies` for the avatar: the elements its template renders. Shoelace keys them by tag; here
+  // the tag is derived from each class's `baseName` (`sl-icon` for `VelcroIcon`), the same tag `defineVelcroComponent`
+  // defines and the template renders. As in Shoelace's base element, each one that is not defined yet is defined when an
+  // avatar is constructed, and a tag that another constructor already owns is left alone. If the platform refuses the
+  // class itself (for example because it is already registered under another tag), an anonymous subclass is defined
+  // instead, as Shoelace does. Core's own array-typed `dependencies` (registration in core's scope) stays empty, as core's
+  // avatar declares it. Not part of the documented API (Shoelace's manifest does not document it).
+  private static readonly shoelaceDependencies: readonly VelcroComponentConstructor[] = [VelcroIcon];
 
   public constructor() {
     super();
-    for (const [tag, component] of Object.entries(VelcroAvatar.shoelaceDependencies)) {
-      if (!customElements.get(tag)) defineVelcroComponent(component);
+    for (const component of VelcroAvatar.shoelaceDependencies) {
+      if (customElements.get(`sl-${component.baseName}`)) continue;
+      try {
+        defineVelcroComponent(component);
+      } catch {
+        defineVelcroComponent(class extends component {});
+      }
     }
   }
 

@@ -662,7 +662,8 @@ test.describe('class-only entry', () => {
       const entry = path.join(dir, 'entry.js');
       writeFileSync(entry, `
         import { SlAvatar, VelcroAvatar } from '@charm-ux/velcro/avatar/class';
-        window.avatarClass = { SlAvatar, VelcroAvatar };
+        import { SlIcon } from '@charm-ux/velcro/icon/class';
+        window.avatarClass = { SlAvatar, VelcroAvatar, SlIcon };
       `);
       const out = await build({
         configFile: false, logLevel: 'silent', root: dir,
@@ -719,6 +720,30 @@ test.describe('class-only entry', () => {
     await expect.poll(() => page.locator('sl-avatar sl-icon').evaluate(i => Boolean(i.shadowRoot.querySelector('svg')))).toBe(true);
     const box = await page.locator('sl-avatar').evaluate(a => a.shadowRoot.querySelector('[part="icon"] sl-icon').getBoundingClientRect().width);
     expect(box).toBeGreaterThan(0);
+    expect(pageErrors).toEqual([]);
+  });
+
+  // The platform refuses to define one constructor under two names; Shoelace then defines an anonymous subclass.
+  test('when the icon class is already defined under another tag, constructing an avatar defines sl-icon as a subclass of it', async ({ page }) => {
+    const pageErrors = await load(page);
+    const r = await page.evaluate(async () => {
+      const { SlAvatar, SlIcon } = window.avatarClass;
+      customElements.define('my-icon', SlIcon);
+      customElements.define('sl-avatar', SlAvatar);
+      const avatar = document.createElement('sl-avatar');
+      avatar.label = 'User avatar';
+      document.body.append(avatar);
+      await avatar.updateComplete;
+      const defined = customElements.get('sl-icon');
+      const icon = avatar.shadowRoot.querySelector('slot[name="icon"] sl-icon');
+      await icon.updateComplete;
+      return {
+        avatar: avatar instanceof SlAvatar, myIcon: customElements.get('my-icon') === SlIcon,
+        subclass: Boolean(defined) && defined !== SlIcon && defined.prototype instanceof SlIcon, icon: icon instanceof defined,
+      };
+    });
+    expect(r).toEqual({ avatar: true, myIcon: true, subclass: true, icon: true });
+    await expect.poll(() => page.locator('sl-avatar').evaluate(a => Boolean(a.shadowRoot.querySelector('sl-icon').shadowRoot?.querySelector('svg')))).toBe(true);
     expect(pageErrors).toEqual([]);
   });
 
