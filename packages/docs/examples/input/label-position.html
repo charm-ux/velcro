@@ -1,0 +1,29 @@
+<sl-input id="demo-label-name" class="label-on-left" label="Name" help-text="Enter your name"></sl-input>
+<sl-input id="demo-label-email" class="label-on-left" label="Email" type="email" help-text="Enter your email"></sl-input>
+<sl-textarea id="demo-label-bio" class="label-on-left" label="Bio" help-text="Tell us something about yourself"></sl-textarea>
+
+<style>
+  .label-on-left {
+    --label-width: 3.75rem;
+    --gap-width: 1rem;
+  }
+
+  .label-on-left + .label-on-left {
+    margin-top: var(--sl-spacing-medium);
+  }
+
+  .label-on-left::part(form-control) {
+    display: grid;
+    grid: auto / var(--label-width) 1fr;
+    gap: var(--sl-spacing-3x-small) var(--gap-width);
+    align-items: center;
+  }
+
+  .label-on-left::part(form-control-label) {
+    text-align: right;
+  }
+
+  .label-on-left::part(form-control-help-text) {
+    grid-column-start: 2;
+  }
+</style>

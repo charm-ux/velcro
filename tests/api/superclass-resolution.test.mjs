@@ -1,7 +1,8 @@
-// The manifest build looks through a Velcro-local typing class (sl-textarea's CoreTextAreaTyping, which only loosens inherited
-// property declarations) and reports the core class it extends as the component's superclass. That step must change the
-// output for such a component only: every other component's superclass stays what its source says, and the step touches
-// nothing but `superclass`. Both are checked here, on fixtures of the plugin and on the analysis of the current sources.
+// The manifest build looks through a Velcro-local typing class (sl-textarea's CoreTextAreaTyping and sl-input's
+// CoreInputTyping, which only loosen inherited property declarations) and reports the core class it extends as the
+// component's superclass. That step must change the output for such a component only: every other component's
+// superclass stays what its source says, and the step touches nothing but `superclass`. Both are checked here, on
+// fixtures of the plugin and on the analysis of the current sources.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -64,7 +65,10 @@ test('every other superclass shape is unchanged by the typing-class step (apart 
 // The real sources: each component's superclass in the analyzed manifest is what its `extends` clause names. A component
 // that extends a class imported from core must report that class; only a component that extends a class of its own folder
 // (a typing class) may report something else, and it must be listed here, so a second typing class is a conscious change.
-const TYPING_CLASS_COMPONENTS = { 'sl-textarea': { typingClass: 'CoreTextAreaTyping', coreClass: 'CoreTextArea' } };
+const TYPING_CLASS_COMPONENTS = {
+  'sl-input': { typingClass: 'CoreInputTyping', coreClass: 'CoreInput', loosened: ['max', 'min', 'step'] },
+  'sl-textarea': { typingClass: 'CoreTextAreaTyping', coreClass: 'CoreTextArea', loosened: ['autocomplete', 'resize'] },
+};
 
 test('on the current sources every component reports the superclass its source extends, except the listed typing-class components', () => {
   const manifest = analyzeVelcro();
@@ -91,9 +95,9 @@ test('on the current sources every component reports the superclass its source e
         // The typing class itself extends that core class and declares nothing that is not a loosened core member.
         const typing = readFileSync(path.join(path.dirname(path.join(pkgDir, mod.path)), imported.replace(/\.js$/, '.ts')), 'utf8');
         assert.match(typing, new RegExp(`class ${expected.typingClass} extends ${expected.coreClass} \\{`));
-        assert.deepEqual([...typing.matchAll(/^\s+declare (\w+): any;$/gm)].map(m => m[1]).sort(), ['autocomplete', 'resize']);
+        assert.deepEqual([...typing.matchAll(/^\s+declare (\w+): any;$/gm)].map(m => m[1]).sort(), expected.loosened);
       }
     }
   }
-  assert.deepEqual(seen.sort(), Object.keys(TYPING_CLASS_COMPONENTS));
+  assert.deepEqual(seen.sort(), Object.keys(TYPING_CLASS_COMPONENTS).sort());
 });
