@@ -100,6 +100,9 @@ export const MODULE_EXPORTS = Object.freeze({
   './include/request': ['include', 'components/include/request'],
   // Shoelace's dist/utilities/animation.js (the two utilities).
   './utilities/animation': ['animation', 'utilities/animation'],
+  // Shoelace's dist/utilities/animation-registry.js (setDefaultAnimation, setAnimation, getAnimation and their types),
+  // shared by every component with show and hide animations.
+  './utilities/animation-registry': [PACKAGE_OWNER, 'utilities/animation-registry'],
   // Shoelace's dist/utilities/form.js (serialize and getFormControls), which every form control's tests and users import.
   './utilities/form': [PACKAGE_OWNER, 'utilities/form'],
   // Shoelace's dist/utilities/localize.js (registerTranslation, the Translation type and the LocalizeController).

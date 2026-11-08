@@ -854,7 +854,7 @@ test('a toolbar set and removed in the same turn leaves a neutral group neutral:
   expect(r).toEqual({ role: 'group', attribute: false, property: false, tabindex: [null, '4', null], prevented: false });
 });
 
-test('core\'s vertical and split are accepted but change nothing; core\'s position attribute, tooltip distance, parts and properties do not exist', async ({ page }) => {
+test('core\'s vertical and split are accepted but change nothing; core\'s position attribute, parts and properties do not exist, and tooltips keep their distance', async ({ page }) => {
   const { frame } = await openPage(page);
   await mount(frame, `<sl-button-group id="plain" label="Plain"><sl-button id="a">A</sl-button><sl-button id="b">B</sl-button></sl-button-group>
     <sl-button-group id="odd" label="Odd" vertical split><sl-button id="c">A</sl-button><sl-button id="d">B</sl-button></sl-button-group>
@@ -886,7 +886,8 @@ test('core\'s vertical and split are accepted but change nothing; core\'s positi
   expect(r.plain.childAttributes).toEqual([[], []]);
   expect(r.oddProps).toEqual({ vertical: true, split: true, attributes: [true, true] });
   expect(r.oddData).toEqual([true, true]);
-  expect(r.tooltipDistance).toBeNull();
+  // Shoelace's default distance: the group does not change its tooltips' distance as core's group does.
+  expect(r.tooltipDistance).toBe(8);
   expect(r.cssProps).toEqual(['', '']);
 });
 

@@ -54,8 +54,9 @@ test('sl-tab-panel registers as the exported class with no core marker, slot or 
   }));
   expect(r.ctor).toBe(true);
   expect(r.baseName).toBe('tab-panel');
-  // Core's tab panel would also add slot="tabpanel" and hidden; Velcro hosts carry neither (and no base-name marker).
-  expect(r.attributes).toEqual(['active', 'aria-hidden', 'id', 'name', 'role']);
+  // Core's tab panel would also add slot="tabpanel" and hidden; Velcro hosts carry neither (and no base-name marker). The
+  // tab group of Shoelace's example adds aria-labelledby.
+  expect(r.attributes).toEqual(['active', 'aria-hidden', 'aria-labelledby', 'id', 'name', 'role']);
   expect(r.chDefined).toEqual([]);
 });
 
@@ -393,20 +394,21 @@ test('inherited core ready event: dispatched once on the element after the first
   expect(r).toEqual({ seen: [{ bubbles: false, composed: false }], bubbled: 0 });
 });
 
-test('the overview example makes one panel active at a time, and a disabled button cannot activate its panel', async ({ page }) => {
+test('the overview example (Shoelace\'s, in an sl-tab-group) makes one panel active at a time, labelled by its tab, and a disabled tab cannot activate its panel', async ({ page }) => {
   const { frame } = await openExample(page);
   const state = () =>
     frame.locator('body').evaluate(() => ({
       active: [...document.querySelectorAll('sl-tab-panel')].filter(p => getComputedStyle(p).display !== 'none').map(p => p.name),
       hidden: [...document.querySelectorAll('sl-tab-panel')].map(p => p.getAttribute('aria-hidden')),
-      output: document.querySelector('#demo-active').textContent,
+      labelledBy: [...document.querySelectorAll('sl-tab-panel')].map(p => document.getElementById(p.getAttribute('aria-labelledby'))?.panel ?? null),
     }));
-  expect(await state()).toEqual({ active: ['general'], hidden: ['false', 'true', 'true', 'true'], output: 'general' });
-  await frame.locator('sl-button[data-panel="advanced"]').click();
-  expect(await state()).toEqual({ active: ['advanced'], hidden: ['true', 'true', 'false', 'true'], output: 'advanced' });
+  await expect.poll(async () => (await state()).labelledBy).toEqual(['general', 'custom', 'advanced', 'disabled']);
+  expect(await state()).toMatchObject({ active: ['general'], hidden: ['false', 'true', 'true', 'true'] });
+  await frame.locator('sl-tab[panel="advanced"]').click();
+  expect(await state()).toMatchObject({ active: ['advanced'], hidden: ['true', 'true', 'false', 'true'] });
   await expect(frame.locator('sl-tab-panel[name="advanced"]')).toBeVisible();
   await expect(frame.locator('sl-tab-panel[name="general"]')).toBeHidden();
-  await frame.locator('sl-button[data-panel="disabled"]').click({ force: true });
+  await frame.locator('sl-tab[panel="disabled"]').click({ force: true });
   expect((await state()).active).toEqual(['advanced']);
 });
 

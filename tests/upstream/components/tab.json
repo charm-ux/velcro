@@ -1,0 +1,16 @@
+{
+  "files": {
+    "src/components/tab/tab.test.ts": "46aa96d373e7e9bb14f24bd1d10057dd5f3d14522092edb30d642400ff2487f6"
+  },
+  "tests": [
+    "<sl-tab> > passes accessibility test",
+    "<sl-tab> > should render default tab",
+    "<sl-tab> > should disable tab by attribute",
+    "<sl-tab> > should set active tab by attribute",
+    "<sl-tab> > should set closable by attribute",
+    "<sl-tab> > focus > should focus itself",
+    "<sl-tab> > blur > should blur itself",
+    "<sl-tab> > closable > should emit close event when the close button is clicked"
+  ],
+  "knownFailures": []
+}

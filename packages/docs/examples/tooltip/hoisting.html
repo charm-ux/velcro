@@ -1,0 +1,18 @@
+<div class="tooltip-hoist">
+  <sl-tooltip content="This is a tooltip">
+    <sl-button>No Hoist</sl-button>
+  </sl-tooltip>
+
+  <sl-tooltip content="This is a tooltip" hoist>
+    <sl-button>Hoist</sl-button>
+  </sl-tooltip>
+</div>
+
+<style>
+  .tooltip-hoist {
+    position: relative;
+    border: solid 2px var(--sl-panel-border-color);
+    overflow: hidden;
+    padding: var(--sl-spacing-medium);
+  }
+</style>

@@ -27,7 +27,10 @@
 {"name":"spinner","title":"Spinner","tag":"sl-spinner","example":"sl-spinner"}
 {"name":"split-panel","title":"Split Panel","tag":"sl-split-panel","example":"sl-split-panel"}
 {"name":"switch","title":"Switch","tag":"sl-switch","example":"#demo-default"}
+{"name":"tab","title":"Tab","tag":"sl-tab","example":"#demo-default"}
+{"name":"tab-group","title":"Tab Group","tag":"sl-tab-group","example":"#demo-default"}
 {"name":"tab-panel","title":"Tab Panel","tag":"sl-tab-panel","example":"#demo-default"}
 {"name":"tag","title":"Tag","tag":"sl-tag","example":"#demo-default"}
 {"name":"textarea","title":"Textarea","tag":"sl-textarea","example":"#demo-default"}
+{"name":"tooltip","title":"Tooltip","tag":"sl-tooltip","example":"#demo-default"}
 {"name":"visually-hidden","title":"Visually Hidden","tag":"sl-visually-hidden","example":"#demo-skip"}

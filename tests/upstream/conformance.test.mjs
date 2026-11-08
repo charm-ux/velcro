@@ -263,10 +263,17 @@ test('a skip passes only when the vendored upstream file itself marks that exact
   // A scan with a dynamic title binds a skip only through the per-skip identity checks (next test).
   assert.equal(run('suite > x', { a: { skipped: ['suite > x'], declared: ['suite > x', 'other > x', 'y', null] } }).ok, true,
     'a dynamic title elsewhere does not block an unambiguous literal skip');
-  // The real vendored files: icon's and radio-group's own it.skip are the only upstream skips. Icon's is bound by the
-  // exact comparison; radio-group's file has dynamic titles (template-literal describes), so its skip is bound alone.
+  // The real vendored files: icon's, radio-group's and tab-group's own it.skip are the only upstream skips. Icon's and
+  // tab-group's are bound by the exact comparison; radio-group's file has dynamic titles (template-literal describes), so
+  // its skip is bound alone.
   const real = upstreamSkips(root, components);
-  assert.deepEqual(Object.keys(real), ['icon', 'radio-group']);
+  assert.deepEqual(Object.keys(real), ['icon', 'radio-group', 'tab-group']);
+  assert.deepEqual(real['tab-group'].skipped, [
+    '<sl-tab-group> > scrolling behavior > does not show scroll buttons if placement is start',
+    '<sl-tab-group> > scrolling behavior > does not show scroll buttons if placement is end',
+    '<sl-tab-group> > scrolling behavior > does scroll on scroll button click',
+  ]);
+  assert.deepEqual([...real['tab-group'].declared].sort(), [...inventory['tab-group']].sort());
   assert.deepEqual(real.icon.skipped, ["<sl-icon> > svg sprite sheets > Should produce an error if the icon doesn't exist."]);
   assert.deepEqual([...real.icon.declared].sort(), [...inventory.icon].sort());
   assert.deepEqual(real['radio-group'].skipped, ['when the value changes > should sync up radios and radio buttons if defined after radio group']);

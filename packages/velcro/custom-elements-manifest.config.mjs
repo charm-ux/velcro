@@ -122,6 +122,11 @@ export function velcroInheritance() {
  * React already types onFocus/onBlur for the native focus and blur events that core lists, so the generated wrappers
  * would declare them twice with conflicting types: they are hidden from the wrapper and JSX generators (and restored in
  * the manifest afterwards).
+ *
+ * Shoelace's JSDoc writes some event details with boxed primitive names (sl-tab-show's `{ name: String }`), which its
+ * manifest keeps, while its separately declared event types use the primitives (`CustomEvent<{ name: string }>`). The
+ * manifest keeps Shoelace's text; the wrapper and JSX generators see the primitives, so the generated callback types match
+ * Shoelace's event types.
  */
 const nativeEvents = new Set(['focus', 'blur']);
 const hidden = new Map();
@@ -132,7 +137,9 @@ function hideNativeEvents() {
       for (const decl of customElementsManifest.modules.flatMap(m => m.declarations ?? [])) {
         if (!decl.events) continue;
         hidden.set(decl, decl.events);
-        decl.events = decl.events.filter(e => !nativeEvents.has(e.name));
+        decl.events = decl.events.filter(e => !nativeEvents.has(e.name)).map(e => (e.type?.text && /\b(String|Number|Boolean)\b/.test(e.type.text)
+          ? { ...e, type: { ...e.type, text: e.type.text.replace(/\b(String|Number|Boolean)\b/g, name => name.toLowerCase()) } }
+          : e));
       }
     },
   };
