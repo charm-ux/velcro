@@ -89,8 +89,14 @@ jobs:
         with:
           node-version: 24.22.1
       # No Gitleaks archive cache here: in a PR or merge group a cache entry can be written by candidate code, and a cache
-      # restore could then write over the base-owned engines this job certifies with, so this job always downloads.
-      - run: node .airig/trusted/scripts/security/gitleaks.mjs install
+      # restore could then write over the base-owned engines this job certifies with, so this job always downloads. Only
+      # here, transport failures (network, timeout, HTTP 5xx) are retried: at most 4 attempts within about 2 minutes, each
+      # into a fresh temporary file verified against the pinned SHA-256; a checksum mismatch is never retried. A base
+      # without the retry ignores the variable and downloads once.
+      - name: Install the base-owned Gitleaks (bounded download retry)
+        env:
+          VELCRO_GITLEAKS_DOWNLOAD_RETRY: '1'
+        run: node .airig/trusted/scripts/security/gitleaks.mjs install
       # Every PR and merge group first meets the publication budget against the fetched main, whatever its event
       # base: more than 1,000 changed files in main..head need approval, which is the history-scan-approved label
       # applied by the login in the VELCRO_HISTORY_APPROVER repository variable (unset: nobody can approve) and

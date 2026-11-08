@@ -583,7 +583,7 @@ test('security scans the published range and only the configured approver label 
 // The pinned Gitleaks archive is cached so a release-CDN outage does not fail every job. The key is the pinned version and
 // the pinned archive SHA-256 of the runners' target (linux-x64), exact key only, and the cached path is exactly the
 // directory where the installer keeps verified archives (it re-verifies a restored one before extracting anything).
-test('every candidate-scope Gitleaks install restores the pinned archive by version and SHA-256; security never does', async () => {
+test('every candidate-scope Gitleaks install restores the pinned archive by version and SHA-256; security never does and alone retries', async () => {
   const gitleaks = await import(new URL('../../scripts/security/gitleaks.mjs', import.meta.url).href);
   const target = gitleaks.selectTarget(gitleaks.loadManifest(), 'linux', 'x64');
   const dir = path.posix.dirname(target.relativeArchive.split(path.sep).join('/'));
@@ -599,7 +599,8 @@ test('every candidate-scope Gitleaks install restores the pinned archive by vers
       const body = jobOf(text, job);
       if (name === 'ci' && job === 'security') {
         assert.doesNotMatch(body, /actions\/cache/, 'security restores no cache over its base-owned engines');
-        assert.match(body, /\n {6}- run: node \.airig\/trusted\/scripts\/security\/gitleaks\.mjs install\n/);
+        // Only the security job opts in to the installer's bounded transport retry.
+        assert.match(body, /\n {6}- name: Install the base-owned Gitleaks \(bounded download retry\)\n {8}env:\n {10}VELCRO_GITLEAKS_DOWNLOAD_RETRY: '1'\n {8}run: node \.airig\/trusted\/scripts\/security\/gitleaks\.mjs install\n/);
         continue;
       }
       const steps = body.split(/(?=\n {6}- )/);
@@ -616,6 +617,7 @@ test('every candidate-scope Gitleaks install restores the pinned archive by vers
     assert.equal([...text.matchAll(/Cache the pinned Gitleaks archive/g)].length, expected[name].length, name);
     assert.equal([...text.matchAll(/path: \.airig\/tools/g)].length, expected[name].length, name);
     assert.doesNotMatch(text, /restore-keys: gitleaks|actions\/cache\/(?:save|restore)@/, name);
+    assert.equal([...text.matchAll(/VELCRO_GITLEAKS_DOWNLOAD_RETRY/g)].length, name === 'ci' ? 1 : 0, `${name}: retry only in security`);
   }
 });
 

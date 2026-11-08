@@ -694,6 +694,157 @@ describe('install transport (mocked)', () => {
   });
 });
 
+// The security job's opt-in retry: transport failures only, a fresh temporary file per attempt, the pinned checksum
+// before use, and both an attempt cap and a total time cap. A fake clock and sleep stand in for real waiting.
+describe('install download retry (mocked)', () => {
+  const policy = scanner.DOWNLOAD_RETRY_POLICY;
+  const fakeTime = () => {
+    let clock = 0;
+    const sleeps = [];
+    return {
+      now: () => clock,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        clock += ms;
+      },
+      advance: (ms) => {
+        clock += ms;
+      },
+      sleeps,
+    };
+  };
+  // Runs an install with TMPDIR pointed at a test-owned directory, recording what each attempt saw there.
+  async function install(label, responses, { retry = true, manifestBytes, perAttemptMs = 0 } = {}) {
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest, archive } = manifestBytes ?? syntheticInstallManifest(executable);
+    const root = ignoredRoot(label, manifest);
+    const temp = scratch(`${label}-tmp`);
+    const time = fakeTime();
+    const seen = [];
+    const retries = [];
+    let calls = 0;
+    const fetchImpl = async () => {
+      seen.push(readdirSync(temp, { recursive: true }).sort());
+      time.advance(perAttemptMs);
+      const next = responses[Math.min(calls, responses.length - 1)];
+      calls += 1;
+      return next(archive);
+    };
+    const run = () =>
+      scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl, retry, sleep: time.sleep, now: time.now,
+        onRetry: (info) => retries.push(info) });
+    let result;
+    let error;
+    try {
+      result = await withEnv({ TMPDIR: temp, TMP: temp, TEMP: temp }, run);
+    } catch (caught) {
+      error = caught;
+    }
+    return { result, error, calls: () => calls, seen, retries, sleeps: time.sleeps, leftover: readdirSync(temp), root };
+  }
+  const ok = (archive) => new Response(archive, { status: 200 });
+  const status = (code) => () => new Response('unavailable', { status: code });
+  const networkError = () => {
+    throw new Error('socket hang up');
+  };
+
+  test('a 504 is retried after a backoff, and the next verified download installs', async () => {
+    const run = await install('retry-504', [status(504), ok]);
+    assert.equal(run.error, undefined);
+    assert.equal(run.result.status, 'installed');
+    assert.equal(run.result.downloadAttempts, 2);
+    assert.equal(run.calls(), 2);
+    assert.deepEqual(run.retries, [{ attempt: 1, attempts: 4, httpStatus: 504, delayMs: policy.delaysMs[0] }]);
+    assert.deepEqual(run.sleeps, [policy.delaysMs[0]]);
+  });
+
+  test('network errors are retried too', async () => {
+    const run = await install('retry-network', [networkError, networkError, ok]);
+    assert.equal(run.error, undefined);
+    assert.equal(run.result.downloadAttempts, 3);
+    assert.deepEqual(run.retries.map((r) => r.httpStatus), [null, null]);
+    assert.deepEqual(run.sleeps, policy.delaysMs.slice(0, 2));
+  });
+
+  test('a checksum mismatch is a hard failure and is never retried', async () => {
+    const wrong = () => new Response(tarArchive(standardEntries('not the pinned binary')), { status: 200 });
+    const run = await install('retry-mismatch', [wrong, ok]);
+    assert.equal(run.error?.code, 'archive-checksum-mismatch');
+    assert.equal(run.calls(), 1);
+    assert.deepEqual(run.retries, []);
+    assert.deepEqual(run.sleeps, []);
+    assert.equal(existsSync(path.join(run.root, '.airig', 'tools')) ? listFiles(path.join(run.root, '.airig', 'tools')).filter((f) => f.endsWith('.tar.gz')).length : 0, 0);
+  });
+
+  test('a 5xx followed by a mismatch fails on the mismatch without another attempt', async () => {
+    const wrong = () => new Response(tarArchive(standardEntries('not the pinned binary')), { status: 200 });
+    const run = await install('retry-then-mismatch', [status(503), wrong, ok]);
+    assert.equal(run.error?.code, 'archive-checksum-mismatch');
+    assert.equal(run.calls(), 2);
+  });
+
+  for (const code of [400, 403, 404, 429]) {
+    test(`HTTP ${code} is not a transport failure and is not retried`, async () => {
+      const run = await install(`retry-${code}`, [status(code), ok]);
+      assert.equal(run.error?.code, 'download-failed');
+      assert.equal(run.calls(), 1);
+      assert.deepEqual(run.sleeps, []);
+    });
+  }
+
+  test('the attempt cap: at most four attempts, then a fixed failure', async () => {
+    const run = await install('retry-cap', [status(504)]);
+    assert.equal(run.error?.code, 'download-failed');
+    assert.match(run.error.message, /gave up after 4 of 4 attempts$/);
+    assert.equal(run.calls(), policy.attempts);
+    assert.deepEqual(run.sleeps, [...policy.delaysMs]);
+    assert.ok(run.sleeps.reduce((a, b) => a + b, 0) <= policy.budgetMs);
+  });
+
+  test('the time cap: no attempt starts once the remaining budget cannot hold a backoff and an attempt', async () => {
+    // Each failing attempt runs into its 30 s timeout: 30 + 5 + 30 + 10 + 30 = 105 s, and a 20 s backoff plus a minimal
+    // attempt no longer fit in the 120 s budget, so the fourth attempt never starts.
+    const run = await install('retry-time-cap', [status(502)], { perAttemptMs: policy.attemptTimeoutMs });
+    assert.equal(run.error?.code, 'download-failed');
+    assert.match(run.error.message, /gave up after 3 of 4 attempts$/);
+    assert.equal(run.calls(), 3);
+    assert.deepEqual(run.sleeps, policy.delaysMs.slice(0, 2));
+    assert.ok(policy.budgetMs <= 120_000 && policy.attempts <= 4);
+  });
+
+  test('without the opt-in a transport failure is not retried (other jobs keep the single download)', async () => {
+    const run = await install('retry-off', [status(504), ok], { retry: false });
+    assert.equal(run.error?.code, 'download-failed');
+    assert.doesNotMatch(run.error.message, /attempts/);
+    assert.equal(run.calls(), 1);
+    assert.deepEqual(run.sleeps, []);
+  });
+
+  test('every attempt writes a fresh temporary file, and none is left behind', async () => {
+    const run = await install('retry-temp', [status(500), networkError, status(504), ok]);
+    assert.equal(run.error, undefined);
+    assert.equal(run.seen.length, 4);
+    const dirs = run.seen.map((entries) => {
+      // Exactly one fresh, still-empty attempt directory (the file is created only once a response arrives).
+      assert.equal(entries.length, 1, JSON.stringify(entries));
+      assert.match(entries[0], /^velcro-gitleaks-download-/);
+      return entries[0];
+    });
+    assert.equal(new Set(dirs).size, 4, 'each attempt has its own directory');
+    assert.deepEqual(run.leftover, [], 'temporary attempt files are removed');
+    // Failed attempts are cleaned up too.
+    const failed = await install('retry-temp-failed', [status(503)]);
+    assert.equal(failed.error?.code, 'download-failed');
+    assert.deepEqual(failed.leftover, []);
+  });
+
+  test('the CLI accepts only VELCRO_GITLEAKS_DOWNLOAD_RETRY=1 or unset', () => {
+    const result = runCli(['install'], { env: { VELCRO_GITLEAKS_DOWNLOAD_RETRY: 'yes' } });
+    assert.equal(result.code, 2);
+    assert.match(result.stderr, /VELCRO_GITLEAKS_DOWNLOAD_RETRY must be 1 or unset/);
+  });
+});
+
 describe('scanner process handling (fake executables)', () => {
   const dir = scratch('fake');
   const target = scratch('fake-target');

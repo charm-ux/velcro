@@ -472,7 +472,15 @@ to the branch that wrote them, so a PR or merge-group run can read its own entri
 poison only its own run's cache, and the checksum then fails that run. The `security`
 job restores no cache at all: a restore unpacks an archive that candidate code can
 write, which could overwrite the base-owned engines that job certifies with. It
-therefore still downloads the archive, and a release-CDN outage can still fail it.
+therefore always downloads, and it alone opts in (`VELCRO_GITLEAKS_DOWNLOAD_RETRY=1`)
+to a bounded retry of transport failures only: network errors, timeouts and HTTP
+5xx. It makes at most 4 attempts, waits 5, 10 and 20 seconds between them, and caps
+each attempt at 30 seconds and all attempts and waits together at 2 minutes. Each
+attempt downloads into a fresh temporary file that is removed afterwards and checked
+against the pinned SHA-256 before use. A checksum mismatch, any other HTTP status or
+an oversized download fails at once and is never retried. A longer outage can
+still fail the job. Because the job runs the base's installer, the retry applies
+only once the base has it; an older base ignores the variable and downloads once.
 The other downloads in CI are pinned by version but not by our own checksum: Node
 (`setup-node`), pnpm (`pnpm/action-setup`), npm packages (lockfile integrity) and
 Playwright browsers (cached by lockfile hash, as before).
