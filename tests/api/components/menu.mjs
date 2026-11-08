@@ -24,6 +24,8 @@ export default function (test, { elements, pkgDir }) {
     assert.deepEqual(item.slots.map(s => s.name).sort(), ['', 'prefix', 'submenu', 'suffix']);
     assert.deepEqual(item.cssParts.map(p => p.name).sort(),
       ['base', 'checked-icon', 'label', 'prefix', 'spinner', 'spinner__base', 'submenu-icon', 'suffix']);
+    // Shoelace's description of the part says "not yet implemented" although the chevron is rendered; kept as a listed quirk.
+    assert.match(item.cssParts.find(p => p.name === 'submenu-icon').description, /\(not yet implemented\)\.?$/);
     assert.deepEqual(item.cssProperties.map(p => [p.name, p.default]), [['--submenu-offset', '-2px']]);
     assert.deepEqual((item.events ?? []).map(e => e.name), ['ready']);
     assert.equal(item.attributes.find(a => a.name === 'type').type.text, "'normal' | 'checkbox'");

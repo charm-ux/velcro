@@ -82,6 +82,9 @@ test('docs page is prerendered with Velcro branding, prototype status, the keybo
   expect(html).toContain('pressing a letter key does nothing');
   expect(html).toContain('was run locally in Chromium and WebKit only, and Firefox is covered only by the project&#39;s CI run');
   expect(html).toContain('Playwright&#39;s ARIA snapshot');
+  // The keyboard acts from the tab-stop item, not the focused one: stated in the keyboard text and listed as a quirk.
+  expect(html).toContain("the keys act from the menu's current item, the one that holds the tab stop");
+  expect(html).toContain('The keys act on the tab-stop item, not on the focused one.');
   const positions = ORDER.map(([, section]) => html.indexOf(`title="${title(section)}"`));
   expect(positions.every(p => p > 0)).toBe(true);
   expect([...positions].sort((a, b) => a - b)).toEqual(positions);
@@ -217,7 +220,7 @@ test('clicking an item emits sl-select from the menu with the item as detail; th
   expect(pageErrors).toEqual([]);
 });
 
-test('keyboard: Down and Up move through the items and wrap, Home and End jump, Enter and Space select the focused item', async ({ page }) => {
+test('keyboard: Down and Up move through the items and wrap, Home and End jump, Enter and Space select the current item', async ({ page }) => {
   const pageErrors = await loadBundle(page, ENTRY);
   await mount(page);
   await page.locator('#m sl-menu-item[value="one"]').focus();
@@ -249,6 +252,31 @@ test('keyboard: Down and Up move through the items and wrap, Home and End jump, 
   for (const key of ['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter', 'Space']) await page.keyboard.press(key);
   await page.keyboard.press('a');
   expect(await page.evaluate(() => window.keys)).toEqual(['a']);
+  expect(pageErrors).toEqual([]);
+});
+
+test('upstream quirk: the keys act on the tab-stop item, not the focused one; hovering focuses an item without moving the tab stop', async ({ page }) => {
+  const pageErrors = await loadBundle(page, ENTRY);
+  await mount(page);
+  expect(await tabindexes(page)).toEqual(['0', '-1', '-1', '-1']);
+  // Hovering gives the third item focus (its mouseover handler calls focus()), but the tab stop stays on the first item.
+  await page.locator('#m sl-menu-item[value="three"]').hover();
+  expect(await focused(page)).toBe('three');
+  expect(await tabindexes(page)).toEqual(['0', '-1', '-1', '-1']);
+  // Enter clicks the tab-stop item, not the hovered, focused one.
+  await page.keyboard.press('Enter');
+  expect((await selects(page)).map(s => s.value)).toEqual(['one']);
+  // Down moves from the tab-stop item (one to two), not from the focused item (three to four).
+  await page.keyboard.press('ArrowDown');
+  expect(await focused(page)).toBe('two');
+  expect(await tabindexes(page)).toEqual(['-1', '0', '-1', '-1']);
+  // A mouse press does move the tab stop; the keys then act from that item.
+  await page.locator('#m sl-menu-item[value="four"]').hover();
+  expect(await focused(page)).toBe('four');
+  expect(await tabindexes(page)).toEqual(['-1', '0', '-1', '-1']);
+  await page.mouse.down();
+  await page.mouse.up();
+  expect(await tabindexes(page)).toEqual(['-1', '-1', '-1', '0']);
   expect(pageErrors).toEqual([]);
 });
 

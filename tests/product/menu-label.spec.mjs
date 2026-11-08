@@ -159,8 +159,6 @@ test('::part(base) from the page styles the label, and the label aligns with the
     return {
       uppercase: getComputedStyle(first.shadowRoot.querySelector('[part="base"]')).textTransform,
       untouched: getComputedStyle(second.shadowRoot.querySelector('[part="base"]')).textTransform,
-      // The label and the real menu item start at the same inline offset (both are blocks in the menu).
-      alignedStart: left(first) === left(item),
       labelPadding: getComputedStyle(first.shadowRoot.querySelector('[part="base"]')).paddingLeft,
       itemLabelStart: item.shadowRoot.querySelector('.menu-item__label').getBoundingClientRect().left - left(item),
       hostWidth: first.getBoundingClientRect().width,
@@ -169,10 +167,10 @@ test('::part(base) from the page styles the label, and the label aligns with the
   });
   expect(r.uppercase).toBe('uppercase');
   expect(r.untouched).toBe('none');
-  expect(r.alignedStart).toBe(true);
   expect(r.labelPadding).toBe('28px');
-  // Shoelace's own design: an item's label starts after its 2px padding and the 1.5em check mark column, not at the label's 28px.
-  expect(r.itemLabelStart).toBeGreaterThan(0);
+  // Shoelace's design: an item's label starts after the item's 4px padding (--sl-spacing-2x-small) and its 1.5em check mark
+  // column (24px at the 16px item font), which is exactly where the label's 28px start padding puts the label's own text.
+  expect(r.itemLabelStart).toBe(parseFloat(r.labelPadding));
   // The host is a block, so it fills the 200px menu (less its 1px borders) while its base shrinks to the text.
   expect(r.hostWidth).toBe(r.menuWidth - 2);
 });

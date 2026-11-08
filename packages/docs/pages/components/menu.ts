@@ -26,6 +26,7 @@ const quirks = [
   'Any change of the slotted elements (an item added or removed, a label changed) resets the roving tab stop to the first item, so the item that had it loses it.',
   'Only elements whose tag is sl-menu-item or whose role is menuitem, menuitemcheckbox or menuitemradio are items, and elements with the inert attribute are skipped. A menuitemradio element is navigated to but a click on it is not handled, because the click handler only recognises menuitem and menuitemcheckbox.',
   'sl-select is emitted for a click on a loading item: the loading state does not suppress clicks, only disabled does. A click on an item in a submenu is handled only by the closest menu: the outer menu emits nothing of its own, and the inner menu\'s sl-select bubbles through it, so a listener on the outer menu sees one event whose detail is the nested item.',
+  'The keys act on the tab-stop item, not on the focused one. Hovering an item focuses it but does not move the tab stop (only a mouse down does), so after hovering the third item, Enter or Space selects the item that holds the tab stop, and Down or Up moves from that item, not from the hovered one.',
   'Enter or Space with no current item (before any item has the tab stop) does nothing, and with a disabled current item the simulated click is suppressed by the item, so nothing is selected.',
 ] as const;
 
@@ -76,7 +77,7 @@ export class MenuPage extends LitElement {
       })}
 
       <h2 id="keyboard">Keyboard</h2>
-      <p>As in Shoelace: with focus on an item, <kbd>Down</kbd> and <kbd>Up</kbd> move to the next or previous item, wrapping around; <kbd>Home</kbd> and <kbd>End</kbd> go to the first or last item; <kbd>Enter</kbd> and <kbd>Space</kbd> click the focused item, which selects it. Only one item is a tab stop at a time (roving tabindex). Opening and leaving a submenu is described on the <a href=${withBase('/components/menu-item')}>menu item</a> page.</p>
+      <p>As in Shoelace, the keys act from the menu's current item, the one that holds the tab stop (<code>tabindex="0"</code>), which is not always the item that has focus. <kbd>Down</kbd> and <kbd>Up</kbd> move from the current item to the next or previous one, wrapping around, and focus it; <kbd>Home</kbd> and <kbd>End</kbd> go to the first or last item; <kbd>Enter</kbd> and <kbd>Space</kbd> click the current item, which selects it. Only one item is a tab stop at a time (roving tabindex). The tab stop moves when a key moves to another item and when an item is pressed with the pointer, but not when an item only gets focus (for example by hovering it or by a script). Opening and leaving a submenu is described on the <a href=${withBase('/components/menu-item')}>menu item</a> page.</p>
 
       <h2 id="upstream-quirks">Upstream quirks matched</h2>
       <p>Velcro matches Shoelace 2.20.1 exactly, including behavior that looks like a bug. Each of these is covered by a product test. Each is a candidate for a later opt-in fix.</p>

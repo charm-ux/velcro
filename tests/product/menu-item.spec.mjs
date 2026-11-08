@@ -72,6 +72,8 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
   expect(html).toContain('Velcro is an unreleased prototype');
   expect(html).toContain('Upstream quirks matched');
   expect(html).toContain('Not implemented or unverified');
+  // The part's description says "not yet implemented" as Shoelace's does, although the chevron is rendered (a listed quirk).
+  expect(html).toContain('The submenu icon, visible only when the menu item has a submenu (not yet implemented)');
   expect(html).toContain('without changing the shared core prefix');
   expect(html).toContain('id="keyboard"');
   expect(html).toContain('A loading item still emits click');
@@ -136,6 +138,80 @@ test('class-only entry: importing defines nothing; constructing a menu item defi
     afterImport: [null, null, null, null, null],
     afterConstruct: ['VelcroMenuItem', 'VelcroIcon', 'VelcroPopup', 'VelcroSpinner', null],
     alias: true,
+  });
+  expect(pageErrors).toEqual([]);
+});
+
+const REGISTERING_ENTRY = `
+  import '@charm-ux/velcro/menu-item';
+  window.loaded = true;
+`;
+
+test('registering entry: a dependency tag owned by another constructor is left alone, existing items upgrade, and importing never throws', async ({ page }) => {
+  const pageErrors = await loadBundle(page, REGISTERING_ENTRY, {
+    beforeScript: () => {
+      class OtherIcon extends HTMLElement {}
+      customElements.define('sl-icon', OtherIcon);
+      window.OtherIcon = OtherIcon;
+      // An item that exists before the entry is imported is upgraded by the registration itself.
+      document.body.innerHTML = '<sl-menu-item id="early" type="checkbox" checked>Early</sl-menu-item>';
+    },
+  });
+  const r = await page.evaluate(async () => {
+    const early = document.getElementById('early');
+    await early.updateComplete;
+    const late = document.createElement('sl-menu-item');
+    document.body.append(late);
+    await late.updateComplete;
+    const name = tag => customElements.get(tag)?.name ?? null;
+    return {
+      iconIsOther: customElements.get('sl-icon') === window.OtherIcon,
+      tags: ['sl-menu-item', 'sl-popup', 'sl-spinner'].map(name),
+      earlyChecked: early.checked, earlyAria: early.getAttribute('aria-checked'),
+      checkIcon: early.shadowRoot.querySelector('[part="checked-icon"] sl-icon') instanceof window.OtherIcon,
+      lateRole: late.getAttribute('role'),
+    };
+  });
+  expect(r).toEqual({
+    iconIsOther: true, tags: ['VelcroMenuItem', 'VelcroPopup', 'VelcroSpinner'], earlyChecked: true, earlyAria: 'true', checkIcon: true, lateRole: 'menuitem',
+  });
+  expect(pageErrors).toEqual([]);
+});
+
+test('registering entry: a dependency class already registered under another tag gets an anonymous subclass under the dependency tag', async ({ page }) => {
+  const pageErrors = await loadBundle(page, `
+    import './pre.js';
+    import '@charm-ux/velcro/menu-item';
+    window.loaded = true;
+  `, {
+    files: {
+      // Runs before the entry's second import: Velcro's own icon class is taken under another tag.
+      'pre.js': `
+        import { VelcroIcon } from '@charm-ux/velcro/icon/class';
+        customElements.define('alt-icon', VelcroIcon);
+        window.AltIcon = VelcroIcon;
+      `,
+    },
+  });
+  const r = await page.evaluate(async () => {
+    const afterImport = [customElements.get('sl-icon') ?? null, customElements.get('sl-menu-item')?.name ?? null];
+    const item = document.createElement('sl-menu-item');
+    item.type = 'checkbox';
+    item.checked = true;
+    document.body.append(item);
+    await item.updateComplete;
+    const icon = customElements.get('sl-icon');
+    return {
+      afterImport,
+      altStillOwns: customElements.get('alt-icon') === window.AltIcon,
+      subclass: [icon !== window.AltIcon, Object.getPrototypeOf(icon) === window.AltIcon, icon.baseName],
+      popup: customElements.get('sl-popup')?.name, spinner: customElements.get('sl-spinner')?.name,
+      rendered: item.shadowRoot.querySelector('[part="checked-icon"] sl-icon') instanceof icon,
+    };
+  });
+  // Nothing is defined for the dependencies by the import itself (the item's constructor does that), and nothing threw.
+  expect(r).toEqual({
+    afterImport: [null, 'VelcroMenuItem'], altStillOwns: true, subclass: [true, true, 'icon'], popup: 'VelcroPopup', spinner: 'VelcroSpinner', rendered: true,
   });
   expect(pageErrors).toEqual([]);
 });
@@ -229,7 +305,7 @@ test('upstream quirk: checked on an item that is not a checkbox is reset to fals
   expect(errors.filter(e => e.includes('type="checkbox"')).length).toBe(2);
 });
 
-test('reflected properties: checked, loading and disabled reflect; removing the attribute restores the value from before the first attribute change; type and value do not reflect', async ({ page }) => {
+test('reflected properties: checked, loading and disabled reflect, and removing the attribute sets the property to false; type and value do not reflect', async ({ page }) => {
   await loadBundle(page, ENTRY);
   const r = await page.evaluate(async () => {
     const el = document.createElement('sl-menu-item');
@@ -376,9 +452,19 @@ test('submenus: the slot="submenu" popup is rendered, aria-haspopup and aria-exp
   });
   expect(r).toEqual({ popup: true, hidden: false, haspopup: '', expanded: null, isSubmenu: true, plain: false, chevron: 'visible', plainChevron: 'hidden', placement: 'right-start', strategy: 'fixed' });
   expect(await open(page)).toBe(false);
+  // The 100 ms delay, checked without a race: the mouseover is dispatched and the state read in the same browser task, so the
+  // item's timer cannot have fired yet whatever the machine's load; then the state is polled until the timer opens it.
+  const sameTask = await page.evaluate(() => {
+    const popup = document.getElementById('parent').shadowRoot.querySelector('sl-popup');
+    document.getElementById('parent').dispatchEvent(new MouseEvent('mouseover', { bubbles: true, composed: true }));
+    return popup.active;
+  });
+  expect(sameTask).toBe(false);
+  await expect.poll(() => open(page)).toBe(true);
+  await page.locator('#after').focus();
+  await expect.poll(() => open(page)).toBe(false);
+  // The real pointer opens it too, with the submenu to the right of the parent.
   await page.locator('#parent').hover({ position: { x: 20, y: 8 } });
-  // Opens after Shoelace's 100 ms delay, not at once.
-  expect(await open(page)).toBe(false);
   await expect.poll(() => open(page)).toBe(true);
   const geometry = () => page.evaluate(() => {
     const parent = document.getElementById('parent').getBoundingClientRect();
@@ -391,6 +477,54 @@ test('submenus: the slot="submenu" popup is rendered, aria-haspopup and aria-exp
   await page.locator('#after').focus();
   await expect.poll(() => page.locator('#parent').evaluate(el => el.shadowRoot.querySelector('.menu-item').hasAttribute('aria-expanded'))).toBe(false);
   expect(pageErrors).toEqual([]);
+});
+
+test('upstream quirk: in a submenu, a click on a nested item closes it only because of its role; without the role the tagName comparison never matches and the submenu stays open', async ({ page }) => {
+  const pageErrors = await loadBundle(page, ENTRY);
+  await mount(page, SUBMENU, 'style="max-width: 200px"');
+  const openViaKeyboard = async () => {
+    await page.locator('#parent').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect.poll(() => open(page)).toBe(true);
+  };
+  // Control: a nested item with its role intact closes the submenu when it is clicked.
+  await openViaKeyboard();
+  await page.locator('[value="child-1"]').click();
+  await expect.poll(() => open(page)).toBe(false);
+  // Without the role the item's tag name ('SL-MENU-ITEM') still does not match the lower-case 'sl-menu-item', so it stays open.
+  await page.evaluate(() => document.querySelector('[value="child-2"]').removeAttribute('role'));
+  await openViaKeyboard();
+  await page.locator('[value="child-2"]').click();
+  await page.waitForTimeout(250);
+  expect(await open(page)).toBe(true);
+  expect(pageErrors).toEqual([]);
+});
+
+test('upstream quirk: aria-disabled and aria-checked are written by the item on its first update and whenever the property changes, replacing what the page wrote', async ({ page }) => {
+  await loadBundle(page, ENTRY);
+  await mount(page, `
+    <sl-menu-item id="a" aria-disabled="true">A</sl-menu-item>
+    <sl-menu-item id="b" type="checkbox" aria-checked="true">B</sl-menu-item>
+    <sl-menu-item id="c" disabled aria-disabled="false">C</sl-menu-item>`);
+  const r = await page.evaluate(async () => {
+    const [a, b, c] = ['a', 'b', 'c'].map(id => document.getElementById(id));
+    const aria = () => [a.getAttribute('aria-disabled'), b.getAttribute('aria-checked'), c.getAttribute('aria-disabled')];
+    const first = aria();
+    // Between property changes nothing watches the attributes, so a value the page writes now stays.
+    a.setAttribute('aria-disabled', 'true');
+    b.setAttribute('aria-checked', 'true');
+    await a.updateComplete;
+    const written = aria();
+    // The next property change writes them again, replacing the page's value.
+    a.disabled = true;
+    b.checked = true;
+    await Promise.all([a.updateComplete, b.updateComplete]);
+    a.disabled = false;
+    b.checked = false;
+    await Promise.all([a.updateComplete, b.updateComplete]);
+    return { first, written, after: aria() };
+  });
+  expect(r).toEqual({ first: ['false', 'false', 'true'], written: ['true', 'true', 'true'], after: ['false', 'false', 'true'] });
 });
 
 test('submenu keyboard: Right, Enter and Space open it at once and focus the first nested item; Left returns to the parent; Escape and Tab close it', async ({ page }) => {
@@ -490,7 +624,8 @@ test('React examples render the same menus as the HTML examples through the gene
   const code = await bundleExamples('menu-item', ORDER.map(([id]) => id));
   const pageErrors = await loadExamples(page, code);
   const logs = [];
-  page.on('console', m => { if (m.type() === 'log') logs.push(m.text()); });
+  const errorLogs = [];
+  page.on('console', m => { if (m.type() === 'log') logs.push(m.text()); if (m.type() === 'error') errorLogs.push(m.text()); });
   const r = await page.evaluate(async names => {
     const out = {};
     for (const name of names) {
@@ -508,9 +643,16 @@ test('React examples render the same menus as the HTML examples through the gene
   expect(r.out.checkbox.map(i => [i[0], i[1]])).toEqual([['checkbox', false], ['checkbox', true], ['checkbox', false]]);
   expect(r.out['prefix-suffix']).toHaveLength(3);
   expect(r.out['value-selection'].map(i => i[4])).toEqual(['opt-1', 'opt-2', 'opt-3']);
+  // Shoelace's handler (ported unchanged) sets item.checked = !item.checked on plain items. The item resets it to false and
+  // logs the upstream console error each time, then the handler logs the value.
+  expect(errorLogs).toEqual([]);
   await page.locator('#value-selection sl-menu-item').nth(2).click();
   await expect.poll(() => logs).toContain('Selected value: opt-3');
-  // The ported handler no longer toggles `checked` on plain items, so nothing is logged as an error.
+  await page.locator('#value-selection sl-menu-item').nth(0).click();
+  await expect.poll(() => logs).toContain('Selected value: opt-1');
+  expect(errorLogs.filter(t => t.startsWith('The checked attribute can only be used on menu items with type="checkbox"'))).toHaveLength(2);
+  expect(errorLogs).toHaveLength(2);
+  expect(await page.evaluate(() => [...document.querySelectorAll('#value-selection sl-menu-item')].map(i => [i.checked, i.hasAttribute('checked'), i.hasAttribute('aria-checked')]))).toEqual([[false, false, false], [false, false, false], [false, false, false]]);
   expect(await page.evaluate(() => window.errors)).toEqual([]);
   expect(pageErrors).toEqual([]);
 });

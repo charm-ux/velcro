@@ -5,6 +5,9 @@ const App = () => {
   function handleSelect(event) {
     const item = event.detail.item;
 
+    // Toggle checked state
+    item.checked = !item.checked;
+
     // Log value
     console.log(`Selected value: ${item.value}`);
   }
