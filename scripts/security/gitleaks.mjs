@@ -41,6 +41,9 @@ const RELEASE_BASE_URL = `https://github.com/gitleaks/gitleaks/releases/download
 const SUPPORTED_TARGETS = ['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64'];
 const MANIFEST_PATH = ['security', 'gitleaks-checksums.json'];
 const SCRATCH_PATH = ['.airig', 'tools', 'gitleaks', GITLEAKS_VERSION];
+// Verified downloaded archives are kept here (and nothing else), so CI can cache this one directory. A kept archive is
+// re-verified against the pinned SHA-256 on every install before anything is extracted from it.
+const ARCHIVE_CACHE_PATH = [...SCRATCH_PATH, 'archives'];
 const EXECUTABLE_NAME = 'gitleaks';
 
 const MiB = 1024 * 1024;
@@ -80,6 +83,8 @@ const MESSAGES = {
   'download-failed': 'download of the pinned Gitleaks archive failed',
   'download-too-large': 'download exceeded the size limit for the pinned Gitleaks archive',
   'archive-checksum-mismatch': 'downloaded archive does not match the pinned SHA-256; nothing was extracted',
+  'cached-archive-invalid':
+    'kept archive is not a regular file, is oversized or does not match the pinned SHA-256; nothing was extracted. Delete it to download again',
   'archive-unsafe': 'archive is malformed or contains unsafe or unexpected entries',
   'install-failed': 'could not write the pinned Gitleaks executable to local scratch',
   'binary-missing': 'pinned Gitleaks executable is not installed; run "node scripts/security/gitleaks.mjs install"',
@@ -166,6 +171,7 @@ export function selectTarget(manifest, platform, arch) {
     ...entry,
     url: `${manifest.releaseBaseUrl}${entry.archive}`,
     relativeExecutable: path.join(...SCRATCH_PATH, key, EXECUTABLE_NAME),
+    relativeArchive: path.join(...ARCHIVE_CACHE_PATH, entry.archive),
   });
 }
 
@@ -503,6 +509,42 @@ async function download(url, fetchImpl) {
   }
 }
 
+// A kept archive (for example one restored by a CI cache) is untrusted bytes: it must be a regular file within the
+// download size limit whose SHA-256 is the pinned one. Anything else fails closed; it is never replaced by a download.
+// Returns null when no archive is kept.
+function readKeptArchive(file, expectedSha256) {
+  let stats;
+  try {
+    stats = lstatSync(file);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw new SafeError('cached-archive-invalid');
+  }
+  if (!stats.isFile() || stats.size > MAX_ARCHIVE_BYTES) throw new SafeError('cached-archive-invalid');
+  let content;
+  try {
+    content = readFileSync(file);
+  } catch {
+    throw new SafeError('cached-archive-invalid');
+  }
+  if (content.length > MAX_ARCHIVE_BYTES || sha256(content) !== expectedSha256) throw new SafeError('cached-archive-invalid');
+  return content;
+}
+
+function writeAtomically(file, content, mode) {
+  const directory = path.dirname(file);
+  const temporary = path.join(directory, `.${path.basename(file)}-${randomBytes(8).toString('hex')}.partial`);
+  try {
+    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    writeFileSync(temporary, content, { mode, flag: 'wx' });
+    chmodSync(temporary, mode);
+    renameSync(temporary, file);
+  } catch {
+    rmSync(temporary, { force: true });
+    throw new SafeError('install-failed');
+  }
+}
+
 // Scratch placement deliberately honours the user's normal Git ignore
 // configuration (global excludes included).
 function assertIgnoredScratch(root, relative) {
@@ -518,7 +560,9 @@ export async function installGitleaks({
 } = {}) {
   const target = selectTarget(loadManifest(root), platform, arch);
   assertIgnoredScratch(root, target.relativeExecutable);
+  assertIgnoredScratch(root, target.relativeArchive);
   const binary = { path: path.join(root, target.relativeExecutable), sha256: target.executableSha256 };
+  const archivePath = path.join(root, target.relativeArchive);
   const summary = {
     version: GITLEAKS_VERSION,
     target: target.key,
@@ -526,36 +570,34 @@ export async function installGitleaks({
     archiveSha256: target.archiveSha256,
     executableSha256: target.executableSha256,
     location: target.relativeExecutable.split(path.sep).join('/'),
+    archiveLocation: target.relativeArchive.split(path.sep).join('/'),
   };
+
+  // Verified first, whatever else is installed: a kept archive with wrong bytes always fails closed.
+  const kept = readKeptArchive(archivePath, target.archiveSha256);
 
   try {
     verifyExecutable(binary);
     const version = await reportedVersion(binary);
-    return { ...summary, status: 'already-installed', reportedVersion: version };
+    return { ...summary, status: 'already-installed', keptArchiveVerified: kept !== null, reportedVersion: version };
   } catch {
     // Missing or wrong: fall through to a fresh verified install.
   }
 
-  const archive = await download(target.url, fetchImpl);
-  if (sha256(archive) !== target.archiveSha256) throw new SafeError('archive-checksum-mismatch');
+  let archive = kept;
+  if (archive === null) {
+    archive = await download(target.url, fetchImpl);
+    if (sha256(archive) !== target.archiveSha256) throw new SafeError('archive-checksum-mismatch');
+  }
   const executable = extractExecutable(archive);
   if (sha256(executable) !== target.executableSha256) throw new SafeError('binary-checksum-mismatch');
-
-  const directory = path.dirname(binary.path);
-  const temporary = path.join(directory, `.${EXECUTABLE_NAME}-${randomBytes(8).toString('hex')}.partial`);
-  try {
-    mkdirSync(directory, { recursive: true, mode: 0o700 });
-    writeFileSync(temporary, executable, { mode: 0o700, flag: 'wx' });
-    chmodSync(temporary, 0o700);
-    renameSync(temporary, binary.path);
-  } catch {
-    rmSync(temporary, { force: true });
-    throw new SafeError('install-failed');
-  }
+  // Only verified bytes are kept, and only after the executable inside them matched its pin too.
+  if (kept === null) writeAtomically(archivePath, archive, 0o600);
+  writeAtomically(binary.path, executable, 0o700);
 
   try {
     const version = await reportedVersion(binary);
-    return { ...summary, status: 'installed', reportedVersion: version };
+    return { ...summary, status: kept === null ? 'installed' : 'installed-from-kept-archive', reportedVersion: version };
   } catch (error) {
     try {
       unlinkSync(binary.path);
@@ -1076,10 +1118,14 @@ export async function main(argv, io = { stdout: process.stdout, stderr: process.
         const summary = await installGitleaks();
         io.stdout.write(
           [
-            `gitleaks ${summary.version} ${summary.status === 'installed' ? 'installed' : 'already installed'} for ${summary.target}`,
-            summary.status === 'installed'
-              ? `  archive ${summary.archive} sha256 verified: ${summary.archiveSha256}`
-              : '  archive not downloaded; existing executable re-verified',
+            `gitleaks ${summary.version} ${summary.status === 'already-installed' ? 'already installed' : 'installed'} for ${summary.target}`,
+            {
+              installed: `  archive ${summary.archive} downloaded; sha256 verified: ${summary.archiveSha256}; kept at ${summary.archiveLocation}`,
+              'installed-from-kept-archive': `  archive ${summary.archive} read from ${summary.archiveLocation} (no download); sha256 verified: ${summary.archiveSha256}`,
+            }[summary.status] ??
+              (summary.keptArchiveVerified
+                ? `  archive not downloaded; kept archive at ${summary.archiveLocation} and existing executable re-verified`
+                : '  archive not downloaded; existing executable re-verified'),
             `  executable sha256 verified: ${summary.executableSha256}`,
             `  reported version: ${summary.reportedVersion}`,
             `  location: ${summary.location} (ignored local scratch)`,

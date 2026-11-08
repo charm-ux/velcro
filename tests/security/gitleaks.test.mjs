@@ -455,6 +455,8 @@ describe('install transport (mocked)', () => {
     );
     const installed = listFiles(path.join(root, '.airig')).filter((entry) => entry.endsWith('gitleaks'));
     assert.deepEqual(installed, []);
+    const kept = listFiles(path.join(root, '.airig')).filter((entry) => entry.endsWith('.tar.gz'));
+    assert.deepEqual(kept, [], 'unverified download bytes must never be kept');
   });
 
   test('network errors are reported without echoing raw transport detail', async () => {
@@ -571,6 +573,115 @@ describe('install transport (mocked)', () => {
     assert.equal(second.status, 'already-installed');
     assert.equal(calls, 1);
   });
+
+  // The kept archive is what CI caches (.airig/tools/gitleaks/<version>/archives): a restore is untrusted bytes.
+  const keptArchive = (root) =>
+    path.join(root, scanner.selectTarget(scanner.loadManifest(root), 'linux', 'x64').relativeArchive);
+  const installedExecutable = (root) =>
+    path.join(root, scanner.selectTarget(scanner.loadManifest(root), 'linux', 'x64').relativeExecutable);
+  const noFetch = (calls) => async () => {
+    calls.push('fetch');
+    return new Response('unexpected', { status: 500 });
+  };
+
+  test('a miss downloads, verifies and keeps exactly the pinned archive in the cached directory', async () => {
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest, archive } = syntheticInstallManifest(executable);
+    const root = ignoredRoot('install-keep', manifest);
+    const calls = [];
+    const fetchImpl = async (url) => {
+      calls.push(String(url));
+      return new Response(archive, { status: 200 });
+    };
+    const first = await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl });
+    assert.equal(first.status, 'installed');
+    assert.equal(calls.length, 1);
+    assert.equal(first.archiveLocation, '.airig/tools/gitleaks/8.30.1/archives/gitleaks_8.30.1_linux_x64.tar.gz');
+    const kept = keptArchive(root);
+    assert.equal(sha256(readFileSync(kept)), manifest.targets['linux-x64'].archiveSha256);
+    assert.equal(statSync(kept).mode & 0o777, 0o600);
+    assert.deepEqual(readdirSync(path.dirname(kept)), [path.basename(kept)], 'only the archive is kept there');
+    // A fresh runner (no executable) with the restored archive installs without any download.
+    rmSync(installedExecutable(root));
+    const second = await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: noFetch(calls) });
+    assert.equal(second.status, 'installed-from-kept-archive');
+    assert.equal(second.reportedVersion, '8.30.1');
+    assert.equal(calls.length, 1, 'a kept archive is never re-downloaded');
+    assert.equal(sha256(readFileSync(installedExecutable(root))), sha256(Buffer.from(executable)));
+    const third = await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: noFetch(calls) });
+    assert.equal(third.status, 'already-installed');
+    assert.equal(third.keptArchiveVerified, true);
+    assert.equal(calls.length, 1);
+  });
+
+  test('a restored archive with the pinned bytes installs without a download', async () => {
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest, archive } = syntheticInstallManifest(executable);
+    const root = ignoredRoot('install-restored-good', manifest);
+    mkdirSync(path.dirname(keptArchive(root)), { recursive: true });
+    writeFileSync(keptArchive(root), archive);
+    const calls = [];
+    const result = await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: noFetch(calls) });
+    assert.equal(result.status, 'installed-from-kept-archive');
+    assert.deepEqual(calls, []);
+    assert.equal(sha256(readFileSync(installedExecutable(root))), sha256(Buffer.from(executable)));
+  });
+
+  test('a restored archive with wrong bytes fails closed: no extraction, no download, no install', async () => {
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest } = syntheticInstallManifest(executable);
+    const root = ignoredRoot('install-restored-bad', manifest);
+    mkdirSync(path.dirname(keptArchive(root)), { recursive: true });
+    // A well-formed archive whose executable would even run: only the pinned archive hash decides.
+    const wrong = tarArchive(standardEntries(fakeVersionExecutable('8.30.1') + '// tampered\n'));
+    writeFileSync(keptArchive(root), wrong);
+    const calls = [];
+    await expectSafeError(
+      scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: noFetch(calls) }),
+      'cached-archive-invalid',
+    );
+    assert.deepEqual(calls, [], 'wrong kept bytes are never replaced by a download');
+    assert.equal(existsSync(installedExecutable(root)), false);
+    assert.equal(sha256(readFileSync(keptArchive(root))), sha256(wrong), 'the evidence is left in place');
+  });
+
+  test('wrong kept bytes fail closed even when a verified executable is already installed', async () => {
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest, archive } = syntheticInstallManifest(executable);
+    const root = ignoredRoot('install-restored-bad-installed', manifest);
+    await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: async () => new Response(archive) });
+    writeFileSync(keptArchive(root), Buffer.concat([archive, Buffer.from('x')]));
+    const calls = [];
+    await expectSafeError(
+      scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: noFetch(calls) }),
+      'cached-archive-invalid',
+    );
+    assert.deepEqual(calls, []);
+  });
+
+  for (const [label, place] of [
+    ['a symlink to the pinned bytes', (file, archive, dir) => {
+      writeFileSync(path.join(dir, 'elsewhere.tar.gz'), archive);
+      symlinkSync(path.join(dir, 'elsewhere.tar.gz'), file);
+    }],
+    ['a directory', (file) => mkdirSync(file)],
+    ['an oversized file', (file) => writeFileSync(file, Buffer.alloc(32 * 1024 * 1024 + 1))],
+  ]) {
+    test(`a kept archive that is ${label} fails closed`, async () => {
+      const executable = fakeVersionExecutable('8.30.1');
+      const { manifest, archive } = syntheticInstallManifest(executable);
+      const root = ignoredRoot('install-restored-odd', manifest);
+      mkdirSync(path.dirname(keptArchive(root)), { recursive: true });
+      place(keptArchive(root), archive, scratch('install-restored-elsewhere'));
+      const calls = [];
+      await expectSafeError(
+        scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: noFetch(calls) }),
+        'cached-archive-invalid',
+      );
+      assert.deepEqual(calls, []);
+      assert.equal(existsSync(installedExecutable(root)), false);
+    });
+  }
 
   test('an executable reporting the wrong version is rolled back', async () => {
     const executable = fakeVersionExecutable('8.30.0');
