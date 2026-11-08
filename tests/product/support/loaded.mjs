@@ -96,9 +96,35 @@ export async function pendingLoad(page) {
   return pending;
 }
 
+// What the page is still waiting for, for a docsReady failure message: diagnostics only, never a condition of the wait.
+const pendingReady = page => page.evaluate(() => {
+  const outlet = document.querySelector('litro-outlet');
+  if (!outlet) return 'no litro-outlet';
+  const frames = [];
+  const walk = root => {
+    for (const el of root.querySelectorAll('*')) {
+      if (el.localName === 'iframe') frames.push(el);
+      if (el.shadowRoot) walk(el.shadowRoot);
+    }
+  };
+  walk(outlet);
+  const loading = frames.filter(f => { try { return f.contentDocument?.readyState !== 'complete'; } catch { return false; } });
+  return [
+    `document ${document.readyState}`,
+    `router ${outlet.hasAttribute('data-litro-settled') ? 'settled' : 'not settled'}`,
+    `${outlet.children.length} page(s) in the outlet`,
+    `${loading.length} of ${frames.length} frames loading`,
+  ].join(', ');
+}).catch(error => `state unreadable (${error.message.split('\n')[0]})`);
+
 export async function docsReady(page, { timeout = BOUND_MS } = {}) {
-  await expect(page.locator('litro-outlet'), 'the docs page has remounted and its example frames have loaded')
-    .toHaveAttribute('data-docs-ready', '', { timeout });
+  try {
+    await expect(page.locator('litro-outlet'), 'the docs page has remounted and its example frames have loaded')
+      .toHaveAttribute('data-docs-ready', '', { timeout });
+  } catch (error) {
+    error.message += `\n\nPage state at the bound: ${await pendingReady(page)}`;
+    throw error;
+  }
 }
 
 export async function openDocs(page, url) {

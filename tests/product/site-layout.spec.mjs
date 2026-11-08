@@ -2,6 +2,7 @@
 import { expect, test } from '@playwright/test';
 import { guardCdn } from './support/cdn.mjs';
 import { openDocs } from './support/loaded.mjs';
+import { readCatalog } from '../../scripts/site/catalog.mjs';
 
 // The icon page loads its CDN icon library examples only on request; no test here asks, and none reaches a CDN (support/cdn.mjs).
 let cdnRequests = [];
@@ -110,14 +111,15 @@ for (const fontSize of ['16px', '24px']) {
   }
 }
 
-test('no page overflows a 320px viewport horizontally at a 24px root font', async ({ browser }) => {
-  const { readCatalog } = await import('../../scripts/site/catalog.mjs');
-  const context = await browser.newContext({ viewport: { width: 320, height: 640 } });
-  const page = await context.newPage();
+// One test per docs page (the home page and every catalog component), so each page has its own time budget: a single
+// test walking every page grew slower with each component until it timed out in CI. The page fixture keeps the CDN guard.
+test.describe('no horizontal overflow at 320px with a 24px root font', () => {
+  test.use({ viewport: { width: 320, height: 640 } });
   for (const route of ['/', ...readCatalog().map(c => `/components/${c.name}`)]) {
-    await openDocs(page, route);
-    await page.addStyleTag({ content: 'html { font-size: 24px !important; }' });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth), route).toBeLessThanOrEqual(320);
+    test(route, async ({ page }) => {
+      await openDocs(page, route);
+      await page.addStyleTag({ content: 'html { font-size: 24px !important; }' });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+    });
   }
-  await context.close();
 });
