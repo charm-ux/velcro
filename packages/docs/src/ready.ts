@@ -9,95 +9,152 @@
  * - the router has settled and the outlet holds only that page component, visible (the remount has finished);
  * - the page component has rendered and the fragment (location.hash) has been revealed;
  * - the document has loaded and the docs page's Velcro runtime has been evaluated;
- * - every iframe in the page component (through nested shadow roots) has loaded the document it names, and the
- *   fragment has been revealed again unless the reader has moved since (see settle).
+ * - every iframe the page holds at that moment (through nested shadow roots and same-origin frame documents) has loaded
+ *   the document it names, and still does two animation frames later (see settle);
+ * - the fragment has been revealed again if the page has moved under it and the reader has not moved (see settle).
  * It is removed as soon as the outlet's page changes or a navigation to another path starts, and set again for the next
- * page. Example frames added later (on request) are not waited for.
+ * page. Waiting stops (listeners and all) when the page is replaced, or after SETTLE_LIMIT_MS without the signal: a page
+ * that has not loaded by then is never marked ready.
  */
 export const READY_ATTRIBUTE = 'data-docs-ready';
 const SETTLED_ATTRIBUTE = 'data-litro-settled';
+const SETTLE_LIMIT_MS = 60_000;
+// How often the frame set is read again while a frame is loading: frames can be added or removed without a load event.
+const RECHECK_MS = 100;
 // Events that mean the reader is moving around the page themselves.
 const INTENT_EVENTS = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const;
 
-const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+class Abandoned extends Error {}
 
-const documentLoaded = () =>
-  document.readyState === 'complete' ? Promise.resolve() : new Promise<void>(resolve => addEventListener('load', () => resolve(), { once: true }));
+// Resolves with `promise`, or rejects with Abandoned once `signal` aborts.
+function until<T>(promise: PromiseLike<T>, signal: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    if (signal.aborted) return reject(new Abandoned());
+    const abandon = () => reject(new Abandoned());
+    signal.addEventListener('abort', abandon, { once: true });
+    promise.then(
+      value => {
+        signal.removeEventListener('abort', abandon);
+        resolve(value);
+      },
+      error => {
+        signal.removeEventListener('abort', abandon);
+        reject(error);
+      }
+    );
+  });
+}
 
-function framesIn(root: Element | ShadowRoot, found: HTMLIFrameElement[] = []): HTMLIFrameElement[] {
+const nextFrame = (signal: AbortSignal) => until(new Promise<void>(resolve => requestAnimationFrame(() => resolve())), signal);
+
+const documentLoaded = (signal: AbortSignal) =>
+  document.readyState === 'complete'
+    ? Promise.resolve()
+    : until(new Promise<void>(resolve => addEventListener('load', () => resolve(), { once: true, signal })), signal);
+
+function sameOriginDocument(frame: HTMLIFrameElement): Document | null {
+  try {
+    return frame.contentDocument;
+  } catch {
+    return null;
+  }
+}
+
+// Every iframe in `root`, through open shadow roots and into same-origin frame documents (an example can add its own).
+function framesIn(root: ParentNode, found: HTMLIFrameElement[] = []): HTMLIFrameElement[] {
   for (const el of root.querySelectorAll('*')) {
-    if (el instanceof HTMLIFrameElement) found.push(el);
+    // Elements of a frame document are instances of that document's own HTMLIFrameElement: compare the name.
+    if (el.localName === 'iframe') {
+      found.push(el as HTMLIFrameElement);
+      const doc = sameOriginDocument(el as HTMLIFrameElement);
+      if (doc) framesIn(doc, found);
+    }
     if (el.shadowRoot) framesIn(el.shadowRoot, found);
   }
   return found;
 }
 
+const framesOf = (page: Element) => (page.shadowRoot ? framesIn(page.shadowRoot, framesIn(page)) : framesIn(page));
+
 // A frame has loaded once its document is complete. A frame whose element names a document (src or srcdoc) has not
-// started loading it while it still shows the initial about:blank. A cross-origin document cannot be read; its frame's
-// load event is the only report. A frame removed from the page will not load; the page is then being replaced anyway.
-function frameLoaded(frame: HTMLIFrameElement): Promise<void> {
-  const state = (): 'loaded' | 'loading' | 'opaque' => {
-    let doc: Document | null = null;
-    try {
-      doc = frame.contentDocument;
-    } catch {
-      return 'opaque';
-    }
-    if (!doc) return frame.isConnected ? 'opaque' : 'loaded';
-    const named = frame.hasAttribute('srcdoc') || Boolean(frame.getAttribute('src'));
-    return named && doc.URL === 'about:blank' ? 'loading' : doc.readyState === 'complete' ? 'loaded' : 'loading';
-  };
-  if (state() === 'loaded') return Promise.resolve();
-  return new Promise(resolve => {
-    const onLoad = () => {
-      if (state() === 'loading') return;
-      frame.removeEventListener('load', onLoad);
-      resolve();
-    };
-    frame.addEventListener('load', onLoad);
-  });
+// started loading it while it still shows the initial about:blank. A cross-origin document cannot be read; such a frame
+// counts as loaded once its load event has been seen (`sawLoad`). A frame removed from the page is no longer read.
+function frameLoaded(frame: HTMLIFrameElement, sawLoad: WeakSet<HTMLIFrameElement>): boolean {
+  let doc: Document | null;
+  try {
+    doc = frame.contentDocument;
+  } catch {
+    return sawLoad.has(frame);
+  }
+  if (!doc) return !frame.isConnected || sawLoad.has(frame);
+  const named = frame.hasAttribute('srcdoc') || Boolean(frame.getAttribute('src'));
+  return !(named && doc.URL === 'about:blank') && doc.readyState === 'complete';
 }
+
+const scrollPosition = () => `${scrollX},${scrollY}`;
 
 export function trackReadiness(outlet: Element, { reveal, runtime }: { reveal: () => void; runtime: Promise<unknown> }): void {
   let current: Element | null = null;
-  let generation = 0;
+  let stop: AbortController | null = null;
   let path = '';
   const retired = new WeakSet<Element>();
   const pathOf = () => location.pathname + location.search;
 
   const reset = () => {
-    generation++;
+    stop?.abort();
+    stop = null;
     if (current) retired.add(current);
     current = null;
     outlet.removeAttribute(READY_ATTRIBUTE);
   };
 
-  const settle = async (page: Element & { updateComplete?: Promise<unknown> }, run: number) => {
-    await page.updateComplete;
-    await nextFrame();
-    await nextFrame();
-    if (run !== generation) return;
+  const settle = async (page: Element & { updateComplete?: Promise<unknown> }, signal: AbortSignal) => {
+    await until(Promise.resolve(page.updateComplete), signal);
+    await nextFrame(signal);
+    await nextFrame(signal);
     reveal();
-    // Example frames size themselves to their content as they load, which moves everything below them. Engines without
-    // scroll anchoring (WebKit) leave the fragment where it was, so reveal it again once they have loaded and sized
-    // themselves, unless the reader has scrolled or interacted in the meantime.
+    // Example frames size themselves to their content as they load, which moves everything below them. Engines with
+    // scroll anchoring move the scroll position to keep the revealed fragment in place; engines without it (WebKit)
+    // leave the scroll position, and the fragment, where they were. So the fragment is revealed again at the end only
+    // if the scroll position is still the one the reveal left and the reader has not interacted with the page since. A
+    // reader scrolling by any means (including from inside an example, whose events never reach this window) moves it.
+    const revealedAt = scrollPosition();
     let moved = false;
-    const onIntent = () => {
-      moved = true;
-    };
-    for (const type of INTENT_EVENTS) addEventListener(type, onIntent, { capture: true, passive: true });
-    try {
-      await documentLoaded();
-      await runtime;
-      const frames = page.shadowRoot ? framesIn(page.shadowRoot, framesIn(page)) : framesIn(page);
-      await Promise.all(frames.map(frameLoaded));
-      await nextFrame();
-      await nextFrame();
-    } finally {
-      for (const type of INTENT_EVENTS) removeEventListener(type, onIntent, { capture: true });
+    for (const type of INTENT_EVENTS) {
+      addEventListener(type, () => (moved = true), { capture: true, passive: true, signal });
     }
-    if (run !== generation) return;
-    if (!moved) reveal();
+    await documentLoaded(signal);
+    await until(runtime, signal);
+    // Wait until every frame the page holds has loaded, reading the frame set again after each load (a load can add
+    // frames) and every RECHECK_MS (frames can be added or removed at any time), and once more two animation frames
+    // after they all had: the signal is set in the same task as that final reading.
+    const sawLoad = new WeakSet<HTMLIFrameElement>();
+    const watching = new WeakSet<HTMLIFrameElement>();
+    let wake = () => {};
+    for (;;) {
+      const frames = framesOf(page);
+      const loading = frames.filter(frame => !frameLoaded(frame, sawLoad));
+      if (loading.length === 0) {
+        await nextFrame(signal);
+        await nextFrame(signal);
+        if (framesOf(page).every(frame => frameLoaded(frame, sawLoad))) break;
+        continue;
+      }
+      for (const frame of loading) {
+        if (watching.has(frame)) continue;
+        watching.add(frame);
+        frame.addEventListener('load', () => (sawLoad.add(frame), wake()), { signal });
+      }
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      await until(
+        new Promise<void>(resolve => {
+          wake = resolve;
+          timer = setTimeout(resolve, RECHECK_MS);
+        }),
+        signal
+      ).finally(() => clearTimeout(timer));
+    }
+    if (!moved && scrollPosition() === revealedAt) reveal();
     outlet.setAttribute(READY_ATTRIBUTE, '');
   };
 
@@ -114,7 +171,20 @@ export function trackReadiness(outlet: Element, { reveal, runtime }: { reveal: (
     if (!page) return;
     current = page;
     path = pathOf();
-    void settle(page, generation);
+    const run = new AbortController();
+    stop = run;
+    const limit = setTimeout(() => {
+      console.warn(`docs: ${location.pathname} did not finish loading within ${SETTLE_LIMIT_MS / 1000} s; it is not marked ${READY_ATTRIBUTE}`);
+      run.abort();
+    }, SETTLE_LIMIT_MS);
+    settle(page, run.signal)
+      .catch(error => {
+        if (!(error instanceof Abandoned)) throw error;
+      })
+      .finally(() => {
+        clearTimeout(limit);
+        run.abort(); // removes every listener this run added
+      });
   };
 
   new MutationObserver(check).observe(outlet, { childList: true, attributes: true, attributeFilter: [SETTLED_ATTRIBUTE] });
