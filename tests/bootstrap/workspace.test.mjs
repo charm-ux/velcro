@@ -55,6 +55,8 @@ const prototypeExports = {
     .map(c => [`./${c.name}/class`, exportTargets(`components/${c.name}/class`)])),
   './animation/animations': exportTargets('components/animation/animations'),
   './utilities/animation': exportTargets('utilities/animation'),
+  // Shoelace's dist/utilities/animation-registry.js (setDefaultAnimation, setAnimation and getAnimation).
+  './utilities/animation-registry': exportTargets('utilities/animation-registry'),
   // Shoelace's dist/utilities/form.js (serialize and getFormControls).
   './utilities/form': exportTargets('utilities/form'),
   // The localization modules: Shoelace's dist/utilities/localize.js and its 29 dist/translations/<code>.js files.

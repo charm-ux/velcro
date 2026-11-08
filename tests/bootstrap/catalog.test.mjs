@@ -25,6 +25,7 @@ const tgt = f => ({ types: `./dist/${f}.d.ts`, import: `./dist/${f}.js` });
 const TRANSLATION_CODES = ['ar', 'cs', 'da', 'de', 'de-ch', 'en', 'en-gb', 'es', 'fa', 'fi', 'fr', 'he', 'hr', 'hu', 'id', 'it',
   'ja', 'nb', 'nl', 'nn', 'pl', 'pt', 'ru', 'sl', 'sv', 'tr', 'uk', 'zh-cn', 'zh-tw'];
 const packageModuleExports = () => ({
+  './utilities/animation-registry': tgt('utilities/animation-registry'),
   './utilities/form': tgt('utilities/form'),
   './utilities/localize': tgt('utilities/localize'),
   ...Object.fromEntries(TRANSLATION_CODES.map(c => [`./translations/${c}`, tgt(`translations/${c}`)])),
@@ -92,12 +93,13 @@ for (const [label, mutate, expected] of negatives) {
 // is in the catalog, with exact targets, and never admitted by the ./<name>/class pattern.
 const includeCatalog = [{ name: 'include' }];
 const includeExports = { ...baseExports(['include']), './include/request': tgt('components/include/request') };
-test('the module export table lists exactly the animation modules, the include helper, the form utilities and the localization modules, by full key', () => {
+test('the module export table lists exactly the animation modules, the include helper, the animation registry, the form utilities and the localization modules, by full key', () => {
   assert.equal(PACKAGE_OWNER, '@charm-ux/velcro');
   assert.deepEqual(Object.entries(MODULE_EXPORTS), [
     ['./animation/animations', ['animation', 'components/animation/animations']],
     ['./include/request', ['include', 'components/include/request']],
     ['./utilities/animation', ['animation', 'utilities/animation']],
+    ['./utilities/animation-registry', ['@charm-ux/velcro', 'utilities/animation-registry']],
     ['./utilities/form', ['@charm-ux/velcro', 'utilities/form']],
     ['./utilities/localize', ['@charm-ux/velcro', 'utilities/localize']],
     ...TRANSLATION_CODES.map(c => [`./translations/${c}`, ['@charm-ux/velcro', `translations/${c}`]]),
@@ -152,12 +154,17 @@ test('package-level module exports are required with exact targets for every cat
   assert.deepEqual(checkExports({ ...ok, './utilities/form': tgt('internal/form') }, []), wrong('./utilities/form'));
   assert.deepEqual(checkExports({ ...ok, './utilities/form': './dist/utilities/form.js' }, []), wrong('./utilities/form'));
   assert.deepEqual(checkExports({ ...ok, './utilities/form': { ...tgt('utilities/form'), default: './dist/utilities/form.js' } }, []), wrong('./utilities/form'));
+  assert.deepEqual(checkExports({ ...ok, './utilities/animation-registry': tgt('utilities/animation') }, []), wrong('./utilities/animation-registry'));
+  assert.deepEqual(checkExports({ ...ok, './utilities/animation-registry': tgt('internal/animate') }, []), wrong('./utilities/animation-registry'));
+  assert.deepEqual(checkExports({ ...ok, './utilities/animation-registry': './dist/utilities/animation-registry.js' }, []), wrong('./utilities/animation-registry'));
+  assert.deepEqual(checkExports({ ...ok, './utilities/animation-registry': { ...tgt('utilities/animation-registry'), default: './dist/utilities/animation-registry.js' } }, []), wrong('./utilities/animation-registry'));
   assert.deepEqual(checkExports({ ...ok, './translations/en': { ...tgt('translations/en'), default: './dist/translations/en.js' } }, []), wrong('./translations/en'));
   assert.deepEqual(checkExports({ ...ok, './translations/ja': { types: './dist/translations/ja.js', import: './dist/translations/ja.d.ts' } }, []), wrong('./translations/ja'));
   // Unlisted codes, look-alikes, wildcard-looking and directory keys, and prototype names are unexpected exports.
   const unexpected = ['./translations/xx', './translations/pt-br', './translations/es-mx', './translations/EN', './translations/en.js',
     './translations/en/extra', './translations/zh_cn', './translations/*', './translations/*.js', './translations', './translations/',
-    './utilities/*', './utilities', './utilities/localize/class', './utilities/localize.js', './utilities/form.js', './utilities/form/class', './utilities/Form', './utilities/registration', './internal/localize',
+    './utilities/*', './utilities', './utilities/localize/class', './utilities/localize.js', './utilities/form.js', './utilities/form/class', './utilities/Form',
+    './utilities/animation-registry.js', './utilities/animation-registry/class', './utilities/animationRegistry', './utilities/animation-registry/', './internal/animate', './utilities/animate', './utilities/registration', './internal/localize',
     './translations/__proto__', './translations/constructor', './translations/hasOwnProperty', './utilities/toString'];
   for (const key of unexpected) {
     assert.deepEqual(checkExports({ ...ok, [key]: tgt(key.slice(2)) }, []), [`package.json: unexpected export ${key}`], key);
