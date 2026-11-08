@@ -1,0 +1,33 @@
+{
+  "files": {
+    "src/components/tab-group/tab-group.test.ts": "dfdcf9b471fb525ef65e041d2487958db405745277bbed35363314d057e3be2c",
+    "src/internal/test/element-visible-overflow.ts": "7dda62f33a3db704d06dbf70bd0300551e804f3acf7444dc10d1f78ec5bb9550",
+    "src/internal/test/wait-for-scrolling.ts": "0d3b04de10578b6c767e7471b51b85dcb8639148ff28bfe54e1c3dbf6b6dc4b4"
+  },
+  "tests": [
+    "<sl-tab-group> > renders",
+    "<sl-tab-group> > should not throw error when unmounted too fast",
+    "<sl-tab-group> > is accessible",
+    "<sl-tab-group> > displays all tabs",
+    "<sl-tab-group> > shows the first tab to be active by default",
+    "<sl-tab-group> > proper positioning > shows the header above the tabs by default",
+    "<sl-tab-group> > proper positioning > shows the header below the tabs by setting placement to bottom",
+    "<sl-tab-group> > proper positioning > shows the header left of the tabs by setting placement to start",
+    "<sl-tab-group> > proper positioning > shows the header right of the tabs by setting placement to end",
+    "<sl-tab-group> > scrolling behavior > shows scroll buttons on too many tabs",
+    "<sl-tab-group> > scrolling behavior > does not show scroll buttons on too many tabs if deactivated",
+    "<sl-tab-group> > scrolling behavior > does not show scroll buttons if all tabs fit on the screen",
+    "<sl-tab-group> > scrolling behavior > does not show scroll buttons if placement is start",
+    "<sl-tab-group> > scrolling behavior > does not show scroll buttons if placement is end",
+    "<sl-tab-group> > scrolling behavior > does scroll on scroll button click",
+    "<sl-tab-group> > tab selection > selects a tab by clicking on it",
+    "<sl-tab-group> > tab selection > selects a tab by changing it via active property",
+    "<sl-tab-group> > tab selection > does not change if the active tab is reselected",
+    "<sl-tab-group> > tab selection > does not change if a disabled tab is clicked",
+    "<sl-tab-group> > tab selection > selects a tab by using the arrow keys",
+    "<sl-tab-group> > tab selection > selects a tab by using the arrow keys and enter if activation is set to manual",
+    "<sl-tab-group> > tab selection > does not allow selection of disabled tabs with arrow keys",
+    "<sl-tab-group> > tab selection > selects a tab by using the show function"
+  ],
+  "knownFailures": []
+}

@@ -12,7 +12,7 @@ export const pageData = definePageData(async () => ({
 }));
 
 const sections = [
-  ['overview', 'Overview', 'tab-panel/basic', 'Shoelace\'s example puts these panels in an sl-tab-group next to sl-tab elements. Velcro has neither yet, so the buttons here do what a tab group does to a panel: they make one panel active. Only the active panel is displayed.'],
+  ['overview', 'Overview', 'tab-panel/basic', 'Shoelace\'s example: tab panels in an sl-tab-group, each shown by the sl-tab whose panel names it. Only the active panel is displayed.'],
   ['padding', 'Custom padding', 'tab-panel/padding', 'Use the --padding custom property to change the padding around the panel\'s content. It is 0 by default.'],
 ] as const;
 
@@ -26,7 +26,7 @@ const quirks = [
 ] as const;
 
 const gaps = [
-  'The Shoelace example uses sl-tab-group and sl-tab, which Velcro does not implement yet. The ported example makes panels active with sl-button elements instead. With no tab group, nothing sets aria-labelledby on a panel, and tab keyboard navigation does not exist. The Shoelace React example is not ported.',
+  'Shoelace\'s example is ported with Velcro\'s sl-tab-group and sl-tab (see their pages); the tab group sets each panel\'s active state and aria-labelledby. The Shoelace React example is not ported here; the tab group page has the same example in React.',
   'Velcro builds on the @charm-ux/core tab panel. Core\'s own tab coordination conflicts with Shoelace\'s model, so it is switched off rather than kept: core sets slot="tabpanel" and hidden on the panel and listens for transitionend (none of that happens), core\'s internal visible and tab properties have no effect (visible has no attribute either: it is not observed and not reflected, so the attributes observed are exactly Shoelace\'s), and the tab-show, tab-hide, tab-after-show and tab-after-hide events are never emitted. Core\'s --tab-panel-* custom properties and tab-panel-base part do not exist either, because core\'s panel styles are replaced by Shoelace\'s. The only core extension that remains is the non-bubbling ready event on first update, which the API tables label as inherited from core.',
   'dir and lang are declared as Shoelace\'s base element declares them: reactive, not reflected and undefined until set. Core\'s computed dir is not used.',
   'TypeScript types for dir are narrower than Shoelace\'s dir: string. At runtime dir is stored and returned as set, and the setter accepts any string, so element.dir = someString compiles (type-tests/tab-panel-dir.tsx checks it). The read type stays core\'s \'ltr\' | \'rtl\' | \'auto\', because a subclass cannot widen an inherited getter\'s type, and everything generated from it follows: the manifest and the API table below, the React wrapper\'s dir prop, and the JSX dir and prop:dir types. So <VelcroTabPanel dir={someString}> and <sl-tab-panel dir={someString}> do not compile where Shoelace\'s types accept them. Fixing this needs a change in @charm-ux/core and is deferred.',

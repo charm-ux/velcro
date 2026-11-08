@@ -67,6 +67,10 @@
     "./split-panel/class": { "types": "./dist/components/split-panel/class.d.ts", "import": "./dist/components/split-panel/class.js" },
     "./switch": { "types": "./dist/components/switch/index.d.ts", "import": "./dist/components/switch/index.js" },
     "./switch/class": { "types": "./dist/components/switch/class.d.ts", "import": "./dist/components/switch/class.js" },
+    "./tab": { "types": "./dist/components/tab/index.d.ts", "import": "./dist/components/tab/index.js" },
+    "./tab/class": { "types": "./dist/components/tab/class.d.ts", "import": "./dist/components/tab/class.js" },
+    "./tab-group": { "types": "./dist/components/tab-group/index.d.ts", "import": "./dist/components/tab-group/index.js" },
+    "./tab-group/class": { "types": "./dist/components/tab-group/class.d.ts", "import": "./dist/components/tab-group/class.js" },
     "./tab-panel": { "types": "./dist/components/tab-panel/index.d.ts", "import": "./dist/components/tab-panel/index.js" },
     "./tab-panel/class": { "types": "./dist/components/tab-panel/class.d.ts", "import": "./dist/components/tab-panel/class.js" },
     "./tag": { "types": "./dist/components/tag/index.d.ts", "import": "./dist/components/tag/index.js" },
@@ -122,6 +126,7 @@
   "sideEffects": [
     "./dist/index.js",
     "./dist/components/*/index.js",
+    "./dist/components/tab-group/scrollend-polyfill.js",
     "./dist/utilities/localize.js",
     "./dist/translations/*.js",
     "*.css"

@@ -120,8 +120,10 @@ test('prototype exports are supported without weakening publication locks', () =
 test('only the registering entries have side effects; class-only entries and the helper stay pure', () => {
   const { sideEffects } = json('packages/velcro/package.json');
   // The localize module registers English and each translation module registers itself when imported, as in Shoelace.
-  assert.deepEqual(sideEffects, ['./dist/index.js', './dist/components/*/index.js', './dist/utilities/localize.js',
-    './dist/translations/*.js', '*.css']);
+  // The tab group's scrollend polyfill patches EventTarget where scrollend is missing, as Shoelace's does when its tab group
+  // is imported (Shoelace's package declares no side-effect-free modules), so bundlers must keep it.
+  assert.deepEqual(sideEffects, ['./dist/index.js', './dist/components/*/index.js', './dist/components/tab-group/scrollend-polyfill.js',
+    './dist/utilities/localize.js', './dist/translations/*.js', '*.css']);
   assert.ok(!sideEffects.some(pattern => /class|registration|internal/.test(pattern)));
   assert.deepEqual(sideEffects.filter(pattern => /utilities/.test(pattern)), ['./dist/utilities/localize.js']);
 });
