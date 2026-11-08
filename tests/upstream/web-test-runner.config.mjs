@@ -5,7 +5,7 @@
 // A test's own './<name>.js' maps to Velcro's registering entry for that component alone. A test's bare 'lit' import
 // (the animation test builds its fixtures with lit's `html`) maps to the lit that Velcro itself loads, which the
 // workspace root cannot resolve on its own.
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,6 +24,11 @@ const products = (process.env.VELCRO_UPSTREAM_BROWSERS || 'chromium').split(',')
 
 const velcroLit = `/${path.relative(root, createRequire(new URL('../../packages/velcro/package.json', import.meta.url)).resolve('lit')).split(path.sep).join('/')}`;
 
+// The utilities Velcro publishes (./utilities/<name> in its export map): only these are resolved for a test's
+// '../../utilities/<name>.js', so a built-but-unpublished module can never stand in for one of Shoelace's.
+const publishedUtilities = new Set(Object.keys(JSON.parse(readFileSync(new URL('../../packages/velcro/package.json', import.meta.url), 'utf8')).exports)
+  .flatMap(key => key.match(/^\.\/utilities\/([a-z-]+)$/)?.slice(1) ?? []));
+
 const velcroEntries = {
   name: 'velcro-upstream-resolver',
   resolveImport({ source, context }) {
@@ -34,7 +39,7 @@ const velcroEntries = {
     if (source === '../../../dist/shoelace.js') return '/packages/velcro/dist/index.js';
     if (source === `./${name}.js`) return `/packages/velcro/dist/components/${name}/index.js`;
     const utility = source.match(/^\.\.\/\.\.\/utilities\/([a-z-]+)\.js$/);
-    if (utility) return `/packages/velcro/dist/utilities/${utility[1]}.js`;
+    if (utility && publishedUtilities.has(utility[1])) return `/packages/velcro/dist/utilities/${utility[1]}.js`;
     if (source === 'lit') return velcroLit;
     return undefined;
   }

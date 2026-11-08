@@ -12,9 +12,10 @@ import { ifDefined } from 'lit/directives/if-defined.js';
 import { live } from 'lit/directives/live.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
 import { CharmFocusableElement } from '@charm-ux/core/dist/base/focusable-element/charm-focusable-element.js';
-import { CoreTextArea } from '@charm-ux/core/dist/components/text-area/text-area.js';
+import type { CoreTextArea } from '@charm-ux/core/dist/components/text-area/text-area.js';
 import { HasSlotController } from '@charm-ux/core/dist/controller/index.js';
 import { FormControlController } from '../../internal/form.js';
+import { CoreTextAreaTyping } from './core-typing.js';
 import styles from './textarea.styles.js';
 
 /**
@@ -51,7 +52,7 @@ import styles from './textarea.styles.js';
  * @csspart textarea - The internal `<textarea>` control.
  * @csspart textarea-adjuster - The invisible element that keeps the layout stable while `resize` is `auto`.
  */
-export class VelcroTextarea extends CoreTextArea {
+export class VelcroTextarea extends CoreTextAreaTyping {
   // Only Shoelace's styles: core's base element styles would, for example, hide the host for the `hidden` attribute,
   // which Shoelace's textarea does not do. The one Velcro rule visually hides the label and help text for `hide-label`.
   public static override styles = [styles];
@@ -89,6 +90,7 @@ export class VelcroTextarea extends CoreTextArea {
   private velcroDisabled = false;
   private velcroReadonly = false;
   private velcroErrorMessage = '';
+  private velcroAutocorrect?: string;
   private velcroDir?: string;
 
   // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
@@ -162,18 +164,9 @@ export class VelcroTextarea extends CoreTextArea {
   @property({ type: Number })
   public override rows = 4;
 
-  // Types of `resize`, `autocomplete` and `autocorrect`: Shoelace declares `'none' | 'vertical' | 'auto'`, `string` and
-  // `string`. Core's text area declares `resize` and `autocomplete` as narrower unions that do not contain Shoelace's
-  // values, and lib.dom's HTMLElement declares `autocorrect: boolean`; TypeScript rejects a subclass property whose type
-  // is not assignable to the inherited one (and does not allow an accessor to override a property). So these three are
-  // typed `any` in the source and in the emitted declarations, and the manifest type is Shoelace's, from the `@type` tag.
-
-  /**
-   * Controls how the textarea can be resized.
-   * @type {'none' | 'vertical' | 'auto'}
-   */
+  /** Controls how the textarea can be resized. */
   @property()
-  public override resize: any = 'vertical';
+  public override resize: 'none' | 'vertical' | 'auto' = 'vertical';
 
   /**
    * Disables the textarea.
@@ -223,20 +216,28 @@ export class VelcroTextarea extends CoreTextArea {
   @property()
   public override autocapitalize!: 'off' | 'none' | 'on' | 'sentences' | 'words' | 'characters';
 
+  // Shoelace types `autocorrect` as `string`, but lib.dom declares `autocorrect: boolean` on HTMLElement, and a class whose
+  // property is `string` is no longer an HTMLElement for TypeScript (the generated JSX types and every API taking an
+  // HTMLElement reject it). The property is therefore an accessor that reads as `any`, so the class stays an HTMLElement,
+  // and accepts only a string when it is assigned. The manifest type is Shoelace's, from the `@type` tag.
   /**
    * Indicates whether the browser's autocorrect feature is on or off.
    * @type {string}
    */
   @property()
-  public autocorrect!: any;
+  public get autocorrect(): any {
+    return this.velcroAutocorrect;
+  }
+  public set autocorrect(value: string) {
+    this.velcroAutocorrect = value;
+  }
 
   /**
    * Specifies what permission the browser has to provide assistance in filling out form field values. Refer to
    * [this page on MDN](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/autocomplete) for available values.
-   * @type {string}
    */
   @property()
-  public override autocomplete!: any;
+  public override autocomplete!: string;
 
   /** Indicates that the input should receive focus on page load. */
   @property({ type: Boolean })

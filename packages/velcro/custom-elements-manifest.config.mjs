@@ -73,9 +73,15 @@ function velcroInheritance() {
   return {
     name: 'velcro-inheritance',
     packageLinkPhase({ customElementsManifest }) {
+      const declarations = customElementsManifest.modules.flatMap(m => m.declarations ?? []);
       for (const mod of customElementsManifest.modules) {
         for (const decl of mod.declarations ?? []) {
           if (!decl.customElement) continue;
+          // A component may extend a Velcro-local typing class that only loosens inherited property declarations so the
+          // component can declare Shoelace's own types (sl-textarea's CoreTextAreaTyping). It adds no members to the API,
+          // so the component's superclass is the core class that typing class extends.
+          const local = declarations.find(d => d.name === decl.superclass?.name && !d.customElement && !decl.superclass.package);
+          if (local?.superclass && coreClasses.has(local.superclass.name)) decl.superclass = local.superclass;
           for (const key of ['slots', 'cssParts', 'cssProperties']) {
             const keep = keptInherited[decl.name]?.[key] ?? [];
             if (decl[key]) decl[key] = decl[key].filter(item => !item.inheritedFrom || keep.includes(item.name));

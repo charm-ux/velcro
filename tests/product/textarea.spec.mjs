@@ -636,7 +636,7 @@ test('methods: select, setSelectionRange, setRangeText, scrollPosition, focus an
   expect(r.position.top).toBeGreaterThan(0);
   expect(r.focused).toEqual([true, true]);
   expect(r.blurred).toBeNull();
-  // The textarea scrolls by the amount of a shorter scrollTop set on a ranged call: only numbers are applied.
+  // Only numbers are applied: a `top` of undefined leaves the scroll offset alone.
   const partial = await m.evaluate(el => {
     el.scrollPosition({ top: 0 });
     el.scrollPosition({ left: 3, top: undefined });
@@ -811,6 +811,14 @@ test('the form utilities are exported: serialize() turns repeated names into arr
   });
   expect(r.serialized).toEqual({ plain: 'native', note: ['one', 'two'], solo: 's' });
   expect(r.order).toEqual(['sl-textarea:note', 'input:plain', 'sl-textarea:note', 'sl-textarea:solo']);
+});
+
+test('the ./utilities/form package export resolves to a module that exports exactly serialize and getFormControls', async () => {
+  const velcroDir = fileURLToPath(new URL('../../packages/velcro/', import.meta.url));
+  const entry = JSON.parse(readFileSync(path.join(velcroDir, 'package.json'), 'utf8')).exports['./utilities/form'];
+  expect(entry).toEqual({ types: './dist/utilities/form.d.ts', import: './dist/utilities/form.js' });
+  const module = await import(pathToFileURL(path.join(velcroDir, entry.import)).href);
+  expect(Object.keys(module).sort()).toEqual(['getFormControls', 'serialize']);
 });
 
 test('every docs example renders in its own document', async ({ page }) => {

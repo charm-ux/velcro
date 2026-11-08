@@ -149,12 +149,15 @@ test('package-level module exports are required with exact targets for every cat
   assert.deepEqual(checkExports({ ...ok, './translations/de-ch': tgt('translations/de') }, []), wrong('./translations/de-ch'));
   assert.deepEqual(checkExports({ ...ok, './utilities/localize': tgt('internal/localize') }, []), wrong('./utilities/localize'));
   assert.deepEqual(checkExports({ ...ok, './utilities/localize': './dist/utilities/localize.js' }, []), wrong('./utilities/localize'));
+  assert.deepEqual(checkExports({ ...ok, './utilities/form': tgt('internal/form') }, []), wrong('./utilities/form'));
+  assert.deepEqual(checkExports({ ...ok, './utilities/form': './dist/utilities/form.js' }, []), wrong('./utilities/form'));
+  assert.deepEqual(checkExports({ ...ok, './utilities/form': { ...tgt('utilities/form'), default: './dist/utilities/form.js' } }, []), wrong('./utilities/form'));
   assert.deepEqual(checkExports({ ...ok, './translations/en': { ...tgt('translations/en'), default: './dist/translations/en.js' } }, []), wrong('./translations/en'));
   assert.deepEqual(checkExports({ ...ok, './translations/ja': { types: './dist/translations/ja.js', import: './dist/translations/ja.d.ts' } }, []), wrong('./translations/ja'));
   // Unlisted codes, look-alikes, wildcard-looking and directory keys, and prototype names are unexpected exports.
   const unexpected = ['./translations/xx', './translations/pt-br', './translations/es-mx', './translations/EN', './translations/en.js',
     './translations/en/extra', './translations/zh_cn', './translations/*', './translations/*.js', './translations', './translations/',
-    './utilities/*', './utilities', './utilities/localize/class', './utilities/localize.js', './utilities/registration', './internal/localize',
+    './utilities/*', './utilities', './utilities/localize/class', './utilities/localize.js', './utilities/form.js', './utilities/form/class', './utilities/Form', './utilities/registration', './internal/localize',
     './translations/__proto__', './translations/constructor', './translations/hasOwnProperty', './utilities/toString'];
   for (const key of unexpected) {
     assert.deepEqual(checkExports({ ...ok, [key]: tgt(key.slice(2)) }, []), [`package.json: unexpected export ${key}`], key);
