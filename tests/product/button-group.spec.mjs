@@ -758,6 +758,101 @@ test('removing the select extension releases it: the toggle attribute the group 
   expect((await read()).pressed).toEqual([false, true, false]);
   await click('s2');
   expect((await read()).pressed).toEqual([false, false, false]);
+
+  // Setting it again: the group connected with select, so the single-select listener that removing it took off comes back
+  // (on the next slot change the group also writes toggle to the buttons again). Pressing one un-presses the others.
+  await frame.locator('body').evaluate(async () => {
+    const group = document.querySelector('#sel');
+    group.setAttribute('select', 'single');
+    await group.updateComplete;
+    const extra = document.createElement('sl-button');
+    extra.id = 's4';
+    extra.textContent = 'D';
+    group.append(extra);
+    await extra.updateComplete;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  });
+  expect(await read()).toEqual({ toggle: [true, true, true], pressed: [false, false, false], select: 'single' });
+  await click('s1');
+  expect((await read()).pressed).toEqual([true, false, false]);
+  await click('s3');
+  expect((await read()).pressed).toEqual([false, false, true]);
+});
+
+test('setting select again puts back only the listener that was active when the group connected: a group that connected without select, or that was moved while it was off, stays without one (as in core)', async ({ page }) => {
+  const { frame } = await openPage(page);
+  await mount(frame, `<sl-button-group id="late" label="Late"><sl-button id="a1">A</sl-button><sl-button id="a2">B</sl-button></sl-button-group>
+    <div id="home"><sl-button-group id="moved" label="Moved" select="single"><sl-button id="m1">A</sl-button><sl-button id="m2">B</sl-button></sl-button-group></div>`);
+  const r = await frame.locator('body').evaluate(async () => {
+    const settle = async el => { await el.updateComplete; await new Promise(resolve => setTimeout(resolve, 50)); };
+    const addButton = async (group, id) => {
+      const extra = document.createElement('sl-button');
+      extra.id = id;
+      extra.textContent = id;
+      group.append(extra);
+      await extra.updateComplete;
+      await settle(group);
+    };
+    const pressed = ids => ids.map(id => document.querySelector(`#${id}`).pressed === true);
+
+    // Connected neutral: select on, off, on again, each with a slot change. There never was a listener.
+    const late = document.querySelector('#late');
+    late.setAttribute('select', 'single');
+    await addButton(late, 'a3');
+    late.removeAttribute('select');
+    await settle(late);
+    late.setAttribute('select', 'single');
+    await addButton(late, 'a4');
+    document.querySelector('#a1').click();
+    document.querySelector('#a2').click();
+    await settle(late);
+
+    // Connected with select, taken off, then moved in the document while it is off: core takes its listeners off on
+    // disconnect and installs the selection one on connect only with select set, so setting it again adds none.
+    const moved = document.querySelector('#moved');
+    moved.removeAttribute('select');
+    await settle(moved);
+    document.querySelector('#home').after(moved);
+    await settle(moved);
+    moved.setAttribute('select', 'single');
+    await addButton(moved, 'm3');
+    document.querySelector('#m1').click();
+    document.querySelector('#m2').click();
+    await settle(moved);
+    return { late: pressed(['a1', 'a2', 'a3', 'a4']), moved: pressed(['m1', 'm2', 'm3']), toggles: ['a1', 'a2', 'a4', 'm1', 'm2', 'm3'].map(id => document.querySelector(`#${id}`).hasAttribute('toggle')) };
+  });
+  // Both buttons stay pressed: the toggle attributes are back (the next slot change wrote them) but nothing un-presses.
+  expect(r.toggles).toEqual([true, true, true, true, true, true]);
+  expect(r.late).toEqual([true, true, false, false]);
+  expect(r.moved).toEqual([true, true, false]);
+});
+
+test('a toolbar set and removed in the same turn leaves a neutral group neutral: role group, the buttons\' tabindex untouched and the arrow keys not handled', async ({ page }) => {
+  const { frame } = await openPage(page);
+  // Labelled and never attributed with toolbar: the reflected-property snapshot records nothing for it.
+  await mount(frame, '<sl-button-group id="turn" label="Turn"><sl-button id="n1">A</sl-button><sl-button id="n2" tabindex="4">B</sl-button></sl-button-group>');
+  const r = await frame.locator('#turn').evaluate(async group => {
+    const settle = async () => { await group.updateComplete; await new Promise(resolve => setTimeout(resolve, 50)); };
+    // Lit reports the value from before the first change of the turn (none), yet core adds its key handler on the set.
+    group.setAttribute('toolbar', '');
+    group.removeAttribute('toolbar');
+    await settle();
+    const extra = document.createElement('sl-button');
+    extra.id = 'n3';
+    group.append(extra);
+    await extra.updateComplete;
+    await settle();
+    const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, composed: true, cancelable: true });
+    group.querySelector('#n1').shadowRoot.querySelector('.button').dispatchEvent(event);
+    return {
+      role: group.shadowRoot.querySelector('[part="base"]').getAttribute('role'),
+      attribute: group.hasAttribute('toolbar'),
+      property: group.toolbar,
+      tabindex: [...group.children].map(b => b.getAttribute('tabindex')),
+      prevented: event.defaultPrevented,
+    };
+  });
+  expect(r).toEqual({ role: 'group', attribute: false, property: false, tabindex: [null, '4', null], prevented: false });
 });
 
 test('core\'s vertical and split are accepted but change nothing; core\'s position attribute, tooltip distance, parts and properties do not exist', async ({ page }) => {

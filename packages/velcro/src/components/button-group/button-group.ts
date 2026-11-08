@@ -65,6 +65,12 @@ export class VelcroButtonGroup extends CoreButtonGroup {
 
   private readonly toolbarAdded = new WeakSet<Element>();
 
+  // Core installs the single-select `change` listener only when it connects with `select` set, never when `select`
+  // changes later. `attached`: core installed it and it is on; `parked`: removing `select` took it off, and setting
+  // `select` again puts it back; `none`: there is none, and a group that connected without `select` stays that way
+  // (core's late-first-enable behavior).
+  private selectListener: 'none' | 'attached' | 'parked' = 'none';
+
   // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
   // initial value (undefined). Core's `dir` would return the computed direction instead.
   // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
@@ -113,7 +119,8 @@ export class VelcroButtonGroup extends CoreButtonGroup {
    * Velcro extension (core): `single` or `multiple` makes the slotted `<sl-button>` elements toggle buttons; with `single`
    * pressing one un-presses the others. Not part of Shoelace's button group. Setting it after the buttons are slotted
    * applies when the slot next changes, as in core. Removing it takes the `toggle` attribute back from the buttons the
-   * group gave it to; their `pressed` state stays.
+   * group gave it to and the single-select listener off; their `pressed` state stays. Setting it again puts the listener
+   * back, if the group had connected with `select` set.
    */
   @property({ reflect: true })
   public override select?: 'single' | 'multiple' | null;
@@ -154,6 +161,13 @@ export class VelcroButtonGroup extends CoreButtonGroup {
     if (this.toolbar) {
       this.addEventListener('keydown', this.handleKeyDown);
     }
+    this.selectListener = this.select ? 'attached' : 'none';
+  }
+
+  public override disconnectedCallback() {
+    super.disconnectedCallback();
+    // Core takes the listener off on disconnect, so there is nothing left to put back.
+    this.selectListener = 'none';
   }
 
   protected override willUpdate(changed: PropertyValues<this>) {
@@ -166,15 +180,22 @@ export class VelcroButtonGroup extends CoreButtonGroup {
   }
 
   // Removing an extension: core adds the toolbar key handler and writes `toggle` and the roving tab index, and never
-  // takes them back, so a group that lost `toolbar` or `select` would keep acting on them. The final values are read here,
-  // after the reflected-property restore in `willUpdate` has had its say.
+  // takes them back, so a group that lost `toolbar` or `select` would keep acting on them. Only the final values count,
+  // read after the reflected-property restore in `willUpdate` has had its say: Lit reports the value from before the
+  // first change in a batch, so an attribute set and removed in one turn shows no earlier value, yet core has added its
+  // key handler on the set. Releasing is safe on a group that never had the extension (it only undoes what the group
+  // recorded writing), and setting `select` again puts back the listener that removing it took off.
   protected override updated(changed: PropertyValues<this>) {
     super.updated(changed);
-    if (changed.has('toolbar') && changed.get('toolbar') && !this.toolbar) {
+    if (changed.has('toolbar') && !this.toolbar) {
       this.releaseToolbar();
     }
-    if (changed.has('select') && changed.get('select') && !this.select) {
-      this.releaseSelect();
+    if (changed.has('select')) {
+      if (this.select) {
+        this.restoreSelect();
+      } else {
+        this.releaseSelect();
+      }
     }
   }
 
@@ -203,8 +224,18 @@ export class VelcroButtonGroup extends CoreButtonGroup {
     this.prevSelectedIndex = 0;
   }
 
+  private restoreSelect() {
+    if (this.selectListener === 'parked') {
+      this.addEventListener('change', this.handleToggleChange);
+      this.selectListener = 'attached';
+    }
+  }
+
   private releaseSelect() {
-    this.removeEventListener('change', this.handleToggleChange);
+    if (this.selectListener === 'attached') {
+      this.removeEventListener('change', this.handleToggleChange);
+      this.selectListener = 'parked';
+    }
     this.buttons.forEach(button => {
       if (this.toggleAdded.has(button)) {
         this.toggleAdded.delete(button);
