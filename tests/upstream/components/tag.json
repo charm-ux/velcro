@@ -1,0 +1,14 @@
+{
+  "files": {
+    "src/components/tag/tag.test.ts": "24b419244095be5778a8f2b6051dadc87c10e997d3ced013cf0050b0c5f62a97"
+  },
+  "tests": [
+    "<sl-tag> > should render default tag",
+    "<sl-tag> > should set variant by attribute",
+    "<sl-tag> > should set size by attribute",
+    "<sl-tag> > should set pill-attribute by attribute",
+    "<sl-tag> > should set removable by attribute",
+    "<sl-tag> > removable > should emit remove event when remove button clicked"
+  ],
+  "knownFailures": []
+}
