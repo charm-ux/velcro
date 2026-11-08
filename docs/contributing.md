@@ -386,18 +386,29 @@ the PR's `mergeQueueEntry` (GraphQL), never a branch name derived from the head.
 GitHub names the queue branch after the base it was built on
 (`gh-readonly-queue/main/pr-<n>-<base oid>`). The entry must be awaiting checks for
 the approved head and built on the current `main` tip. Its commit must be the
-`--group` commit the caller scanned, have that tip as its single parent and exactly
-the approved head's tree, and the head must already contain that tip. The queued
-commit therefore lands nothing but the approved content. A push to the PR removes
-it from the queue and needs a new binding. A queue rebuild has a new commit, which
-`set-group` must check again.
+`--group` commit the caller scanned and have that tip as its single parent. Its tree
+must then be one of two things:
 
-The merge sequence is: confirm the PR is up to date with `main` and `required` is
-green on its head, run `check`, run the privacy checks on the head and the merge
-title, `set`, then enqueue it bound to the head (GraphQL `enqueuePullRequest` with
-`expectedHeadOid`). When the PR's `mergeQueueEntry` reports its `headCommit` (the
-group commit), fetch the PR's queue branches (`gh-readonly-queue/main/pr-<n>-*`) and
-run `node scripts/security/git-privacy.mjs history <main>..<group>` on that exact
+- exactly the approved head's tree, when the head already contains that tip; or
+- exactly the tree of `git merge-tree --write-tree <tip> <approved head>`, when
+  `main` moved after the approval, and only if that merge has no conflicts.
+
+The second case is what the queue's squash builds, so an approved PR does not need
+a `main` update, another review and another CI run each time something else lands.
+The script computes that merge with Git in its working directory, so run it from a
+clone that holds both commits (fetch `main` first). A missing commit, a conflict or
+any other tree refuses, as do extra parents, another base and an approval for an
+earlier head. The queued commit therefore lands nothing but the approved changes on
+`main`. A push to the PR removes it from the queue and needs a new binding. A queue
+rebuild has a new commit, which `set-group` must check again.
+
+The merge sequence is: confirm `required` is green on the PR head (the head may
+be behind `main`; the queue builds and tests it on the current tip), run `check`,
+run the privacy checks on the head and the merge title, `set`, then enqueue it
+bound to the head (GraphQL `enqueuePullRequest` with `expectedHeadOid`). When the
+PR's `mergeQueueEntry` reports its `headCommit` (the group commit), fetch `main`
+and the PR's queue branches (`gh-readonly-queue/main/pr-<n>-*`) and run
+`node scripts/security/git-privacy.mjs history <main>..<group>` on that exact
 commit, which checks its author, committer and message as well as its content. Then
 run `set-group --group <group>`, which refuses if the queue has since rebuilt the
 entry. If the guard fails, dequeue instead (`dequeuePullRequest`). After
