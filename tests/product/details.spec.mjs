@@ -539,19 +539,22 @@ test('a show that interrupts a hide animation ends closed (quirk); a hide that i
   expect(r).toEqual({ reopened: [false, false], reclosed: [false, false] });
 });
 
-test('clicking the summary focuses the header, even for a script click; a disabled details does not take focus', async ({ page }) => {
+test('clicking the summary focuses the header, even for a script click', async ({ page }) => {
   const { frame } = await openExample(page);
-  await mount(frame, '<sl-details id="d" summary="A">Content</sl-details><sl-details id="e" summary="B" disabled>Content</sl-details>');
-  const r = await frame.locator('body').evaluate(async () => {
-    const d = document.getElementById('d');
-    const e = document.getElementById('e');
-    document.activeElement?.blur();
-    e.header.click();
-    const disabled = [document.activeElement === e, e.shadowRoot.activeElement === e.header];
-    d.header.click();
-    return { disabled, enabled: [document.activeElement === d, d.shadowRoot.activeElement === d.header] };
-  });
-  expect(r).toEqual({ disabled: [false, false], enabled: [true, true] });
+  await mount(frame, '<sl-details id="d" summary="A">Content</sl-details>');
+  expect(await frame.locator('#d').evaluate(el => document.activeElement === el)).toBe(false);
+  await frame.locator('#d').evaluate(el => el.header.click());
+  expect(await frame.locator('#d').evaluate(el => el.shadowRoot.activeElement === el.header)).toBe(true);
+  expect(await frame.locator('#d').evaluate(el => document.activeElement === el)).toBe(true);
+});
+
+test('a script click on a disabled details does not take focus', async ({ page }) => {
+  const { frame } = await openExample(page);
+  await mount(frame, '<sl-details id="e" summary="B" disabled>Content</sl-details>');
+  expect(await frame.locator('#e').evaluate(el => document.activeElement === el)).toBe(false);
+  await frame.locator('#e').evaluate(el => el.header.click());
+  expect(await frame.locator('#e').evaluate(el => el.shadowRoot.activeElement === el.header)).toBe(false);
+  expect(await frame.locator('#e').evaluate(el => document.activeElement === el)).toBe(false);
 });
 
 test('inherited core ready event: dispatched once on the element after the first update, not bubbling or composed', async ({ page }) => {
