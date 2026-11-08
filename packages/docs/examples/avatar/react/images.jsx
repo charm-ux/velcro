@@ -1,0 +1,16 @@
+import { VelcroAvatar as SlAvatar } from '@charm-ux/velcro/react/VelcroAvatar.js';
+
+// Shoelace's version returns two adjacent elements without a wrapper, which is not valid JSX; a fragment wraps them here.
+const App = () => (
+  <>
+    <SlAvatar
+      image="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2338bdf8'/%3E%3Ccircle cx='32' cy='25' r='12' fill='%23e0f2fe'/%3E%3Cpath d='M10 64c2-14 11-21 22-21s20 7 22 21z' fill='%23e0f2fe'/%3E%3C/svg%3E"
+      label="Avatar of a placeholder person on a blue background"
+    />
+    <SlAvatar
+      image="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23a78bfa'/%3E%3Ccircle cx='32' cy='25' r='12' fill='%23ede9fe'/%3E%3Cpath d='M10 64c2-14 11-21 22-21s20 7 22 21z' fill='%23ede9fe'/%3E%3C/svg%3E"
+      label="Avatar of a placeholder person on a purple background"
+      loading="lazy"
+    />
+  </>
+);
