@@ -1,0 +1,32 @@
+{
+  "files": {
+    "src/components/alert/alert.test.ts": "590d8001ae88dc4d953a9642f89d05bacffe2516a8ec01eadceaeb7520c63b5b"
+  },
+  "tests": [
+    "<sl-alert> > renders",
+    "<sl-alert> > is accessible",
+    "<sl-alert> > alert visibility > should be visible with the open attribute",
+    "<sl-alert> > alert visibility > should not be visible without the open attribute",
+    "<sl-alert> > alert visibility > should emit sl-show and sl-after-show when calling show()",
+    "<sl-alert> > alert visibility > should emit sl-hide and sl-after-hide when calling hide()",
+    "<sl-alert> > alert visibility > should emit sl-show and sl-after-show when setting open = true",
+    "<sl-alert> > alert visibility > should emit sl-hide and sl-after-hide when setting open = false",
+    "<sl-alert> > close button > shows a close button if the alert has the closable attribute",
+    "<sl-alert> > close button > clicking the close button closes the alert",
+    "<sl-alert> > close button > clicking above close button does not close the alert",
+    "<sl-alert> > close button > clicking under close button does not close the alert",
+    "<sl-alert> > close button > clicking on the right side of the close button does not close the alert",
+    "<sl-alert> > toast > can be rendered as a toast",
+    "<sl-alert> > toast > resolves only after being closed",
+    "<sl-alert> > toast > deletes the toast stack after the last alert is done",
+    "<sl-alert> > timer controlled closing > closes after a predefined amount of time",
+    "<sl-alert> > timer controlled closing > resets the closing timer after mouse-over",
+    "<sl-alert> > timer controlled closing > resets the closing timer after opening",
+    "<sl-alert> > alert variants > adapts to the variant: primary",
+    "<sl-alert> > alert variants > adapts to the variant: success",
+    "<sl-alert> > alert variants > adapts to the variant: neutral",
+    "<sl-alert> > alert variants > adapts to the variant: warning",
+    "<sl-alert> > alert variants > adapts to the variant: danger"
+  ],
+  "knownFailures": []
+}
