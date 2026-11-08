@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
 
@@ -9,10 +9,8 @@ const PANELS = '<div slot="start" style="height: 100%">a</div><div slot="end" st
 async function openExample(page, name = 'Overview') {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
-  // Litro's client router remounts the page component once after load, which reloads the iframe; wait for it to settle.
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
-  // `first()`: while the router remounts the page there can briefly be two iframes with this title.
-  const frame = page.frameLocator(`iframe.example[title="Split Panel example: ${name}"]`).first();
+  await openDocs(page, PAGE);
+  const frame = page.frameLocator(`iframe.example[title="Split Panel example: ${name}"]`);
   await expect(frame.locator('sl-split-panel').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-split-panel'));
   await documentsLoaded(page);
@@ -92,7 +90,7 @@ test('sl-split-panel registers inside the example document, and separately in th
 });
 
 test('every ported example renders two panels and a divider, each with the documented attributes', async ({ page }) => {
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
+  await openDocs(page, PAGE);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toHaveLength(13);
   const attrs = {};

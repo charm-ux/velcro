@@ -114,6 +114,9 @@ test('generator also scaffolds the docs page, an example, a failing spec skeleto
   const page = read(repo, 'packages/docs/pages/components/divider.ts');
   assert.match(page, /@customElement\('page-components-divider'\)/);
   assert.match(page, /examples\['divider\/basic'\]/);
+  // Every docs page carries the shared head: the theme script and the Velcro runtime preload (src/theme.ts).
+  assert.match(page, /^import \{ themeHead \} from '\.\.\/\.\.\/src\/theme\.js';$/m);
+  assert.match(page, /seoHead: themeHead \+ '/);
   assert.match(read(repo, 'packages/docs/examples/divider/basic.html'), /<sl-divider id="demo-default"><\/sl-divider>/);
 
   // The skeleton must not pass: no fixme/skip, no assertion that can succeed, and it throws.

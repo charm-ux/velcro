@@ -2,7 +2,8 @@
  * Derived from @beatzball/create-litro 0.15.3, fullstack recipe template file `dist/recipes/fullstack/template/app-main.ts`
  * (Litro, Copyright 2026 beatzball, Apache License 2.0). See THIRD_PARTY_NOTICES.md.
  * Changes: header added; form-actions enhancement removed (the docs have no action forms); route paths prefixed with the build-time base path;
- * the browser-only Velcro runtime is loaded so the Velcro elements in the prerendered pages upgrade.
+ * the browser-only Velcro runtime is loaded so the Velcro elements in the prerendered pages upgrade; fragments are revealed
+ * in the page shadow roots; the outlet carries a readiness signal (src/ready.ts).
  */
 /**
  * The real client entry.
@@ -20,6 +21,7 @@ import '@beatzball/litro/runtime/LitroLink.js';
 // emptyOutDir does not delete it between builds.
 import { routes } from './routes.generated.js';
 import { routePath } from './src/base.js';
+import { trackReadiness } from './src/ready.js';
 
 // Set routes synchronously. By the time this module-script executes (all
 // module scripts are deferred), the HTML is fully parsed and <litro-outlet>
@@ -36,10 +38,11 @@ if (outlet) {
 
 // Velcro's browser-only runtime (and its light theme tokens), loaded after Lit's hydration hook is installed. The pages
 // prerender Velcro elements as plain markup; this upgrades them. Examples still load the same bundle in their iframes.
-void import('./velcro-entry.js');
+const runtime = import('./velcro-entry.js');
 
 // Page headings live in the page component's shadow root, which native fragment navigation cannot reach. Resolve the
-// fragment (direct loads, reloads, back/forward to a #fragment) once the router has rendered the page.
+// fragment (direct loads, reloads, back/forward to a #fragment) once the router has rendered the page; the readiness
+// tracker does that for each page the router mounts, then marks the outlet data-docs-ready once the page has loaded.
 function findDeep(root: Document | ShadowRoot, id: string): Element | null {
   const direct = root.getElementById(id);
   if (direct) return direct;
@@ -60,11 +63,7 @@ function revealFragment() {
   }
   if (id) findDeep(document, id)?.scrollIntoView();
 }
-if (outlet) {
-  const reveal = () => outlet.hasAttribute('data-litro-settled') && requestAnimationFrame(() => requestAnimationFrame(revealFragment));
-  new MutationObserver(reveal).observe(outlet, { attributes: true, attributeFilter: ['data-litro-settled'] });
-  reveal();
-}
+if (outlet) trackReadiness(outlet, { reveal: revealFragment, runtime });
 window.addEventListener('hashchange', revealFragment);
 
 // Keep every theme control showing the head script's preference (the single source of truth), including after a

@@ -2,6 +2,7 @@
 // preference, applied by a synchronous head script before first paint, followed by the site palette, the Velcro
 // components' theme class and the example iframes. Served from the root build (playwright.config.mjs webServer).
 import { expect, test } from '@playwright/test';
+import { openDocs, reloadDocs } from './support/loaded.mjs';
 
 const KEY = 'velcro-docs-theme';
 const DARK_BG = 'rgb(18, 18, 20)';
@@ -13,10 +14,6 @@ const rootClass = page => page.evaluate(() => document.documentElement.className
 const emulate = async (page, scheme) => {
   await page.emulateMedia({ colorScheme: scheme });
   await page.waitForFunction(s => matchMedia('(prefers-color-scheme: dark)').matches === (s === 'dark'), scheme);
-};
-const settle = async page => {
-  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
-  await page.waitForLoadState('networkidle');
 };
 
 test('the theme is decided by a synchronous head script that runs before the body is parsed', async ({ request }) => {
@@ -39,7 +36,7 @@ test('the theme class is on the root before any page script or stylesheet runs (
       }
     }).observe(document, { childList: true, subtree: true });
   });
-  await page.goto('/components/badge', { waitUntil: 'networkidle' });
+  await openDocs(page, '/components/badge');
   expect(await page.evaluate(() => window.__classAtBody)).toBe('sl-theme-dark');
   await context.close();
 });
@@ -48,8 +45,7 @@ for (const scheme of ['light', 'dark']) {
   test(`with no stored choice the site follows the system preference (${scheme}), and tracks system changes`, async ({ browser }) => {
     const context = await browser.newContext({ colorScheme: scheme });
     const page = await context.newPage();
-    await page.goto('/', { waitUntil: 'networkidle' });
-    await settle(page);
+    await openDocs(page, '/');
     expect(await rootClass(page)).toBe(`sl-theme-${scheme}`);
     expect(await page.evaluate(k => localStorage.getItem(k), KEY)).toBeNull();
     await expect(themeSelect(page)).toHaveValue('system');
@@ -64,23 +60,20 @@ for (const scheme of ['light', 'dark']) {
 test('an explicit choice persists across reloads and pages, wins over the system, and "system" clears it', async ({ browser }) => {
   const context = await browser.newContext({ colorScheme: 'light' });
   const page = await context.newPage();
-  await page.goto('/', { waitUntil: 'networkidle' });
-  await settle(page);
+  await openDocs(page, '/');
   await themeSelect(page).selectOption('dark');
   expect(await rootClass(page)).toBe('sl-theme-dark');
   expect(await page.evaluate(k => localStorage.getItem(k), KEY)).toBe('dark');
 
-  await page.goto('/components/button', { waitUntil: 'networkidle' });
-  await settle(page);
+  await openDocs(page, '/components/button');
   expect(await rootClass(page)).toBe('sl-theme-dark');
   await expect(themeSelect(page)).toHaveValue('dark');
-  await page.reload({ waitUntil: 'networkidle' });
+  await reloadDocs(page);
   expect(await rootClass(page)).toBe('sl-theme-dark');
   // A stored choice is not overridden by a system change.
   await emulate(page, 'light');
   expect(await rootClass(page)).toBe('sl-theme-dark');
 
-  await settle(page);
   await themeSelect(page).selectOption('light');
   expect(await rootClass(page)).toBe('sl-theme-light');
   expect(await page.evaluate(k => localStorage.getItem(k), KEY)).toBe('light');
@@ -100,8 +93,7 @@ test('blocked storage does not break the page: the choice holds for the current 
   });
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto('/', { waitUntil: 'networkidle' });
-  await settle(page);
+  await openDocs(page, '/');
   expect(await rootClass(page)).toBe('sl-theme-light');
   await themeSelect(page).selectOption('dark');
   expect(await rootClass(page)).toBe('sl-theme-dark');
@@ -112,8 +104,7 @@ test('blocked storage does not break the page: the choice holds for the current 
 test('dark rendering: site chrome uses the dark palette and the example iframe follows the theme live', async ({ browser }) => {
   const context = await browser.newContext({ colorScheme: 'dark' });
   const page = await context.newPage();
-  await page.goto('/components/badge', { waitUntil: 'networkidle' });
-  await settle(page);
+  await openDocs(page, '/components/badge');
   await expect(page.locator('header.site')).toHaveCSS('background-color', DARK_BG);
   await expect(page.locator('header.site')).toHaveCSS('border-bottom-color', 'rgb(51, 51, 58)');
   await expect(page.locator('aside.sidebar')).toHaveCSS('background-color', 'rgb(24, 24, 27)');
@@ -159,8 +150,7 @@ for (const scheme of ['light', 'dark']) {
   test(`card example text is readable on the card's own panel in ${scheme} mode`, async ({ browser }) => {
     const context = await browser.newContext({ colorScheme: scheme });
     const page = await context.newPage();
-    await page.goto('/components/card', { waitUntil: 'networkidle' });
-    await settle(page);
+    await openDocs(page, '/components/card');
     const frame = page.frameLocator('iframe.example');
     await expect(frame.locator('html')).toHaveClass(`sl-theme-${scheme}`);
     for (const id of ['#demo-basic', '#demo-header', '#demo-footer']) {
@@ -185,8 +175,7 @@ test('a failed storage write keeps the new choice for the page, over an older st
   }, KEY);
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto('/', { waitUntil: 'networkidle' });
-  await settle(page);
+  await openDocs(page, '/');
   expect(await rootClass(page)).toBe('sl-theme-dark');
   await themeSelect(page).selectOption('light');
   expect(await rootClass(page)).toBe('sl-theme-light');
@@ -204,8 +193,7 @@ test('a choice made in another tab is followed, and the receiving tab\'s control
   const a = await context.newPage();
   const b = await context.newPage();
   for (const p of [a, b]) {
-    await p.goto('/', { waitUntil: 'networkidle' });
-    await settle(p);
+    await openDocs(p, '/');
   }
   await themeSelect(a).selectOption('dark');
   await expect.poll(() => rootClass(b)).toBe('sl-theme-dark');
@@ -228,8 +216,7 @@ test('a choice made in another tab is followed, and the receiving tab\'s control
 });
 
 test('the docs page itself carries the Velcro light tokens and the theme control is shown once the script ran', async ({ page }) => {
-  await page.goto('/components/button', { waitUntil: 'networkidle' });
-  await settle(page);
+  await openDocs(page, '/components/button');
   await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--sl-color-primary-600').trim())).toBe('#0284c7');
   await expect(themeSelect(page)).toBeVisible();
   // The header's Components link marks the section, the sidebar marks the page.
@@ -252,11 +239,9 @@ for (const scheme of ['light', 'dark']) {
   test(`Velcro components render with ${scheme} tokens on the page (showcase) and inside an example iframe`, async ({ browser }) => {
     const context = await browser.newContext({ colorScheme: scheme });
     const page = await context.newPage();
-    await page.goto('/', { waitUntil: 'networkidle' });
-    await settle(page);
+    await openDocs(page, '/');
     const onPage = await panelOf(page.locator('#showcase [data-component="card"] sl-card'));
-    await page.goto('/components/card', { waitUntil: 'networkidle' });
-    await settle(page);
+    await openDocs(page, '/components/card');
     const inFrame = await panelOf(page.frameLocator('iframe.example').locator('#demo-basic'));
     for (const [where, r] of [['page', onPage], ['iframe', inFrame]]) {
       // Shoelace's neutral-0 token is hsl(0 0% 100%) in light and hsl(240 5.9% 11%) in dark (bundled CSS is minified).
