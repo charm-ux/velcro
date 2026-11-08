@@ -580,6 +580,47 @@ test('security scans the published range and only the configured approver label 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+// The pinned Gitleaks archive is cached so a release-CDN outage does not fail every job. The key is the pinned version and
+// the pinned archive SHA-256 of the runners' target (linux-x64), exact key only, and the cached path is exactly the
+// directory where the installer keeps verified archives (it re-verifies a restored one before extracting anything).
+test('every candidate-scope Gitleaks install restores the pinned archive by version and SHA-256; security never does and alone retries', async () => {
+  const gitleaks = await import(new URL('../../scripts/security/gitleaks.mjs', import.meta.url).href);
+  const target = gitleaks.selectTarget(gitleaks.loadManifest(), 'linux', 'x64');
+  const dir = path.posix.dirname(target.relativeArchive.split(path.sep).join('/'));
+  assert.equal(dir, `.airig/tools/gitleaks/${gitleaks.GITLEAKS_VERSION}/archives`);
+  const key = `gitleaks-${gitleaks.GITLEAKS_VERSION}-linux-x64-${target.archiveSha256}`;
+  const escape = value => value.replaceAll(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  const cached = new RegExp(`- name: Cache the pinned Gitleaks archive\\n {8}uses: actions/cache@[a-f0-9]{40}\\n {8}with:\\n {10}path: ${escape(dir)}\\n {10}key: ${escape(key)}$`);
+  const pages = readFileSync(new URL('../../.github/workflows/pages.yml', import.meta.url), 'utf8');
+  const expected = { ci: ['verify', 'site'], product: ['build'], pages: ['checks', 'build'] };
+  for (const [name, text] of Object.entries({ ci: workflow, product, pages })) {
+    const installs = [];
+    for (const job of [...text.replace(/^ {2}#.*\n/gm, '').matchAll(/\n {2}([a-z-]+):\n/g)].map(m => m[1])) {
+      const body = jobOf(text, job);
+      if (name === 'ci' && job === 'security') {
+        assert.doesNotMatch(body, /actions\/cache/, 'security restores no cache over its base-owned engines');
+        // Only the security job opts in to the installer's bounded transport retry.
+        assert.match(body, /\n {6}- name: Install the base-owned Gitleaks \(bounded download retry\)\n {8}env:\n {10}VELCRO_GITLEAKS_DOWNLOAD_RETRY: '1'\n {8}run: node \.airig\/trusted\/scripts\/security\/gitleaks\.mjs install\n/);
+        continue;
+      }
+      const steps = body.split(/(?=\n {6}- )/);
+      steps.forEach((step, i) => {
+        if (!/gitleaks\.mjs install/.test(step)) return;
+        installs.push(job);
+        assert.match(step, /^\n {6}- run: node scripts\/security\/gitleaks\.mjs install\n?/, `${name} ${job}: the candidate-scope install`);
+        assert.match(steps[i - 1] ?? '', cached, `${name} ${job}: the pinned archive cache directly before the install`);
+        assert.match(body, /^ {4}runs-on: ubuntu-24\.04\n/m, `${name} ${job}: the cache key names the linux-x64 target`);
+      });
+    }
+    assert.deepEqual(installs, expected[name], name);
+    // Exact key only, and no other cache ever covers the installer's scratch.
+    assert.equal([...text.matchAll(/Cache the pinned Gitleaks archive/g)].length, expected[name].length, name);
+    assert.equal([...text.matchAll(/path: \.airig\/tools/g)].length, expected[name].length, name);
+    assert.doesNotMatch(text, /restore-keys: gitleaks|actions\/cache\/(?:save|restore)@/, name);
+    assert.equal([...text.matchAll(/VELCRO_GITLEAKS_DOWNLOAD_RETRY/g)].length, name === 'ci' ? 1 : 0, `${name}: retry only in security`);
+  }
+});
+
 // Covers the committed workflows only: a future PR's workflow changes are protected changes for human review.
 test('the committed workflows request no status or check writes, and only CI defines the required job', () => {
   const dir = new URL('../../.github/workflows/', import.meta.url);

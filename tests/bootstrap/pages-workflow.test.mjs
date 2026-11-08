@@ -115,3 +115,16 @@ test('main CI checks site preparation on every PR without uploading, and keeps i
   assert.doesNotMatch(ci, /upload-artifact|upload-pages|deploy-pages|pages: write|id-token/);
   assert.match(ci, /needs: \[verify, product, site, security\]/);
 });
+
+// Pages runs only on main, so its caches are main-scope entries that pull requests and merge groups cannot write; the
+// installer still re-verifies a restored archive against the pinned SHA-256 (layout checked in ci.test.mjs).
+test('the pinned Gitleaks archive cache precedes each install, and the deploy job restores nothing', () => {
+  for (const [name, body] of [['checks', checks], ['build', build]]) {
+    const cache = body.indexOf('- name: Cache the pinned Gitleaks archive');
+    const install = body.indexOf('- run: node scripts/security/gitleaks.mjs install');
+    assert.ok(cache > 0 && cache < install, `${name}: cache step before the install`);
+    assert.ok(body.includes(`path: ${AIRIG}/tools/gitleaks/`), `${name}: only the installer's archive directory`);
+  }
+  assert.ok(build.indexOf('gitleaks.mjs install') < build.indexOf('actions/upload-pages-artifact@'));
+  assert.doesNotMatch(deploy, /actions\/cache|gitleaks/);
+});
