@@ -1,23 +1,19 @@
 // Docs layout: narrow viewports and fragment links into the page's shadow root.
 import { expect, test } from '@playwright/test';
 import { guardCdn } from './support/cdn.mjs';
+import { openDocs } from './support/loaded.mjs';
+import { readCatalog } from '../../scripts/site/catalog.mjs';
 
 // The icon page loads its CDN icon library examples only on request; no test here asks, and none reaches a CDN (support/cdn.mjs).
 let cdnRequests = [];
 test.beforeEach(async ({ page }) => { cdnRequests = guardCdn(page); });
 test.afterEach(() => { expect(cdnRequests, 'no request reaches the CDN').toEqual([]); });
 
-const settle = async page => {
-  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
-  await page.waitForLoadState('networkidle');
-};
-
 for (const fontSize of ['16px', '24px']) {
   test(`previous/next links fit a 320px viewport (root font size ${fontSize})`, async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 320, height: 640 } });
     const page = await context.newPage();
-    await page.goto('/components/button', { waitUntil: 'networkidle' });
-    await settle(page);
+    await openDocs(page, '/components/button');
     await page.addStyleTag({ content: `html { font-size: ${fontSize} !important; }` });
     const pager = page.getByRole('navigation', { name: 'Previous and next' });
     const links = pager.getByRole('link');
@@ -36,8 +32,7 @@ for (const fontSize of ['16px', '24px']) {
 
 for (const [route, id] of [['/components/button', 'attributes'], ['/components/card', 'not-implemented'], ['/', 'showcase']]) {
   test(`a direct load of ${route}#${id} scrolls to the section in the page's shadow root`, async ({ page }) => {
-    await page.goto(`${route}#${id}`, { waitUntil: 'networkidle' });
-    await settle(page);
+    await openDocs(page, `${route}#${id}`);
     const target = page.locator(`#${id}`);
     await expect(target).toBeInViewport();
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
@@ -45,15 +40,13 @@ for (const [route, id] of [['/components/button', 'attributes'], ['/components/c
 }
 
 test('a hash change after load also scrolls to the section', async ({ page }) => {
-  await page.goto('/components/button', { waitUntil: 'networkidle' });
-  await settle(page);
+  await openDocs(page, '/components/button');
   await page.evaluate(() => { location.hash = '#events'; });
   await expect(page.locator('#events')).toBeInViewport();
 });
 
 test('example iframes grow to their content: the last card example on the card page is fully visible', async ({ page }) => {
-  await page.goto('/components/card', { waitUntil: 'networkidle' });
-  await settle(page);
+  await openDocs(page, '/components/card');
   const iframe = page.locator('iframe.example').first();
   const frame = page.frameLocator('iframe.example').first();
   const last = frame.locator('sl-card').last();
@@ -67,8 +60,7 @@ test('example iframes grow to their content: the last card example on the card p
 });
 
 test('example iframes follow content size changes', async ({ page }) => {
-  await page.goto('/components/badge', { waitUntil: 'networkidle' });
-  await settle(page);
+  await openDocs(page, '/components/badge');
   const iframe = page.locator('iframe.example').first();
   const before = (await iframe.boundingBox()).height;
   await page.frameLocator('iframe.example').first().locator('body').evaluate(b => {
@@ -84,8 +76,7 @@ for (const fontSize of ['16px', '24px']) {
     test(`${route} at 320px (root font ${fontSize}): no horizontal overflow; brand, primary nav and theme control are usable`, async ({ browser }) => {
       const context = await browser.newContext({ viewport: { width: 320, height: 640 } });
       const page = await context.newPage();
-      await page.goto(route, { waitUntil: 'networkidle' });
-      await settle(page);
+      await openDocs(page, route);
       await page.addStyleTag({ content: `html { font-size: ${fontSize} !important; }` });
       const viewport = await page.evaluate(() => document.documentElement.clientWidth);
       expect(viewport).toBe(320);
@@ -120,15 +111,15 @@ for (const fontSize of ['16px', '24px']) {
   }
 }
 
-test('no page overflows a 320px viewport horizontally at a 24px root font', async ({ browser }) => {
-  const { readCatalog } = await import('../../scripts/site/catalog.mjs');
-  const context = await browser.newContext({ viewport: { width: 320, height: 640 } });
-  const page = await context.newPage();
+// One test per docs page (the home page and every catalog component), so each page has its own time budget: a single
+// test walking every page grew slower with each component until it timed out in CI. The page fixture keeps the CDN guard.
+test.describe('no horizontal overflow at 320px with a 24px root font', () => {
+  test.use({ viewport: { width: 320, height: 640 } });
   for (const route of ['/', ...readCatalog().map(c => `/components/${c.name}`)]) {
-    await page.goto(route, { waitUntil: 'networkidle' });
-    await settle(page);
-    await page.addStyleTag({ content: 'html { font-size: 24px !important; }' });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth), route).toBeLessThanOrEqual(320);
+    test(route, async ({ page }) => {
+      await openDocs(page, route);
+      await page.addStyleTag({ content: 'html { font-size: 24px !important; }' });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+    });
   }
-  await context.close();
 });

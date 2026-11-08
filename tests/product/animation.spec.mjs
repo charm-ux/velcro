@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
-import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
 
@@ -17,9 +17,8 @@ const TITLES = ['Overview', 'Animations & Easings', 'Using Intersection Observer
 async function openExample(page, name = 'Overview') {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
-  // Litro's client router remounts the page component once after load, which reloads the iframe; wait for it to settle.
-  // While it remounts (seen in WebKit) the old and new iframes can both be present for a moment.
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
+  // Once the docs page is ready the remount has finished: the old iframes are gone and each example has one.
+  await openDocs(page, PAGE);
   await expect(page.locator(`iframe.example[title="Animation example: ${name}"]`)).toHaveCount(1);
   const frame = page.frameLocator(`iframe.example[title="Animation example: ${name}"]`);
   await expect(frame.locator('sl-animation').first()).toBeAttached();
@@ -726,7 +725,7 @@ test.describe('utilities and entry points', () => {
 });
 
 test('every docs example renders in its own document', async ({ page }) => {
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
+  await openDocs(page, PAGE);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual(TITLES.map(t => `Animation example: ${t}`));
   for (const title of titles) {

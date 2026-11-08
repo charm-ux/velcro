@@ -2,11 +2,12 @@ import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
 import { shell, shellStyles } from '../../src/shell.js';
+import { themeHead } from '../../src/theme.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: '{{titleCase name}} - Velcro',
-  seoHead: '<meta name="description" content="Velcro {{kebabCase name}} (prototype).">',
+  seoHead: themeHead + '<meta name="description" content="Velcro {{kebabCase name}} (prototype).">',
 }));
 
 @customElement('page-components-{{kebabCase name}}')

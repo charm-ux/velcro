@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { buildFixtures } from './support/fixtures.mjs';
+import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 const PAGE = '/components/include';
 const loopback = ['127', '0', '0', '1'].join('.');
@@ -10,13 +11,16 @@ const loopback = ['127', '0', '0', '1'].join('.');
 // ---- the documentation page and its examples (the production build, served by the product server) ----
 
 async function openExample(page, name = 'Overview') {
+  watchNetwork(page);
   const requests = [];
   page.on('request', request => requests.push(request.url()));
-  // Litro's client router remounts the page component once after load, which reloads the iframe; wait for it to settle.
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
+  await openDocs(page, PAGE);
   const frame = page.frameLocator(`iframe.example[title="Include example: ${name}"]`);
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-include'));
-  await page.waitForLoadState('networkidle');
+  // The specs check the requests the page made, so this also waits for the network to go quiet (an example can fetch
+  // after its document has loaded). documentsLoaded, not Playwright's networkidle: WebKit can leave the latter pending
+  // for good after the router's remount.
+  await documentsLoaded(page);
   return { frame, requests };
 }
 

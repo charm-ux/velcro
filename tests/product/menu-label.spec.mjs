@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
 
@@ -14,9 +14,7 @@ const TITLE = 'Menu Label example: Menu labels in a menu';
 async function openExample(page) {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
-  // Litro's client router remounts the page component once after load, which reloads the iframe; wait for it to settle.
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
-  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
+  await openDocs(page, PAGE);
   const frame = page.frameLocator(`iframe.example[title="${TITLE}"]`);
   await expect(frame.locator('sl-menu-label').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-menu-label'));
@@ -340,7 +338,7 @@ test('no properties, methods or Shoelace events of its own; only the inherited c
 });
 
 test('the example renders two labels and a divider in its own document, with the stand-in menu around them', async ({ page }) => {
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
+  await openDocs(page, PAGE);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual([TITLE]);
   const frame = page.frameLocator('iframe.example');

@@ -2,6 +2,7 @@
 // Each layout is served by a loopback server on an ephemeral port that only answers under its own prefix, so a
 // request that escapes to a root path shows up as a 404 or as a recorded request outside the prefix.
 import { expect, test } from '@playwright/test';
+import { docsReady, documentsLoaded, openDocs, reloadDocs, watchNetwork } from './support/loaded.mjs';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,6 +52,7 @@ for (const { name, dir, base } of layouts) {
 
     for (const route of routes) {
       test(`${route}: renders on the client route and loads only prefixed assets`, async ({ page, browserName }) => {
+        watchNetwork(page);
         const seen = [];
         const failures = collectRequestFailures(page);
         const errors = [];
@@ -64,17 +66,19 @@ for (const { name, dir, base } of layouts) {
         page.on('pageerror', error => benign(error.message) || errors.push(error.message));
         page.on('console', message => message.type() === 'error' && !benign(message.text()) && errors.push(message.text()));
 
-        // networkidle: Litro's router remounts the page once after load, which reloads the example iframe.
-        await page.goto(url(route), { waitUntil: 'networkidle' });
-        // data-litro-settled is set only after the client router matched location.pathname to a route and rendered it.
-        await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
+        // Litro's router remounts the page once after load, which reloads the example iframe. The docs app's ready signal
+        // is set only after the client router matched location.pathname to a route, rendered it and its frames loaded.
+        await openDocs(page, url(route));
         await expect(page.locator('h1').first()).toBeVisible();
         if (examples[route]) {
           const frame = page.frameLocator('iframe.example').first();
           await expect(frame.locator(examples[route]).first()).toBeVisible();
           await frame.locator(examples[route]).first().evaluate((_el, selector) => customElements.whenDefined(document.querySelector(selector).localName), tags);
         }
-        await page.waitForLoadState('networkidle');
+        // This test checks every request the page made, so it also waits for the network to go quiet (an example can
+        // fetch after its document has loaded). documentsLoaded, not Playwright's networkidle: WebKit can leave the
+        // latter pending for good after the remount.
+        await documentsLoaded(page);
 
         const own = seen.filter(u => u.origin === origin);
         expect(own.length).toBeGreaterThan(2);
@@ -93,22 +97,22 @@ for (const { name, dir, base } of layouts) {
       });
 
       test(`${route}: a refresh on the deep link renders the same page`, async ({ page }) => {
-        await page.goto(url(route), { waitUntil: 'networkidle' });
+        await openDocs(page, url(route));
         const title = await page.title();
-        await page.reload({ waitUntil: 'networkidle' });
-        await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
+        await reloadDocs(page);
         expect(await page.title()).toBe(title);
         expect(new URL(page.url()).pathname).toBe(`${base}${route === '/' ? '/' : route}`);
       });
     }
 
     test('navigation links reach every route and keep the prefix', async ({ page }) => {
+      // Each link is an ordinary document navigation: wait for the new document's URL, then for its ready signal.
       const arrive = async route => {
-        await page.waitForLoadState('networkidle');
-        await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
+        await page.waitForURL(u => u.pathname === `${base}${route === '/' ? '/' : route}`);
+        await docsReady(page);
         expect(new URL(page.url()).pathname).toBe(`${base}${route === '/' ? '/' : route}`);
       };
-      await page.goto(url('/'), { waitUntil: 'networkidle' });
+      await openDocs(page, url('/'));
       // Header -> first component, then every component through the docs sidebar, then back home through the header.
       await page.locator('header nav').getByRole('link', { name: 'Components', exact: true }).click();
       await arrive(`/components/${catalog[0].name}`);
