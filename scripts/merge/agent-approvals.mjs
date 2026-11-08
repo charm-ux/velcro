@@ -12,7 +12,10 @@
 // `set` marks the open pull request's head (it must still be <oid>, based on main). `set-group` marks the merge-queue
 // commit GitHub built for that pull request, as GitHub reports it (the pull request's mergeQueueEntry; no branch name
 // is derived), only when the entry is awaiting checks on main's current tip and its commit is the --group commit the
-// caller scanned, has that tip as its single parent and exactly the approved head's tree, so it lands nothing else.
+// caller scanned and has that tip as its single parent. Its tree must then be either exactly the approved head's tree
+// (when the head already contains that tip) or the conflict-free result of `git merge-tree --write-tree <tip> <head>`,
+// so it lands the approved changes on main and nothing else. The merge is computed by Git in the current directory,
+// which must be a clone of the repository holding both commits (fetch main first); a missing commit refuses.
 // Neither marks a commit that already carries an `agent-approvals` status from another account (a workflow token,
 // for example), and each confirms afterwards that its own success is the newest one.
 // Output is fixed status lines with OIDs only: no paths, report text or GitHub responses.
@@ -68,6 +71,23 @@ export function ghRunner(args) {
   try { return JSON.parse(result.stdout); } catch { refuse('a GitHub response was not JSON'); }
 }
 
+// Local Git in `cwd`. Returns the exit status (null when Git could not run) and stdout; stderr is never shown.
+export function gitRunner(args, cwd = process.cwd()) {
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8', timeout: 60000, maxBuffer: 16 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+  return { status: result.error ? null : result.status, stdout: result.stdout ?? '' };
+}
+
+// The tree a conflict-free merge of `head` onto `base` produces, as `git merge-tree --write-tree` computes it (the
+// same three-way merge a squash builds). A conflict, a missing commit or any other failure refuses.
+function mergedTree(git, base, head) {
+  let result;
+  try { result = git(['merge-tree', '--write-tree', '--no-messages', base, head]); } catch { result = undefined; }
+  if (result?.status === 1) refuse('the approved head conflicts with main');
+  const tree = typeof result?.stdout === 'string' ? result.stdout.replace(/\n$/, '') : '';
+  if (result?.status !== 0 || !OID.test(tree)) refuse('the merge onto main could not be computed locally');
+  return tree;
+}
+
 function openPullOnMain(gh, repo, pr, head) {
   const pull = gh(['api', `repos/${repo}/pulls/${pr}`]);
   if (pull?.state !== 'open' || pull.draft !== false) refuse('the pull request is not open and ready');
@@ -103,9 +123,10 @@ const QUEUE_ENTRY = 'query($owner: String!, $name: String!, $number: Int!) { rep
 // The merge-queue commit for this pull request, asked of GitHub rather than derived from a branch name (GitHub names
 // the queue branch after the base it builds on, gh-readonly-queue/main/pr-<n>-<base>, which is no binding to the
 // head). The entry must be awaiting checks for the approved head, built on main's current tip, and be the scanned
-// commit; that commit must have that tip as its single parent, the approved head's tree, and a head that already
-// contains that tip. Returns the merge-group commit OID.
-function mergeGroup(gh, repo, pr, head, expected) {
+// commit; that commit must have that tip as its single parent. Its tree must be the approved head's tree with a head
+// that already contains that tip, or else exactly the conflict-free merge of the approved head onto that tip.
+// Returns the merge-group commit OID.
+function mergeGroup(gh, git, repo, pr, head, expected) {
   const main = gh(['api', `repos/${repo}/git/ref/heads/main`])?.object?.sha;
   if (!OID.test(main ?? '')) refuse('main could not be resolved');
   const [owner, name] = repo.split('/');
@@ -123,9 +144,14 @@ function mergeGroup(gh, repo, pr, head, expected) {
   const parents = Array.isArray(built.parents) ? built.parents.map(parent => parent?.sha) : [];
   if (parents.length !== 1 || parents[0] !== main) refuse('the merge-queue commit is not built directly on main');
   const tree = built.commit?.tree?.sha;
-  if (!OID.test(tree ?? '') || tree !== approved.commit?.tree?.sha) refuse('the merge-queue commit does not have the approved tree');
-  const compare = gh(['api', `repos/${repo}/compare/${main}...${head}`]);
-  if (compare?.status !== 'ahead' || compare.behind_by !== 0) refuse('the approved head does not contain main');
+  if (!OID.test(tree ?? '')) refuse('the merge-queue commit does not have the approved tree');
+  // Exact path: the approved head already contains main's tip and the queue commit has its tree.
+  if (tree === approved.commit?.tree?.sha) {
+    const compare = gh(['api', `repos/${repo}/compare/${main}...${head}`]);
+    if (compare?.status === 'ahead' && compare.behind_by === 0) return group;
+  }
+  // Merge path: main moved since the approval; the queue commit must be exactly the approved head merged onto it.
+  if (tree !== mergedTree(git, main, head)) refuse('the merge-queue commit is not the approved head merged onto main');
   return group;
 }
 
@@ -146,7 +172,7 @@ function options(args) {
   return { command, file, ...flags };
 }
 
-export function main(args, { gh = ghRunner, write = text => process.stdout.write(text) } = {}) {
+export function main(args, { gh = ghRunner, git = gitRunner, write = text => process.stdout.write(text) } = {}) {
   try {
     const { command, file, head, root, repo, pr, group: scanned } = options(args);
     const count = validateBinding(readBinding(file), head, root);
@@ -158,7 +184,7 @@ export function main(args, { gh = ghRunner, write = text => process.stdout.write
       write(`agent-approvals: success set on ${head}\n`);
     } else {
       openPullOnMain(gh, repo, pr, head);
-      const group = mergeGroup(gh, repo, pr, head, scanned);
+      const group = mergeGroup(gh, git, repo, pr, head, scanned);
       setStatus(gh, repo, group);
       write(`agent-approvals: success set on merge group ${group} for ${head}\n`);
     }
