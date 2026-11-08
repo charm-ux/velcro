@@ -66,6 +66,16 @@ const addStartButton = frame => frame.locator('body').evaluate(body => {
   body.prepend(start);
 });
 
+// Types `count` lines ("line 0", "line 1", ...) into a textarea with the keyboard, the way a user does: a key press per
+// character and Enter between lines, so every engine delivers one input event per edit.
+async function typeLines(page, textarea, count) {
+  await textarea.focus();
+  for (let i = 0; i < count; i++) {
+    await page.keyboard.type(`line ${i}`);
+    if (i < count - 1) await page.keyboard.press('Enter');
+  }
+}
+
 test('docs page is prerendered with Velcro branding, prototype status and explicit limits', async ({ request }) => {
   const response = await request.get(PAGE);
   expect(response.ok()).toBe(true);
@@ -310,19 +320,33 @@ test('resize: vertical by default, none prevents resizing, auto grows and shrink
   });
   const before = await read();
   expect(before).toMatchObject({ resize: 'none', overflowY: 'hidden', adjusterHidden: false, cls: true });
-  await auto.locator('textarea').fill(Array.from({ length: 12 }, (_, i) => `line ${i}`).join('\n'));
+  await typeLines(page, auto.locator('textarea'), 12);
   // Separate assertions, in the order the algorithm works, so a failure says which one broke: the value arrived, the box
   // was small before, the box followed the content, and the algorithm's height is the content's scroll height.
   const lines = () => auto.evaluate(el => [el.value.split('\n').length, el.shadowRoot.querySelector('textarea').value.split('\n').length]);
   await expect.poll(lines).toEqual([12, 12]);
-  expect(before.height).toBeGreaterThan(60);
-  expect(before.height).toBeLessThan(150);
-  await expect.poll(async () => (await read()).height).toBeGreaterThan(before.height + 40);
-  await expect.poll(() => auto.evaluate(el => el.shadowRoot.querySelector('textarea').scrollHeight)).toBeGreaterThan(before.height + 40);
+  // The expected growth comes from the measured line height, not from a fixed number: the box shows `rows` (4) lines before
+  // and 12 lines after, so it grows by 8 line boxes. Engines round the line box to whole pixels, so one line box of
+  // tolerance covers the rounding and any padding the engine counts differently.
+  const { lineHeight, rows } = await auto.evaluate(el => {
+    const textarea = el.shadowRoot.querySelector('textarea');
+    return { lineHeight: parseFloat(getComputedStyle(textarea).lineHeight), rows: textarea.rows };
+  });
+  expect(lineHeight).toBeGreaterThan(20);
+  expect(lineHeight).toBeLessThan(25);
+  expect(rows).toBe(4);
+  const expectedGrowth = (12 - rows) * lineHeight;
+  expect(before.height).toBeGreaterThan(rows * lineHeight);
+  expect(before.height).toBeLessThan((rows + 1) * lineHeight + 20);
+  await expect.poll(async () => (await read()).height - before.height).toBeGreaterThan(expectedGrowth - lineHeight);
+  await expect.poll(() => auto.evaluate(el => el.shadowRoot.querySelector('textarea').scrollHeight)).toBeGreaterThan(before.height + expectedGrowth - lineHeight);
   const grown = await read();
+  expect(Math.abs(grown.height - before.height - expectedGrowth)).toBeLessThanOrEqual(lineHeight);
   expect(Math.abs(parseFloat(grown.inline) - (await auto.evaluate(el => el.shadowRoot.querySelector('textarea').scrollHeight)))).toBeLessThan(2);
-  await auto.locator('textarea').fill('one line');
-  await expect.poll(async () => (await read()).height).toBeLessThan(grown.height - 40);
+  // Back to one line, set from script (the path Shoelace's own tests use for value changes).
+  await auto.evaluate(async el => { el.value = 'one line'; await el.updateComplete; });
+  // Back to one line: the box shrinks by about the 8 lines it gained (the same tolerance as for the growth).
+  await expect.poll(async () => grown.height - (await read()).height).toBeGreaterThan(expectedGrowth - lineHeight);
 
   // Switching the mode at run time: vertical shows the browser's resize handle and hides the adjuster again. As in
   // Shoelace, a change of `resize` does not re-measure: the height that `auto` wrote stays until the value or the rows change.
@@ -349,6 +373,36 @@ test('resize: vertical by default, none prevents resizing, auto grows and shrink
     return out;
   });
   expect(core).toEqual({ horizontal: ['both', []], both: ['both', []] });
+});
+
+test('resize none and vertical: the height does not follow the content, long or short, and no height is written inline', async ({ page }) => {
+  const { frame } = await openExample(page);
+  await mount(frame, '<sl-textarea id="r-none" resize="none"></sl-textarea><sl-textarea id="r-vertical" resize="vertical"></sl-textarea><sl-textarea id="r-default"></sl-textarea>');
+  for (const id of ['r-none', 'r-vertical', 'r-default']) {
+    const el = frame.locator(`#${id}`);
+    const read = () => el.evaluate(async host => {
+      // Two frames and a ResizeObserver turn: anything the component would write has been written by then.
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const textarea = host.shadowRoot.querySelector('textarea');
+      return { height: textarea.getBoundingClientRect().height, inline: textarea.style.height, overflows: textarea.scrollHeight > textarea.clientHeight };
+    });
+    const initial = await read();
+    expect(initial.inline, id).toBe('');
+    await typeLines(page, el.locator('textarea'), 12);
+    expect(await el.evaluate(host => host.value.split('\n').length), id).toBe(12);
+    const withLong = await read();
+    // The content really is taller than the box, and the box did not change.
+    expect(withLong.overflows, id).toBe(true);
+    expect(withLong.height, id).toBe(initial.height);
+    expect(withLong.inline, id).toBe('');
+    await el.evaluate(async host => { host.value = 'short'; await host.updateComplete; });
+    const withShort = await read();
+    expect(withShort.height, id).toBe(initial.height);
+    expect(withShort.inline, id).toBe('');
+    // A change of rows still resizes it (the box shows `rows` lines), so the equality above is not a frozen layout.
+    await el.evaluate(async host => { host.rows = 8; await host.updateComplete; });
+    expect((await read()).height, id).toBeGreaterThan(initial.height + 60);
+  }
 });
 
 test('events: sl-input per edit and sl-change on commit bubble and are composed; nothing is emitted for script changes', async ({ page }) => {
@@ -612,10 +666,23 @@ test('methods: select, setSelectionRange, setRangeText, scrollPosition, focus an
     const inner = el.shadowRoot.querySelector('textarea');
     el.select();
     const selected = [inner.selectionStart, inner.selectionEnd];
+    // Record what is passed to the inner textarea, and compare with a native one in the same engine.
+    const passed = [];
+    const real = inner.setSelectionRange;
+    inner.setSelectionRange = function (...args) { passed.push(args); return real.apply(this, args); };
     el.setSelectionRange(1, 3);
     const range = [inner.selectionStart, inner.selectionEnd, inner.selectionDirection];
     el.setSelectionRange(2, 4, 'backward');
     const backward = inner.selectionDirection;
+    el.setSelectionRange(1, 3, 'forward');
+    const forward = inner.selectionDirection;
+    delete inner.setSelectionRange;
+    const native = document.createElement('textarea');
+    native.value = 'hello world';
+    document.body.append(native);
+    native.setSelectionRange(1, 3, 'none');
+    const nativeNone = native.selectionDirection;
+    native.remove();
     el.setRangeText('XY', 0, 2);
     await el.updateComplete;
     const replaced = [el.value, inner.value];
@@ -631,13 +698,18 @@ test('methods: select, setSelectionRange, setRangeText, scrollPosition, focus an
     const innerTop = inner.scrollTop;
     const focused = (el.focus(), [document.activeElement === el, el.shadowRoot.activeElement === inner]);
     el.blur();
-    return { selected, range, backward, replaced, atCaret, set, position, inner: innerTop, focused, blurred: el.shadowRoot.activeElement };
+    return { selected, range, backward, forward, passed, nativeNone, replaced, atCaret, set, position, inner: innerTop, focused, blurred: el.shadowRoot.activeElement };
   });
   expect(r.selected).toEqual([0, 11]);
-  // The platform may report an explicit 'none' direction as 'forward' (Chromium and WebKit do outside macOS).
+  // The call without a direction passes Shoelace's default, 'none', to the inner textarea, and an explicit direction is passed
+  // through unchanged. What the platform then reports for 'none' is its own business (it is 'none' on macOS and 'forward' where
+  // there is no "none" direction), so the reported value is compared with a native textarea's in the same engine.
+  expect(r.passed).toEqual([[1, 3, 'none'], [2, 4, 'backward'], [1, 3, 'forward']]);
   expect(r.range.slice(0, 2)).toEqual([1, 3]);
-  expect(['none', 'forward']).toContain(r.range[2]);
+  expect(r.range[2]).toBe(r.nativeNone);
+  expect(['none', 'forward']).toContain(r.nativeNone);
   expect(r.backward).toBe('backward');
+  expect(r.forward).toBe('forward');
   expect(r.replaced).toEqual(['XYllo world', 'XYllo world']);
   expect(r.atCaret).toEqual(['>XYllo world', 1]);
   expect(r.set).toBeUndefined();
