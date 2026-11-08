@@ -1,0 +1,27 @@
+<form class="custom-validity">
+  <sl-checkbox id="demo-custom-validity">Check me</sl-checkbox>
+  <br />
+  <sl-button type="submit" variant="primary" style="margin-top: 1rem;">Submit</sl-button>
+</form>
+<script type="module">
+  const form = document.querySelector('.custom-validity');
+  const checkbox = form.querySelector('sl-checkbox');
+  const errorMessage = `Don't forget to check me!`;
+
+  // Set initial validity as soon as the element is defined
+  customElements.whenDefined('sl-checkbox').then(async () => {
+    await checkbox.updateComplete;
+    checkbox.setCustomValidity(errorMessage);
+  });
+
+  // Update validity on change
+  checkbox.addEventListener('sl-change', () => {
+    checkbox.setCustomValidity(checkbox.checked ? '' : errorMessage);
+  });
+
+  // Handle submit
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    alert('All fields are valid!');
+  });
+</script>
