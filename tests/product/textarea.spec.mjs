@@ -311,11 +311,14 @@ test('resize: vertical by default, none prevents resizing, auto grows and shrink
   const before = await read();
   expect(before).toMatchObject({ resize: 'none', overflowY: 'hidden', adjusterHidden: false, cls: true });
   await auto.locator('textarea').fill(Array.from({ length: 12 }, (_, i) => `line ${i}`).join('\n'));
-  // Each step is its own assertion, so a failure says which one broke: the algorithm ran, it measured the content, and the
-  // box followed.
-  await expect.poll(async () => (await read()).inline).toMatch(/^\d+(\.\d+)?px$/);
-  await expect.poll(() => auto.evaluate(el => el.shadowRoot.querySelector('textarea').scrollHeight)).toBeGreaterThan(before.height + 40);
+  // Separate assertions, in the order the algorithm works, so a failure says which one broke: the value arrived, the box
+  // was small before, the box followed the content, and the algorithm's height is the content's scroll height.
+  const lines = () => auto.evaluate(el => [el.value.split('\n').length, el.shadowRoot.querySelector('textarea').value.split('\n').length]);
+  await expect.poll(lines).toEqual([12, 12]);
+  expect(before.height).toBeGreaterThan(60);
+  expect(before.height).toBeLessThan(150);
   await expect.poll(async () => (await read()).height).toBeGreaterThan(before.height + 40);
+  await expect.poll(() => auto.evaluate(el => el.shadowRoot.querySelector('textarea').scrollHeight)).toBeGreaterThan(before.height + 40);
   const grown = await read();
   expect(Math.abs(parseFloat(grown.inline) - (await auto.evaluate(el => el.shadowRoot.querySelector('textarea').scrollHeight)))).toBeLessThan(2);
   await auto.locator('textarea').fill('one line');
