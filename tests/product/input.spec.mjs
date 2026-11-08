@@ -338,8 +338,6 @@ test('clearable: the clear button shows only for a non-empty, enabled, editable 
   await button.click();
   expect(await recorded(frame)).toEqual(['sl-clear', 'sl-input', 'sl-change', 'sl-focus']);
   expect(await el.evaluate(el => [el.value, el.shadowRoot.querySelector('input').value, el.shadowRoot.activeElement?.localName, Boolean(el.shadowRoot.querySelector('[part="clear-button"]'))])).toEqual(['', '', 'input', false]);
-  // Nothing happens, and nothing is emitted, when the value is already empty (the button is not rendered then).
-  expect(await recorded(frame)).toEqual(['sl-clear', 'sl-input', 'sl-change', 'sl-focus']);
   // The slotted icon replaces the default one.
   expect(await frame.locator('#c-slot').evaluate(el => {
     const b = el.shadowRoot.querySelector('[part="clear-button"]');
@@ -1132,9 +1130,12 @@ test.describe('localized names', () => {
   });
 });
 
-test('upstream quirks matched: hidden does not hide it, form="" and aria-describedby are always set, removing value nulls it, conversions fall back to in-memory inputs, methods throw before rendering', async ({ page }) => {
+test('upstream quirks matched: hidden does not hide it, form="" and aria-describedby are always set, removing value nulls it, conversions fall back to in-memory inputs, the password toggle ignores the type, a bare spellcheck is false, methods throw before rendering', async ({ page }) => {
   const { frame } = await openExample(page);
-  await mount(frame, '<sl-input id="h" hidden></sl-input><sl-input id="v" value="a"></sl-input><sl-input id="clr" clearable value="a"></sl-input>');
+  await mount(frame, `
+    <sl-input id="h" hidden></sl-input><sl-input id="v" value="a"></sl-input><sl-input id="clr" clearable value="a"></sl-input>
+    <sl-input id="conv" value="42"></sl-input><sl-input id="pw" type="text" password-toggle></sl-input>
+    <sl-input id="spell" spellcheck></sl-input><sl-input id="spell-true" spellcheck="true"></sl-input><sl-input id="spell-false" spellcheck="false"></sl-input>`);
   // Shoelace's :host { display: block } outranks the user agent's [hidden] rule.
   expect(await frame.locator('#h').evaluate(el => getComputedStyle(el).display)).toBe('block');
   const r = await frame.locator('body').evaluate(async () => {
@@ -1158,21 +1159,32 @@ test('upstream quirks matched: hidden does not hide it, form="" and aria-describ
     })) {
       try { call(); thrown[name] = false; } catch (error) { thrown[name] = error instanceof TypeError; }
     }
+    const conv = document.querySelector('#conv');
+    const spell = id => { const el = document.querySelector(id); return [el.spellcheck, el.shadowRoot.querySelector('input').getAttribute('spellcheck')]; };
     return {
       form: h.getAttribute('form'),
       describedBy: h.shadowRoot.querySelector('input').getAttribute('aria-describedby'),
-      removed, renderError, thrown,
+      // A text input converts through the in-memory inputs: a number from "42", and no date.
+      conversions: [conv.valueAsNumber, conv.valueAsDate],
+      textToggle: Boolean(document.querySelector('#pw').shadowRoot.querySelector('[part="password-toggle-button"]')),
+      spellcheck: { bare: spell('#spell'), explicitTrue: spell('#spell-true'), explicitFalse: spell('#spell-false') },
+      removed, renderError, thrown, pickerSupported: 'showPicker' in HTMLInputElement.prototype,
     };
   });
   expect(r.form).toBe('');
   expect(r.describedBy).toBe('help-text');
   expect(r.removed).toEqual([null, null]);
+  expect(r.conversions).toEqual([42, null]);
+  expect(r.textToggle).toBe(true);
+  // The converter reads the empty value of a bare attribute as false.
+  expect(r.spellcheck).toEqual({ bare: [false, 'false'], explicitTrue: [true, 'true'], explicitFalse: [false, 'false'] });
   expect(r.renderError).toBe(true);
-  // showPicker() is the one that checks the platform first: it never reaches the missing inner input where there is no picker.
+  // showPicker() is the one that checks the platform first: it throws before the first render only where the engine has a
+  // picker API (and so reaches the missing inner input); where it has none, it is a no-op, as in Shoelace.
   const { showPicker, ...others } = r.thrown;
   expect(Object.values(others).every(Boolean)).toBe(true);
   expect(Object.keys(others).length).toBe(12);
-  expect(typeof showPicker).toBe('boolean');
+  expect(showPicker).toBe(r.pickerSupported);
 });
 
 test('inherited core ready event: dispatched once on the element after the first update, not bubbling or composed', async ({ page }) => {

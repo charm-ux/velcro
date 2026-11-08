@@ -106,6 +106,9 @@ for (const { name, dir, base } of layouts) {
     }
 
     test('navigation links reach every route and keep the prefix', async ({ page }) => {
+      // The walk is one document navigation per catalog component, so its time grows with the catalog: the config's fixed 45 s
+      // ran out on CI's WebKit with 33 components (it takes about 19 s there locally). Budget per component instead.
+      test.setTimeout(45_000 + catalog.length * 3_000);
       // Each link is an ordinary document navigation: wait for the new document's URL, then for its ready signal.
       const arrive = async route => {
         await page.waitForURL(u => u.pathname === `${base}${route === '/' ? '/' : route}`);
