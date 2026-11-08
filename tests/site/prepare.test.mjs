@@ -83,6 +83,18 @@ test('a complete site stages with exactly the allowlisted files, notices, 404, .
   assert.equal(JSON.parse(readFileSync(path.join(f.runDir, 'manifest.json'), 'utf8')).status, 'passed');
 });
 
+test('pages for button and button-group stage, and the manifest lists the files in full-path order', async () => {
+  // One directory name prefixes another: the '/' after 'button' sorts after the '-' of 'button-group', so a walk that goes
+  // directory by directory is not in full-path order, which the staged-bytes checks compare against.
+  const f = fixture(leaf(c => { c.files['components/button/index.html'] = '<p>button</p>\n'; c.files['components/button-group/index.html'] = '<p>button-group</p>\n'; }));
+  const m = await run(f);
+  const rels = m.files.map(e => e.rel);
+  assert.ok(rels.includes('components/button/index.html') && rels.includes('components/button-group/index.html'));
+  assert.deepEqual(rels, [...rels].sort((a, b) => (a < b ? -1 : 1)));
+  assert.ok(rels.indexOf('components/button-group/index.html') < rels.indexOf('components/button/index.html'));
+  assert.equal(m.aggregateSha256, aggregateHash(m.files));
+});
+
 test('an existing run directory is never reused', async () => {
   const f = fixture();
   mkdirSync(f.runDir);

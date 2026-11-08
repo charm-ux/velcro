@@ -184,7 +184,9 @@ function treeFiles(dir) {
     }
   };
   walk(dir, '');
-  return out;
+  // Directory by directory is not full-path order when one name is a prefix of another ('button' and 'button-group': the
+  // '/' after the first sorts after the '-' of the second), and callers compare this list with one sorted by full path.
+  return out.sort((a, b) => (a.rel < b.rel ? -1 : 1));
 }
 
 /** Privacy rules over exact staged bytes and outbound names; logical labels, zero exclusions. */
