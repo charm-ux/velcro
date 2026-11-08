@@ -2,6 +2,7 @@
 {"name":"avatar","title":"Avatar","tag":"sl-avatar","example":"#demo-default"}
 {"name":"badge","title":"Badge","tag":"sl-badge","example":"#demo-default"}
 {"name":"button","title":"Button","tag":"sl-button","example":"#demo-primary"}
+{"name":"button-group","title":"Button Group","tag":"sl-button-group","example":"#demo-default"}
 {"name":"card","title":"Card","tag":"sl-card","example":"#demo-basic"}
 {"name":"divider","title":"Divider","tag":"sl-divider","example":"#demo-horizontal"}
 {"name":"format-bytes","title":"Format Bytes","tag":"sl-format-bytes","example":"#demo-default"}
