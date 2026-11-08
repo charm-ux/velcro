@@ -1,0 +1,9 @@
+{
+  "files": {
+    "src/components/menu-label/menu-label.test.ts": "7167fa985c79090d6da7d4cda3ad7d34064e0e9835ab6a9928ed975713c8ae07"
+  },
+  "tests": [
+    "<sl-menu-label> > passes accessibility test"
+  ],
+  "knownFailures": []
+}
