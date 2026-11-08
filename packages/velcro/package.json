@@ -25,6 +25,8 @@
     "./card/class": { "types": "./dist/components/card/class.d.ts", "import": "./dist/components/card/class.js" },
     "./checkbox": { "types": "./dist/components/checkbox/index.d.ts", "import": "./dist/components/checkbox/index.js" },
     "./checkbox/class": { "types": "./dist/components/checkbox/class.d.ts", "import": "./dist/components/checkbox/class.js" },
+    "./details": { "types": "./dist/components/details/index.d.ts", "import": "./dist/components/details/index.js" },
+    "./details/class": { "types": "./dist/components/details/class.d.ts", "import": "./dist/components/details/class.js" },
     "./divider": { "types": "./dist/components/divider/index.d.ts", "import": "./dist/components/divider/index.js" },
     "./format-bytes": { "types": "./dist/components/format-bytes/index.d.ts", "import": "./dist/components/format-bytes/index.js" },
     "./format-bytes/class": { "types": "./dist/components/format-bytes/class.d.ts", "import": "./dist/components/format-bytes/class.js" },
