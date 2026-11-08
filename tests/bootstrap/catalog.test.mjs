@@ -25,6 +25,7 @@ const tgt = f => ({ types: `./dist/${f}.d.ts`, import: `./dist/${f}.js` });
 const TRANSLATION_CODES = ['ar', 'cs', 'da', 'de', 'de-ch', 'en', 'en-gb', 'es', 'fa', 'fi', 'fr', 'he', 'hr', 'hu', 'id', 'it',
   'ja', 'nb', 'nl', 'nn', 'pl', 'pt', 'ru', 'sl', 'sv', 'tr', 'uk', 'zh-cn', 'zh-tw'];
 const packageModuleExports = () => ({
+  './utilities/form': tgt('utilities/form'),
   './utilities/localize': tgt('utilities/localize'),
   ...Object.fromEntries(TRANSLATION_CODES.map(c => [`./translations/${c}`, tgt(`translations/${c}`)])),
 });
@@ -91,12 +92,13 @@ for (const [label, mutate, expected] of negatives) {
 // is in the catalog, with exact targets, and never admitted by the ./<name>/class pattern.
 const includeCatalog = [{ name: 'include' }];
 const includeExports = { ...baseExports(['include']), './include/request': tgt('components/include/request') };
-test('the module export table lists exactly the animation modules, the include helper and the localization modules, by full key', () => {
+test('the module export table lists exactly the animation modules, the include helper, the form utilities and the localization modules, by full key', () => {
   assert.equal(PACKAGE_OWNER, '@charm-ux/velcro');
   assert.deepEqual(Object.entries(MODULE_EXPORTS), [
     ['./animation/animations', ['animation', 'components/animation/animations']],
     ['./include/request', ['include', 'components/include/request']],
     ['./utilities/animation', ['animation', 'utilities/animation']],
+    ['./utilities/form', ['@charm-ux/velcro', 'utilities/form']],
     ['./utilities/localize', ['@charm-ux/velcro', 'utilities/localize']],
     ...TRANSLATION_CODES.map(c => [`./translations/${c}`, ['@charm-ux/velcro', `translations/${c}`]]),
   ]);

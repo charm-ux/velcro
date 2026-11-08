@@ -33,6 +33,8 @@ const velcroEntries = {
     const name = match[1];
     if (source === '../../../dist/shoelace.js') return '/packages/velcro/dist/index.js';
     if (source === `./${name}.js`) return `/packages/velcro/dist/components/${name}/index.js`;
+    const utility = source.match(/^\.\.\/\.\.\/utilities\/([a-z-]+)\.js$/);
+    if (utility) return `/packages/velcro/dist/utilities/${utility[1]}.js`;
     if (source === 'lit') return velcroLit;
     return undefined;
   }
