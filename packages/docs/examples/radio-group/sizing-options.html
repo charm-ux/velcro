@@ -1,0 +1,13 @@
+<sl-radio-group label="Select an option" size="medium" value="medium" class="radio-group-size">
+  <sl-radio value="small">Small</sl-radio>
+  <sl-radio value="medium">Medium</sl-radio>
+  <sl-radio value="large">Large</sl-radio>
+</sl-radio-group>
+
+<script type="module">
+  const radioGroup = document.querySelector('.radio-group-size');
+
+  radioGroup.addEventListener('sl-change', () => {
+    radioGroup.size = radioGroup.value;
+  });
+</script>

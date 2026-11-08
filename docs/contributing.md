@@ -85,7 +85,7 @@ The union attributes are a merge convenience, never an approval: every gate stil
 A module that Shoelace publishes next to a component (for example `dist/components/include/request.js`) is exported by its full key and only
 if `MODULE_EXPORTS` in `scripts/site/catalog.mjs` lists it: once its component is in the catalog the entry is required, with exactly its
 listed targets, and the gate rejects any other `./<name>/<subpath>`. A module that belongs to the package rather than a component
-(`dist/utilities/localize.js` and the 29 `dist/translations/<code>.js` files) is listed with the owner `PACKAGE_OWNER`, and is
+(`dist/utilities/localize.js`, `dist/utilities/form.js` and the 29 `dist/translations/<code>.js` files) is listed with the owner `PACKAGE_OWNER`, and is
 required whatever the catalog holds. `pnpm sync` writes these entries too.
 
 The page's API tables are not hand-written: `apiReference('sl-<name>')` (`packages/docs/src/api.ts`) renders them from

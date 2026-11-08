@@ -1,0 +1,9 @@
+{
+  "files": {
+    "src/components/radio/radio.test.ts": "f515fb231df55fafd546562c29ae674258c6d3aa8201a021ac64d2fa8d166873"
+  },
+  "tests": [
+    "<sl-radio> > should not get checked when disabled"
+  ],
+  "knownFailures": []
+}

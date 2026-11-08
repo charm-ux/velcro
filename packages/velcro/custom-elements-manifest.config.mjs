@@ -69,17 +69,36 @@ export const keptInherited = Object.fromEntries(Object.entries(declarations).map
 export const droppedInheritedEvents = Object.fromEntries(Object.entries(declarations)
   .filter(([, d]) => d.droppedEvents.length).map(([name, d]) => [name, d.droppedEvents]));
 
-function velcroInheritance() {
+/** The inheritance step of the manifest build; exported so tests/api/superclass-resolution.test.mjs can run it on fixtures. */
+export function velcroInheritance() {
   return {
     name: 'velcro-inheritance',
     packageLinkPhase({ customElementsManifest }) {
+      const declarations = customElementsManifest.modules.flatMap(m => m.declarations ?? []);
       for (const mod of customElementsManifest.modules) {
         for (const decl of mod.declarations ?? []) {
           if (!decl.customElement) continue;
+          // A component may extend a Velcro-local typing class that only loosens inherited property declarations so the
+          // component can declare Shoelace's own types (sl-textarea's CoreTextAreaTyping). It adds no members to the API,
+          // so the component's superclass is the core class that typing class extends.
+          // Only a superclass the analyzer resolved to a class of this package (it has no `package`, only a `module`) and that
+          // is not itself a custom element qualifies; a superclass imported from core carries its `package` and is left alone.
+          const local = decl.superclass && !decl.superclass.package
+            ? declarations.find(d => d.name === decl.superclass.name && !d.customElement) : undefined;
+          if (local?.superclass && coreClasses.has(local.superclass.name)) decl.superclass = local.superclass;
           for (const key of ['slots', 'cssParts', 'cssProperties']) {
             const keep = keptInherited[decl.name]?.[key] ?? [];
             if (decl[key]) decl[key] = decl[key].filter(item => !item.inheritedFrom || keep.includes(item.name));
             if (decl[key]?.length === 0) delete decl[key];
+          }
+          // A Velcro class that redeclares an inherited core property without an attribute (for example sl-radio's
+          // `checked`, `@property({ attribute: false })`) no longer observes core's attribute, but the analyzer keeps the
+          // inherited attribute entry; drop it so the manifest matches the runtime.
+          const propertyOnly = new Set((decl.members ?? [])
+            .filter(m => m.kind === 'field' && !m.static && !m.inheritedFrom && !m.attribute).map(m => m.name));
+          if (decl.attributes) {
+            decl.attributes = decl.attributes.filter(a => !(a.inheritedFrom && propertyOnly.has(a.fieldName)));
+            if (decl.attributes.length === 0) delete decl.attributes;
           }
           const dropped = droppedInheritedEvents[decl.name] ?? [];
           if (decl.events) decl.events = decl.events.filter(e => !e.inheritedFrom || !dropped.includes(e.name));

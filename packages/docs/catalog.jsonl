@@ -15,6 +15,9 @@
 {"name":"popup","title":"Popup","tag":"sl-popup","example":"#demo-default"}
 {"name":"progress-bar","title":"Progress Bar","tag":"sl-progress-bar","example":"#demo-default"}
 {"name":"progress-ring","title":"Progress Ring","tag":"sl-progress-ring","example":"#demo-default"}
+{"name":"radio","title":"Radio","tag":"sl-radio","example":"#demo-default"}
+{"name":"radio-button","title":"Radio Button","tag":"sl-radio-button","example":"#demo-default"}
+{"name":"radio-group","title":"Radio Group","tag":"sl-radio-group","example":"#demo-default"}
 {"name":"relative-time","title":"Relative Time","tag":"sl-relative-time","example":"#demo-default"}
 {"name":"resize-observer","title":"Resize Observer","tag":"sl-resize-observer","example":"#demo-observer"}
 {"name":"skeleton","title":"Skeleton","tag":"sl-skeleton","example":"#demo-avatar"}
@@ -22,4 +25,5 @@
 {"name":"split-panel","title":"Split Panel","tag":"sl-split-panel","example":"sl-split-panel"}
 {"name":"switch","title":"Switch","tag":"sl-switch","example":"#demo-default"}
 {"name":"tab-panel","title":"Tab Panel","tag":"sl-tab-panel","example":"#demo-default"}
+{"name":"textarea","title":"Textarea","tag":"sl-textarea","example":"#demo-default"}
 {"name":"visually-hidden","title":"Visually Hidden","tag":"sl-visually-hidden","example":"#demo-skip"}

@@ -29,7 +29,8 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   `src/internal/shoelace-element.ts`), `packages/velcro/src/components/button/button.styles.ts` (styles adapted from
   `src/components/button/button.styles.ts`, with sl-icon sizing rules from `src/components/icon/icon.styles.ts` added
   for the inline caret), `packages/velcro/src/internal/form.ts` (the form control controller adapted from
-  `src/internal/form.ts`),
+  `src/internal/form.ts`), `packages/velcro/src/internal/slot.ts` (the slot controller adapted from
+  `src/internal/slot.ts`, used by the radio button),
   `packages/velcro/src/components/spinner/spinner.ts` (API documentation wording, and the rendered structure: an svg
   `base` part with `role="progressbar"` and a track and an indicator circle, adapted from
   `src/components/spinner/spinner.component.ts`), `packages/velcro/src/components/spinner/spinner.styles.ts`
@@ -220,11 +221,15 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   are changed to Velcro's React wrappers). The animation is built on the
   `@charm-ux/core` base element; no Shoelace runtime is included. The animation presets come from
   `@shoelace-style/animations` (next section).
+- Also used in: `packages/velcro/src/utilities/form.ts` (`serialize` and `getFormControls`, adapted from
+  `src/utilities/form.ts`; the form control collection it reads is Velcro's own, in `internal/form.ts`). It is shared by
+  the form controls, so it has no component folder. No Shoelace runtime is included.
 - Components added later record their Shoelace use in their own `packages/velcro/src/components/<name>/NOTICE.md`
   (one list entry like those above); the package and site copies of this file include those entries here.
 <!-- component notices: packages/velcro/src/components/<name>/NOTICE.md -->
 - Also used in: `tests/upstream/shoelace-2.20.1/` (test files only, never shipped): the upstream test files
-  `src/components/<name>/<name>.test.ts` for each implemented component and the helpers under `src/internal/`,
+  `src/components/<name>/<name>.test.ts` for each implemented component and the helpers under `src/internal/` and
+  `src/utilities/`,
   copied unmodified from commit `fb59fda70ed737c92611051b49bc7e3a5fed5dc5` with the upstream `LICENSE.md` and hash
   manifests (`UPSTREAM.json` for the shared files, `tests/upstream/components/<name>.json` for each test file).
   They run against Velcro as a conformance check; nothing from them is included in any package or site.
