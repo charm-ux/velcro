@@ -1,0 +1,11 @@
+<sl-alert variant="primary" open closable class="alert-closable">
+  <sl-icon slot="icon" name="info-circle"></sl-icon>
+  You can close this alert any time!
+</sl-alert>
+
+<script>
+  const alert = document.querySelector('.alert-closable');
+  alert.addEventListener('sl-after-hide', () => {
+    setTimeout(() => (alert.open = true), 2000);
+  });
+</script>
