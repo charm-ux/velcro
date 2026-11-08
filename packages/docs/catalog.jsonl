@@ -1,4 +1,5 @@
 {"name":"animation","title":"Animation","tag":"sl-animation","example":"#demo-overview"}
+{"name":"avatar","title":"Avatar","tag":"sl-avatar","example":"#demo-default"}
 {"name":"badge","title":"Badge","tag":"sl-badge","example":"#demo-default"}
 {"name":"button","title":"Button","tag":"sl-button","example":"#demo-primary"}
 {"name":"button-group","title":"Button Group","tag":"sl-button-group","example":"#demo-default"}

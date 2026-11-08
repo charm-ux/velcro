@@ -1,0 +1,29 @@
+{
+  "files": {
+    "src/components/avatar/avatar.test.ts": "2d5c6c010cf3b5283251544349789077384eb85a80e535d5dfccdd7722697f80"
+  },
+  "tests": [
+    "<sl-avatar> > should not render the image when the image fails to load",
+    "<sl-avatar> > should show a valid image after being passed an invalid image initially",
+    "<sl-avatar> > when provided no parameters > should pass accessibility tests",
+    "<sl-avatar> > when provided no parameters > should default to circle styling",
+    "<sl-avatar> > when provided an image and label parameter > should pass accessibility tests",
+    "<sl-avatar> > when provided an image and label parameter > renders \"image\" part, with src and a role of presentation",
+    "<sl-avatar> > when provided an image and label parameter > renders the label attribute in the \"base\" part",
+    "<sl-avatar> > when provided initials parameter > should pass accessibility tests",
+    "<sl-avatar> > when provided initials parameter > renders \"initials\" part, with initials as the text node",
+    "<sl-avatar> > when image is present, the initials or icon part should not render > should pass accessibility tests",
+    "<sl-avatar> > when image is present, the initials or icon part should not render > renders \"image\" part, with src and a role of presentation",
+    "<sl-avatar> > when image is present, the initials or icon part should not render > should not render the initials part",
+    "<sl-avatar> > when image is present, the initials or icon part should not render > should not render the icon part",
+    "<sl-avatar> > when passed a shape attribute square > should pass accessibility tests",
+    "<sl-avatar> > when passed a shape attribute square > appends the appropriate class on the \"base\" part",
+    "<sl-avatar> > when passed a shape attribute rounded > should pass accessibility tests",
+    "<sl-avatar> > when passed a shape attribute rounded > appends the appropriate class on the \"base\" part",
+    "<sl-avatar> > when passed a shape attribute circle > should pass accessibility tests",
+    "<sl-avatar> > when passed a shape attribute circle > appends the appropriate class on the \"base\" part",
+    "<sl-avatar> > when passed a <span>, on slot \"icon\" > should pass accessibility tests",
+    "<sl-avatar> > when passed a <span>, on slot \"icon\" > should accept as an assigned child in the shadow root"
+  ],
+  "knownFailures": []
+}
