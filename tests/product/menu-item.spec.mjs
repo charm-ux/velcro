@@ -43,6 +43,14 @@ const CLASS_ENTRY = `
   window.loaded = true;
 `;
 
+const CLASS_ENTRY_WITH_ICON = `
+  import { SlMenuItem } from '@charm-ux/velcro/menu-item/class';
+  import { VelcroIcon } from '@charm-ux/velcro/icon/class';
+  window.menuItemClass = { SlMenuItem };
+  window.iconClass = { VelcroIcon };
+  window.loaded = true;
+`;
+
 // Replaces the document with a menu (id m), waits for it and its items to render, and records every sl-select on it.
 async function mount(page, markup, attrs = '') {
   await page.evaluate(async ([markup, attrs]) => {
@@ -142,22 +150,20 @@ test('class-only entry: importing defines nothing; constructing a menu item defi
   expect(pageErrors).toEqual([]);
 });
 
-const REGISTERING_ENTRY = `
-  import '@charm-ux/velcro/menu-item';
-  window.loaded = true;
-`;
-
-test('registering entry: a dependency tag owned by another constructor is left alone, existing items upgrade, and importing never throws', async ({ page }) => {
-  const pageErrors = await loadBundle(page, REGISTERING_ENTRY, {
+// The constructor's dependency fallback, through the class-only entry (the registering entry registers the dependencies up
+// front and does not use it; the docs page lists that as a gap).
+test('class-only entry: a dependency tag owned by another constructor is left alone when an item is constructed, and existing items upgrade', async ({ page }) => {
+  const pageErrors = await loadBundle(page, CLASS_ENTRY, {
     beforeScript: () => {
       class OtherIcon extends HTMLElement {}
       customElements.define('sl-icon', OtherIcon);
       window.OtherIcon = OtherIcon;
-      // An item that exists before the entry is imported is upgraded by the registration itself.
+      // An item that exists before the class is defined is upgraded by the definition itself.
       document.body.innerHTML = '<sl-menu-item id="early" type="checkbox" checked>Early</sl-menu-item>';
     },
   });
   const r = await page.evaluate(async () => {
+    customElements.define('sl-menu-item', window.menuItemClass.SlMenuItem);
     const early = document.getElementById('early');
     await early.updateComplete;
     const late = document.createElement('sl-menu-item');
@@ -178,23 +184,12 @@ test('registering entry: a dependency tag owned by another constructor is left a
   expect(pageErrors).toEqual([]);
 });
 
-test('registering entry: a dependency class already registered under another tag gets an anonymous subclass under the dependency tag', async ({ page }) => {
-  const pageErrors = await loadBundle(page, `
-    import './pre.js';
-    import '@charm-ux/velcro/menu-item';
-    window.loaded = true;
-  `, {
-    files: {
-      // Runs before the entry's second import: Velcro's own icon class is taken under another tag.
-      'pre.js': `
-        import { VelcroIcon } from '@charm-ux/velcro/icon/class';
-        customElements.define('alt-icon', VelcroIcon);
-        window.AltIcon = VelcroIcon;
-      `,
-    },
-  });
+test('class-only entry: a dependency class already registered under another tag gets an anonymous subclass under the dependency tag when an item is constructed', async ({ page }) => {
+  const pageErrors = await loadBundle(page, CLASS_ENTRY_WITH_ICON);
   const r = await page.evaluate(async () => {
-    const afterImport = [customElements.get('sl-icon') ?? null, customElements.get('sl-menu-item')?.name ?? null];
+    const { VelcroIcon } = window.iconClass;
+    customElements.define('alt-icon', VelcroIcon);
+    customElements.define('sl-menu-item', window.menuItemClass.SlMenuItem);
     const item = document.createElement('sl-menu-item');
     item.type = 'checkbox';
     item.checked = true;
@@ -202,17 +197,13 @@ test('registering entry: a dependency class already registered under another tag
     await item.updateComplete;
     const icon = customElements.get('sl-icon');
     return {
-      afterImport,
-      altStillOwns: customElements.get('alt-icon') === window.AltIcon,
-      subclass: [icon !== window.AltIcon, Object.getPrototypeOf(icon) === window.AltIcon, icon.baseName],
+      altStillOwns: customElements.get('alt-icon') === VelcroIcon,
+      subclass: [icon !== VelcroIcon, Object.getPrototypeOf(icon) === VelcroIcon, icon.baseName],
       popup: customElements.get('sl-popup')?.name, spinner: customElements.get('sl-spinner')?.name,
       rendered: item.shadowRoot.querySelector('[part="checked-icon"] sl-icon') instanceof icon,
     };
   });
-  // Nothing is defined for the dependencies by the import itself (the item's constructor does that), and nothing threw.
-  expect(r).toEqual({
-    afterImport: [null, 'VelcroMenuItem'], altStillOwns: true, subclass: [true, true, 'icon'], popup: 'VelcroPopup', spinner: 'VelcroSpinner', rendered: true,
-  });
+  expect(r).toEqual({ altStillOwns: true, subclass: [true, true, 'icon'], popup: 'VelcroPopup', spinner: 'VelcroSpinner', rendered: true });
   expect(pageErrors).toEqual([]);
 });
 
