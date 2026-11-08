@@ -539,20 +539,44 @@ test('a show that interrupts a hide animation ends closed (quirk); a hide that i
   expect(r).toEqual({ reopened: [false, false], reclosed: [false, false] });
 });
 
-test('clicking the summary focuses the header, even for a script click', async ({ page }) => {
+// Shoelace's click handler calls header.focus() after toggling. Whether a script's header.click() then leaves the header
+// focused is the browser's decision: it does in Chromium and WebKit; in Firefox it did not in CI, so the call itself is what
+// is asserted everywhere and the resulting focus only where it holds.
+test('clicking the summary calls header.focus(), even for a script click', async ({ page, browserName }) => {
   const { frame } = await openExample(page);
   await mount(frame, '<sl-details id="d" summary="A">Content</sl-details>');
   expect(await frame.locator('#d').evaluate(el => document.activeElement === el)).toBe(false);
-  await frame.locator('#d').evaluate(el => el.header.click());
-  expect(await frame.locator('#d').evaluate(el => el.shadowRoot.activeElement === el.header)).toBe(true);
-  expect(await frame.locator('#d').evaluate(el => document.activeElement === el)).toBe(true);
+  const calls = await frame.locator('#d').evaluate(el => {
+    let count = 0;
+    const focus = el.header.focus;
+    el.header.focus = function (...args) {
+      count++;
+      return focus.apply(this, args);
+    };
+    el.header.click();
+    return count;
+  });
+  expect(calls).toBe(1);
+  if (browserName !== 'firefox') {
+    expect(await frame.locator('#d').evaluate(el => el.shadowRoot.activeElement === el.header)).toBe(true);
+    expect(await frame.locator('#d').evaluate(el => document.activeElement === el)).toBe(true);
+  }
 });
 
-test('a script click on a disabled details does not take focus', async ({ page }) => {
+test('a script click on a disabled details does not call header.focus() or take focus', async ({ page }) => {
   const { frame } = await openExample(page);
   await mount(frame, '<sl-details id="e" summary="B" disabled>Content</sl-details>');
-  expect(await frame.locator('#e').evaluate(el => document.activeElement === el)).toBe(false);
-  await frame.locator('#e').evaluate(el => el.header.click());
+  const calls = await frame.locator('#e').evaluate(el => {
+    let count = 0;
+    const focus = el.header.focus;
+    el.header.focus = function (...args) {
+      count++;
+      return focus.apply(this, args);
+    };
+    el.header.click();
+    return count;
+  });
+  expect(calls).toBe(0);
   expect(await frame.locator('#e').evaluate(el => el.shadowRoot.activeElement === el.header)).toBe(false);
   expect(await frame.locator('#e').evaluate(el => document.activeElement === el)).toBe(false);
 });

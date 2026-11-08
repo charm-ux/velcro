@@ -31,7 +31,7 @@ const quirks = [
   'A show that interrupts a hide animation ends closed: stopping the hide animation lets the hide finish, which closes the inner <details> element, and the observer on it then hides the element again (the details\' open property is true until then). A hide that interrupts a show closes as asked.',
   'The expandIconSlot member is a query for .details__expand-icon-slot, a class nothing in the template has (the slots are expand-icon and collapse-icon), so it is always null.',
   'The observer on the inner <details> element\'s open attribute is created once, on the first update, and disconnected when the element is removed; a details that is moved or removed and added back no longer follows that attribute (a find-in-page that opens the native element, for example).',
-  'Activating the summary with a click (a script\'s header.click() as well as a pointer press) focuses the header; a disabled details does not move focus.',
+  'Activating the summary with a click (a script\'s header.click() as well as a pointer press) calls header.focus(); a disabled details does not. Whether a script click leaves the header focused is the browser\'s decision: it does in Chromium and WebKit; in Firefox it did not, in the project\'s CI.',
 ] as const;
 
 const gaps = [
