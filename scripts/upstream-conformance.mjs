@@ -30,7 +30,9 @@ export const vendoredComponents = root => readdirSync(path.join(root, VENDOR, 's
 export function readRecords(root) {
   const dir = path.join(root, RECORDS);
   const records = {};
-  for (const f of existsSync(dir) ? readdirSync(dir).sort() : []) {
+  // In component name order, as vendoredComponents is: by file name 'button-group.json' would come before 'button.json'.
+  const byName = (a, b) => { const [x, y] = [a, b].map(f => f.replace(/\.json$/, '')); return x < y ? -1 : x > y ? 1 : 0; };
+  for (const f of existsSync(dir) ? readdirSync(dir).sort(byName) : []) {
     records[f.replace(/\.json$/, '')] = f.endsWith('.json') ? JSON.parse(readFileSync(path.join(dir, f), 'utf8')) : null;
   }
   return records;

@@ -19,6 +19,8 @@
     "./badge": { "types": "./dist/components/badge/index.d.ts", "import": "./dist/components/badge/index.js" },
     "./button": { "types": "./dist/components/button/index.d.ts", "import": "./dist/components/button/index.js" },
     "./button/class": { "types": "./dist/components/button/class.d.ts", "import": "./dist/components/button/class.js" },
+    "./button-group": { "types": "./dist/components/button-group/index.d.ts", "import": "./dist/components/button-group/index.js" },
+    "./button-group/class": { "types": "./dist/components/button-group/class.d.ts", "import": "./dist/components/button-group/class.js" },
     "./card": { "types": "./dist/components/card/index.d.ts", "import": "./dist/components/card/index.js" },
     "./card/class": { "types": "./dist/components/card/class.d.ts", "import": "./dist/components/card/class.js" },
     "./divider": { "types": "./dist/components/divider/index.d.ts", "import": "./dist/components/divider/index.js" },
