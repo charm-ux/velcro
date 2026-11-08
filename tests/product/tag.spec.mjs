@@ -99,7 +99,8 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
   // The quirks and limits the page lists are the ones the tests below pin.
   expect(html).toContain('The hidden attribute does not hide the tag');
   expect(html).toContain('variant=&quot;text&quot; is accepted');
-  expect(html).toContain('cannot be reached from the keyboard');
+  expect(html).toContain('cannot be reached with the Tab key');
+  expect(html).toContain('Removing a reflected attribute does not restore the declared default');
   expect(html).toContain('was run locally in Chromium and WebKit only, and Firefox is covered only by the project&#39;s CI run');
   expect(html).toContain('Playwright&#39;s ARIA snapshot');
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
@@ -194,7 +195,7 @@ test('sizes: small, medium and large take the input height times 0.8, the button
     expect(read[i].radius, size).toBe(want['border-top-left-radius']);
     expect(read[i].padding, size).toEqual(['0px', want['padding-right'], '0px', want['padding-left']]);
   }
-  // The values those tokens have in the light theme: 0.8 of 30, 40 and 50px, the 12, 14 and 16px button text, and 4, 12 and 16px padding.
+  // The values those tokens have in the light theme: 0.8 of 30, 40 and 50px, the 12, 14 and 16px button text, and 8, 12 and 16px horizontal padding (x-small, small and medium spacing).
   expect(read.map(r => r.box[1])).toEqual([24, 32, 40]);
   expect(read.map(r => r.fontSize)).toEqual(['12px', '14px', '16px']);
   expect(read.map(r => r.padding[1])).toEqual(['8px', '12px', '16px']);
@@ -295,7 +296,7 @@ test('the remove button: click() on it emits, a click on the tag\'s content or b
     el.removable = false;
     await el.updateComplete;
     const gone = buttons();
-    // Removing the attribute of a property that was set from script has no effect, as removable is not reflected.
+    // removable is not reflected: an attribute sets the property, removing it sets false, and the property never writes the attribute.
     el.setAttribute('removable', '');
     await el.updateComplete;
     const viaAttribute = [el.removable, buttons()];
@@ -490,7 +491,7 @@ test('dir and lang are reactive, not reflected and undefined by default; the obs
   });
 });
 
-test('properties: Shoelace\'s defaults; variant, size and pill reflect and removing their attributes restores the defaults; removable does not reflect; ready fires once without bubbling', async ({ page }) => {
+test('properties: Shoelace\'s defaults; variant, size and pill reflect and removing their attributes restores the first-render values (the defaults here); removable does not reflect; ready fires once without bubbling', async ({ page }) => {
   const { frame } = await openPage(page);
   const r = await frame.locator('body').evaluate(async body => {
     const el = document.createElement('sl-tag');
@@ -539,9 +540,74 @@ test('properties: Shoelace\'s defaults; variant, size and pill reflect and remov
   expect(r.fromAttributes).toEqual(['success', 'small', true]);
   expect(r.seen).toEqual([{ bubbles: false, composed: false }]);
   expect(r.bubbled).toBe(0);
-  // Shoelace's members, the base element's dir and lang accessors, and the lifecycle hooks this class overrides.
   // The members of the class's own prototype: Shoelace's, the base element's dir and lang accessors, and the hooks this class overrides.
   expect(r.own).toEqual(['attributeChangedCallback', 'dir', 'handleRemoveClick', 'lang', 'pill', 'removable', 'render', 'size', 'variant', 'willUpdate']);
+});
+
+// Shoelace's base element records the reflected properties' values the first time any attribute of the element changes, and
+// restores that record when a reflected attribute is later removed (its value then being null). The record is not the declared
+// default: it is whatever the properties held at that first attribute change, which for an element created from script is the
+// first time Lit reflects them, after the first update.
+test('removing a reflected attribute restores the values the properties held at the first attribute change, not the declared defaults; a removed pill attribute is false', async ({ page }) => {
+  const { frame } = await openPage(page);
+  await mount(frame, '<div id="parsed"><sl-tag variant="danger" size="large" pill>Parsed</sl-tag></div>');
+  const r = await frame.locator('body').evaluate(async body => {
+    const state = el => ({ variant: el.variant, size: el.size, pill: el.pill, attrs: el.getAttributeNames().sort() });
+
+    // Created from script with the properties assigned before the first render: the first render's reflection is the first
+    // attribute change, so these values are the record.
+    const early = document.createElement('sl-tag');
+    early.variant = 'danger';
+    early.size = 'large';
+    early.pill = true;
+    body.append(early);
+    await early.updateComplete;
+    const earlyFirst = state(early);
+    early.variant = 'success';
+    early.size = 'small';
+    await early.updateComplete;
+    early.removeAttribute('variant');
+    early.removeAttribute('size');
+    await early.updateComplete;
+    const earlyRestored = state(early);
+    // pill: a Boolean attribute that is removed gives false, never null, so nothing is restored.
+    early.removeAttribute('pill');
+    await early.updateComplete;
+    const earlyPill = state(early);
+
+    // Created from script, rendered with the defaults first, then assigned: the record is the defaults.
+    const late = document.createElement('sl-tag');
+    body.append(late);
+    await late.updateComplete;
+    late.variant = 'danger';
+    late.size = 'large';
+    await late.updateComplete;
+    late.removeAttribute('variant');
+    late.removeAttribute('size');
+    await late.updateComplete;
+    const lateRestored = state(late);
+
+    // Written in markup (the attributes are there when the element is created): the first attribute change is handled
+    // while the properties still hold their defaults, so the record is the defaults, not the attribute values.
+    const parsed = document.querySelector('#parsed sl-tag');
+    await parsed.updateComplete;
+    const parsedFirst = state(parsed);
+    parsed.removeAttribute('variant');
+    parsed.removeAttribute('size');
+    await parsed.updateComplete;
+    const parsedRestored = state(parsed);
+
+    early.remove();
+    late.remove();
+    return { earlyFirst, earlyRestored, earlyPill, lateRestored, parsedFirst, parsedRestored };
+  });
+  expect(r.earlyFirst).toEqual({ variant: 'danger', size: 'large', pill: true, attrs: ['pill', 'size', 'variant'] });
+  expect(r.earlyRestored).toEqual({ variant: 'danger', size: 'large', pill: true, attrs: ['pill', 'size', 'variant'] });
+  expect(r.earlyPill).toEqual({ variant: 'danger', size: 'large', pill: false, attrs: ['size', 'variant'] });
+  expect(r.lateRestored).toEqual({ variant: 'neutral', size: 'medium', pill: false, attrs: ['size', 'variant'] });
+  expect(r.parsedFirst).toEqual({ variant: 'danger', size: 'large', pill: true, attrs: ['pill', 'size', 'variant'] });
+  // The pill attribute was left in place, so pill is still true; only variant and size were removed and restored.
+  expect(r.parsedRestored).toEqual({ variant: 'neutral', size: 'medium', pill: true, attrs: ['pill', 'size', 'variant'] });
 });
 
 test('the examples render in their own documents in Shoelace\'s order', async ({ page }) => {
@@ -741,7 +807,7 @@ async function loadBundle(page, source) {
 }
 
 test.describe('top-level documents', () => {
-  test('keyboard: the remove button is not a tab stop (tabindex -1 on the sl-icon-button), the tag is not focusable, and Tab walks past both to the next control', async ({ page }) => {
+  test('keyboard: the remove button is not a tab stop (tabindex -1 on the sl-icon-button), the tag is not focusable, Tab walks past both, and once the button has focus Enter and Space press it while Delete and Backspace do nothing', async ({ page }) => {
     const pageErrors = await loadBundle(page, TAG_ENTRY);
     await page.evaluate(async () => {
       document.body.innerHTML = '<button id="before">before</button><sl-tag id="t" removable>Label</sl-tag><sl-icon-button id="control" name="gear" label="Control"></sl-icon-button><button id="after">after</button>';
@@ -772,10 +838,26 @@ test.describe('top-level documents', () => {
       tag.focus();
       return [document.activeElement === tag, tag.hasAttribute('tabindex'), tag.shadowRoot.querySelector('sl-icon-button').getAttribute('tabindex')];
     })).toEqual([false, false, '-1']);
-    // Enter and Space on the document do not emit sl-remove.
-    await page.keyboard.press('Enter');
-    await page.keyboard.press('Space');
+    // Nothing handles Delete or Backspace: neither a key press with the remove button focused (by script) nor keydown events
+    // dispatched on the tag, its remove button and the document emit sl-remove.
+    await page.evaluate(() => document.querySelector('#t').shadowRoot.querySelector('sl-icon-button').focus());
+    expect(await active()).toBe('t>sl-icon-button>button');
+    await page.keyboard.press('Delete');
+    await page.keyboard.press('Backspace');
+    await page.evaluate(() => {
+      const tag = document.querySelector('#t');
+      const button = tag.shadowRoot.querySelector('sl-icon-button');
+      for (const target of [tag, button, document.body]) {
+        for (const key of ['Delete', 'Backspace']) target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, composed: true }));
+      }
+    });
     expect(await page.evaluate(() => window.log)).toEqual([]);
+    // Once something has put focus on the button (script here; a pointer press does it too), it is a native button: Enter and
+    // Space activate it. Only Tab cannot reach it.
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => window.log)).toEqual(['sl-remove']);
+    await page.keyboard.press('Space');
+    expect(await page.evaluate(() => window.log)).toEqual(['sl-remove', 'sl-remove']);
     expect(pageErrors).toEqual([]);
   });
 
