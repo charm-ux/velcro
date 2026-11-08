@@ -71,22 +71,28 @@ test('example iframes follow content size changes', async ({ page }) => {
   await expect.poll(async () => (await iframe.boundingBox()).height).toBeGreaterThan(before + 350);
 });
 
+// A page at 320px with the root font size set, as the tests below start from.
+async function openNarrow(browser, route, fontSize) {
+  const context = await browser.newContext({ viewport: { width: 320, height: 640 } });
+  const page = await context.newPage();
+  await openDocs(page, route);
+  await page.addStyleTag({ content: `html { font-size: ${fontSize} !important; }` });
+  const viewport = await page.evaluate(() => document.documentElement.clientWidth);
+  expect(viewport).toBe(320);
+  const inside = async locator => {
+    const box = await locator.boundingBox();
+    expect(box, 'rendered').not.toBeNull();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport);
+  };
+  return { context, page, viewport, inside };
+}
+
 for (const fontSize of ['16px', '24px']) {
   for (const route of ['/', '/components/button']) {
     test(`${route} at 320px (root font ${fontSize}): no horizontal overflow; brand, primary nav and theme control are usable`, async ({ browser }) => {
-      const context = await browser.newContext({ viewport: { width: 320, height: 640 } });
-      const page = await context.newPage();
-      await openDocs(page, route);
-      await page.addStyleTag({ content: `html { font-size: ${fontSize} !important; }` });
-      const viewport = await page.evaluate(() => document.documentElement.clientWidth);
-      expect(viewport).toBe(320);
+      const { context, page, viewport, inside } = await openNarrow(browser, route, fontSize);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport);
-      const inside = async locator => {
-        const box = await locator.boundingBox();
-        expect(box, 'rendered').not.toBeNull();
-        expect(box.x).toBeGreaterThanOrEqual(0);
-        expect(box.x + box.width).toBeLessThanOrEqual(viewport);
-      };
       const brand = page.locator('header.site .brand');
       const select = page.getByRole('combobox', { name: 'Color theme' });
       const nav = page.locator('header nav');
@@ -97,8 +103,6 @@ for (const fontSize of ['16px', '24px']) {
       await select.selectOption('dark');
       expect(await page.evaluate(() => document.documentElement.className)).toBe('sl-theme-dark');
       if (route === '/') {
-        const tiles = page.locator('#showcase [data-component]');
-        for (const tile of await tiles.all()) await inside(tile);
         await inside(page.locator('.install'));
         await nav.getByRole('link', { name: 'Components' }).click();
         await expect(page).toHaveURL(/\/components\//);
@@ -106,6 +110,17 @@ for (const fontSize of ['16px', '24px']) {
         await nav.getByRole('link', { name: 'Home' }).click();
         await expect(page).toHaveURL(/\/$/);
       }
+      await context.close();
+    });
+  }
+
+  // One test per showcase tile (one per catalog component), so each tile has its own time budget.
+  for (const c of readCatalog()) {
+    test(`/ at 320px (root font ${fontSize}, dark theme): the ${c.name} showcase tile is inside the viewport`, async ({ browser }) => {
+      const { context, page, inside } = await openNarrow(browser, '/', fontSize);
+      await page.getByRole('combobox', { name: 'Color theme' }).selectOption('dark');
+      expect(await page.evaluate(() => document.documentElement.className)).toBe('sl-theme-dark');
+      await inside(page.locator(`#showcase [data-component="${c.name}"]`));
       await context.close();
     });
   }

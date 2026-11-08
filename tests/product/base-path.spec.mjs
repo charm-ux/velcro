@@ -105,33 +105,56 @@ for (const { name, dir, base } of layouts) {
       });
     }
 
-    test('navigation links reach every route and keep the prefix', async ({ page }) => {
-      // Each link is an ordinary document navigation: wait for the new document's URL, then for its ready signal.
-      const arrive = async route => {
-        await page.waitForURL(u => u.pathname === `${base}${route === '/' ? '/' : route}`);
-        await docsReady(page);
-        expect(new URL(page.url()).pathname).toBe(`${base}${route === '/' ? '/' : route}`);
-      };
-      await openDocs(page, url('/'));
-      // Header -> first component, then every component through the docs sidebar, then back home through the header.
-      await page.locator('header nav').getByRole('link', { name: 'Components', exact: true }).click();
-      await arrive(`/components/${catalog[0].name}`);
-      for (const c of catalog) {
-        await page.getByRole('navigation', { name: 'Components' }).getByRole('link', { name: c.title, exact: true }).click();
-        await arrive(`/components/${c.name}`);
-      }
-      // Previous/next links walk the catalog order.
-      if (catalog.length > 1) {
+    // The navigation walk is split into one test per step, so each step has its own time budget (the config's 45 s): a
+    // single test walking every component grew slower with each one until it timed out in CI. Every link is an ordinary
+    // document navigation, so no client state carries from one step to the next and each test starts at the page the
+    // step starts from.
+    const prefixed = path => `${base}${path}`;
+    // Wait for the new document's URL, then for its ready signal.
+    const arrive = async (page, path) => {
+      await page.waitForURL(u => u.pathname === prefixed(path));
+      await docsReady(page);
+      expect(new URL(page.url()).pathname).toBe(prefixed(path));
+    };
+    const sidebarLink = (page, title) => page.getByRole('navigation', { name: 'Components' }).getByRole('link', { name: title, exact: true });
+
+    // Header -> first component, then every component through the docs sidebar.
+    for (const [i, c] of catalog.entries()) {
+      test(`navigation links reach /components/${c.name} and keep the prefix`, async ({ page }) => {
+        if (i === 0) {
+          await openDocs(page, url('/'));
+          await page.locator('header nav').getByRole('link', { name: 'Components', exact: true }).click();
+          await arrive(page, `/components/${c.name}`);
+        } else {
+          await openDocs(page, url(`/components/${catalog[i - 1].name}`));
+        }
+        await sidebarLink(page, c.title).click();
+        await arrive(page, `/components/${c.name}`);
+      });
+    }
+
+    // Previous/next links walk the catalog order.
+    if (catalog.length > 1) {
+      test('the previous link walks back through the catalog order and keeps the prefix', async ({ page }) => {
+        await openDocs(page, url(`/components/${catalog.at(-1).name}`));
         await page.getByRole('navigation', { name: 'Previous and next' }).getByRole('link', { name: `Previous ${catalog.at(-2).title}` }).click();
-        await arrive(`/components/${catalog.at(-2).name}`);
-      }
+        await arrive(page, `/components/${catalog.at(-2).name}`);
+      });
+    }
+
+    test('the header Home link returns to the home page', async ({ page }) => {
+      await openDocs(page, url(`/components/${(catalog.at(-2) ?? catalog[0]).name}`));
       await page.locator('header nav').getByRole('link', { name: 'Home', exact: true }).click();
-      await arrive('/');
-      // The landing showcase links every component page.
-      for (const c of catalog) {
-        await expect(page.locator(`#showcase [data-component="${c.name}"] a[href="${base}/components/${c.name}"]`)).toHaveCount(1);
-      }
+      await arrive(page, '/');
     });
+
+    // The landing showcase links every component page: one test per component, so each has its own time budget.
+    for (const c of catalog) {
+      test(`the landing showcase links /components/${c.name} with the prefix`, async ({ page }) => {
+        await openDocs(page, url('/'));
+        await expect(page.locator(`#showcase [data-component="${c.name}"] a[href="${base}/components/${c.name}"]`)).toHaveCount(1);
+      });
+    }
 
     test('prerendered HTML carries no root-absolute URL outside the prefix, including the example documents', async () => {
       const root = join(dist, dir);
