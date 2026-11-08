@@ -13,6 +13,7 @@ import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-eleme
 import { CoreAlert } from '@charm-ux/core/dist/components/alert/alert.js';
 import { animateTo, stopAnimations } from '../../internal/animate.js';
 import { waitForEvent } from '../../internal/event.js';
+import { documentDir } from '../../internal/localize.js';
 import { HasSlotController } from '../../internal/slot.js';
 import { getAnimation, setDefaultAnimation } from '../../utilities/animation-registry.js';
 import { LocalizeController } from '../../utilities/localize.js';
@@ -156,11 +157,12 @@ export class VelcroAlert extends CoreAlert {
 
   /**
    * The direction the show and hide animations use, as Shoelace's localization controller resolves it: the host's `dir`
-   * property (set directly or through the attribute), else the document's `dir`, else `ltr`, lower-cased. Velcro's
+   * property (set directly or through the attribute), else the controller's document-direction snapshot (`<html dir>`
+   * as of the last observer callback or translation registration, not a live read; else `ltr`), lower-cased. Velcro's
    * shared controller reads the host attribute instead, which misses a direction set only through the property.
    */
   private animationDirection(): string {
-    return `${this.velcroDir || document.documentElement.dir || 'ltr'}`.toLowerCase();
+    return `${this.velcroDir || documentDir()}`.toLowerCase();
   }
 
   /** The element's language, as set by the `lang` attribute or property. Not reflected. */

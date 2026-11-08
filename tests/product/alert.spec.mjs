@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
+import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
 
@@ -196,17 +197,21 @@ test('show() and hide() emit sl-show, sl-after-show, sl-hide and sl-after-hide (
 test('hiding blurs the focused element inside the alert (Shoelace\'s blurActiveElement); focus elsewhere is left alone', async ({ page }) => {
   const { frame } = await openExample(page);
   await mount(frame, '<button id="outside">Outside</button><sl-alert id="a" open><button id="inside">Inside</button></sl-alert>');
+  // Focus through Playwright, which also focuses the example's frame (a script focus() in an unfocused frame does not
+  // move document.activeElement in every engine).
+  await frame.locator('#inside').focus();
   const r = await frame.locator('#a').evaluate(async el => {
-    document.getElementById('inside').focus();
     const before = document.activeElement.id;
     await el.hide();
-    const after = document.activeElement === document.body;
-    await el.show();
-    document.getElementById('outside').focus();
-    await el.hide();
-    return { before, after, outside: document.activeElement.id };
+    return { before, after: document.activeElement === document.body };
   });
-  expect(r).toEqual({ before: 'inside', after: true, outside: 'outside' });
+  expect(r).toEqual({ before: 'inside', after: true });
+  await frame.locator('#a').evaluate(el => el.show());
+  await frame.locator('#outside').focus();
+  expect(await frame.locator('#a').evaluate(async el => {
+    await el.hide();
+    return document.activeElement.id;
+  })).toBe('outside');
 });
 
 test('closable: an sl-icon-button with the x-lg system icon, the localized Close label and the exported base part; clicking it closes the alert', async ({ page }) => {
@@ -521,6 +526,83 @@ test('animations: Shoelace\'s alert.show and alert.hide default keyframes and ea
   // A reduced-motion preference turns the duration to 0 (animateTo), so the keyframes are what is compared.
   expect(r.map(a => a.keyframes)).toEqual([[[0, 0.8], [1, 1]], [[1, 1], [0, 0.8]]]);
   expect(r.map(a => a.easing)).toEqual(['ease', 'ease']);
+});
+
+test.describe('animation direction', () => {
+  let outDir;
+  test.beforeAll(async () => {
+    outDir = await buildFixtures({
+      registry: "export * from '@charm-ux/velcro/utilities/animation-registry';",
+      alert: "export { SlAlert } from '@charm-ux/velcro/alert';",
+    });
+  });
+
+  // Loads the entries, gives #a its own show and hide animations with distinct ltr and rtl keyframes, and records the
+  // keyframes of every Element.animate() call on an alert's base in window.calls.
+  async function setup(page) {
+    await gotoBlank(page, outDir);
+    await page.evaluate(async () => {
+      window.registry = await import('/registry.js');
+      await import('/alert.js');
+      window.calls = [];
+      const animate = Element.prototype.animate;
+      Element.prototype.animate = function (keyframes, options) {
+        if (this.classList.contains('alert')) window.calls.push(JSON.parse(JSON.stringify(keyframes))[0].opacity);
+        return animate.call(this, keyframes, options);
+      };
+      document.documentElement.dir = 'ltr';
+      document.body.innerHTML = '<sl-alert id="a">Message</sl-alert>';
+      const el = document.getElementById('a');
+      await el.updateComplete;
+      const { setAnimation } = window.registry;
+      setAnimation(el, 'alert.show', { keyframes: [{ opacity: 0.1 }, { opacity: 1 }], rtlKeyframes: [{ opacity: 0.9 }, { opacity: 1 }], options: { duration: 10 } });
+      setAnimation(el, 'alert.hide', { keyframes: [{ opacity: 0.2 }, { opacity: 0 }], rtlKeyframes: [{ opacity: 0.8 }, { opacity: 0 }], options: { duration: 10 } });
+      await new Promise(r => setTimeout(r));
+    });
+  }
+
+  test('the document direction is the controller\'s snapshot, as in Shoelace: a change in the same task as show() is not seen until the observer runs', async ({ page }) => {
+    await setup(page);
+    const r = await page.evaluate(async () => {
+      const el = document.getElementById('a');
+      // Queued in sl-show, this runs before show()'s continuation reads the direction; the document observer's
+      // callback, which refreshes the snapshot, is queued behind that continuation.
+      el.addEventListener('sl-show', () => queueMicrotask(() => { document.documentElement.dir = 'rtl'; }), { once: true });
+      await el.show();
+      const shown = window.calls.slice();
+      window.calls = [];
+      await el.hide();
+      const hidden = window.calls.slice();
+      document.documentElement.dir = 'ltr';
+      await new Promise(r => setTimeout(r));
+      return { shown, hidden };
+    });
+    // Shown with the stale ltr snapshot; hidden after the observer refreshed it to rtl.
+    expect(r).toEqual({ shown: [0.1], hidden: [0.8] });
+  });
+
+  test('the host\'s dir property (not reflected) beats the document; with no host direction the document snapshot is used, lower-cased', async ({ page }) => {
+    await setup(page);
+    const r = await page.evaluate(async () => {
+      const el = document.getElementById('a');
+      const cycle = async () => {
+        window.calls = [];
+        await el.show();
+        await el.hide();
+        return window.calls.slice();
+      };
+      el.dir = 'rtl';
+      const property = [el.hasAttribute('dir'), await cycle()];
+      el.dir = '';
+      document.documentElement.dir = 'RTL';
+      await new Promise(r => setTimeout(r));
+      const fromDocument = await cycle();
+      document.documentElement.dir = 'ltr';
+      await new Promise(r => setTimeout(r));
+      return { property, fromDocument, ltr: await cycle() };
+    });
+    expect(r).toEqual({ property: [false, [0.9, 0.8]], fromDocument: [0.9, 0.8], ltr: [0.1, 0.2] });
+  });
 });
 
 test('inherited core ready event: dispatched once on the element after the first update, not bubbling or composed', async ({ page }) => {
