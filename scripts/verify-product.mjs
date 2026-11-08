@@ -1,11 +1,15 @@
 // Raw build/browser output stays private in a fresh ignored folder; only counts, status and (on browser failures) the bounded,
-// redacted metadata lines of scripts/product-summary.mjs are printed.
+// redacted metadata lines of scripts/product-summary.mjs (and, for the upstream gate, the fixed-vocabulary lines of
+// scripts/upstream-summary.mjs) are printed.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDigest, collect as collectBuild } from './ci/build-output.mjs';
 import { summarizeReport } from './product-summary.mjs';
+import { readCatalog } from './site/catalog.mjs';
+import { readInventory } from './upstream-conformance.mjs';
+import { summarizeUpstream } from './upstream-summary.mjs';
 import { clearTestedEvidence, sameSnapshot, snapshotTested, writeTestedEvidence } from './site/tested.mjs';
 
 export const MIN_TESTS = 8;
@@ -196,7 +200,15 @@ function main() {
   }
   if (stage === 'all' || stage === 'upstream') {
     // Shoelace's own test files against the built library; gated by the component records in tests/upstream/components/.
-    if (!step('upstream-conformance', ['run', 'test:upstream', '--no-build'])) return fail('blocked (upstream conformance differs from the component records in tests/upstream/components/)');
+    if (!step('upstream-conformance', ['run', 'test:upstream', '--no-build'])) {
+      // Public, bounded and closed-vocabulary: names are checked against the catalog and the pinned inventory first.
+      try {
+        const log = readFileSync(path.join(scratch, 'upstream-conformance.log'), 'utf8');
+        const { lines } = summarizeUpstream(log, { inventory: readInventory(root), catalog: new Set(readCatalog(root).map(c => c.name)) });
+        for (const line of lines) process.stdout.write(`verify:product: ${line}\n`);
+      } catch { process.stdout.write('verify:product: no readable upstream result to summarize\n'); }
+      return fail('blocked (upstream conformance differs from the component records in tests/upstream/components/)');
+    }
     if (stage === 'upstream') {
       if (!unchanged()) return fail('blocked (tested site changed during verification)');
       process.stdout.write('verify:product: passed (upstream conformance)\n');
