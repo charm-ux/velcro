@@ -7,7 +7,7 @@ How entries are compared: [docs/api-parity.md](../../api-parity.md).
 
 | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 11 | 11 | 0 | 0 | 8 | 4 |
+| 11 | 11 | 0 | 0 | 7 | 5 |
 
 ## Missing
 
@@ -19,7 +19,6 @@ How entries are compared: [docs/api-parity.md](../../api-parity.md).
 
 ## Velcro-only (own)
 
-- `property autofocus`
 - `property checked`
 - `property hideLabel`
 - `property label`
@@ -30,6 +29,7 @@ How entries are compared: [docs/api-parity.md](../../api-parity.md).
 
 ## Inherited extras
 
+- `property autofocus` (from @charm-ux/core CoreRadio)
 - `property dir` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event ready` (from @charm-ux/core CharmElement)

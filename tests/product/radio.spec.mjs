@@ -295,7 +295,7 @@ test('upstream quirks: a disabled radio keeps checked and its tab stop, reconnec
   });
 });
 
-test('core extensions kept: label fallback, hide-label, vertical and autofocus; none is set by default', async ({ page }) => {
+test('core extensions kept: label fallback, hide-label and vertical; none is set by default', async ({ page }) => {
   const { frame } = await openExample(page);
   await mount(frame, `
     <sl-radio id="l" label="From label"></sl-radio>
@@ -307,15 +307,12 @@ test('core extensions kept: label fallback, hide-label, vertical and autofocus; 
     const get = id => document.getElementById(id);
     const label = id => get(id).shadowRoot.querySelector('[part="label"]');
     const d = get('d');
-    d.autofocus = true;
-    await d.updateComplete;
     return {
       fallback: label('l').getBoundingClientRect().width > 0 && label('l').textContent.trim(),
       slotted: label('s').assignedNodes().map(n => n.textContent).join(''),
       hidden: [label('hl').classList.contains('visually-hidden'), label('hl').getBoundingClientRect().width],
       vertical: getComputedStyle(get('v').shadowRoot.querySelector('[part="base"]')).flexDirection,
       defaults: [getComputedStyle(d.shadowRoot.querySelector('[part="base"]')).flexDirection, label('d').className, d.readonly, d.hideLabel, d.vertical, d.label],
-      autofocus: d.hasAttribute('autofocus'),
     };
   });
   expect(r).toEqual({
@@ -324,9 +321,85 @@ test('core extensions kept: label fallback, hide-label, vertical and autofocus; 
     hidden: [true, 1],
     vertical: 'column',
     defaults: ['row', 'radio__label', false, false, false, undefined],
-    autofocus: true,
   });
   await expect(frame.getByRole('radio', { name: 'Hidden label' })).toHaveCount(1);
+});
+
+test('autofocus is the platform property, as in Shoelace: synchronous reflection, not observed, kept on upgrade', async ({ page }) => {
+  const { frame } = await openExample(page);
+  await mount(frame, '<sl-radio id="af" autofocus>Autofocus</sl-radio><sl-radio id="plain-af">Plain</sl-radio>');
+  const r = await frame.locator('body').evaluate(() => {
+    const parsed = document.getElementById('af');
+    const plain = document.getElementById('plain-af');
+    const upgraded = [parsed.autofocus, parsed.hasAttribute('autofocus')];
+    // Native HTMLElement.autofocus reflects synchronously; core's reactive property would wait for an update.
+    plain.autofocus = true;
+    const set = plain.getAttribute('autofocus');
+    plain.autofocus = false;
+    const cleared = plain.hasAttribute('autofocus');
+    const created = document.createElement('sl-radio');
+    created.autofocus = true;
+    return { upgraded, set, cleared, created: created.getAttribute('autofocus'),
+      observed: customElements.get('sl-radio').observedAttributes.includes('autofocus') };
+  });
+  expect(r).toEqual({ upgraded: [true, true], set: '', cleared: false, created: '', observed: false });
+});
+
+test('watch hooks run as Shoelace\'s @watch decorators do: disabled before checked, with the previous and current values', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const calls = await frame.locator('body').evaluate(async body => {
+    const calls = [];
+    const Base = customElements.get('sl-radio');
+    class Traced extends Base {
+      handleCheckedChange(...args) {
+        calls.push(['checked', args, this.getAttribute('aria-disabled')]);
+        super.handleCheckedChange(...args);
+      }
+      handleDisabledChange(...args) {
+        calls.push(['disabled', args, this.getAttribute('aria-checked')]);
+        super.handleDisabledChange(...args);
+      }
+    }
+    customElements.define('velcro-traced-radio', Traced);
+    const el = document.createElement('velcro-traced-radio');
+    body.append(el);
+    await el.updateComplete;
+    calls.push('first update done');
+    el.checked = true;
+    el.disabled = true;
+    await el.updateComplete;
+    calls.push('batched update done');
+    el.disabled = false;
+    await el.updateComplete;
+    el.remove();
+    return calls;
+  });
+  // The first update runs only the checked watcher (disabled waits for the first update), from undefined to false.
+  expect(calls).toEqual([
+    ['checked', [undefined, false], 'false'],
+    'first update done',
+    ['disabled', [false, true], 'false'],
+    ['checked', [false, true], 'true'],
+    'batched update done',
+    ['disabled', [true, false], 'true'],
+  ]);
+});
+
+test('upstream quirk: the .radio wrapper\'s invalid align-items: top is kept in the styles and ignored by the browser', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const r = await frame.locator('#demo-default').evaluate(el => {
+    const base = el.shadowRoot.querySelector('[part="base"]');
+    const sheets = el.shadowRoot.adoptedStyleSheets.length
+      ? el.shadowRoot.adoptedStyleSheets
+      : [...el.shadowRoot.querySelectorAll('style')].map(s => s.sheet);
+    const radioRule = sheets.flatMap(sheet => [...sheet.cssRules]).find(rule => rule.selectorText === '.radio');
+    return {
+      source: el.constructor.styles.some(s => /\.radio \{[^}]*align-items: top;/.test(s.cssText)),
+      parsed: radioRule.style.getPropertyValue('align-items'),
+      computed: getComputedStyle(base).alignItems,
+    };
+  });
+  expect(r).toEqual({ source: true, parsed: '', computed: 'normal' });
 });
 
 test('dir and lang are reactive, not reflected and undefined by default, as Shoelace\'s base element declares them', async ({ page }) => {

@@ -14,16 +14,19 @@ import { CoreRadio } from '@charm-ux/core/dist/components/radio/radio.js';
 import { useVelcroScope } from '../../internal/scope.js';
 import styles from './radio.styles.js';
 
+/** Upstream `@watch` handlers receive the previous and the current value. */
+type WatchHandler = (oldValue: unknown, newValue: unknown) => void;
+
 /**
  * Radios allow the user to select a single option from a group.
  *
  * Velcro extensions inherited from the core radio and kept working, none of which changes anything unless it is set:
  * `readonly` (a click does not check the radio), `label` (label text shown when the default slot is empty), `hide-label`
- * (visually hides the label, which stays accessible), `vertical` (stacks the label under the control), the `autofocus`
- * property (reactive and reflected; the browser's own handling of the `autofocus` attribute is unchanged) and the core
+ * (visually hides the label, which stays accessible), `vertical` (stacks the label under the control) and the core
  * `selected` event, emitted whenever the radio becomes checked. Core's Space-key handling, its unchecking of a radio
- * that becomes disabled, its `blur` / `focus` events and its `radio-*` parts and `--radio-*` custom properties conflict
- * with Shoelace's radio or do not apply to its structure, so they are not used.
+ * that becomes disabled, its reactive `autofocus` property (the platform's own is used, as in Shoelace), its `blur` /
+ * `focus` events and its `radio-*` parts and `--radio-*` custom properties conflict with Shoelace's radio or do not
+ * apply to its structure, so they are not used.
  *
  * @tag sl-radio
  * @status prototype
@@ -123,15 +126,15 @@ export class VelcroRadio extends CoreRadio {
   @property({ type: Boolean, reflect: true })
   public override vertical = false;
 
-  /**
-   * Velcro extension (core): a reactive, reflected `autofocus` property. The browser's own handling of the `autofocus`
-   * attribute is unchanged, as in Shoelace.
-   */
-  @property({ type: Boolean, reflect: true })
-  public override autofocus = false;
+  // `autofocus` is the platform's own property, as in Shoelace (see the accessor installed after the class): core's
+  // reactive, asynchronously reflected `autofocus` and its observed attribute are not used.
+  public static override get observedAttributes() {
+    return super.observedAttributes.filter(name => name !== 'autofocus');
+  }
 
   public constructor() {
     super();
+    constructed.add(this);
     // Shoelace binds its listeners on the host in the constructor. Core's keydown (Space) and click listeners, added by
     // its connectedCallback, are not used: Shoelace's radio does not handle keys itself (its radio group does).
     this.addEventListener('blur', this.handleBlur);
@@ -203,16 +206,17 @@ export class VelcroRadio extends CoreRadio {
     });
   }
 
-  // Shoelace's `@watch('checked')` (also on the first update) and `@watch('disabled', { waitUntilFirstUpdate: true })`
-  // run before the render.
+  // Shoelace's `@watch('checked')` (also on the first update) and `@watch('disabled', { waitUntilFirstUpdate: true })`,
+  // run before the render. Each upstream `@watch` wraps `update` in turn, so the watcher declared last runs first:
+  // `disabled`, then `checked`. Each handler is called with the previous and the current value, as upstream does.
   protected override update(changed: PropertyValues<this>) {
+    if (changed.has('disabled') && changed.get('disabled') !== this.disabled && this.hasUpdated) {
+      (this.handleDisabledChange as WatchHandler).call(this, changed.get('disabled'), this.disabled);
+    }
     if (changed.has('checked') && changed.get('checked') !== this.checked) {
-      this.handleCheckedChange();
+      (this.handleCheckedChange as WatchHandler).call(this, changed.get('checked'), this.checked);
       // Velcro extension (core): the `selected` event.
       if (this.checked) this.emit('selected');
-    }
-    if (changed.has('disabled') && changed.get('disabled') !== this.disabled && this.hasUpdated) {
-      this.handleDisabledChange();
     }
     super.update(changed);
   }
@@ -255,6 +259,28 @@ export class VelcroRadio extends CoreRadio {
   }
 }
 
+// Upstream behavior: `autofocus` is HTMLElement's own property, which reflects the attribute synchronously. The
+// accessor on this prototype hides core's reactive one. Core's constructor assigns `autofocus = false`, which would
+// remove an `autofocus` attribute the element is upgraded with, so writes are ignored until the radio's own constructor
+// has run.
+const constructed = new WeakSet<object>();
+const nativeAutofocus = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'autofocus');
+if (nativeAutofocus?.get && nativeAutofocus.set) {
+  const { get, set } = nativeAutofocus;
+  Object.defineProperty(VelcroRadio.prototype, 'autofocus', {
+    configurable: true,
+    enumerable: true,
+    get(this: HTMLElement) {
+      return get.call(this);
+    },
+    set(this: HTMLElement, value: boolean) {
+      if (constructed.has(this)) set.call(this, value);
+    },
+  });
+}
+
+// Defensive, as for sl-switch: core's radio has no dependencies and its (unused) template asks no scope for a tag, but
+// without a scope of its own the radio could pick up core's scope if a page configured core with the `sl` prefix.
 useVelcroScope(VelcroRadio);
 
 export default VelcroRadio;
