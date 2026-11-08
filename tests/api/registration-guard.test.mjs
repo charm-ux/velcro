@@ -24,7 +24,7 @@ const code = source => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"
 
 test('the guard finds the component entries it checks', () => {
   assert.ok(components.length > 30, `${components.length} components`);
-  for (const name of ['avatar', 'button', 'checkbox', 'icon-button', 'input', 'radio', 'radio-group', 'tab', 'tab-group', 'tag', 'tooltip']) {
+  for (const name of ['alert', 'avatar', 'button', 'checkbox', 'icon-button', 'input', 'radio', 'radio-group', 'tab', 'tab-group', 'tag', 'tooltip']) {
     assert.ok(components.includes(name), name);
   }
 });

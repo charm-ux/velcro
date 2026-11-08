@@ -13,6 +13,7 @@ import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 const ICON = ['sl-icon', 'VelcroIcon', 'iconClass'];
 const ICON_BUTTON = ['sl-icon-button', 'VelcroIconButton', 'iconButtonClass'];
 const ENTRIES = [
+  ['alert', 'sl-alert', 'VelcroAlert', [ICON_BUTTON, ICON]],
   ['avatar', 'sl-avatar', 'VelcroAvatar', [ICON]],
   ['button', 'sl-button', 'VelcroButton', [['sl-spinner', 'VelcroSpinner', 'spinnerClass']]],
   ['checkbox', 'sl-checkbox', 'VelcroCheckbox', [ICON]],
@@ -29,6 +30,7 @@ const ENTRIES = [
 // [class fixture, class export, own tag, [[dependency tag, class export, class fixture]]]. Only direct dependencies are
 // listed: the constructor of a dependency registers its own ones when it is constructed.
 const CLASS_ONLY = [
+  ['alertClass', 'VelcroAlert', 'sl-alert', [ICON_BUTTON]],
   ['avatarClass', 'VelcroAvatar', 'sl-avatar', [ICON]],
   ['radioGroupClass', 'VelcroRadioGroup', 'sl-radio-group', [['sl-button-group', 'VelcroButtonGroup', 'buttonGroupClass']]],
   ['tabGroupClass', 'VelcroTabGroup', 'sl-tab-group', [ICON_BUTTON, ['sl-resize-observer', 'VelcroResizeObserver', 'resizeObserverClass']]],

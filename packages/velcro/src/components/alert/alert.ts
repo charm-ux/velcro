@@ -89,8 +89,8 @@ export class VelcroAlert extends CoreAlert {
   // Shoelace's `static dependencies` for the alert: the elements its template renders. Shoelace keys them by tag; here
   // the tag is derived from each class's `baseName` (`sl-icon-button` for `VelcroIconButton`), the same tag
   // `defineVelcroComponent` defines and the template renders. As in Shoelace's base element, each one that is not
-  // defined yet is defined when an alert is constructed, and a tag that another constructor already owns is left alone,
-  // without the warning Shoelace logs when the registered version differs from its own. If the platform refuses the
+  // defined yet is defined when an alert is constructed, and a tag that another constructor already owns is left alone
+  // (with Shoelace's warning when the registered version differs from its own). If the platform refuses the
   // class itself (for example because it is already registered under another tag), an anonymous subclass is defined
   // instead, as Shoelace does. The icon button in turn defines `<sl-icon>` when it is constructed. Not part of the
   // documented API (Shoelace's manifest lists `dependencies` without a description).
@@ -128,14 +128,7 @@ export class VelcroAlert extends CoreAlert {
 
   public constructor() {
     super();
-    for (const component of VelcroAlert.shoelaceDependencies) {
-      if (customElements.get(`sl-${component.baseName}`)) continue;
-      try {
-        defineVelcroComponent(component);
-      } catch {
-        defineVelcroComponent(class extends component {});
-      }
-    }
+    for (const component of VelcroAlert.shoelaceDependencies) defineVelcroComponent(component);
   }
 
   // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
