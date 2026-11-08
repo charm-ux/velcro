@@ -311,11 +311,15 @@ test('resize: vertical by default, none prevents resizing, auto grows and shrink
   const before = await read();
   expect(before).toMatchObject({ resize: 'none', overflowY: 'hidden', adjusterHidden: false, cls: true });
   await auto.locator('textarea').fill(Array.from({ length: 12 }, (_, i) => `line ${i}`).join('\n'));
-  await expect.poll(async () => (await read()).height).toBeGreaterThan(before.height + 100);
+  // Each step is its own assertion, so a failure says which one broke: the algorithm ran, it measured the content, and the
+  // box followed.
+  await expect.poll(async () => (await read()).inline).toMatch(/^\d+(\.\d+)?px$/);
+  await expect.poll(() => auto.evaluate(el => el.shadowRoot.querySelector('textarea').scrollHeight)).toBeGreaterThan(before.height + 40);
+  await expect.poll(async () => (await read()).height).toBeGreaterThan(before.height + 40);
   const grown = await read();
-  expect(grown.inline).toMatch(/px$/);
+  expect(Math.abs(parseFloat(grown.inline) - (await auto.evaluate(el => el.shadowRoot.querySelector('textarea').scrollHeight)))).toBeLessThan(2);
   await auto.locator('textarea').fill('one line');
-  await expect.poll(async () => (await read()).height).toBeLessThan(grown.height - 100);
+  await expect.poll(async () => (await read()).height).toBeLessThan(grown.height - 40);
 
   // Switching the mode at run time: vertical shows the browser's resize handle and hides the adjuster again. As in
   // Shoelace, a change of `resize` does not re-measure: the height that `auto` wrote stays until the value or the rows change.
@@ -627,7 +631,9 @@ test('methods: select, setSelectionRange, setRangeText, scrollPosition, focus an
     return { selected, range, backward, replaced, atCaret, set, position, inner: innerTop, focused, blurred: el.shadowRoot.activeElement };
   });
   expect(r.selected).toEqual([0, 11]);
-  expect(r.range).toEqual([1, 3, 'none']);
+  // The platform may report an explicit 'none' direction as 'forward' (Chromium and WebKit do outside macOS).
+  expect(r.range.slice(0, 2)).toEqual([1, 3]);
+  expect(['none', 'forward']).toContain(r.range[2]);
   expect(r.backward).toBe('backward');
   expect(r.replaced).toEqual(['XYllo world', 'XYllo world']);
   expect(r.atCaret).toEqual(['>XYllo world', 1]);
@@ -988,7 +994,9 @@ test.describe('React examples', () => {
     });
     expect(await read()).toEqual({ ctor: true, label: 'Notes', help: 'Be brief', rows: [3, 3], value: ['', ''], name: 'notes', resize: 'auto', size: 'large' });
     await page.locator('sl-textarea textarea').pressSequentially('ab');
-    await page.keyboard.press('Tab');
+    // Leave the textarea through the blur() that Playwright calls on the inner element: a Tab out of the only focusable
+    // element does not blur it in every engine.
+    await page.locator('sl-textarea textarea').blur();
     expect(await page.evaluate(() => window.calls)).toEqual(['input:a', 'input:ab', 'change:ab']);
     // A later render passes a new value as a property.
     await page.evaluate(async () => {
