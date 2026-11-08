@@ -15,6 +15,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { createServer } from 'node:http';
 import { devNull, homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
@@ -836,6 +837,121 @@ describe('install download retry (mocked)', () => {
     const failed = await install('retry-temp-failed', [status(503)]);
     assert.equal(failed.error?.code, 'download-failed');
     assert.deepEqual(failed.leftover, []);
+  });
+
+  // A rejected response whose error body trickles forever: every attempt must abort its request and cancel the body
+  // before the next attempt starts and before the installer gives up.
+  function stallingTransport(statusFor) {
+    const attempts = [];
+    const fetchImpl = async (_url, { signal }) => {
+      const attempt = { signal, cancelled: false, chunks: 0, priorSettled: attempts.every((a) => a.signal.aborted && a.cancelled) };
+      attempts.push(attempt);
+      let timer;
+      const body = new ReadableStream({
+        pull(controller) {
+          return new Promise((resolve) => {
+            timer = setTimeout(() => {
+              attempt.chunks += 1;
+              controller.enqueue(new TextEncoder().encode('.'));
+              resolve();
+            }, 20);
+          });
+        },
+        cancel() {
+          clearTimeout(timer);
+          attempt.cancelled = true;
+        },
+      });
+      return new Response(body, { status: statusFor(attempts.length) });
+    };
+    return { attempts, fetchImpl };
+  }
+  async function stalledInstall(label, statusFor, retry = true) {
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest } = syntheticInstallManifest(executable);
+    const root = ignoredRoot(label, manifest);
+    const transport = stallingTransport(statusFor);
+    const time = fakeTime();
+    const started = performance.now();
+    let error;
+    try {
+      await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: transport.fetchImpl, retry, sleep: time.sleep, now: time.now });
+    } catch (caught) {
+      error = caught;
+    }
+    const elapsed = performance.now() - started;
+    const chunksAtExit = transport.attempts.map((a) => a.chunks);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    return { error, elapsed, attempts: transport.attempts, chunksAtExit, sleeps: time.sleeps };
+  }
+  const settled = (attempts) => attempts.every((a) => a.signal.aborted && a.cancelled);
+
+  test('a 5xx with a never-ending error body is aborted before each retry and before giving up', async () => {
+    const run = await stalledInstall('retry-stalled-5xx', () => 504);
+    assert.equal(run.error?.code, 'download-failed');
+    assert.match(run.error.message, /gave up after 4 of 4 attempts$/);
+    assert.equal(run.attempts.length, 4);
+    assert.ok(run.attempts.every((a) => a.priorSettled), 'each attempt starts only after earlier ones were aborted and cancelled');
+    assert.ok(settled(run.attempts), 'the final attempt is aborted and cancelled too');
+    assert.ok(run.elapsed < 5_000, `the installer did not wait on the error bodies (${Math.round(run.elapsed)} ms)`);
+    assert.deepEqual(run.attempts.map((a) => a.chunks), run.chunksAtExit, 'no body kept transferring after the installer returned');
+    assert.deepEqual(run.sleeps, [...scanner.DOWNLOAD_RETRY_POLICY.delaysMs]);
+  });
+
+  test('a 4xx with a never-ending error body is aborted at once and not retried', async () => {
+    const run = await stalledInstall('retry-stalled-4xx', () => 404);
+    assert.equal(run.error?.code, 'download-failed');
+    assert.equal(run.attempts.length, 1);
+    assert.ok(settled(run.attempts));
+    assert.deepEqual(run.attempts.map((a) => a.chunks), run.chunksAtExit);
+    assert.deepEqual(run.sleeps, []);
+  });
+
+  test('without the opt-in a rejected response with a never-ending body is aborted too', async () => {
+    const run = await stalledInstall('retry-stalled-off', () => 503, false);
+    assert.equal(run.error?.code, 'download-failed');
+    assert.equal(run.attempts.length, 1);
+    assert.ok(settled(run.attempts));
+    assert.deepEqual(run.attempts.map((a) => a.chunks), run.chunksAtExit);
+  });
+
+  test('with real fetch, a 504 whose body never ends has its connection closed before each retry and at exit', async () => {
+    const requests = [];
+    const server = createServer((request, reply) => {
+      const entry = { closed: false, priorClosed: requests.every((r) => r.closed) };
+      requests.push(entry);
+      reply.writeHead(504, { 'content-type': 'text/plain' });
+      const timer = setInterval(() => reply.write('.'), 20);
+      reply.on('close', () => {
+        clearInterval(timer);
+        entry.closed = true;
+      });
+    });
+    const loopback = ['127', '0', '0', '1'].join('.');
+    await new Promise((resolve) => server.listen(0, loopback, resolve));
+    const local = `http://${loopback}:${server.address().port}/archive`;
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest } = syntheticInstallManifest(executable);
+    const root = ignoredRoot('retry-real-socket', manifest);
+    const time = fakeTime();
+    // A stand-in sleep that also yields long enough for a close to reach the server.
+    const sleep = async (ms) => {
+      await time.sleep(ms);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    };
+    let error;
+    try {
+      await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: (_url, init) => fetch(local, init), retry: true, sleep, now: time.now });
+    } catch (caught) {
+      error = caught;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    server.closeAllConnections?.();
+    await new Promise((resolve) => server.close(resolve));
+    assert.equal(error?.code, 'download-failed');
+    assert.equal(requests.length, 4);
+    assert.ok(requests.every((r) => r.priorClosed), 'every retry starts after the previous connection closed');
+    assert.ok(requests.every((r) => r.closed), 'the last connection closed when the installer gave up');
   });
 
   test('the CLI accepts only VELCRO_GITLEAKS_DOWNLOAD_RETRY=1 or unset', () => {

@@ -499,13 +499,15 @@ function transient(error, httpStatus = null) {
   return error;
 }
 
-// Streams one download into `file` (created exclusively, owner-only) within the size limit.
+// Streams one download into `file` (created exclusively, owner-only) within the size limit. Any failure aborts the
+// request and cancels an unread body before the timer is cleared, so a rejected or stalled transfer (for example a 5xx
+// whose error body never ends) cannot outlive its attempt.
 async function download(url, fetchImpl, file, timeoutMs = DOWNLOAD_TIMEOUT_MS) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let fd;
+  let response;
   try {
-    let response;
     try {
       response = await fetchImpl(url, { redirect: 'follow', signal: controller.signal });
     } catch {
@@ -544,6 +546,11 @@ async function download(url, fetchImpl, file, timeoutMs = DOWNLOAD_TIMEOUT_MS) {
       if (error instanceof SafeError) throw error;
       throw transient(new SafeError('download-failed'));
     }
+  } catch (error) {
+    controller.abort();
+    const body = response?.body;
+    if (body && typeof body.cancel === 'function' && !body.locked) body.cancel().catch(() => {});
+    throw error;
   } finally {
     clearTimeout(timer);
     if (fd !== undefined) closeSync(fd);

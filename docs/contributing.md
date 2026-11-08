@@ -467,9 +467,10 @@ bytes: the installer re-verifies it against the pinned SHA-256 before extracting
 anything, then the executable against its own pinned SHA-256 and version; wrong bytes
 fail the job and are never replaced by a download. A miss falls back to the pinned
 download, unchanged, and keeps the archive only after it verified. GitHub scopes caches
-to the branch that wrote them, so a PR or merge-group run can read its own entries and
-`main`'s, but runs on `main` (pushes and Pages) read only `main`'s. A candidate can
-poison only its own run's cache, and the checksum then fails that run. The `security`
+to the ref that wrote them, so a PR or merge-group run can read entries written by
+any earlier run on the same ref as well as `main`'s, but runs on `main` (pushes and
+Pages) read only `main`'s. A candidate can poison only its own ref's cache, and the
+checksum then fails the runs that restore it. The `security`
 job restores no cache at all: a restore unpacks an archive that candidate code can
 write, which could overwrite the base-owned engines that job certifies with. It
 therefore always downloads, and it alone opts in (`VELCRO_GITLEAKS_DOWNLOAD_RETRY=1`)
