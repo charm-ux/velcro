@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -115,16 +116,48 @@ test('the records equal the baseline\'s wherever the vendored files are unchange
   assert.deepEqual(checkBaseline(records, readSharedPins(root), baseRecords), []);
 });
 
+// 2d4b1bf is the last main commit with tests/upstream/inventory.json and known-failures.json.
+const LEGACY = '2d4b1bfc56bc521032a6d82ee5c325b9f669cd6b';
+
+// Problems with a read of the legacy baseline. The expected component set comes from the legacy commit's own vendored test
+// directories, not from what the reader returned, so a read that comes back empty or short cannot pass. The legacy
+// components must all still be current; components added after the legacy commit are new relative to it and are not in it.
+function legacyReadProblems(legacy, listed) {
+  const problems = [];
+  if (!listed.length) problems.push('no legacy component directories were listed');
+  const read = Object.keys(legacy.records).sort();
+  if (read.join('\n') !== [...listed].sort().join('\n')) problems.push(`the legacy read has [${read}], but the legacy commit vendors [${listed}]`);
+  for (const c of listed) if (!components.includes(c)) problems.push(`${c}: a legacy component is no longer vendored`);
+  problems.push(...checkBaseline(records, readSharedPins(root), legacy));
+  for (const c of read) if (records[c] && JSON.stringify(legacy.records[c].files) !== JSON.stringify(records[c].files)) problems.push(`${c}: pins differ from the legacy commit's`);
+  return problems;
+}
+
+const legacyListing = () => {
+  const listing = spawnSync('git', ['-C', root, 'ls-tree', '-d', '--name-only', LEGACY, `${VENDOR}/src/components/`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  return listing.status === 0 ? listing.stdout.split('\n').filter(Boolean).map(p => path.basename(p)) : [];
+};
+
 test('the baseline is read from the records, or from the single inventory and ledger files before them', t => {
-  // 2d4b1bf is the last main commit with tests/upstream/inventory.json and known-failures.json.
-  const legacy = readBaseline(root, '2d4b1bfc56bc521032a6d82ee5c325b9f669cd6b');
+  const legacy = readBaseline(root, LEGACY);
   if (!legacy) return t.skip('legacy commit not available in this clone');
-  // The legacy commit has the components that existed then; later components are new relative to it and are not in it.
-  const legacyComponents = Object.keys(legacy.records).sort();
-  assert.deepEqual(legacyComponents, components.filter(c => legacyComponents.includes(c)));
-  assert.deepEqual(checkBaseline(records, readSharedPins(root), legacy), []);
-  for (const c of legacyComponents) assert.deepEqual(legacy.records[c].files, records[c].files, c);
+  assert.deepEqual(legacyReadProblems(legacy, legacyListing()), []);
   assert.equal(readBaseline(root, 'refs/heads/no-such-ref-velcro'), null);
+});
+
+test('negative control: a legacy read that comes back empty or short fails the self-test instead of passing vacuously', t => {
+  const legacy = readBaseline(root, LEGACY);
+  if (!legacy) return t.skip('legacy commit not available in this clone');
+  const listed = legacyListing();
+  assert.deepEqual(legacyReadProblems(legacy, listed), []);
+  // What a missing UPSTREAM.json or inventory.json yields: no records at all.
+  assert.ok(legacyReadProblems({ records: {}, shared: {} }, listed).length > 0);
+  // A read that lost one component.
+  const [dropped, ...rest] = Object.keys(legacy.records).sort();
+  assert.ok(legacyReadProblems({ ...legacy, records: Object.fromEntries(rest.map(c => [c, legacy.records[c]])) }, listed)
+    .some(p => p.includes('the legacy read has')), dropped);
+  // A listing that failed is not an expected set of nothing.
+  assert.ok(legacyReadProblems({ records: {}, shared: {} }, []).includes('no legacy component directories were listed'));
 });
 
 test('negative control: a run that stops generating tests cannot regenerate a shorter inventory past the gates', () => {
