@@ -1,0 +1,90 @@
+<div class="tooltip-placement-example">
+  <div class="tooltip-placement-example-row">
+    <sl-tooltip content="top-start" placement="top-start">
+      <sl-button></sl-button>
+    </sl-tooltip>
+
+    <sl-tooltip content="top" placement="top">
+      <sl-button></sl-button>
+    </sl-tooltip>
+
+    <sl-tooltip content="top-end" placement="top-end">
+      <sl-button></sl-button>
+    </sl-tooltip>
+  </div>
+
+  <div class="tooltip-placement-example-row">
+    <sl-tooltip content="left-start" placement="left-start">
+      <sl-button></sl-button>
+    </sl-tooltip>
+
+    <sl-tooltip content="right-start" placement="right-start">
+      <sl-button></sl-button>
+    </sl-tooltip>
+  </div>
+
+  <div class="tooltip-placement-example-row">
+    <sl-tooltip content="left" placement="left">
+      <sl-button></sl-button>
+    </sl-tooltip>
+
+    <sl-tooltip content="right" placement="right">
+      <sl-button></sl-button>
+    </sl-tooltip>
+  </div>
+
+  <div class="tooltip-placement-example-row">
+    <sl-tooltip content="left-end" placement="left-end">
+      <sl-button></sl-button>
+    </sl-tooltip>
+
+    <sl-tooltip content="right-end" placement="right-end">
+      <sl-button></sl-button>
+    </sl-tooltip>
+  </div>
+
+  <div class="tooltip-placement-example-row">
+    <sl-tooltip content="bottom-start" placement="bottom-start">
+      <sl-button></sl-button>
+    </sl-tooltip>
+
+    <sl-tooltip content="bottom" placement="bottom">
+      <sl-button></sl-button>
+    </sl-tooltip>
+
+    <sl-tooltip content="bottom-end" placement="bottom-end">
+      <sl-button></sl-button>
+    </sl-tooltip>
+  </div>
+</div>
+
+<style>
+  .tooltip-placement-example {
+    width: 250px;
+    margin: 1rem;
+  }
+
+  .tooltip-placement-example-row:after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+
+  .tooltip-placement-example sl-button {
+    float: left;
+    width: 2.5rem;
+    margin-right: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .tooltip-placement-example-row:nth-child(1) sl-tooltip:first-child sl-button,
+  .tooltip-placement-example-row:nth-child(5) sl-tooltip:first-child sl-button {
+    margin-left: calc(40px + 0.25rem);
+  }
+
+  .tooltip-placement-example-row:nth-child(2) sl-tooltip:nth-child(2) sl-button,
+  .tooltip-placement-example-row:nth-child(3) sl-tooltip:nth-child(2) sl-button,
+  .tooltip-placement-example-row:nth-child(4) sl-tooltip:nth-child(2) sl-button {
+    margin-left: calc((40px * 3) + (0.25rem * 3));
+  }
+</style>
