@@ -273,52 +273,22 @@ test('click(): the inner button is clicked once, so the click is retargeted to t
   expect(r).toEqual([{ target: true, composed: true, bubbles: true, trusted: false }]);
 });
 
-test('keyboard: Enter and Space on the focused button click it; a pointer click clicks it once', async ({ page }) => {
+// Keyboard activation, focus and the focus events are checked in a top-level document, in the class-only entry tests below: a
+// script's focus() inside the example's iframe is not reliable in Firefox, a top-level page is. The next test needs no focus.
+test('click(), focus(options) and blur() act on the inner native button, passing the options straight through', async ({ page }) => {
   const { frame } = await openPage(page);
-  await mount(frame, '<div id="k"><sl-icon-button name="gear" label="Settings"></sl-icon-button></div>');
-  const el = frame.locator('#k sl-icon-button');
-  await focusDocument(frame);
-  await el.evaluate(e => { window.kc = 0; e.addEventListener('click', () => window.kc++); e.focus(); });
-  await el.page().keyboard.press('Enter');
-  await el.page().keyboard.press('Space');
-  await expect.poll(() => el.evaluate(() => window.kc)).toBe(2);
-  await el.click();
-  expect(await el.evaluate(() => window.kc)).toBe(3);
-});
-
-test('focus(), blur() and sl-focus / sl-blur: the inner button is focused, the events bubble, are composed and uncancelable with an empty detail', async ({ page }) => {
-  const { frame } = await openPage(page);
-  await mount(frame, '<div id="f"><sl-icon-button name="gear" label="Settings"></sl-icon-button></div>');
-  await focusDocument(frame);
-  const r = await frame.locator('#f').evaluate(async wrap => {
+  await mount(frame, '<div id="m"><sl-icon-button name="gear" label="Settings"></sl-icon-button></div>');
+  const r = await frame.locator('#m').evaluate(wrap => {
     const el = wrap.querySelector('sl-icon-button');
-    const log = [];
-    const record = e => log.push({ type: e.type, target: e.target === el, bubbles: e.bubbles, composed: e.composed, cancelable: e.cancelable, detail: e.detail, ctor: e.constructor.name });
-    wrap.addEventListener('sl-focus', record);
-    wrap.addEventListener('sl-blur', record);
-    const state = () => [document.activeElement === el, el.shadowRoot.activeElement === el.button, [...el.button.classList].join(' ')];
-    const initial = state();
-    el.focus();
-    await el.updateComplete;
-    const focused = state();
-    el.blur();
-    await el.updateComplete;
-    const blurred = state();
-    // The options pass straight to the inner button.
-    let received;
-    const nativeFocus = el.button.focus;
-    el.button.focus = options => { received = options; nativeFocus.call(el.button); };
+    const calls = [];
+    for (const method of ['click', 'focus', 'blur']) el.button[method] = (...args) => calls.push([method, args]);
+    el.click();
     el.focus({ preventScroll: true });
-    el.button.focus = nativeFocus;
-    await el.updateComplete;
-    return { initial, focused, blurred, received, log };
+    el.focus();
+    el.blur();
+    return calls;
   });
-  expect(r.initial).toEqual([false, false, 'icon-button']);
-  expect(r.focused).toEqual([true, true, 'icon-button icon-button--focused']);
-  expect(r.blurred).toEqual([false, false, 'icon-button']);
-  expect(r.received).toEqual({ preventScroll: true });
-  const base = { target: true, bubbles: true, composed: true, cancelable: false, detail: {}, ctor: 'CustomEvent' };
-  expect(r.log).toEqual([{ type: 'sl-focus', ...base }, { type: 'sl-blur', ...base }, { type: 'sl-focus', ...base }]);
+  expect(r).toEqual([['click', []], ['focus', [{ preventScroll: true }]], ['focus', [undefined]], ['blur', []]]);
 });
 
 test('link buttons example: an anchor with the href, target, noreferrer noopener rel and label; no request until it is clicked', async ({ page }) => {
@@ -811,6 +781,72 @@ test.describe('class-only entry', () => {
     await page.waitForFunction(() => Boolean(window.iconButtonClass));
     return pageErrors;
   }
+
+  // The icon buttons here are in a top-level document (the page is made by the test, with the theme and the class-only bundle),
+  // where script focus() and key presses behave the same in every engine.
+  async function define(page, markup) {
+    await page.evaluate(async markup => {
+      customElements.define('sl-icon-button', window.iconButtonClass.SlIconButton);
+      document.body.innerHTML = markup;
+      for (const el of document.querySelectorAll('sl-icon-button')) {
+        el.library = 'system';
+        el.name = 'chevron-down';
+        el.label = 'Settings';
+      }
+      await Promise.all([...document.querySelectorAll('sl-icon-button')].map(el => el.updateComplete));
+    }, markup);
+  }
+
+  test('focus() and blur() focus and blur the inner button and cause sl-focus and sl-blur, which bubble and are composed and uncancelable', async ({ page }) => {
+    const pageErrors = await load(page);
+    await define(page, '<sl-icon-button></sl-icon-button>');
+    const r = await page.evaluate(async () => {
+      const button = document.querySelector('sl-icon-button');
+      const log = [];
+      const record = e => log.push({ type: e.type, target: e.target === button, bubbles: e.bubbles, composed: e.composed, cancelable: e.cancelable, detail: e.detail });
+      document.body.addEventListener('sl-focus', record);
+      document.body.addEventListener('sl-blur', record);
+      const state = () => [document.activeElement === button, button.shadowRoot.activeElement === button.button, [...button.button.classList].join(' ')];
+      const initial = state();
+      button.focus();
+      await button.updateComplete;
+      const focused = state();
+      button.blur();
+      await button.updateComplete;
+      return { initial, focused, blurred: state(), log };
+    });
+    expect(r.initial).toEqual([false, false, 'icon-button']);
+    expect(r.focused).toEqual([true, true, 'icon-button icon-button--focused']);
+    expect(r.blurred).toEqual([false, false, 'icon-button']);
+    const base = { target: true, bubbles: true, composed: true, cancelable: false, detail: {} };
+    expect(r.log).toEqual([{ type: 'sl-focus', ...base }, { type: 'sl-blur', ...base }]);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('keyboard: Tab focuses the inner button and Shift+Tab leaves it (sl-focus, sl-blur); Enter and Space click it; a pointer click clicks it once', async ({ page }) => {
+    const pageErrors = await load(page);
+    await define(page, '<button id="before">before</button><sl-icon-button></sl-icon-button><button id="after">after</button>');
+    await page.evaluate(() => {
+      const button = document.querySelector('sl-icon-button');
+      window.log = [];
+      button.addEventListener('click', () => window.log.push('click'));
+      button.addEventListener('sl-focus', () => window.log.push('sl-focus'));
+      button.addEventListener('sl-blur', () => window.log.push('sl-blur'));
+    });
+    const inner = () => page.evaluate(() => document.querySelector('sl-icon-button').shadowRoot.activeElement === document.querySelector('sl-icon-button').button);
+    await page.locator('#before').focus();
+    await page.keyboard.press('Tab');
+    await expect.poll(inner).toBe(true);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Space');
+    await expect.poll(() => page.evaluate(() => window.log)).toEqual(['sl-focus', 'click', 'click']);
+    await page.keyboard.press('Tab');
+    await expect.poll(() => page.evaluate(() => document.activeElement.id)).toBe('after');
+    expect(await inner()).toBe(false);
+    await page.locator('sl-icon-button').click();
+    expect(await page.evaluate(() => window.log.filter(e => e === 'click').length)).toBe(3);
+    expect(pageErrors).toEqual([]);
+  });
 
   test('importing defines nothing; constructing an icon button defines Velcro\'s sl-icon, so the icon renders', async ({ page }) => {
     const pageErrors = await load(page);
