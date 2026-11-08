@@ -31,6 +31,8 @@
     "./include": { "types": "./dist/components/include/index.d.ts", "import": "./dist/components/include/index.js" },
     "./include/class": { "types": "./dist/components/include/class.d.ts", "import": "./dist/components/include/class.js" },
     "./include/request": { "types": "./dist/components/include/request.d.ts", "import": "./dist/components/include/request.js" },
+    "./menu-label": { "types": "./dist/components/menu-label/index.d.ts", "import": "./dist/components/menu-label/index.js" },
+    "./menu-label/class": { "types": "./dist/components/menu-label/class.d.ts", "import": "./dist/components/menu-label/class.js" },
     "./mutation-observer": { "types": "./dist/components/mutation-observer/index.d.ts", "import": "./dist/components/mutation-observer/index.js" },
     "./mutation-observer/class": { "types": "./dist/components/mutation-observer/class.d.ts", "import": "./dist/components/mutation-observer/class.js" },
     "./popup": { "types": "./dist/components/popup/index.d.ts", "import": "./dist/components/popup/index.js" },
