@@ -91,6 +91,15 @@ export function velcroInheritance() {
             if (decl[key]) decl[key] = decl[key].filter(item => !item.inheritedFrom || keep.includes(item.name));
             if (decl[key]?.length === 0) delete decl[key];
           }
+          // A Velcro class that redeclares an inherited core property without an attribute (for example sl-radio's
+          // `checked`, `@property({ attribute: false })`) no longer observes core's attribute, but the analyzer keeps the
+          // inherited attribute entry; drop it so the manifest matches the runtime.
+          const propertyOnly = new Set((decl.members ?? [])
+            .filter(m => m.kind === 'field' && !m.static && !m.inheritedFrom && !m.attribute).map(m => m.name));
+          if (decl.attributes) {
+            decl.attributes = decl.attributes.filter(a => !(a.inheritedFrom && propertyOnly.has(a.fieldName)));
+            if (decl.attributes.length === 0) delete decl.attributes;
+          }
           const dropped = droppedInheritedEvents[decl.name] ?? [];
           if (decl.events) decl.events = decl.events.filter(e => !e.inheritedFrom || !dropped.includes(e.name));
           for (const key of ['members', 'attributes', 'events', 'slots', 'cssParts', 'cssProperties']) {

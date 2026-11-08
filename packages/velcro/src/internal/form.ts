@@ -346,3 +346,17 @@ export const validValidityState: ValidityState = Object.freeze({
   valid: true,
   valueMissing: false,
 });
+
+/** A read-only validity state that represents a missing required value. */
+export const valueMissingValidityState: ValidityState = Object.freeze({
+  ...validValidityState,
+  valid: false,
+  valueMissing: true,
+});
+
+/** A read-only validity state that represents a custom error. */
+export const customErrorValidityState: ValidityState = Object.freeze({
+  ...validValidityState,
+  valid: false,
+  customError: true,
+});

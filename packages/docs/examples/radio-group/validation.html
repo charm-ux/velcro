@@ -1,0 +1,19 @@
+<form class="validation">
+  <sl-radio-group label="Select an option" name="a" required>
+    <sl-radio value="1">Option 1</sl-radio>
+    <sl-radio value="2">Option 2</sl-radio>
+    <sl-radio value="3">Option 3</sl-radio>
+  </sl-radio-group>
+  <br />
+  <sl-button type="submit" variant="primary">Submit</sl-button>
+</form>
+
+<script type="module">
+  const form = document.querySelector('.validation');
+
+  // Handle form submit
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    alert('All fields are valid!');
+  });
+</script>
