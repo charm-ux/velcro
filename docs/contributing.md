@@ -6,7 +6,11 @@ installation are per-worktree. `.npmrc` and the lockfile use only public npm.
 Run `pnpm install --frozen-lockfile` and acquire the pinned scanner with
 `node scripts/security/gitleaks.mjs install` when network acquisition is authorized.
 The installer verifies archive and executable checksums; never fabricate integrity
-values or weaken gates to accommodate a registry problem.
+values or weaken gates to accommodate a registry problem. It keeps the verified
+archive in ignored `.airig/tools/gitleaks/<version>/archives/` and on a later install
+re-verifies that archive against the pinned SHA-256 instead of downloading again.
+A kept archive with wrong bytes, a symlink, a directory or an oversized file fails
+closed with nothing extracted and is never silently replaced; delete it to download again.
 
 ## Adding a component
 
@@ -454,6 +458,33 @@ job was not skipped. GitHub counts a skipped required check as passing, so
 `required` itself is never skipped. When the base branch's tip moves, CI does not
 re-run, with or without edits; the merge queue re-tests on the current `main`. Security scans PR objects with engines from the base checkout, not
 candidate-modified engines; a base lacking the guard fails closed.
+
+The pinned Gitleaks archive is cached with `actions/cache` so a GitHub release-CDN
+outage does not fail every job. The cache key is the pinned version, the runners'
+target (`linux-x64`) and that target's pinned archive SHA-256, with no fallback keys,
+and the cached path is only the installer's `archives/` directory. A hit is untrusted
+bytes: the installer re-verifies it against the pinned SHA-256 before extracting
+anything, then the executable against its own pinned SHA-256 and version; wrong bytes
+fail the job and are never replaced by a download. A miss falls back to the pinned
+download, unchanged, and keeps the archive only after it verified. GitHub scopes caches
+to the ref that wrote them, so a PR or merge-group run can read entries written by
+any earlier run on the same ref as well as `main`'s, but runs on `main` (pushes and
+Pages) read only `main`'s. A candidate can poison only its own ref's cache, and the
+checksum then fails the runs that restore it. The `security`
+job restores no cache at all: a restore unpacks an archive that candidate code can
+write, which could overwrite the base-owned engines that job certifies with. It
+therefore always downloads, and it alone opts in (`VELCRO_GITLEAKS_DOWNLOAD_RETRY=1`)
+to a bounded retry of transport failures only: network errors, timeouts and HTTP
+5xx. It makes at most 4 attempts, waits 5, 10 and 20 seconds between them, and caps
+each attempt at 30 seconds and all attempts and waits together at 2 minutes. Each
+attempt downloads into a fresh temporary file that is removed afterwards and checked
+against the pinned SHA-256 before use. A checksum mismatch, any other HTTP status or
+an oversized download fails at once and is never retried. A longer outage can
+still fail the job. Because the job runs the base's installer, the retry applies
+only once the base has it; an older base ignores the variable and downloads once.
+The other downloads in CI are pinned by version but not by our own checksum: Node
+(`setup-node`), pnpm (`pnpm/action-setup`), npm packages (lockfile integrity) and
+Playwright browsers (cached by lockfile hash, as before).
 
 Protected changes are reported for a separate, mandatory human merge/publication
 gate; green data checks do not satisfy that gate. Candidate policy files are

@@ -15,6 +15,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { createServer } from 'node:http';
 import { devNull, homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
@@ -455,6 +456,8 @@ describe('install transport (mocked)', () => {
     );
     const installed = listFiles(path.join(root, '.airig')).filter((entry) => entry.endsWith('gitleaks'));
     assert.deepEqual(installed, []);
+    const kept = listFiles(path.join(root, '.airig')).filter((entry) => entry.endsWith('.tar.gz'));
+    assert.deepEqual(kept, [], 'unverified download bytes must never be kept');
   });
 
   test('network errors are reported without echoing raw transport detail', async () => {
@@ -572,6 +575,115 @@ describe('install transport (mocked)', () => {
     assert.equal(calls, 1);
   });
 
+  // The kept archive is what CI caches (.airig/tools/gitleaks/<version>/archives): a restore is untrusted bytes.
+  const keptArchive = (root) =>
+    path.join(root, scanner.selectTarget(scanner.loadManifest(root), 'linux', 'x64').relativeArchive);
+  const installedExecutable = (root) =>
+    path.join(root, scanner.selectTarget(scanner.loadManifest(root), 'linux', 'x64').relativeExecutable);
+  const noFetch = (calls) => async () => {
+    calls.push('fetch');
+    return new Response('unexpected', { status: 500 });
+  };
+
+  test('a miss downloads, verifies and keeps exactly the pinned archive in the cached directory', async () => {
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest, archive } = syntheticInstallManifest(executable);
+    const root = ignoredRoot('install-keep', manifest);
+    const calls = [];
+    const fetchImpl = async (url) => {
+      calls.push(String(url));
+      return new Response(archive, { status: 200 });
+    };
+    const first = await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl });
+    assert.equal(first.status, 'installed');
+    assert.equal(calls.length, 1);
+    assert.equal(first.archiveLocation, '.airig/tools/gitleaks/8.30.1/archives/gitleaks_8.30.1_linux_x64.tar.gz');
+    const kept = keptArchive(root);
+    assert.equal(sha256(readFileSync(kept)), manifest.targets['linux-x64'].archiveSha256);
+    assert.equal(statSync(kept).mode & 0o777, 0o600);
+    assert.deepEqual(readdirSync(path.dirname(kept)), [path.basename(kept)], 'only the archive is kept there');
+    // A fresh runner (no executable) with the restored archive installs without any download.
+    rmSync(installedExecutable(root));
+    const second = await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: noFetch(calls) });
+    assert.equal(second.status, 'installed-from-kept-archive');
+    assert.equal(second.reportedVersion, '8.30.1');
+    assert.equal(calls.length, 1, 'a kept archive is never re-downloaded');
+    assert.equal(sha256(readFileSync(installedExecutable(root))), sha256(Buffer.from(executable)));
+    const third = await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: noFetch(calls) });
+    assert.equal(third.status, 'already-installed');
+    assert.equal(third.keptArchiveVerified, true);
+    assert.equal(calls.length, 1);
+  });
+
+  test('a restored archive with the pinned bytes installs without a download', async () => {
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest, archive } = syntheticInstallManifest(executable);
+    const root = ignoredRoot('install-restored-good', manifest);
+    mkdirSync(path.dirname(keptArchive(root)), { recursive: true });
+    writeFileSync(keptArchive(root), archive);
+    const calls = [];
+    const result = await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: noFetch(calls) });
+    assert.equal(result.status, 'installed-from-kept-archive');
+    assert.deepEqual(calls, []);
+    assert.equal(sha256(readFileSync(installedExecutable(root))), sha256(Buffer.from(executable)));
+  });
+
+  test('a restored archive with wrong bytes fails closed: no extraction, no download, no install', async () => {
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest } = syntheticInstallManifest(executable);
+    const root = ignoredRoot('install-restored-bad', manifest);
+    mkdirSync(path.dirname(keptArchive(root)), { recursive: true });
+    // A well-formed archive whose executable would even run: only the pinned archive hash decides.
+    const wrong = tarArchive(standardEntries(fakeVersionExecutable('8.30.1') + '// tampered\n'));
+    writeFileSync(keptArchive(root), wrong);
+    const calls = [];
+    await expectSafeError(
+      scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: noFetch(calls) }),
+      'cached-archive-invalid',
+    );
+    assert.deepEqual(calls, [], 'wrong kept bytes are never replaced by a download');
+    assert.equal(existsSync(installedExecutable(root)), false);
+    assert.equal(sha256(readFileSync(keptArchive(root))), sha256(wrong), 'the evidence is left in place');
+  });
+
+  test('wrong kept bytes fail closed even when a verified executable is already installed', async () => {
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest, archive } = syntheticInstallManifest(executable);
+    const root = ignoredRoot('install-restored-bad-installed', manifest);
+    await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: async () => new Response(archive) });
+    writeFileSync(keptArchive(root), Buffer.concat([archive, Buffer.from('x')]));
+    const calls = [];
+    await expectSafeError(
+      scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: noFetch(calls) }),
+      'cached-archive-invalid',
+    );
+    assert.deepEqual(calls, []);
+  });
+
+  for (const [label, place] of [
+    ['a symlink to the pinned bytes', (file, archive, dir) => {
+      writeFileSync(path.join(dir, 'elsewhere.tar.gz'), archive);
+      symlinkSync(path.join(dir, 'elsewhere.tar.gz'), file);
+    }],
+    ['a directory', (file) => mkdirSync(file)],
+    ['an oversized file', (file) => writeFileSync(file, Buffer.alloc(32 * 1024 * 1024 + 1))],
+  ]) {
+    test(`a kept archive that is ${label} fails closed`, async () => {
+      const executable = fakeVersionExecutable('8.30.1');
+      const { manifest, archive } = syntheticInstallManifest(executable);
+      const root = ignoredRoot('install-restored-odd', manifest);
+      mkdirSync(path.dirname(keptArchive(root)), { recursive: true });
+      place(keptArchive(root), archive, scratch('install-restored-elsewhere'));
+      const calls = [];
+      await expectSafeError(
+        scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: noFetch(calls) }),
+        'cached-archive-invalid',
+      );
+      assert.deepEqual(calls, []);
+      assert.equal(existsSync(installedExecutable(root)), false);
+    });
+  }
+
   test('an executable reporting the wrong version is rolled back', async () => {
     const executable = fakeVersionExecutable('8.30.0');
     const { manifest, archive } = syntheticInstallManifest(executable);
@@ -580,6 +692,272 @@ describe('install transport (mocked)', () => {
     await expectSafeError(scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl }), 'version-mismatch');
     const target = scanner.selectTarget(scanner.loadManifest(root), 'linux', 'x64');
     assert.equal(existsSync(path.join(root, target.relativeExecutable)), false);
+  });
+});
+
+// The security job's opt-in retry: transport failures only, a fresh temporary file per attempt, the pinned checksum
+// before use, and both an attempt cap and a total time cap. A fake clock and sleep stand in for real waiting.
+describe('install download retry (mocked)', () => {
+  const policy = scanner.DOWNLOAD_RETRY_POLICY;
+  const fakeTime = () => {
+    let clock = 0;
+    const sleeps = [];
+    return {
+      now: () => clock,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+        clock += ms;
+      },
+      advance: (ms) => {
+        clock += ms;
+      },
+      sleeps,
+    };
+  };
+  // Runs an install with TMPDIR pointed at a test-owned directory, recording what each attempt saw there.
+  async function install(label, responses, { retry = true, manifestBytes, perAttemptMs = 0 } = {}) {
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest, archive } = manifestBytes ?? syntheticInstallManifest(executable);
+    const root = ignoredRoot(label, manifest);
+    const temp = scratch(`${label}-tmp`);
+    const time = fakeTime();
+    const seen = [];
+    const retries = [];
+    let calls = 0;
+    const fetchImpl = async () => {
+      seen.push(readdirSync(temp, { recursive: true }).sort());
+      time.advance(perAttemptMs);
+      const next = responses[Math.min(calls, responses.length - 1)];
+      calls += 1;
+      return next(archive);
+    };
+    const run = () =>
+      scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl, retry, sleep: time.sleep, now: time.now,
+        onRetry: (info) => retries.push(info) });
+    let result;
+    let error;
+    try {
+      result = await withEnv({ TMPDIR: temp, TMP: temp, TEMP: temp }, run);
+    } catch (caught) {
+      error = caught;
+    }
+    return { result, error, calls: () => calls, seen, retries, sleeps: time.sleeps, leftover: readdirSync(temp), root };
+  }
+  const ok = (archive) => new Response(archive, { status: 200 });
+  const status = (code) => () => new Response('unavailable', { status: code });
+  const networkError = () => {
+    throw new Error('socket hang up');
+  };
+
+  test('a 504 is retried after a backoff, and the next verified download installs', async () => {
+    const run = await install('retry-504', [status(504), ok]);
+    assert.equal(run.error, undefined);
+    assert.equal(run.result.status, 'installed');
+    assert.equal(run.result.downloadAttempts, 2);
+    assert.equal(run.calls(), 2);
+    assert.deepEqual(run.retries, [{ attempt: 1, attempts: 4, httpStatus: 504, delayMs: policy.delaysMs[0] }]);
+    assert.deepEqual(run.sleeps, [policy.delaysMs[0]]);
+  });
+
+  test('network errors are retried too', async () => {
+    const run = await install('retry-network', [networkError, networkError, ok]);
+    assert.equal(run.error, undefined);
+    assert.equal(run.result.downloadAttempts, 3);
+    assert.deepEqual(run.retries.map((r) => r.httpStatus), [null, null]);
+    assert.deepEqual(run.sleeps, policy.delaysMs.slice(0, 2));
+  });
+
+  test('a checksum mismatch is a hard failure and is never retried', async () => {
+    const wrong = () => new Response(tarArchive(standardEntries('not the pinned binary')), { status: 200 });
+    const run = await install('retry-mismatch', [wrong, ok]);
+    assert.equal(run.error?.code, 'archive-checksum-mismatch');
+    assert.equal(run.calls(), 1);
+    assert.deepEqual(run.retries, []);
+    assert.deepEqual(run.sleeps, []);
+    assert.equal(existsSync(path.join(run.root, '.airig', 'tools')) ? listFiles(path.join(run.root, '.airig', 'tools')).filter((f) => f.endsWith('.tar.gz')).length : 0, 0);
+  });
+
+  test('a 5xx followed by a mismatch fails on the mismatch without another attempt', async () => {
+    const wrong = () => new Response(tarArchive(standardEntries('not the pinned binary')), { status: 200 });
+    const run = await install('retry-then-mismatch', [status(503), wrong, ok]);
+    assert.equal(run.error?.code, 'archive-checksum-mismatch');
+    assert.equal(run.calls(), 2);
+  });
+
+  for (const code of [400, 403, 404, 429]) {
+    test(`HTTP ${code} is not a transport failure and is not retried`, async () => {
+      const run = await install(`retry-${code}`, [status(code), ok]);
+      assert.equal(run.error?.code, 'download-failed');
+      assert.equal(run.calls(), 1);
+      assert.deepEqual(run.sleeps, []);
+    });
+  }
+
+  test('the attempt cap: at most four attempts, then a fixed failure', async () => {
+    const run = await install('retry-cap', [status(504)]);
+    assert.equal(run.error?.code, 'download-failed');
+    assert.match(run.error.message, /gave up after 4 of 4 attempts$/);
+    assert.equal(run.calls(), policy.attempts);
+    assert.deepEqual(run.sleeps, [...policy.delaysMs]);
+    assert.ok(run.sleeps.reduce((a, b) => a + b, 0) <= policy.budgetMs);
+  });
+
+  test('the time cap: no attempt starts once the remaining budget cannot hold a backoff and an attempt', async () => {
+    // Each failing attempt runs into its 30 s timeout: 30 + 5 + 30 + 10 + 30 = 105 s, and a 20 s backoff plus a minimal
+    // attempt no longer fit in the 120 s budget, so the fourth attempt never starts.
+    const run = await install('retry-time-cap', [status(502)], { perAttemptMs: policy.attemptTimeoutMs });
+    assert.equal(run.error?.code, 'download-failed');
+    assert.match(run.error.message, /gave up after 3 of 4 attempts$/);
+    assert.equal(run.calls(), 3);
+    assert.deepEqual(run.sleeps, policy.delaysMs.slice(0, 2));
+    assert.ok(policy.budgetMs <= 120_000 && policy.attempts <= 4);
+  });
+
+  test('without the opt-in a transport failure is not retried (other jobs keep the single download)', async () => {
+    const run = await install('retry-off', [status(504), ok], { retry: false });
+    assert.equal(run.error?.code, 'download-failed');
+    assert.doesNotMatch(run.error.message, /attempts/);
+    assert.equal(run.calls(), 1);
+    assert.deepEqual(run.sleeps, []);
+  });
+
+  test('every attempt writes a fresh temporary file, and none is left behind', async () => {
+    const run = await install('retry-temp', [status(500), networkError, status(504), ok]);
+    assert.equal(run.error, undefined);
+    assert.equal(run.seen.length, 4);
+    const dirs = run.seen.map((entries) => {
+      // Exactly one fresh, still-empty attempt directory (the file is created only once a response arrives).
+      assert.equal(entries.length, 1, JSON.stringify(entries));
+      assert.match(entries[0], /^velcro-gitleaks-download-/);
+      return entries[0];
+    });
+    assert.equal(new Set(dirs).size, 4, 'each attempt has its own directory');
+    assert.deepEqual(run.leftover, [], 'temporary attempt files are removed');
+    // Failed attempts are cleaned up too.
+    const failed = await install('retry-temp-failed', [status(503)]);
+    assert.equal(failed.error?.code, 'download-failed');
+    assert.deepEqual(failed.leftover, []);
+  });
+
+  // A rejected response whose error body trickles forever: every attempt must abort its request and cancel the body
+  // before the next attempt starts and before the installer gives up.
+  function stallingTransport(statusFor) {
+    const attempts = [];
+    const fetchImpl = async (_url, { signal }) => {
+      const attempt = { signal, cancelled: false, chunks: 0, priorSettled: attempts.every((a) => a.signal.aborted && a.cancelled) };
+      attempts.push(attempt);
+      let timer;
+      const body = new ReadableStream({
+        pull(controller) {
+          return new Promise((resolve) => {
+            timer = setTimeout(() => {
+              attempt.chunks += 1;
+              controller.enqueue(new TextEncoder().encode('.'));
+              resolve();
+            }, 20);
+          });
+        },
+        cancel() {
+          clearTimeout(timer);
+          attempt.cancelled = true;
+        },
+      });
+      return new Response(body, { status: statusFor(attempts.length) });
+    };
+    return { attempts, fetchImpl };
+  }
+  async function stalledInstall(label, statusFor, retry = true) {
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest } = syntheticInstallManifest(executable);
+    const root = ignoredRoot(label, manifest);
+    const transport = stallingTransport(statusFor);
+    const time = fakeTime();
+    const started = performance.now();
+    let error;
+    try {
+      await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: transport.fetchImpl, retry, sleep: time.sleep, now: time.now });
+    } catch (caught) {
+      error = caught;
+    }
+    const elapsed = performance.now() - started;
+    const chunksAtExit = transport.attempts.map((a) => a.chunks);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    return { error, elapsed, attempts: transport.attempts, chunksAtExit, sleeps: time.sleeps };
+  }
+  const settled = (attempts) => attempts.every((a) => a.signal.aborted && a.cancelled);
+
+  test('a 5xx with a never-ending error body is aborted before each retry and before giving up', async () => {
+    const run = await stalledInstall('retry-stalled-5xx', () => 504);
+    assert.equal(run.error?.code, 'download-failed');
+    assert.match(run.error.message, /gave up after 4 of 4 attempts$/);
+    assert.equal(run.attempts.length, 4);
+    assert.ok(run.attempts.every((a) => a.priorSettled), 'each attempt starts only after earlier ones were aborted and cancelled');
+    assert.ok(settled(run.attempts), 'the final attempt is aborted and cancelled too');
+    assert.ok(run.elapsed < 5_000, `the installer did not wait on the error bodies (${Math.round(run.elapsed)} ms)`);
+    assert.deepEqual(run.attempts.map((a) => a.chunks), run.chunksAtExit, 'no body kept transferring after the installer returned');
+    assert.deepEqual(run.sleeps, [...scanner.DOWNLOAD_RETRY_POLICY.delaysMs]);
+  });
+
+  test('a 4xx with a never-ending error body is aborted at once and not retried', async () => {
+    const run = await stalledInstall('retry-stalled-4xx', () => 404);
+    assert.equal(run.error?.code, 'download-failed');
+    assert.equal(run.attempts.length, 1);
+    assert.ok(settled(run.attempts));
+    assert.deepEqual(run.attempts.map((a) => a.chunks), run.chunksAtExit);
+    assert.deepEqual(run.sleeps, []);
+  });
+
+  test('without the opt-in a rejected response with a never-ending body is aborted too', async () => {
+    const run = await stalledInstall('retry-stalled-off', () => 503, false);
+    assert.equal(run.error?.code, 'download-failed');
+    assert.equal(run.attempts.length, 1);
+    assert.ok(settled(run.attempts));
+    assert.deepEqual(run.attempts.map((a) => a.chunks), run.chunksAtExit);
+  });
+
+  test('with real fetch, a 504 whose body never ends has its connection closed before each retry and at exit', async () => {
+    const requests = [];
+    const server = createServer((request, reply) => {
+      const entry = { closed: false, priorClosed: requests.every((r) => r.closed) };
+      requests.push(entry);
+      reply.writeHead(504, { 'content-type': 'text/plain' });
+      const timer = setInterval(() => reply.write('.'), 20);
+      reply.on('close', () => {
+        clearInterval(timer);
+        entry.closed = true;
+      });
+    });
+    const loopback = ['127', '0', '0', '1'].join('.');
+    await new Promise((resolve) => server.listen(0, loopback, resolve));
+    const local = `http://${loopback}:${server.address().port}/archive`;
+    const executable = fakeVersionExecutable('8.30.1');
+    const { manifest } = syntheticInstallManifest(executable);
+    const root = ignoredRoot('retry-real-socket', manifest);
+    const time = fakeTime();
+    // A stand-in sleep that also yields long enough for a close to reach the server.
+    const sleep = async (ms) => {
+      await time.sleep(ms);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    };
+    let error;
+    try {
+      await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: (_url, init) => fetch(local, init), retry: true, sleep, now: time.now });
+    } catch (caught) {
+      error = caught;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    server.closeAllConnections?.();
+    await new Promise((resolve) => server.close(resolve));
+    assert.equal(error?.code, 'download-failed');
+    assert.equal(requests.length, 4);
+    assert.ok(requests.every((r) => r.priorClosed), 'every retry starts after the previous connection closed');
+    assert.ok(requests.every((r) => r.closed), 'the last connection closed when the installer gave up');
+  });
+
+  test('the CLI accepts only VELCRO_GITLEAKS_DOWNLOAD_RETRY=1 or unset', () => {
+    const result = runCli(['install'], { env: { VELCRO_GITLEAKS_DOWNLOAD_RETRY: 'yes' } });
+    assert.equal(result.code, 2);
+    assert.match(result.stderr, /VELCRO_GITLEAKS_DOWNLOAD_RETRY must be 1 or unset/);
   });
 });
 
