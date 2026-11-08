@@ -1,7 +1,7 @@
 // Adapted from @shoelace-style/localize 3.2.1 (A Beautiful Site, LLC, MIT License), the version Shoelace v2.20.1 pins and
 // bundles (its src/utilities/localize.ts builds on it). See THIRD_PARTY_NOTICES.md. The registry, the document-locale
-// snapshot, the lookup and the controller follow its structure; the changes are TypeScript types, the controller set and
-// reading the host's dir attribute rather than its property (see `dir()`).
+// snapshot, the lookup and the controller follow its structure; the changes are TypeScript types, the controller set, a
+// `documentDir()` read of the snapshot and reading the host's dir attribute rather than its property (see `dir()`).
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 /**
@@ -50,6 +50,15 @@ export function update(): void {
     documentLanguage = document.documentElement.lang || navigator.language;
   }
   connected.forEach(controller => controller.host.requestUpdate());
+}
+
+/**
+ * The current document-direction snapshot (`<html dir>` when the snapshot was last refreshed, else `ltr`), not
+ * lower-cased. For components that resolve a direction from their `dir` property, as Shoelace's controller does,
+ * rather than from the attribute `LocalizeController.dir()` reads.
+ */
+export function documentDir(): string {
+  return documentDirection;
 }
 
 // As upstream, one observer watches `<html lang dir>` from the moment this module is evaluated, for the page's lifetime.

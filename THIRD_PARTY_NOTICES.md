@@ -36,7 +36,8 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   `src/components/spinner/spinner.component.ts`), `packages/velcro/src/components/spinner/spinner.styles.ts`
   (styles adapted from `src/components/spinner/spinner.styles.ts` with the changes listed in its header) and
   `packages/velcro/themes/light.css` and `packages/velcro/themes/dark.css` (copied from `src/themes/light.css`
-  and `src/themes/dark.css` with a provenance header added; a product spec pins their content). The button implementation and styles are original and built on `@charm-ux/core`, and the
+  and `src/themes/dark.css` with a provenance header added and their `_utility.css` marker comment replaced by the
+  content of `src/themes/_utility.css`, as Shoelace's theme build does; a product spec pins their content). The button implementation and styles are original and built on `@charm-ux/core`, and the
   spinner is built on the `@charm-ux/core` spinner; no Shoelace runtime or source files are included.
 - Also used in: `packages/velcro/src/components/badge/badge.ts` (API documentation wording, and the rendered structure:
   a `span` with the `base` part, `role="status"` and `badge` / `badge--*` class names around a default slot, adapted
