@@ -499,6 +499,50 @@ test('Velcro extension disabled survives radio syncs: a group disabled in markup
   expect(later).toEqual({ on: [true, true, true, true, true], off: [false, false, true, false, false] });
 });
 
+test('Velcro extension disabled: a disabled group is barred from validation, directly and through the form, and enabling it restores its validity', async ({ page }) => {
+  const { frame } = await openExample(page);
+  await mount(frame, `<form id="f">
+    <sl-radio-group id="req" disabled required label="Required" name="req"><sl-radio value="a">A</sl-radio></sl-radio-group>
+    <sl-radio-group id="custom" label="Custom" name="custom" value="a"><sl-radio value="a">A</sl-radio></sl-radio-group>
+  </form>`);
+  const r = await frame.locator('#f').evaluate(async form => {
+    const settle = async () => {
+      await new Promise(resolve => setTimeout(resolve, 30));
+      await Promise.all([...form.querySelectorAll('sl-radio-group, sl-radio')].map(x => x.updateComplete));
+    };
+    await settle();
+    const req = form.querySelector('#req');
+    const custom = form.querySelector('#custom');
+    const invalid = [];
+    for (const el of [req, custom]) el.addEventListener('sl-invalid', () => invalid.push(el.id));
+    const input = el => el.shadowRoot.querySelector('input');
+    const snapshot = () => [req, custom].map(el => ({
+      valid: el.validity.valid, message: el.validationMessage, check: el.checkValidity(), report: el.reportValidity(),
+      attrs: ['data-valid', 'data-invalid'].map(a => el.hasAttribute(a)), inputHidden: input(el).hidden,
+    }));
+    custom.setCustomValidity('Choose another option');
+    custom.disabled = true;
+    await settle();
+    const disabled = { each: snapshot(), form: [form.checkValidity(), form.reportValidity()], data: [...new FormData(form)],
+      invalid: invalid.splice(0) };
+    req.disabled = false;
+    custom.disabled = false;
+    await settle();
+    const attrsOnEnable = [req, custom].map(el => el.hasAttribute('data-invalid'));
+    const enabled = { attrsOnEnable, each: [req, custom].map(el => [el.validity.valid, el.validity.valueMissing, el.validity.customError]),
+      form: form.checkValidity(), customCheck: custom.checkValidity(), invalid: invalid.splice(0) };
+    // Hide the native validation bubbles again.
+    for (const el of [req, custom]) input(el).hidden = true;
+    return { disabled, enabled };
+  });
+  const exempt = { valid: true, message: '', check: true, report: true, attrs: [true, false], inputHidden: true };
+  expect(r.disabled).toEqual({ each: [exempt, exempt], form: [true, true], data: [], invalid: [] });
+  expect(r.enabled).toEqual({
+    attrsOnEnable: [true, true], each: [[false, true, false], [false, false, true]], form: false, customCheck: false,
+    invalid: ['req', 'custom'],
+  });
+});
+
 test('Velcro extension disabled: the arrow keys and Space are ignored by a disabled group (no error)', async ({ page }) => {
   const { frame } = await openExample(page);
   const errors = [];

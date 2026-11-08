@@ -39,9 +39,9 @@ type WatchHandler = (oldValue: unknown, newValue: unknown) => void;
  *
  * Velcro extensions inherited from the core radio group and kept working, none of which changes anything unless it is
  * set: `disabled` (disables every radio it holds, also radios added later, and when removed re-enables exactly the
- * radios it disabled; a disabled group is left out of form data, is always valid and ignores the keyboard), `readonly`
- * (clicks and keys do not change the value), `hide-label` (visually hides the label and help text, which stay
- * accessible) and `error-message` (sets a custom validity message, like `setCustomValidity()`). The core `layout`,
+ * radios it disabled; a disabled group is left out of form data, is barred from validation like a disabled native
+ * control and ignores the keyboard), `readonly` (clicks and keys do not change the value), `hide-label` (visually hides
+ * the label and help text, which stay accessible) and `error-message` (sets a custom validity message, like `setCustomValidity()`). The core `layout`,
  * `invalid` and `label-position` properties are accepted and reflected but have no effect (use `data-invalid`, as in
  * Shoelace). `autofocus` is the platform's own property, as in Shoelace. Core's `ready` event is emitted on the first
  * update. As with every Velcro form control the host carries core's `focusable` attribute.
@@ -125,9 +125,6 @@ export class VelcroRadioGroup extends CoreRadioGroup {
   public constructor() {
     super();
     constructed.add(this);
-    // Shoelace's `value = ''` class field goes through Lit's accessor, so an empty value is reflected (value="") on the
-    // first update. Velcro's `value` is an accessor over a private field, so the default is assigned through it here.
-    this.value = '';
     for (const component of VelcroRadioGroup.shoelaceDependencies) {
       if (customElements.get(`sl-${component.baseName}`)) continue;
       try {
@@ -236,7 +233,9 @@ export class VelcroRadioGroup extends CoreRadioGroup {
 
   /**
    * Velcro extension (core): disables every radio in the group. Removing it re-enables only the radios that were not
-   * disabled before. A disabled group is left out of form data and is always valid.
+   * disabled before. A disabled group is left out of form data and, like a disabled native control, is barred from
+   * validation: it is valid, `checkValidity()` and `reportValidity()` (also the form's) return `true` without an
+   * `sl-invalid` event or message, and enabling it restores its required or custom validity.
    * @default false
    */
   @property({ type: Boolean, reflect: true })
@@ -293,6 +292,9 @@ export class VelcroRadioGroup extends CoreRadioGroup {
 
   /** Gets the validity state object */
   public override get validity() {
+    // Velcro extension (core) `disabled`: like a disabled native control, a disabled group is barred from validation.
+    // The value and any custom validity message are kept, so enabling the group restores its validity.
+    if (this.disabled) return validValidityState;
     const isRequiredAndEmpty = this.required && !this.value;
     const hasCustomValidityMessage = this.customValidityMessage !== '';
 
@@ -307,6 +309,7 @@ export class VelcroRadioGroup extends CoreRadioGroup {
 
   /** Gets the validation message */
   public override get validationMessage() {
+    if (this.disabled) return '';
     const isRequiredAndEmpty = this.required && !this.value;
     const hasCustomValidityMessage = this.customValidityMessage !== '';
 
@@ -354,6 +357,8 @@ export class VelcroRadioGroup extends CoreRadioGroup {
     });
     if (changed.has('disabled') && (this.disabled || changed.get('disabled') === true)) {
       this.applyDisabled();
+      // A disabled group is valid (see `validity`); enabling it brings back its required or custom error state.
+      this.updateValidity();
     }
     if (changed.has('readonly') && (this.readonly || changed.get('readonly') === true)) {
       this.getAllRadioElements().forEach(radio => {
@@ -582,6 +587,8 @@ export class VelcroRadioGroup extends CoreRadioGroup {
 
   /** Checks for validity but does not show a validation message. Returns `true` when valid and `false` when invalid. */
   public override checkValidity() {
+    // A disabled group (Velcro extension) is valid and emits no `sl-invalid`, as `reportValidity()` (through `validity`).
+    if (this.disabled) return true;
     const isRequiredAndEmpty = this.required && !this.value;
     const hasCustomValidityMessage = this.customValidityMessage !== '';
 
