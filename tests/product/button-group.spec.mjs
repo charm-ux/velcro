@@ -88,6 +88,11 @@ test('docs page is prerendered with Velcro branding, prototype status, the quirk
   expect(html).toContain('Upstream quirks matched');
   expect(html).toContain('sl-dropdown');
   expect(html).toContain('sl-radio-button');
+  // The API table says the two core attributes that do nothing are inert, and does not repeat core's wording for them.
+  expect(html.match(/Velcro extension \(core\), inert/g)?.length).toBe(2);
+  expect(html).not.toMatch(/Vertically stacks the buttons|removing gap and border radius/);
+  // The React note names the two ports that differ from Shoelace's snippets beyond imports and stand-ins.
+  expect(html).toMatch(/two ports add what Shoelace(?:'|&#39;)s HTML example has[^<]*<code>SlVisuallyHidden<\/code>/);
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
   expect(await (await request.get('/')).text()).toContain('/components/button-group');
@@ -296,12 +301,16 @@ test('hover and focus tracking: real hover and focus toggle the data attributes 
   await buttons.nth(1).hover();
   expect(await state(0)).toEqual({ hover: false, focus: false, z: 'auto' });
   expect(await state(1)).toMatchObject({ hover: true, focus: false });
-  await buttons.nth(2).evaluate(el => el.focus());
+  // Focus through Playwright, not el.focus() inside the frame: Firefox does not let a frame's own script move the page's
+  // focus into that frame, so no focusin or focusout is dispatched there and the group sees no focus at all. Playwright
+  // focuses from its own script world, which does not see the button's focus() override, so it focuses the inner button.
+  await buttons.nth(2).locator('.button').focus();
+  expect(await buttons.nth(2).evaluate(el => [document.hasFocus(), el.shadowRoot.activeElement?.localName])).toEqual([true, 'button']);
   expect(await state(2)).toMatchObject({ focus: true, z: '2' });
-  await buttons.nth(1).evaluate(el => el.focus());
+  await buttons.nth(1).locator('.button').focus();
   expect(await state(2)).toMatchObject({ focus: false });
   expect(await state(1)).toMatchObject({ focus: true, z: '2' });
-  await buttons.nth(1).evaluate(el => el.blur());
+  await buttons.nth(1).locator('.button').blur();
   expect(await state(1)).toMatchObject({ focus: false });
 });
 
@@ -510,7 +519,7 @@ test('removing a reflected attribute restores the initial value recorded at the 
 
 test('inherited core ready event: dispatched once after the first update, not bubbling or composed; the group emits no other event', async ({ page }) => {
   const { frame } = await openPage(page);
-  const r = await frame.locator('body').evaluate(async body => {
+  await frame.locator('body').evaluate(async body => {
     const seen = [];
     let bubbled = 0;
     const others = [];
@@ -526,16 +535,25 @@ test('inherited core ready event: dispatched once after the first update, not bu
     el.disableRole = true;
     await el.updateComplete;
     el.querySelector('#ev1').click();
-    el.querySelector('#ev1').focus();
     await new Promise(resolve => setTimeout(resolve, 50));
-    // The buttons' own events bubble through the group (target is the button), which is not the group emitting them.
-    const fromButton = [];
-    el.addEventListener('sl-blur', event => fromButton.push(event.target.id));
-    el.querySelector('#ev1').blur();
-    await new Promise(resolve => setTimeout(resolve, 50));
-    el.remove();
-    return { seen, bubbled, others, fromButton };
+    window.readyProbe = { el, seen, bubbled: () => bubbled, others };
   });
+  // The button gets focus and loses it through Playwright, not el.focus() inside the frame: Firefox does not let a frame's
+  // own script move the page's focus into that frame, so the button would emit no sl-focus or sl-blur at all.
+  await frame.locator('#ev1 .button').focus();
+  await frame.locator('body').evaluate(() => {
+    window.readyProbe.fromButton = [];
+    window.readyProbe.el.addEventListener('sl-blur', event => window.readyProbe.fromButton.push(event.target.id));
+  });
+  await frame.locator('#ev1 .button').blur();
+  const r = await frame.locator('body').evaluate(async () => {
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const { el, seen, bubbled, others, fromButton } = window.readyProbe;
+    el.remove();
+    delete window.readyProbe;
+    return { seen, bubbled: bubbled(), others, fromButton };
+  });
+  // The buttons' own events bubble through the group (target is the button), which is not the group emitting them.
   expect(r.seen).toEqual([{ bubbles: false, composed: false, target: true }]);
   expect(r.bubbled).toBe(0);
   expect(r.others).toEqual([]);
@@ -633,7 +651,7 @@ test('Velcro extension toolbar: role toolbar, a roving tab index and arrow keys 
   const first = await read();
   expect(first.role).toEqual(['toolbar', 'toolbar', 'toolbar', 'group']);
   expect(first.tabindex).toEqual(['0', '-1', '-1', null, null]);
-  await frame.locator('#t1').evaluate(el => el.focus());
+  await frame.locator('#t1 .button').focus();
   await frame.locator('#t1').press('ArrowRight');
   expect((await read()).focusedInside).toBe('t2');
   expect((await read()).tabindex).toEqual(['-1', '0', '-1', null, null]);
@@ -659,13 +677,87 @@ test('Velcro extension toolbar keeps its arrow keys after the group is moved in 
   const { frame } = await openPage(page);
   await mount(frame, '<sl-button-group id="bar" label="Bar" toolbar><sl-button id="t1">A</sl-button><sl-button id="t2">B</sl-button></sl-button-group>');
   await frame.locator('#bar').evaluate(el => { const parent = el.parentElement; el.remove(); parent.append(el); });
-  await frame.locator('#t1').evaluate(el => el.focus());
+  await frame.locator('#t1 .button').focus();
   const prevented = await frame.locator('#t1').evaluate(el => {
     const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, composed: true, cancelable: true });
     el.shadowRoot.querySelector('.button').dispatchEvent(event);
     return event.defaultPrevented;
   });
   expect(prevented).toBe(true);
+});
+
+test('removing the toolbar extension releases it: the role, the arrow keys, the roving tab index (the buttons\' own tabindex comes back) and the toolbar attribute given to nested groups', async ({ page }) => {
+  const { frame } = await openPage(page);
+  // Attributed in the markup, so the reflected-property snapshot has nothing recorded for toolbar and removing it sticks.
+  await mount(frame, `<sl-button-group id="bar" label="Bar" toolbar><sl-button id="t1">A</sl-button><sl-button id="t2">B</sl-button><sl-button id="t3" tabindex="3">C</sl-button></sl-button-group>
+    <sl-button-group id="parent" label="Parent" toolbar><sl-button-group id="child" label="Child"><sl-button id="c1">X</sl-button></sl-button-group></sl-button-group>
+    <sl-button-group id="own" label="Own" toolbar><sl-button-group id="kept" label="Kept" toolbar><sl-button id="k1">X</sl-button></sl-button-group></sl-button-group>`);
+  const read = () => frame.locator('body').evaluate(() => {
+    const q = id => document.querySelector(`#${id}`);
+    return {
+      role: ['bar', 'parent', 'child', 'own', 'kept'].map(id => q(id).shadowRoot.querySelector('[part="base"]').getAttribute('role')),
+      tabindex: ['t1', 't2', 't3'].map(id => q(id).getAttribute('tabindex')),
+      toolbar: ['bar', 'parent', 'child', 'own', 'kept'].map(id => q(id).hasAttribute('toolbar')),
+      property: q('bar').toolbar ?? null,
+      active: document.activeElement?.id ?? null,
+    };
+  });
+  expect(await read()).toMatchObject({ role: ['toolbar', 'toolbar', 'toolbar', 'toolbar', 'toolbar'], tabindex: ['0', '-1', '-1'], toolbar: [true, true, true, true, true] });
+  // The arrow keys move focus while it is a toolbar.
+  await frame.locator('#t1 .button').focus();
+  await page.keyboard.press('ArrowRight');
+  expect((await read()).active).toBe('t2');
+  await frame.locator('#t1 .button').focus();
+
+  await frame.locator('body').evaluate(async () => {
+    for (const id of ['bar', 'parent', 'own']) document.querySelector(`#${id}`).removeAttribute('toolbar');
+    await Promise.all(['bar', 'parent', 'child', 'own', 'kept'].map(id => document.querySelector(`#${id}`).updateComplete));
+    await new Promise(resolve => setTimeout(resolve, 50));
+  });
+  // Neutral Shoelace group again: role group, the buttons' tabindex as before (none, and the author's own 3), arrow keys left alone.
+  // `child` only had toolbar because `parent` gave it; `kept` had its own toolbar attribute and keeps it.
+  expect(await read()).toMatchObject({ role: ['group', 'group', 'group', 'group', 'toolbar'], tabindex: [null, null, '3'], toolbar: [false, false, false, false, true], property: false });
+  await page.keyboard.press('ArrowRight');
+  expect((await read()).active).toBe('t1');
+  const prevented = await frame.locator('#t1').evaluate(el => {
+    const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, composed: true, cancelable: true });
+    el.shadowRoot.querySelector('.button').dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(prevented).toBe(false);
+});
+
+test('removing the select extension releases it: the toggle attribute the group wrote goes, a button\'s own toggle stays, and the group stops un-pressing', async ({ page }) => {
+  const { frame } = await openPage(page);
+  await mount(frame, `<sl-button-group id="sel" label="Select" select="single"><sl-button id="s1">A</sl-button><sl-button id="s2" toggle>B</sl-button><sl-button id="s3">C</sl-button></sl-button-group>`);
+  const read = () => frame.locator('body').evaluate(() => {
+    const q = id => document.querySelector(`#${id}`);
+    return { toggle: ['s1', 's2', 's3'].map(id => q(id).hasAttribute('toggle')), pressed: ['s1', 's2', 's3'].map(id => q(id).pressed === true), select: q('sel').select ?? null };
+  });
+  const click = id => frame.locator('body').evaluate(async (_, id) => {
+    const el = document.querySelector(`#${id}`);
+    el.click();
+    await el.updateComplete;
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }, id);
+  expect(await read()).toEqual({ toggle: [true, true, true], pressed: [false, false, false], select: 'single' });
+  await click('s1');
+  await click('s2');
+  // While it is set, one button is pressed at a time.
+  expect((await read()).pressed).toEqual([false, true, false]);
+
+  await frame.locator('body').evaluate(async () => {
+    document.querySelector('#sel').removeAttribute('select');
+    await document.querySelector('#sel').updateComplete;
+    await new Promise(resolve => setTimeout(resolve, 20));
+  });
+  expect(await read()).toEqual({ toggle: [false, true, false], pressed: [false, true, false], select: null });
+  // s1 and s3 are plain buttons again. s2 still toggles (its own attribute), and nothing un-presses the others.
+  await click('s1');
+  await click('s3');
+  expect((await read()).pressed).toEqual([false, true, false]);
+  await click('s2');
+  expect((await read()).pressed).toEqual([false, false, false]);
 });
 
 test('core\'s vertical and split are accepted but change nothing; core\'s position attribute, tooltip distance, parts and properties do not exist', async ({ page }) => {
@@ -743,12 +835,26 @@ test.describe('React examples', () => {
         import React from 'react';
         import { flushSync } from 'react-dom';
         import { createRoot } from 'react-dom/client';
+        import { VelcroButton } from '@charm-ux/velcro/react/VelcroButton.js';
+        import { VelcroButtonGroup } from '@charm-ux/velcro/react/VelcroButtonGroup.js';
         ${EXAMPLES.map(([, name], i) => `import App${i} from './${name}.jsx';`).join('\n')}
         const apps = { ${EXAMPLES.map(([, name], i) => `${JSON.stringify(name)}: App${i}`).join(', ')} };
         window.errors = [];
         addEventListener('error', e => window.errors.push(String(e.message)));
         addEventListener('unhandledrejection', e => window.errors.push(String(e.reason)));
         window.reactVersion = React.version;
+        // One root that is rendered again with another label, with a ref that React fills with the element.
+        window.groupRef = React.createRef();
+        let refRoot;
+        window.renderWithRef = label => {
+          if (!refRoot) {
+            const host = document.createElement('div');
+            document.body.append(host);
+            refRoot = createRoot(host);
+          }
+          flushSync(() => refRoot.render(React.createElement(VelcroButtonGroup, { ref: window.groupRef, label },
+            React.createElement(VelcroButton, null, 'One'), React.createElement(VelcroButton, null, 'Two'))));
+        };
         window.renderExample = name => {
           const host = document.createElement('div');
           document.body.append(host);
@@ -817,7 +923,7 @@ test.describe('React examples', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test('the wrapper passes label as a property and a ref reaches the element: aria-label follows the prop', async ({ page }) => {
+  test('the wrapper passes label as a property: the first render sets the element\'s label and aria-label', async ({ page }) => {
     const pageErrors = await load(page);
     await render(page, 'basic');
     const r = await page.evaluate(() => {
@@ -825,6 +931,25 @@ test.describe('React examples', () => {
       return { label: group.label, aria: group.shadowRoot.querySelector('[part="base"]').getAttribute('aria-label'), ctor: customElements.get('sl-button-group') === group.constructor };
     });
     expect(r).toEqual({ label: 'Alignment', aria: 'Alignment', ctor: true });
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('a ref given to the wrapper is filled with the rendered sl-button-group, and a new label prop reaches that same element', async ({ page }) => {
+    const pageErrors = await load(page);
+    const r = await page.evaluate(async () => {
+      const read = el => ({ label: el.label, aria: el.shadowRoot.querySelector('[part="base"]').getAttribute('aria-label') });
+      window.renderWithRef('First');
+      await customElements.whenDefined('sl-button-group');
+      const el = window.groupRef.current;
+      await el?.updateComplete;
+      const groups = [...document.querySelectorAll('sl-button-group')];
+      const first = { tag: el?.localName ?? null, isTheRenderedGroup: groups.length === 1 && groups[0] === el, ...(el ? read(el) : {}) };
+      window.renderWithRef('Second');
+      await el.updateComplete;
+      return { first, second: { sameElement: window.groupRef.current === el, count: document.querySelectorAll('sl-button-group').length, ...read(el) } };
+    });
+    expect(r.first).toEqual({ tag: 'sl-button-group', isTheRenderedGroup: true, label: 'First', aria: 'First' });
+    expect(r.second).toEqual({ sameElement: true, count: 1, label: 'Second', aria: 'Second' });
     expect(pageErrors).toEqual([]);
   });
 });
