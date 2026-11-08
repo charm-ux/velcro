@@ -23,14 +23,22 @@ test('the prerendered landing page carries the hero, the install command and one
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
 });
 
-test('showcase: every catalog component is rendered live, upgraded, and links to its docs page', async ({ page }) => {
+test('showcase: one tile per catalog component, in catalog order, and no page errors', async ({ page }) => {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await openDocs(page, '/');
   const tiles = page.locator('#showcase [data-component]');
   await expect(tiles).toHaveCount(catalog.length);
   expect(await tiles.evaluateAll(els => els.map(e => e.dataset.component))).toEqual(catalog.map(c => c.name));
-  for (const c of catalog) {
+  expect(errors).toEqual([]);
+});
+
+// One test per catalog component, so each tile has its own time budget.
+for (const c of catalog) {
+  test(`showcase: ${c.tag} is rendered live, upgraded, and links to /components/${c.name}`, async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await openDocs(page, '/');
     const tile = page.locator(`#showcase [data-component="${c.name}"]`);
     const element = tile.locator(c.tag).first();
     await expect(element, c.name).toBeAttached();
@@ -41,9 +49,9 @@ test('showcase: every catalog component is rendered live, upgraded, and links to
     });
     expect(upgraded, c.name).toBe(true);
     await expect(tile.getByRole('link', { name: c.title, exact: true })).toHaveAttribute('href', `/components/${c.name}`);
-  }
-  expect(errors).toEqual([]);
-});
+    expect(errors).toEqual([]);
+  });
+}
 
 test('hero, feature rows and the copy button', async ({ page, context, browserName }) => {
   // Only Chromium has clipboard permissions, so it reads the real clipboard. In every engine the page's writeText call is also
