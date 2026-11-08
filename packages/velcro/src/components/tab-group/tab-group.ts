@@ -301,6 +301,14 @@ export class VelcroTabGroup extends CharmElement {
     super.update(changed);
   }
 
+  // Shoelace's localization controller resolves the direction from the host's `dir` property, else the document's
+  // (`<html dir>`, else ltr). Velcro's shared controller reads the host's `dir` attribute instead (core's `dir` getter
+  // returns the computed direction), which would miss a direction set only through the property; this component's `dir`
+  // returns what was set, by attribute or property, so it resolves the direction the way Shoelace does.
+  private direction() {
+    return `${this.velcroDir || document.documentElement.dir || 'ltr'}`.toLowerCase();
+  }
+
   private getAllTabs() {
     const slot = this.shadowRoot!.querySelector<HTMLSlotElement>('slot[name="nav"]')!;
 
@@ -353,7 +361,7 @@ export class VelcroTabGroup extends CharmElement {
     // Move focus left or right
     if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
       const activeEl = this.tabs.find(t => t.matches(':focus'));
-      const isRtl = this.localize.dir() === 'rtl';
+      const isRtl = this.direction() === 'rtl';
       let nextTab: null | VelcroTab = null;
 
       if (activeEl?.tagName.toLowerCase() === 'sl-tab') {
@@ -402,7 +410,7 @@ export class VelcroTabGroup extends CharmElement {
   private handleScrollToStart() {
     this.nav.scroll({
       left:
-        this.localize.dir() === 'rtl'
+        this.direction() === 'rtl'
           ? this.nav.scrollLeft + this.nav.clientWidth
           : this.nav.scrollLeft - this.nav.clientWidth,
       behavior: 'smooth',
@@ -412,7 +420,7 @@ export class VelcroTabGroup extends CharmElement {
   private handleScrollToEnd() {
     this.nav.scroll({
       left:
-        this.localize.dir() === 'rtl'
+        this.direction() === 'rtl'
           ? this.nav.scrollLeft - this.nav.clientWidth
           : this.nav.scrollLeft + this.nav.clientWidth,
       behavior: 'smooth',
@@ -473,7 +481,7 @@ export class VelcroTabGroup extends CharmElement {
 
     const width = currentTab.clientWidth;
     const height = currentTab.clientHeight;
-    const isRtl = this.localize.dir() === 'rtl';
+    const isRtl = this.direction() === 'rtl';
 
     // We can't used offsetLeft/offsetTop here due to a shadow parent issue where neither can getBoundingClientRect
     // because it provides invalid values for animating elements: https://bugs.chromium.org/p/chromium/issues/detail?id=920069
@@ -564,7 +572,7 @@ export class VelcroTabGroup extends CharmElement {
   }
 
   private scrollFromStart() {
-    return this.localize.dir() === 'rtl' ? -this.nav.scrollLeft : this.nav.scrollLeft;
+    return this.direction() === 'rtl' ? -this.nav.scrollLeft : this.nav.scrollLeft;
   }
 
   // Public and undocumented, as in Shoelace: shows or hides the scroll controls for the current overflow.
@@ -606,7 +614,7 @@ export class VelcroTabGroup extends CharmElement {
   }
 
   protected override render() {
-    const isRtl = this.localize.dir() === 'rtl';
+    const isRtl = this.direction() === 'rtl';
 
     return html`
       <div
@@ -617,7 +625,7 @@ export class VelcroTabGroup extends CharmElement {
           'tab-group--bottom': this.placement === 'bottom',
           'tab-group--start': this.placement === 'start',
           'tab-group--end': this.placement === 'end',
-          'tab-group--rtl': this.localize.dir() === 'rtl',
+          'tab-group--rtl': this.direction() === 'rtl',
           'tab-group--has-scroll-controls': this.hasScrollControls,
         })}
         @click=${this.handleClick}

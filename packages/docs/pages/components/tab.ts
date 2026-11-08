@@ -3,6 +3,7 @@ import { customElement } from 'lit/decorators.js';
 import { definePageData } from '@beatzball/litro';
 import { docsShell, shellStyles } from '../../src/shell.js';
 import { themeHead } from '../../src/theme.js';
+import { withBase } from '../../src/base.js';
 import { apiReference } from '../../src/api.js';
 import { examples, exampleDocument } from '../../src/example.js';
 
@@ -17,7 +18,7 @@ const quirks = [
   'The role is set to tab on every connect, and aria-selected ("true" or "false", following active) and aria-disabled ("true" or "false", following disabled) are written whenever those properties change, including the first update, so they replace values the page set.',
   'A disabled tab that is active keeps tabindex="0", and enabling a tab always sets tabindex to 0, whatever a tab group had set; the tab group sets it back when it next selects a tab.',
   'The close button cannot be reached with the Tab key: it has tabindex="-1". sl-close is not cancelable, and the tab never removes itself: the listener decides what happens (Shoelace\'s Closable example removes the tab and its panel).',
-  'Removing a reflected attribute restores the value recorded at the first attribute change, not always the default: for a tab written in markup that is the default (empty panel, false for the Boolean attributes, tabindex 0); a property assigned before the first render is the value that is restored.',
+  'Removing a reflected attribute restores the value recorded at the first attribute change, not always the default: for a tab written in markup that is the default (empty panel, false for the Boolean attributes, tabindex 0); a property assigned before the first render is the value that is restored. Boolean attributes are never restored: removing one gives false.',
   'A closable tab\'s accessible name includes its close button\'s label (for example "Closable Close"), because the button is rendered inside the element that has the tab role.',
   'The tab\'s transition names an undefined --transition-speed custom property, so it has no transition, as in Shoelace.',
 ] as const;
@@ -41,8 +42,8 @@ export class TabPage extends LitElement {
     return docsShell('tab', html`
       <h1>Tab</h1>
       <p><code>&lt;sl-tab&gt;</code> is registered by <code>@charm-ux/velcro</code> on top of the <code>@charm-ux/core</code> tab. Prototype status: unreleased.</p>
-      <p>Tabs are used inside <a href="/components/tab-group">tab groups</a> to represent and activate <a href="/components/tab-panel">tab panels</a>.</p>
-      <p>Additional demonstrations can be found in the <a href="/components/tab-group">tab group examples</a>.</p>
+      <p>Tabs are used inside <a href=${withBase('/components/tab-group')}>tab groups</a> to represent and activate <a href=${withBase('/components/tab-panel')}>tab panels</a>.</p>
+      <p>Additional demonstrations can be found in the <a href=${withBase('/components/tab-group')}>tab group examples</a>.</p>
 
       <h2 id="examples">Examples</h2>
       <h3 id="overview">Overview</h3>

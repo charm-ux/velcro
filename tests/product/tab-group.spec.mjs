@@ -226,7 +226,7 @@ test('clicks and show(): sl-tab-hide then sl-tab-show with the panel names, bubb
   expect(r.afterShow).toMatchObject({ active: ['advanced'], shown: ['advanced'] });
 });
 
-test('setting active on a tab selects it (with events); disabling a tab later removes it from keyboard navigation', async ({ page }) => {
+test('setting active on a tab selects it, with sl-tab-show', async ({ page }) => {
   const { frame } = await openPage(page);
   const r = await frame.locator('#demo-default').evaluate(async (el, describe) => {
     const fn = new Function(`return (${describe})`)();
@@ -296,8 +296,15 @@ test('closable example: the close button removes the tab and its panel, and clos
   expect(r).toEqual({ tabs: ['general', 'closable-1', 'closable-3'], panels: ['general', 'closable-1', 'closable-3'], active: 'closable-1', shown: ['closable-1'] });
 });
 
-test('upstream quirk: placement is not reflected; setting it re-lays out the group without an attribute', async ({ page }) => {
-  const { frame } = await openPage(page);
+test('upstream quirk: placement is not reflected; setting it re-lays out the group without an attribute, and a placement attribute from markup stays as written', async ({ page }) => {
+  const { frame, example } = await openPage(page);
+  const bottom = await example('Tabs on Bottom');
+  const markup = await bottom.locator('sl-tab-group').evaluate(async el => {
+    el.placement = 'end';
+    await el.updateComplete;
+    return [el.getAttribute('placement'), el.placement, el.shadowRoot.querySelector('[part="base"]').classList.contains('tab-group--end')];
+  });
+  expect(markup).toEqual(['bottom', 'end', true]);
   const r = await frame.locator('#demo-default').evaluate(async el => {
     el.placement = 'bottom';
     el.activation = 'manual';
@@ -332,6 +339,42 @@ test('upstream quirk: a tab group that starts hidden selects nothing until it is
     return { hidden, shown: el.querySelector('sl-tab[active]')?.panel ?? null, log };
   });
   expect(r).toEqual({ hidden: 0, shown: 'a', log: [] });
+});
+
+test('upstream quirk: aria-controls and aria-labelledby are written once the group is visible and after a later change, only for a tab whose panel exists then, and nothing removes them', async ({ page }) => {
+  const { frame } = await openPage(page);
+  const r = await frame.locator('body').evaluate(async body => {
+    const host = document.createElement('div');
+    host.style.display = 'none';
+    host.innerHTML = '<sl-tab-group><sl-tab slot="nav" panel="a">A</sl-tab><sl-tab slot="nav" panel="b">B</sl-tab><sl-tab slot="nav" panel="c">C</sl-tab><sl-tab-panel name="a">A</sl-tab-panel><sl-tab-panel name="b">B</sl-tab-panel></sl-tab-group>';
+    body.prepend(host);
+    const el = host.firstElementChild;
+    const links = () => ({
+      controls: [...el.querySelectorAll('sl-tab')].map(t => (t.hasAttribute('aria-controls') ? document.getElementById(t.getAttribute('aria-controls'))?.name ?? 'missing' : null)),
+      labelledBy: [...el.querySelectorAll('sl-tab-panel')].map(p => (p.hasAttribute('aria-labelledby') ? document.getElementById(p.getAttribute('aria-labelledby'))?.panel ?? 'missing' : null)),
+    });
+    await el.updateComplete;
+    await new Promise(r => setTimeout(r, 200));
+    const hidden = links();
+    host.style.display = '';
+    const until = async (check, ms = 3000) => { const end = Date.now() + ms; while (!check() && Date.now() < end) await new Promise(r => setTimeout(r, 20)); };
+    await until(() => el.querySelector('sl-tab').hasAttribute('aria-controls'));
+    const shown = links();
+    // A panel removed later: the tab keeps its aria-controls, now pointing at nothing.
+    el.querySelector('sl-tab-panel[name="b"]').remove();
+    await new Promise(r => setTimeout(r, 200));
+    const afterRemove = links();
+    // A panel for tab C added later: the next change links it (in a timeout).
+    const panel = document.createElement('sl-tab-panel');
+    panel.name = 'c';
+    el.append(panel);
+    await until(() => el.querySelector('sl-tab[panel="c"]').hasAttribute('aria-controls'));
+    return { hidden, shown, afterRemove, added: links() };
+  });
+  expect(r.hidden).toEqual({ controls: [null, null, null], labelledBy: [null, null] });
+  expect(r.shown).toEqual({ controls: ['a', 'b', null], labelledBy: ['a', 'b'] });
+  expect(r.afterRemove).toEqual({ controls: ['a', 'missing', null], labelledBy: ['a'] });
+  expect(r.added).toEqual({ controls: ['a', 'missing', 'c'], labelledBy: ['a', 'c'] });
 });
 
 test('upstream quirk: setting active to false on the active tab leaves no tab active while its panel stays shown, and clicking it again does nothing', async ({ page }) => {
@@ -476,6 +519,17 @@ test.describe('keyboard (top-level documents)', () => {
       ['End', 'd', 'd'], ['Home', 'a', 'a'], ['ArrowDown', 'a', 'a'],
     ]);
     expect(await page.evaluate(() => [...document.querySelectorAll('#g sl-tab')].map(t => t.getAttribute('tabindex')))).toEqual(['0', '-1', '-1', '-1']);
+    // Disabling a tab later (a mutation the group observes) removes it from keyboard navigation; enabling C brings it back.
+    await page.evaluate(async () => {
+      document.querySelector('#g sl-tab[panel="b"]').disabled = true;
+      document.querySelector('#g sl-tab[panel="c"]').disabled = false;
+      await new Promise(r => setTimeout(r, 50));
+    });
+    await page.locator('#g sl-tab[panel="a"]').focus();
+    await page.keyboard.press('ArrowRight');
+    expect([await focusedTab(page), await activeTab(page)]).toEqual(['c', 'c']);
+    await page.keyboard.press('ArrowLeft');
+    expect([await focusedTab(page), await activeTab(page)]).toEqual(['a', 'a']);
     expect(pageErrors).toEqual([]);
   });
 
@@ -527,7 +581,7 @@ test('the scroll button labels and the tab close label are the localization modu
   expect(pageErrors).toEqual([]);
 });
 
-test('dir="rtl" on the tab group: Left moves to the next tab, the start scroll button points right, and the indicator moves with the tab', async ({ page }) => {
+test('dir="rtl" on the tab group: Left moves to the next tab, and the indicator moves with the tab', async ({ page }) => {
   const pageErrors = await loadBundle(page, ENTRY);
   await mountGroup(page, 'dir="rtl"');
   await page.locator('#g sl-tab[panel="a"]').focus();
@@ -545,6 +599,39 @@ test('dir="rtl" on the tab group: Left moves to the next tab, the start scroll b
   });
   expect(r.rtl).toBe(true);
   expect(r.offset).toBeLessThanOrEqual(1);
+  expect(pageErrors).toEqual([]);
+});
+
+test('a direction set only through the dir property (not reflected) controls the arrow keys and the rtl class, as in Shoelace; clearing it falls back to the document\'s', async ({ page }) => {
+  const pageErrors = await loadBundle(page, ENTRY);
+  await mountGroup(page);
+  await page.evaluate(async () => {
+    const el = document.querySelector('#g');
+    el.dir = 'rtl';
+    await el.updateComplete;
+  });
+  expect(await page.evaluate(() => {
+    const el = document.querySelector('#g');
+    return [el.hasAttribute('dir'), el.shadowRoot.querySelector('[part="base"]').classList.contains('tab-group--rtl')];
+  })).toEqual([false, true]);
+  await page.locator('#g sl-tab[panel="a"]').focus();
+  await page.keyboard.press('ArrowLeft');
+  expect([await focusedTab(page), await activeTab(page)]).toEqual(['b', 'b']);
+  await page.evaluate(async () => {
+    const el = document.querySelector('#g');
+    el.dir = '';
+    await el.updateComplete;
+  });
+  await page.keyboard.press('ArrowLeft');
+  expect([await focusedTab(page), await activeTab(page)]).toEqual(['a', 'a']);
+  // The document's direction applies when the tab group has none of its own.
+  await page.evaluate(async () => {
+    document.documentElement.dir = 'rtl';
+    await new Promise(r => setTimeout(r, 50));
+  });
+  await page.keyboard.press('ArrowLeft');
+  expect([await focusedTab(page), await activeTab(page)]).toEqual(['b', 'b']);
+  await page.evaluate(() => document.documentElement.removeAttribute('dir'));
   expect(pageErrors).toEqual([]);
 });
 
@@ -566,6 +653,17 @@ test('class-only entry: importing defines nothing; constructing a tab group defi
     alias: true,
   });
   expect(pageErrors).toEqual([]);
+});
+
+// Shoelace's tab group imports its scrollend polyfill for its side effect; a bundler drops such an import from a module the
+// package marks side-effect free, so the polyfill module is listed in the package's sideEffects.
+test('bundles of the class-only and registering entries keep Shoelace\'s scrollend polyfill', async () => {
+  for (const source of [CLASS_ENTRY, ENTRY]) {
+    if (!bundles.has(source)) bundles.set(source, await build({ 'entry.js': source }));
+    const code = bundles.get(source);
+    expect(code).toMatch(/["']onscrollend["'] in window/);
+    expect(code).toContain('touchcancel');
+  }
 });
 
 // Shoelace's React examples, ported in packages/docs/examples/tab-group/react/*.jsx, bundled with React 19 and the generated

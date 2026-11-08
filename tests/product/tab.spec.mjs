@@ -155,6 +155,32 @@ test('properties: Shoelace\'s defaults, reflection and ARIA; removing a reflecte
   expect(r.bubbled).toBe(0);
 });
 
+test('removing a reflected attribute restores a value assigned before the first render, not the default; a removed Boolean attribute gives false', async ({ page }) => {
+  const { frame } = await openPage(page);
+  const r = await frame.locator('body').evaluate(async body => {
+    const el = document.createElement('sl-tab');
+    el.panel = 'early';
+    el.closable = true;
+    body.append(el);
+    await el.updateComplete;
+    const before = [el.getAttribute('panel'), el.hasAttribute('closable')];
+    el.removeAttribute('panel');
+    el.removeAttribute('closable');
+    await el.updateComplete;
+    return { before, after: [el.panel, el.closable, el.getAttribute('panel'), el.hasAttribute('closable')] };
+  });
+  expect(r).toEqual({ before: ['early', true], after: ['early', false, 'early', false] });
+});
+
+test('upstream quirk: the transition names the undefined --transition-speed, so the tab has no transition', async ({ page }) => {
+  const { frame } = await openPage(page);
+  const r = await frame.locator('#demo-default').evaluate(el => {
+    const cs = getComputedStyle(el.shadowRoot.querySelector('[part="base"]'));
+    return [cs.getPropertyValue('--transition-speed'), cs.transitionDuration, cs.transitionProperty];
+  });
+  expect(r).toEqual(['', '0s', 'all']);
+});
+
 test('upstream quirks: role, aria-selected and aria-disabled replace the page\'s values; a disabled active tab keeps tabindex 0; enabling sets tabindex 0', async ({ page }) => {
   const { frame } = await openPage(page);
   await mount(frame, '<sl-tab id="q" role="button" aria-selected="mixed" aria-disabled="mixed" active disabled>Q</sl-tab><sl-tab id="e" disabled tabindex="-1">E</sl-tab>');

@@ -126,6 +126,7 @@
   "sideEffects": [
     "./dist/index.js",
     "./dist/components/*/index.js",
+    "./dist/components/tab-group/scrollend-polyfill.js",
     "./dist/utilities/localize.js",
     "./dist/translations/*.js",
     "*.css"

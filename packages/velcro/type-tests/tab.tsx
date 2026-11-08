@@ -1,8 +1,9 @@
 // Type-level checks for <sl-tab> and <sl-tab-group>: `dir` accepts any string, as Shoelace 2.20.1 declares it (`dir: string`),
-// and the Shoelace members are typed as Shoelace types them. Compiled (never run) by `tsc -p tsconfig.react.json` as the last
-// step of the library build.
+// and the Shoelace members and the React event callbacks are typed as Shoelace types them. Compiled (never run) by
+// `tsc -p tsconfig.react.json` as the last step of the library build.
 import type { VelcroTab } from '../dist/components/tab/tab.js';
 import type { VelcroTabGroup } from '../dist/components/tab-group/tab-group.js';
+import type { VelcroTabGroupProps } from '../dist/react/index.js';
 
 declare const tab: VelcroTab;
 declare const group: VelcroTabGroup;
@@ -26,6 +27,19 @@ group.fixedScrollControls = false;
 group.show('general');
 const nav: HTMLElement = group.nav;
 void nav;
+
+// The generated React callbacks get Shoelace's event types: `CustomEvent<{ name: string }>`, a primitive string.
+const reactProps: VelcroTabGroupProps = {
+  onSlTabShow: event => {
+    const name: string = event.detail.name;
+    void name;
+  },
+  onSlTabHide: event => {
+    const name: string = event.detail.name;
+    void name;
+  },
+};
+void reactProps;
 
 // @ts-expect-error placement is one of top, bottom, start and end
 group.placement = 'left';
