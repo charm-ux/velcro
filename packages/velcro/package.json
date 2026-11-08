@@ -14,6 +14,8 @@
     "./animation/class": { "types": "./dist/components/animation/class.d.ts", "import": "./dist/components/animation/class.js" },
     "./animation/animations": { "types": "./dist/components/animation/animations.d.ts", "import": "./dist/components/animation/animations.js" },
     "./utilities/animation": { "types": "./dist/utilities/animation.d.ts", "import": "./dist/utilities/animation.js" },
+    "./avatar": { "types": "./dist/components/avatar/index.d.ts", "import": "./dist/components/avatar/index.js" },
+    "./avatar/class": { "types": "./dist/components/avatar/class.d.ts", "import": "./dist/components/avatar/class.js" },
     "./badge": { "types": "./dist/components/badge/index.d.ts", "import": "./dist/components/badge/index.js" },
     "./button": { "types": "./dist/components/button/index.d.ts", "import": "./dist/components/button/index.js" },
     "./button/class": { "types": "./dist/components/button/class.d.ts", "import": "./dist/components/button/class.js" },
