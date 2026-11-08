@@ -10,8 +10,11 @@ import { property, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
-import { HasSlotController } from '@charm-ux/core/dist/controller/index.js';
+import { HasSlotController } from '../../internal/slot.js';
 import styles from './radio-button.styles.js';
+
+/** Upstream `@watch` handlers receive the previous and the current value. */
+type WatchHandler = (oldValue: unknown, newValue: unknown) => void;
 
 /**
  * Radios buttons allow the user to select a single option from a group using a button-like control. API modelled on
@@ -143,9 +146,10 @@ export class VelcroRadioButton extends CharmElement {
   }
 
   protected override update(changed: PropertyValues<this>) {
-    // Shoelace's `@watch('disabled', { waitUntilFirstUpdate: true })` handler runs before render.
+    // Shoelace's `@watch('disabled', { waitUntilFirstUpdate: true })` handler runs before render, with the previous and
+    // the current value.
     if (this.hasUpdated && changed.has('disabled') && changed.get('disabled') !== this.disabled) {
-      this.handleDisabledChange();
+      (this.handleDisabledChange as WatchHandler).call(this, changed.get('disabled'), this.disabled);
     }
     super.update(changed);
   }

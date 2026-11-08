@@ -63,6 +63,9 @@ test('docs page is prerendered with Velcro branding, prototype status, the quirk
   expect(response.ok()).toBe(true);
   const html = await response.text();
   expect(html).toContain('<title>Radio Button - Velcro</title>');
+  // checked is @internal, so (as in Shoelace) neither the manifest nor the API table lists it, and the page says so.
+  expect(html).toContain('the manifest and the API table below do not list it');
+  expect(html).not.toContain('The API table lists it from the manifest');
   expect(html).toContain('Velcro is an unreleased prototype');
   expect(html).toContain('Upstream quirks matched');
   expect(html).toContain('Not implemented or unverified');
@@ -138,7 +141,7 @@ test('in a group: a click checks the button and unchecks the others, a disabled 
   expect(focus).toEqual(['button', null]);
 });
 
-test('upstream quirk: on its own a radio button is checked by a click but never unchecked, and Space and the arrow keys do nothing', async ({ page }) => {
+test('upstream quirk: on its own a radio button is checked by a click or Space (native button activation) but never unchecked, and the arrow keys do nothing', async ({ page }) => {
   const { frame } = await openExample(page);
   await mount(frame, '<sl-radio-button id="solo" value="a">A</sl-radio-button><sl-radio-button id="solo-2" value="b">B</sl-radio-button>');
   const state = () => frame.locator('#mount').evaluate(host => [...host.querySelectorAll('sl-radio-button')].map(b => b.checked));
@@ -146,7 +149,7 @@ test('upstream quirk: on its own a radio button is checked by a click but never 
   await frame.locator('#solo').click();
   expect(await state()).toEqual([true, false]);
   await frame.locator('#solo').evaluate(el => el.focus());
-  for (const key of ['ArrowRight', 'ArrowDown', 'Space']) await page.keyboard.press(key);
+  for (const key of ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp']) await page.keyboard.press(key);
   expect(await state()).toEqual([true, false]);
   await frame.locator('#solo-2').evaluate(el => el.focus());
   await page.keyboard.press('Space');
@@ -216,6 +219,65 @@ test('the icons example renders an sl-icon in each button with its label', async
   expect(r.map(x => x[1])).toEqual([false, false, true, false, false]);
   expect(r.map(x => x[2])).toEqual(['Angry', 'Sad', 'Neutral', 'Happy', 'Laughing']);
   await expect.poll(() => frame.locator('sl-icon').evaluateAll(els => els.every(i => i.shadowRoot?.querySelector('svg')))).toBe(true);
+});
+
+test('label detection follows Shoelace\'s slot rule: text or an unslotted element counts, except sl-visually-hidden; a visually-hidden class does not exclude', async ({ page }) => {
+  const { frame } = await openExample(page);
+  await mount(frame, `
+    <sl-radio-button id="text" value="a">Label</sl-radio-button>
+    <sl-radio-button id="blank" value="b">   </sl-radio-button>
+    <sl-radio-button id="span" value="c"><span class="visually-hidden">Label</span></sl-radio-button>
+    <sl-radio-button id="hidden" value="d"><sl-visually-hidden>Accessible label</sl-visually-hidden></sl-radio-button>
+    <sl-radio-button id="icon" value="e"><sl-icon name="gear" label="Settings"></sl-icon></sl-radio-button>`);
+  const read = () => frame.locator('#mount').evaluate(host => Object.fromEntries([...host.querySelectorAll('sl-radio-button')].map(el => {
+    const button = el.shadowRoot.querySelector('button');
+    const label = getComputedStyle(el.shadowRoot.querySelector('.button__label'));
+    return [el.id, [button.classList.contains('button--has-label'), label.paddingLeft !== '0px']];
+  })));
+  expect(await read()).toEqual({
+    text: [true, true], blank: [false, false], span: [true, true], hidden: [false, false], icon: [true, true],
+  });
+  // Replacing the default slot's content after the first render updates the class.
+  await frame.locator('#text').evaluate(async el => {
+    el.replaceChildren(document.createElement('sl-visually-hidden'));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    await el.updateComplete;
+  });
+  await frame.locator('#blank').evaluate(async el => {
+    el.textContent = 'Now labelled';
+    await new Promise(resolve => setTimeout(resolve, 20));
+    await el.updateComplete;
+  });
+  const after = await read();
+  expect([after.text, after.blank]).toEqual([[false, false], [true, true]]);
+});
+
+test('the disabled watch hook runs as Shoelace\'s @watch decorator does: not on the first update, then with the previous and current values', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const calls = await frame.locator('body').evaluate(async body => {
+    const calls = [];
+    const Base = customElements.get('sl-radio-button');
+    class Traced extends Base {
+      handleDisabledChange(...args) {
+        calls.push([args, this.getAttribute('aria-disabled'), this.shadowRoot.querySelector('button').getAttribute('aria-disabled')]);
+        super.handleDisabledChange(...args);
+      }
+    }
+    customElements.define('velcro-traced-radio-button', Traced);
+    const el = document.createElement('velcro-traced-radio-button');
+    el.disabled = true;
+    body.append(el);
+    await el.updateComplete;
+    calls.push('first update done');
+    el.disabled = false;
+    await el.updateComplete;
+    el.disabled = true;
+    await el.updateComplete;
+    el.remove();
+    return calls;
+  });
+  // The hook runs before the render: the inner button still has the previous aria-disabled.
+  expect(calls).toEqual(['first update done', [[true, false], null, 'true'], [[false, true], 'false', 'false']]);
 });
 
 test('dir and lang are reactive, not reflected and undefined by default; removing a reflected attribute restores its initial value', async ({ page }) => {

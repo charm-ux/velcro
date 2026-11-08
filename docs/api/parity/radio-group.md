@@ -7,7 +7,7 @@ How entries are compared: [docs/api-parity.md](../../api-parity.md).
 
 | Compared | Matching | Mismatched | Missing | Velcro-only | Inherited extras |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 26 | 26 | 0 | 0 | 15 | 3 |
+| 26 | 26 | 0 | 0 | 14 | 4 |
 
 ## Missing
 
@@ -19,7 +19,6 @@ How entries are compared: [docs/api-parity.md](../../api-parity.md).
 
 ## Velcro-only (own)
 
-- `property autofocus`
 - `property defaultSlot`
 - `property defaultValue`
 - `property disabled`
@@ -37,6 +36,7 @@ How entries are compared: [docs/api-parity.md](../../api-parity.md).
 
 ## Inherited extras
 
+- `property autofocus` (from @charm-ux/core CharmFocusableElement)
 - `property dir` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `property lang` (from Shoelace's base element (ShoelaceElement, not in its manifest))
 - `event ready` (from @charm-ux/core CharmElement)

@@ -28,6 +28,9 @@ import styles from './radio-group.styles.js';
 
 type Radio = VelcroRadio | VelcroRadioButton;
 
+/** Upstream `@watch` handlers receive the previous and the current value. */
+type WatchHandler = (oldValue: unknown, newValue: unknown) => void;
+
 /**
  * Radio groups are used to group multiple radios or radio buttons so they function as a single form control. API
  * modelled on Shoelace's `sl-radio-group`. Like Shoelace's, constructing a radio group defines its dependency
@@ -35,12 +38,13 @@ type Radio = VelcroRadio | VelcroRadioButton;
  * `<sl-radio-button>`) are registered by their own entries, as in Shoelace.
  *
  * Velcro extensions inherited from the core radio group and kept working, none of which changes anything unless it is
- * set: `disabled` (disables every radio and restores the ones that were not disabled before when it is removed; a
- * disabled group is left out of form data and is always valid), `readonly` (clicks and keys do not change the value),
- * `hide-label` (visually hides the label and help text, which stay accessible) and `error-message` (sets a custom
- * validity message, like `setCustomValidity()`). The core `layout`, `invalid`, `label-position` and `autofocus`
- * properties are accepted and reflected but have no effect (use `data-invalid`, as in Shoelace). Core's `ready` event
- * is emitted on the first update. As with every Velcro form control the host carries core's `focusable` attribute.
+ * set: `disabled` (disables every radio it holds, also radios added later, and when removed re-enables exactly the
+ * radios it disabled; a disabled group is left out of form data, is always valid and ignores the keyboard), `readonly`
+ * (clicks and keys do not change the value), `hide-label` (visually hides the label and help text, which stay
+ * accessible) and `error-message` (sets a custom validity message, like `setCustomValidity()`). The core `layout`,
+ * `invalid` and `label-position` properties are accepted and reflected but have no effect (use `data-invalid`, as in
+ * Shoelace). `autofocus` is the platform's own property, as in Shoelace. Core's `ready` event is emitted on the first
+ * update. As with every Velcro form control the host carries core's `focusable` attribute.
  *
  * @tag sl-radio-group
  * @status prototype
@@ -112,8 +116,18 @@ export class VelcroRadioGroup extends CoreRadioGroup {
   // array-typed `dependencies` stays empty. Not part of the documented API.
   private static readonly shoelaceDependencies: readonly VelcroComponentConstructor[] = [VelcroButtonGroup];
 
+  // `autofocus` is the platform's own property, as in Shoelace (see the accessor installed after the class): core's
+  // reactive, asynchronously reflected `autofocus` and its observed attribute are not used.
+  public static override get observedAttributes() {
+    return super.observedAttributes.filter(name => name !== 'autofocus');
+  }
+
   public constructor() {
     super();
+    constructed.add(this);
+    // Shoelace's `value = ''` class field goes through Lit's accessor, so an empty value is reflected (value="") on the
+    // first update. Velcro's `value` is an accessor over a private field, so the default is assigned through it here.
+    this.value = '';
     for (const component of VelcroRadioGroup.shoelaceDependencies) {
       if (customElements.get(`sl-${component.baseName}`)) continue;
       try {
@@ -129,7 +143,7 @@ export class VelcroRadioGroup extends CoreRadioGroup {
   private validationTimeout?: number;
   private hasRecordedInitialProperties = false;
   private readonly initialReflectedProperties = new Map<string, unknown>();
-  private readonly radiosDisabledBeforeGroup = new Set<Radio>();
+  private readonly radiosDisabledByGroup = new Set<Radio>();
   private velcroValue = '';
   private velcroDisabled = false;
   private velcroReadonly = false;
@@ -277,13 +291,6 @@ export class VelcroRadioGroup extends CoreRadioGroup {
   @property({ attribute: 'label-position', reflect: true })
   public override labelPosition?: 'end' | 'start' | 'top';
 
-  /**
-   * Velcro extension (core), inert: accepted and reflected for compatibility with the core radio group, without effect.
-   * As in Shoelace, no radio is focused on page load.
-   */
-  @property({ type: Boolean, reflect: true })
-  public override autofocus = false;
-
   /** Gets the validity state object */
   public override get validity() {
     const isRequiredAndEmpty = this.required && !this.value;
@@ -358,11 +365,12 @@ export class VelcroRadioGroup extends CoreRadioGroup {
   // Shoelace's `@watch('value')` (also before the first update) and `@watch('size', { waitUntilFirstUpdate: true })`,
   // run before the render. Each upstream `@watch` wraps `update` in turn, so the watcher declared last runs first.
   protected override update(changed: PropertyValues<this>) {
+    // Like Shoelace's decorator, each handler receives the previous and the current value.
     if (changed.has('value') && changed.get('value') !== this.value) {
-      this.handleValueChange();
+      (this.handleValueChange as WatchHandler).call(this, changed.get('value'), this.value);
     }
     if (this.hasUpdated && changed.has('size') && changed.get('size') !== this.size) {
-      this.handleSizeChange();
+      (this.handleSizeChange as WatchHandler).call(this, changed.get('size'), this.size);
     }
     super.update(changed);
   }
@@ -385,26 +393,20 @@ export class VelcroRadioGroup extends CoreRadioGroup {
     return [...this.querySelectorAll<Radio>('sl-radio, sl-radio-button')];
   }
 
-  // Velcro extension (core): disables every radio, remembering the ones that were already disabled, and re-enables only
-  // the others when the group is enabled again.
+  // Velcro extension (core): while the group is disabled, disables every radio that is not disabled yet (also on each
+  // later radio sync, so radios added later follow) and records it; when the group is enabled again, re-enables exactly
+  // the radios it disabled. Radios that were disabled on their own stay disabled.
   private applyDisabled() {
-    const radios = this.getAllRadioElements();
     if (this.disabled) {
-      this.radiosDisabledBeforeGroup.clear();
-      radios.forEach(radio => {
-        if (radio.disabled) {
-          this.radiosDisabledBeforeGroup.add(radio);
-        } else {
+      this.getAllRadioElements().forEach(radio => {
+        if (!radio.disabled) {
           radio.disabled = true;
+          this.radiosDisabledByGroup.add(radio);
         }
       });
     } else {
-      radios.forEach(radio => {
-        if (!this.radiosDisabledBeforeGroup.has(radio)) {
-          radio.disabled = false;
-        }
-      });
-      this.radiosDisabledBeforeGroup.clear();
+      this.radiosDisabledByGroup.forEach(radio => (radio.disabled = false));
+      this.radiosDisabledByGroup.clear();
     }
   }
 
@@ -433,8 +435,9 @@ export class VelcroRadioGroup extends CoreRadioGroup {
       return;
     }
 
-    // Velcro extension (core): a read-only group keeps its value.
-    if (this.readonly) {
+    // Velcro extensions (core): a read-only group keeps its value, and a disabled group ignores the keyboard (with every
+    // radio disabled, Shoelace's handler would read past the end of an empty list and throw).
+    if (this.readonly || this.disabled) {
       return;
     }
 
@@ -556,12 +559,18 @@ export class VelcroRadioGroup extends CoreRadioGroup {
     this.formControlController.setValidity(this.validity.valid);
   }
 
-  /** Applies the group's size to its radios after the first update. */
+  /**
+   * Applies the group's size to its radios after the first update. Called before the render with the previous and the
+   * current size, as Shoelace's `@watch` decorator calls it.
+   */
   public handleSizeChange() {
     this.syncRadios();
   }
 
-  /** Checks the radio that matches the new value once the group has rendered. */
+  /**
+   * Checks the radio that matches the new value once the group has rendered. Called before the render with the
+   * previous and the current value, as Shoelace's `@watch` decorator calls it.
+   */
   public override handleValueChange() {
     if (this.hasUpdated) {
       this.updateCheckedRadio();
@@ -714,6 +723,26 @@ export class VelcroRadioGroup extends CoreRadioGroup {
       </fieldset>
     `;
   }
+}
+
+// Upstream behavior: `autofocus` is HTMLElement's own property, which reflects the attribute synchronously. The
+// accessor on this prototype hides core's reactive one. Core's constructor assigns `autofocus = false`, which would
+// remove an `autofocus` attribute the element is upgraded with, so writes are ignored until the group's own constructor
+// has run. The same approach as sl-radio.
+const constructed = new WeakSet<object>();
+const nativeAutofocus = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'autofocus');
+if (nativeAutofocus?.get && nativeAutofocus.set) {
+  const { get, set } = nativeAutofocus;
+  Object.defineProperty(VelcroRadioGroup.prototype, 'autofocus', {
+    configurable: true,
+    enumerable: true,
+    get(this: HTMLElement) {
+      return get.call(this);
+    },
+    set(this: HTMLElement, value: boolean) {
+      if (constructed.has(this)) set.call(this, value);
+    },
+  });
 }
 
 // Velcro's local scope: core's radio group template asks the scope for its icon tag, and without a scope of its own the

@@ -445,7 +445,7 @@ test('inherited core ready event: dispatched once after the first update, not bu
   expect(r).toEqual([[false, false]]);
 });
 
-test('Velcro extension disabled: disables every radio, restores only the ones it disabled, and leaves the group out of form data', async ({ page }) => {
+test('Velcro extension disabled: disables every radio, re-enables exactly the ones it disabled, and leaves the group out of form data', async ({ page }) => {
   const { frame } = await openExample(page);
   await mount(frame, `<form id="f">${GROUP}</form>`);
   const r = await frame.locator('#f').evaluate(async form => {
@@ -460,6 +460,57 @@ test('Velcro extension disabled: disables every radio, restores only the ones it
   });
   expect(r.on).toEqual([[true, true, true, true], [], true]);
   expect(r.off).toEqual([[false, false, true, false], [['pick', 'b']]]);
+});
+
+test('Velcro extension disabled survives radio syncs: a group disabled in markup, a size change or an added radio, then enabled', async ({ page }) => {
+  const { frame } = await openExample(page);
+  // Disabled in markup: the initial slot change syncs the radios after the group has disabled them.
+  await mount(frame, '<sl-radio-group id="g1" disabled value="a"><sl-radio value="a">A</sl-radio><sl-radio value="b" disabled>B</sl-radio><sl-radio value="c">C</sl-radio></sl-radio-group>');
+  const markup = await frame.locator('#g1').evaluate(async el => {
+    const state = () => [...el.querySelectorAll('sl-radio')].map(x => x.disabled);
+    const on = state();
+    el.disabled = false;
+    await el.updateComplete;
+    return { on, off: state() };
+  });
+  expect(markup).toEqual({ on: [true, true, true], off: [false, true, false] });
+  // Disable, change the size (which syncs the radios), add a radio, then enable.
+  await mount(frame, GROUP);
+  const later = await frame.locator('#mount sl-radio-group').evaluate(async el => {
+    const settle = async () => {
+      await el.updateComplete;
+      await new Promise(resolve => setTimeout(resolve, 30));
+      await Promise.all([el, ...el.querySelectorAll('sl-radio')].map(x => x.updateComplete));
+    };
+    const state = () => [...el.querySelectorAll('sl-radio')].map(x => x.disabled);
+    el.disabled = true;
+    await settle();
+    el.size = 'small';
+    await settle();
+    const added = document.createElement('sl-radio');
+    added.value = 'e';
+    added.textContent = 'E';
+    el.append(added);
+    await settle();
+    const on = state();
+    el.disabled = false;
+    await settle();
+    return { on, off: state() };
+  });
+  expect(later).toEqual({ on: [true, true, true, true, true], off: [false, false, true, false, false] });
+});
+
+test('Velcro extension disabled: the arrow keys and Space are ignored by a disabled group (no error)', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await mount(frame, GROUP);
+  await frame.locator('body').click({ position: { x: 1, y: 1 } });
+  await frame.locator('#mount sl-radio-group').evaluate(async el => { el.disabled = true; await el.updateComplete; });
+  await frame.locator('#mount sl-radio[value="b"]').evaluate(el => el.focus());
+  for (const key of ['ArrowDown', 'ArrowUp', 'Space']) await page.keyboard.press(key);
+  expect(await radios(frame)).toEqual(['a:false', 'b:true', 'c:false', 'd:false']);
+  expect(errors).toEqual([]);
 });
 
 test('Velcro extensions readonly, hide-label and error-message: no value change, visually hidden label, custom validity', async ({ page }) => {
@@ -478,7 +529,7 @@ test('Velcro extensions readonly, hide-label and error-message: no value change,
   expect(r).toEqual({ value: 'b', radiosReadonly: true, clip: 'absolute', width: 1, valid: true, message: 'Bad' });
 });
 
-test('core\'s layout, invalid, label-position and autofocus are accepted and reflected but change nothing', async ({ page }) => {
+test('core\'s layout, invalid and label-position are accepted and reflected but change nothing', async ({ page }) => {
   const { frame } = await openExample(page);
   await mount(frame, GROUP);
   const r = await frame.locator('#mount sl-radio-group').evaluate(async el => {
@@ -487,14 +538,92 @@ test('core\'s layout, invalid, label-position and autofocus are accepted and ref
     el.layout = 'horizontal-stacked';
     el.invalid = true;
     el.labelPosition = 'start';
-    el.autofocus = true;
     await el.updateComplete;
     return { same: before[0] === html(), vertical: [...el.querySelectorAll('sl-radio')].map(x => x.vertical), before: before[1],
-      attrs: ['layout', 'invalid', 'label-position', 'autofocus'].map(a => el.hasAttribute(a)) };
+      attrs: ['layout', 'invalid', 'label-position'].map(a => el.hasAttribute(a)) };
   });
   expect(r.same).toBe(true);
   expect(r.vertical).toEqual(r.before);
-  expect(r.attrs).toEqual([true, true, true, true]);
+  expect(r.attrs).toEqual([true, true, true]);
+});
+
+test('autofocus is the platform\'s property, as in Shoelace: it reflects synchronously, is not observed, and an upgraded autofocus attribute stays', async ({ page }) => {
+  const { frame } = await openExample(page);
+  await mount(frame, '<sl-radio-group id="af" autofocus><sl-radio value="a">A</sl-radio></sl-radio-group>');
+  const r = await frame.locator('#af').evaluate(async el => {
+    const upgraded = [el.autofocus, el.hasAttribute('autofocus')];
+    const observed = el.constructor.observedAttributes.includes('autofocus');
+    el.autofocus = false;
+    const sync = el.hasAttribute('autofocus');
+    el.autofocus = true;
+    const syncOn = el.hasAttribute('autofocus');
+    const pending = el.isUpdatePending;
+    // Built before upgrade: core's constructor default does not remove the attribute.
+    const fresh = document.createElement('div');
+    fresh.innerHTML = '<sl-radio-group autofocus></sl-radio-group>';
+    const created = fresh.firstElementChild;
+    document.body.append(fresh);
+    await created.updateComplete;
+    const kept = [created.autofocus, created.hasAttribute('autofocus')];
+    fresh.remove();
+    return { upgraded, observed, sync, syncOn, pending, kept };
+  });
+  expect(r).toEqual({ upgraded: [true, true], observed: false, sync: false, syncOn: true, pending: false, kept: [true, true] });
+});
+
+test('value: a group without a value reflects value="" after its first update, as Shoelace\'s class field does', async ({ page }) => {
+  const { frame } = await openExample(page);
+  await mount(frame, '<sl-radio-group id="nv"><sl-radio value="a">A</sl-radio></sl-radio-group>');
+  const r = await frame.locator('#nv').evaluate(el => [el.getAttribute('value'), el.value, el.matches('[value=""]')]);
+  expect(r).toEqual(['', '', true]);
+  const created = await frame.locator('body').evaluate(async body => {
+    const el = document.createElement('sl-radio-group');
+    body.append(el);
+    await el.updateComplete;
+    const attrs = el.getAttributeNames().sort();
+    el.remove();
+    return attrs;
+  });
+  expect(created).toEqual(['data-optional', 'data-valid', 'focusable', 'form', 'size', 'value']);
+});
+
+test('watch hooks run as Shoelace\'s @watch decorators do: value (from the first update) before size (after it), with the previous and current values', async ({ page }) => {
+  const { frame } = await openExample(page);
+  const calls = await frame.locator('body').evaluate(async body => {
+    const calls = [];
+    const Base = customElements.get('sl-radio-group');
+    class Traced extends Base {
+      handleValueChange(...args) {
+        calls.push(['value', args, [...this.querySelectorAll('sl-radio')].map(r => r.checked)]);
+        super.handleValueChange(...args);
+      }
+      handleSizeChange(...args) {
+        calls.push(['size', args, [...this.querySelectorAll('sl-radio')].map(r => r.size)]);
+        super.handleSizeChange(...args);
+      }
+    }
+    customElements.define('velcro-traced-radio-group', Traced);
+    const host = document.createElement('div');
+    host.innerHTML = '<velcro-traced-radio-group value="a"><sl-radio value="a">A</sl-radio><sl-radio value="b">B</sl-radio></velcro-traced-radio-group>';
+    body.append(host);
+    const el = host.firstElementChild;
+    await el.updateComplete;
+    await new Promise(resolve => setTimeout(resolve, 30));
+    calls.push('first update done');
+    el.value = 'b';
+    el.size = 'large';
+    await el.updateComplete;
+    calls.push('batched update done');
+    host.remove();
+    return calls;
+  });
+  expect(calls).toEqual([
+    ['value', [undefined, 'a'], [false, false]],
+    'first update done',
+    ['value', ['a', 'b'], [true, false]],
+    ['size', ['medium', 'large'], ['medium', 'medium']],
+    'batched update done',
+  ]);
 });
 
 test('every example renders its groups and radios and none requests the Shoelace runtime', async ({ page }) => {
