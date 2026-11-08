@@ -12,7 +12,7 @@ export const pageData = definePageData(async () => ({
 }));
 
 const gaps = [
-  'The original Shoelace examples that use sl-rating and sl-icon-button (the overview, header and footer cards) are ported without those elements: sl-rating and sl-icon-button do not exist in Velcro. The remote images are replaced by inline placeholder images.',
+  'The original Shoelace examples that use sl-rating and sl-icon-button (the overview, header and footer cards) are ported without those elements: sl-rating does not exist in Velcro, and the examples were ported before sl-icon-button did and do not use it yet. The remote images are replaced by inline placeholder images.',
   'The card sets no role or other ARIA on the host or the base part (the browser spec checks that none is present), as in Shoelace. The header, footer and image sections are plain slots without landmark semantics. Screen reader behavior and color contrast were not evaluated.',
   'The ready event is a divergence: it comes from the core base element and Shoelace\'s card emits no events. It is emitted once, without bubbling, after the first render; the browser spec checks that it is the only event the card dispatches while it renders and while its slotted content changes.',
   'The inherited core card properties heading, subheading and media-position (and the reflected media-position attribute) are still declared on the element but have no effect; the browser spec checks that setting them changes nothing. The core markup, the core "card-*" parts and the core "media", "heading" and "subheading" slots are not rendered, so content with those slot names is not displayed. The core card styles are not applied, so the core "--card-*" custom properties are not defined and do nothing.',

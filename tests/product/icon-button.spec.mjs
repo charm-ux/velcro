@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -10,7 +10,10 @@ import { reactWrapperPage } from './support/react.mjs';
 test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/icon-button';
-const SECTIONS = ['Default', 'Sizes', 'Colors', 'Link Buttons'];
+// Shoelace 2.20.1's icon button page has six examples, in this order. The tooltip one needs sl-tooltip, which Velcro lacks, so it is
+// source only (no iframe, no React version); the other five are live and each has a React version.
+const ORDER = [['basic', 'Default'], ['sizes', 'Sizes'], ['colors', 'Colors'], ['link-buttons', 'Link Buttons'], ['tooltip', 'Icon Button with Tooltip'], ['disabled', 'Disabled']];
+const SECTIONS = ORDER.filter(([id]) => id !== 'tooltip').map(([, section]) => section);
 const title = section => `Icon Button example: ${section}`;
 const docsDir = fileURLToPath(new URL('../../packages/docs/', import.meta.url));
 const velcroDir = fileURLToPath(new URL('../../packages/velcro/', import.meta.url));
@@ -49,6 +52,12 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
   expect(html).toContain('Not implemented or unverified');
   expect(html).toContain('without changing the shared core prefix');
   for (const section of SECTIONS) expect(html).toContain(`title="${title(section)}"`);
+  // The six sections are all there, in Shoelace's order (before the API tables), each with its intro text.
+  const examplesPart = html.slice(html.indexOf('id="examples"'), html.indexOf('id="attributes"'));
+  expect([...examplesPart.matchAll(/<h3 id="([^"]+)"><!--lit-part-->([^<]+)<!--\/lit-part--><\/h3>/g)].map(m => [m[1], m[2]])).toEqual(ORDER);
+  expect(examplesPart).toContain('Use the <code>disabled</code> attribute to disable the icon button.');
+  expect(examplesPart).toContain('Use the <code>href</code> attribute to convert the button to a link.');
+  expect(examplesPart).toContain("inherit their parent element's <code>font-size</code>");
   // The tooltip example needs sl-tooltip, which Velcro lacks: source only, no iframe and no React version.
   expect(html).toContain('id="tooltip"');
   expect(html).toContain('Velcro has no <code>sl-tooltip</code> yet');
@@ -65,6 +74,8 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
     expect(html).toContain(`data-name="${name}"`);
   }
   expect(html.match(/<summary>React<\/summary>/g)).toHaveLength(SECTIONS.length);
+  expect(html).toContain('&lt;sl-icon-button name=&quot;gear&quot; label=&quot;Settings&quot; disabled&gt;&lt;/sl-icon-button&gt;');
+  expect(html).toContain('const App = () =&gt; &lt;SlIconButton name=&quot;gear&quot; label=&quot;Settings&quot; disabled /&gt;;');
   expect(html).toContain('import { VelcroIconButton as SlIconButton } from &#39;@charm-ux/velcro/react/VelcroIconButton.js&#39;;');
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
   const home = await (await request.get('/')).text();
@@ -385,6 +396,30 @@ test('links: rel only with a target; download is written as set; an enabled link
   expect(focused).toEqual([true, ['sl-focus']]);
 });
 
+test('disabled example: the host has disabled, the inner native button is disabled, half opacity, not-allowed cursor, and a button named Settings', async ({ page }) => {
+  const { example } = await openPage(page);
+  const frame = example('Disabled');
+  const el = frame.locator('sl-icon-button');
+  await expect(el).toBeVisible();
+  const r = await el.evaluate(e => {
+    const base = e.shadowRoot.querySelector('[part="base"]');
+    const cs = getComputedStyle(base);
+    return {
+      host: [e.disabled, e.getAttribute('disabled')], base: [base.localName, base.disabled, base.getAttribute('aria-disabled'), base.getAttribute('tabindex'), base.getAttribute('aria-label')],
+      look: [cs.opacity, cs.cursor], classes: [...base.classList].join(' '),
+    };
+  });
+  expect(r).toEqual({
+    host: [true, ''], base: ['button', true, 'true', '-1', 'Settings'], look: ['0.5', 'not-allowed'], classes: 'icon-button icon-button--disabled',
+  });
+  await expect(frame.locator('body')).toMatchAriaSnapshot('- button "Settings" [disabled]');
+  // It cannot be focused or clicked by the pointer: the example's own button swallows both.
+  await el.evaluate(e => { window.disabledClicks = 0; e.addEventListener('click', () => window.disabledClicks++); });
+  const box = await el.boundingBox();
+  await el.page().mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  expect(await el.evaluate(e => [window.disabledClicks, e.shadowRoot.activeElement])).toEqual([0, null]);
+});
+
 test('upstream quirk: the hidden attribute does not hide the icon button, because the host\'s own display: inline-block outranks the browser rule', async ({ page }) => {
   const { frame } = await openPage(page);
   await mount(frame, '<sl-icon-button id="h" hidden name="gear" label="Settings"></sl-icon-button>');
@@ -586,14 +621,21 @@ test('the examples render in their own documents in Shoelace\'s order', async ({
   expect(titles).toEqual(SECTIONS.map(title));
   const counts = [];
   for (const section of SECTIONS) counts.push(await page.frameLocator(`iframe.example[title="${title(section)}"]`).locator('sl-icon-button').count());
-  expect(counts).toEqual([1, 3, 3, 1]);
+  expect(counts).toEqual([1, 3, 3, 1, 1]);
+  // The sections follow Shoelace's order on the page, the tooltip one (source only) between Link Buttons and Disabled.
+  const ids = await page.locator('h3[id]').evaluateAll(hs => hs.map(h => h.id));
+  expect(ids.filter(id => ORDER.some(([known]) => known === id))).toEqual(ORDER.map(([id]) => id));
+  // Every example file of Shoelace's page is present: the six HTML ones and the five React ones (none for the tooltip).
+  const files = dir => readdirSync(path.join(docsDir, 'examples/icon-button', dir)).filter(f => /\.(html|jsx)$/.test(f)).sort();
+  expect(files('')).toEqual(ORDER.map(([id]) => `${id}.html`).sort());
+  expect(files('react')).toEqual(ORDER.filter(([id]) => id !== 'tooltip').map(([id]) => `${id}.jsx`).sort());
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
 });
 
 // Shoelace's React examples, ported in packages/docs/examples/icon-button/react/*.jsx (the files the docs page shows), bundled
 // with React 19 and the generated wrappers, which are resolved through the package's real export map.
 test.describe('React examples', () => {
-  const names = ['basic', 'sizes', 'colors', 'link-buttons'];
+  const names = ['basic', 'sizes', 'colors', 'link-buttons', 'disabled'];
   let bundle;
 
   test.beforeAll(async () => {
@@ -660,17 +702,18 @@ test.describe('React examples', () => {
         await Promise.all(buttons.map(b => b.updateComplete));
         out[name] = buttons.map(b => {
           const base = b.shadowRoot.querySelector('[part="base"]');
-          return [base.localName, base.getAttribute('aria-label'), b.name, b.getBoundingClientRect().width, base.getAttribute('href'), base.getAttribute('target')];
+          return [base.localName, base.getAttribute('aria-label'), b.name, b.getBoundingClientRect().width, base.getAttribute('href'), base.getAttribute('target'), b.hasAttribute('disabled'), Boolean(base.disabled)];
         });
       }
       const colored = getComputedStyle(document.querySelector('#colors sl-icon-button').shadowRoot.querySelector('[part="base"]')).color;
       return { out, colored, errors: window.errors };
     }, names);
     expect(r.out).toEqual({
-      basic: [['button', 'Settings', 'gear', 32, null, null]],
-      sizes: [['button', 'Edit', 'pencil', 40, null, null], ['button', 'Edit', 'pencil', 48, null, null], ['button', 'Edit', 'pencil', 56, null, null]],
-      colors: [['button', 'Bold', 'type-bold', 32, null, null], ['button', 'Italic', 'type-italic', 32, null, null], ['button', 'Underline', 'type-underline', 32, null, null]],
-      'link-buttons': [['a', 'Settings', 'gear', 32, 'https://example.com', '_blank']],
+      basic: [['button', 'Settings', 'gear', 32, null, null, false, false]],
+      sizes: [['button', 'Edit', 'pencil', 40, null, null, false, false], ['button', 'Edit', 'pencil', 48, null, null, false, false], ['button', 'Edit', 'pencil', 56, null, null, false, false]],
+      colors: [['button', 'Bold', 'type-bold', 32, null, null, false, false], ['button', 'Italic', 'type-italic', 32, null, null, false, false], ['button', 'Underline', 'type-underline', 32, null, null, false, false]],
+      'link-buttons': [['a', 'Settings', 'gear', 32, 'https://example.com', '_blank', false, false]],
+      disabled: [['button', 'Settings', 'gear', 32, null, null, true, true]],
     });
     expect(r.colored).toBe('rgb(176, 0, 145)');
     expect(r.errors).toEqual([]);

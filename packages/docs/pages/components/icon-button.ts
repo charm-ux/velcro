@@ -12,13 +12,16 @@ export const pageData = definePageData(async () => ({
   seoHead: themeHead + '<meta name="description" content="Velcro icon button (prototype).">',
 }));
 
-// [id, title, example key, text, React example key], in the order of Shoelace's page. The first has no heading in Shoelace's
-// page; it is the page's opening example.
+// Shoelace's examples, in the order of its page: [id, title, text, example key, React example key]. The first has no heading in
+// Shoelace's page; it is the page's opening example. The tooltip example is source only (it needs sl-tooltip, which Velcro lacks;
+// see the not-implemented list) and has no React version here; every other example is live and has a React version.
 const sections = [
-  ['basic', 'Default', 'icon-button/basic', '', 'icon-button/react/basic'],
-  ['sizes', 'Sizes', 'icon-button/sizes', 'Icon buttons inherit their parent element\'s font-size.', 'icon-button/react/sizes'],
-  ['colors', 'Colors', 'icon-button/colors', 'Icon buttons are designed to have a uniform appearance, so their color is not inherited. However, you can still customize them by styling the base part.', 'icon-button/react/colors'],
-  ['link-buttons', 'Link Buttons', 'icon-button/link-buttons', 'Use the href attribute to convert the button to a link.', 'icon-button/react/link-buttons'],
+  ['basic', 'Default', null, 'icon-button/basic', 'icon-button/react/basic'],
+  ['sizes', 'Sizes', html`Icon buttons inherit their parent element's <code>font-size</code>.`, 'icon-button/sizes', 'icon-button/react/sizes'],
+  ['colors', 'Colors', html`Icon buttons are designed to have a uniform appearance, so their color is not inherited. However, you can still customize them by styling the <code>base</code> part.`, 'icon-button/colors', 'icon-button/react/colors'],
+  ['link-buttons', 'Link Buttons', html`Use the <code>href</code> attribute to convert the button to a link.`, 'icon-button/link-buttons', 'icon-button/react/link-buttons'],
+  ['tooltip', 'Icon Button with Tooltip', html`Wrap a tooltip around an icon button to provide contextual information to the user. Velcro has no <code>sl-tooltip</code> yet, so this is Shoelace's example as source only, without a live preview.`, 'icon-button/tooltip', null],
+  ['disabled', 'Disabled', html`Use the <code>disabled</code> attribute to disable the icon button.`, 'icon-button/disabled', 'icon-button/react/disabled'],
 ] as const;
 
 // Shoelace 2.20.1 behaviors that look like bugs but are matched exactly (candidates for a later opt-in fix). One line each.
@@ -32,7 +35,8 @@ const quirks = [
 ] as const;
 
 const gaps = [
-  'The Icon Button with Tooltip example is shown as source only. It needs sl-tooltip, which Velcro does not implement yet, so it has no live preview and no React version; without sl-tooltip the wrapper element is inert and the icon button is shown alone. Every other example of Shoelace\'s page is ported with a live preview and a React version. The React examples import Velcro\'s generated wrapper (@charm-ux/velcro/react/VelcroIconButton.js) under Shoelace\'s name; nothing else differs.',
+  'The Icon Button with Tooltip example is shown as source only, with no live preview and no React version, because it needs sl-tooltip, which Velcro does not implement yet. Shoelace\'s page has five other examples (the opening one, Sizes, Colors, Link Buttons and Disabled); each is ported with a live preview and a React version, in Shoelace\'s order. The React examples import Velcro\'s generated wrapper (@charm-ux/velcro/react/VelcroIconButton.js) under Shoelace\'s name; nothing else differs.',
+  'The button property (the rendered native button or link) exists in Shoelace\'s class, with the same type, but has no description there, so Shoelace\'s documentation leaves it out. Velcro describes it, so its generated API table lists button and the parity report counts it as Velcro-only.',
   'Shoelace\'s link example opens https://example.com in a new window when it is clicked, as Shoelace\'s does; nothing is requested until then.',
   'Core has no icon button, so Velcro builds sl-icon-button on the @charm-ux/core base element and takes its markup, styles and behavior from Shoelace. The only core extension that remains is the non-bubbling ready event on first update, which the API tables label as inherited from core.',
   'The icon is an sl-icon, as in Shoelace. The registering entry (@charm-ux/velcro/icon-button or the package root) registers Velcro\'s sl-icon up front. Importing the class-only entry (@charm-ux/velcro/icon-button/class) registers nothing; as with Shoelace\'s declared dependencies, constructing an icon button defines Velcro\'s sl-icon when that tag is not defined yet, so no extra step is needed. If another constructor already owns sl-icon, the icon button renders that element and logs nothing, where Shoelace logs a warning when the registered version differs from its own.',
@@ -54,23 +58,23 @@ export class IconButtonPage extends LitElement {
       <p>For a full list of icons that come bundled with Velcro, refer to the <a href=${withBase('/components/icon')}>icon component</a>.</p>
 
       <h2 id="examples">Examples</h2>
-      <p>Each preview runs in its own document. The React version of each example is Shoelace's, ported to Velcro's generated React wrapper; only its import line differs. It is shown as source.</p>
+      <p>Each preview runs in its own document. The React version of each live example is Shoelace's, ported to Velcro's generated React wrapper; only its import line differs. It is shown as source.</p>
       ${sections.map(
-        ([id, title, key, text, react]) => html`
+        ([id, title, text, key, react]) => html`
           <h3 id=${id}>${title}</h3>
-          ${text ? html`<p>${text}</p>` : ''}
-          <iframe class="example" title=${`Icon Button example: ${title}`} srcdoc=${exampleDocument(examples[key])}></iframe>
+          ${text === null ? '' : html`<p>${text}</p>`}
+          ${react === null
+            ? ''
+            : html`<iframe class="example" title=${`Icon Button example: ${title}`} srcdoc=${exampleDocument(examples[key])}></iframe>`}
           <pre><code>${examples[key]}</code></pre>
-          <details class="react-example">
-            <summary>React</summary>
-            <pre><code>${reactExamples[react]}</code></pre>
-          </details>
+          ${react === null
+            ? ''
+            : html`<details class="react-example">
+                <summary>React</summary>
+                <pre><code>${reactExamples[react]}</code></pre>
+              </details>`}
         `
       )}
-
-      <h3 id="tooltip">Icon Button with Tooltip</h3>
-      <p>Wrap a tooltip around an icon button to provide contextual information to the user. Velcro has no <code>sl-tooltip</code> yet, so this is Shoelace's example as source only, without a live preview.</p>
-      <pre><code>${examples['icon-button/tooltip']}</code></pre>
 
       ${apiReference('sl-icon-button', {
         attributes: html`<p>Only <code>disabled</code> is reflected; removing its attribute restores <code>false</code>. <code>name</code>, <code>library</code> and <code>src</code> are passed to the inner <code>sl-icon</code>; <code>href</code>, <code>target</code> and <code>download</code> apply only to the link form, which is chosen whenever <code>href</code> is set. <code>dir</code> and <code>lang</code> are reactive properties with no default that are not reflected, as in Shoelace's base element.</p>`,
@@ -80,7 +84,7 @@ export class IconButtonPage extends LitElement {
       })}
 
       <h2 id="upstream-quirks">Upstream quirks matched</h2>
-      <p>Velcro matches Shoelace 2.20.1 exactly, including behavior that looks like a bug. Each of these is covered by a product test and is a candidate for a later opt-in fix.</p>
+      <p>Velcro matches Shoelace 2.20.1 exactly, including behavior that looks like a bug. Each of these is covered by a product test, except the last, which is a type and is pinned by the compiled type test in <code>packages/velcro/type-tests/icon-button.tsx</code>. Each is a candidate for a later opt-in fix.</p>
       <ul>
         ${quirks.map(q => html`<li>${q}</li>`)}
       </ul>

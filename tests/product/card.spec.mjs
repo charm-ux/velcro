@@ -68,7 +68,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the ready
   expect(html).toContain('<title>Card - Velcro</title>');
   expect(html).toContain('Velcro is an unreleased prototype');
   expect(html).toContain('Not implemented or unverified');
-  expect(html).toContain('sl-rating and sl-icon-button do not exist in Velcro');
+  expect(html).toContain('sl-rating does not exist in Velcro, and the examples were ported before sl-icon-button did and do not use it yet');
   expect(html).toContain('--border-color');
   expect(html).toContain('--padding');
   expect(html).toContain('The container that wraps the card');
