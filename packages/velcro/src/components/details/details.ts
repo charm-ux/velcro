@@ -13,6 +13,7 @@ import { classMap } from 'lit/directives/class-map.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
 import { animateTo, shimKeyframesHeightAuto, stopAnimations } from '../../internal/animate.js';
 import { waitForEvent } from '../../internal/event.js';
+import { documentDir } from '../../internal/localize.js';
 import { getAnimation, setDefaultAnimation } from '../../utilities/animation-registry.js';
 import { LocalizeController } from '../../utilities/localize.js';
 import { defineVelcroComponent, type VelcroComponentConstructor } from '../../utilities/registration.js';
@@ -25,8 +26,9 @@ import styles from './details.styles.js';
  * Built on the @charm-ux/core base element. Core's accordion item is not extended: its model differs from Shoelace's (a
  * `heading` attribute and slot instead of `summary`, `heading-level` and `expand-icon-position` properties, `accordion-item-*`
  * parts and an `accordion-item-open-change` event, an `open` property driven by the native `toggle` event instead of
- * cancelable `sl-show` / `sl-hide` events, and no expand or collapse animation). The only core extension is the
- * non-bubbling `ready` event on first update.
+ * cancelable `sl-show` / `sl-hide` events, and CSS transitions set through `--accordion-item-*` properties instead of
+ * the animation registry's awaited animations). The only core extension is the non-bubbling `ready` event on first
+ * update.
  *
  * It renders an `<sl-icon>` for the default expand and collapse icons, as Shoelace does; like Shoelace's, constructing a
  * details defines that dependency (Velcro's) when no element owns its tag yet. The expand and collapse animations come from
@@ -192,12 +194,13 @@ export class VelcroDetails extends CharmElement {
     super.update(changed);
   }
 
-  // Shoelace's localization controller resolves the direction from the host's `dir` property, else the document's
-  // (`<html dir>`, else ltr). Velcro's shared controller reads the host's `dir` attribute instead (core's `dir` getter
-  // returns the computed direction), which would miss a direction set only through the property; this component's `dir`
-  // returns what was set, by attribute or property, so it resolves the direction the way Shoelace does.
+  // The direction the render and the animations use, as Shoelace's localization controller resolves it: the host's `dir`
+  // property (set directly or through the attribute), else the controller's document-direction snapshot (`<html dir>` as
+  // of the last observer callback or translation registration, not a live read; else `ltr`), lower-cased. Velcro's shared
+  // controller reads the host's `dir` attribute instead (core's `dir` getter returns the computed direction), which would
+  // miss a direction set only through the property; this component's `dir` returns what was set, by attribute or property.
   private direction() {
-    return `${this.velcroDir || document.documentElement.dir || 'ltr'}`.toLowerCase();
+    return `${this.velcroDir || documentDir()}`.toLowerCase();
   }
 
   public override firstUpdated() {

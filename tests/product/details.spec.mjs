@@ -108,6 +108,9 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
   expect(html).toContain('The hidden attribute does not hide the details');
   expect(html).toContain('never settles');
   expect(html).toContain('interrupts a hide animation');
+  expect(html).toContain('The document&#39;s direction is a snapshot, not a live read');
+  expect(html).toContain('it throws on import when another constructor already owns sl-icon');
+  expect(html).not.toContain('accessibility-tree check is Playwright');
   expect(html).toContain('expandIconSlot');
   expect(html).toContain('Shoelace&#39;s own details tests (11, including two axe accessibility checks');
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
@@ -633,25 +636,95 @@ test.describe('animation registry', () => {
     expect(r.b.map(c => c.duration)).toEqual([250, 250]);
   });
 
-  test('the direction picks rtlKeyframes: the details\' own dir (attribute or property), else the document\'s', async ({ page }) => {
+  test('the direction picks rtlKeyframes: the details\' own dir (attribute or property) beats the document, an empty one defers to it, lower-cased', async ({ page }) => {
     await setup(page);
     const r = await page.evaluate(async () => {
+      const task = () => new Promise(resolve => setTimeout(resolve));
       window.registry.setDefaultAnimation('details.show', { keyframes: [{ opacity: 0.1 }, { opacity: 1 }], rtlKeyframes: [{ opacity: 0.2 }, { opacity: 1 }], options: { duration: 5 } });
       const first = async id => (await window.cycle(id))[0].keyframes[0].opacity;
       const a = document.getElementById('a');
       const b = document.getElementById('b');
+      document.documentElement.dir = 'ltr';
+      await task();
       const ltr = await first('a');
       a.setAttribute('dir', 'rtl');
       const attribute = await first('a');
       a.removeAttribute('dir');
       b.dir = 'rtl';
-      const property = await first('b');
+      const property = [b.hasAttribute('dir'), await first('b')];
+      // The property beats the document; an empty property defers to it. The observer needs a task to record the document.
+      document.documentElement.dir = 'ltr';
+      await task();
+      b.dir = 'RTL';
+      const upper = await first('b');
       b.dir = 'ltr';
-      document.documentElement.dir = 'rtl';
-      const documentDir = await first('a');
-      return { ltr, attribute, property, documentDir };
+      document.documentElement.dir = 'RTL';
+      await task();
+      const hostWins = await first('b');
+      b.dir = '';
+      const documentDir = await first('b');
+      document.documentElement.dir = 'ltr';
+      await task();
+      return { ltr, attribute, property, upper, hostWins, documentDir, back: await first('b') };
     });
-    expect(r).toEqual({ ltr: 0.1, attribute: 0.2, property: 0.2, documentDir: 0.2 });
+    expect(r).toEqual({ ltr: 0.1, attribute: 0.2, property: [false, 0.2], upper: 0.2, hostWins: 0.1, documentDir: 0.2, back: 0.1 });
+  });
+
+  test('the document direction is the localization snapshot, as in Shoelace: a change in the same task as show() is not seen until the observer runs', async ({ page }) => {
+    await setup(page);
+    const r = await page.evaluate(async () => {
+      const task = () => new Promise(resolve => setTimeout(resolve));
+      const { setDefaultAnimation } = window.registry;
+      setDefaultAnimation('details.show', { keyframes: [{ opacity: 0.1 }, { opacity: 1 }], rtlKeyframes: [{ opacity: 0.2 }, { opacity: 1 }], options: { duration: 5 } });
+      setDefaultAnimation('details.hide', { keyframes: [{ opacity: 1 }, { opacity: 0.3 }], rtlKeyframes: [{ opacity: 1 }, { opacity: 0.4 }], options: { duration: 5 } });
+      document.documentElement.dir = 'ltr';
+      await task();
+      const el = document.getElementById('a');
+      // Queued in sl-show, this runs before show()'s continuation reads the direction; the document observer's callback,
+      // which refreshes the snapshot, is queued behind that continuation.
+      el.addEventListener('sl-show', () => queueMicrotask(() => { document.documentElement.dir = 'rtl'; }), { once: true });
+      window.calls = [];
+      await el.show();
+      const shown = window.calls.map(c => c.keyframes.map(k => k.opacity));
+      window.calls = [];
+      await el.hide();
+      const hidden = window.calls.map(c => c.keyframes.map(k => k.opacity));
+      document.documentElement.dir = 'ltr';
+      await task();
+      return { shown, hidden };
+    });
+    // Shown with the stale ltr snapshot; hidden after the observer refreshed it to rtl.
+    expect(r).toEqual({ shown: [[0.1, 1]], hidden: [[1, 0.4]] });
+  });
+
+  test('the render follows the same snapshot: the chevrons and class change when the observer has run, not in the same task', async ({ page }) => {
+    await setup(page);
+    const r = await page.evaluate(async () => {
+      const task = () => new Promise(resolve => setTimeout(resolve));
+      const el = document.getElementById('a');
+      const view = () => ({
+        icons: [...el.shadowRoot.querySelectorAll('sl-icon')].map(i => i.getAttribute('name')),
+        rtl: el.shadowRoot.querySelector('.details').classList.contains('details--rtl'),
+      });
+      document.documentElement.dir = 'ltr';
+      await task();
+      // The update is queued first; the observer's notification is queued by the mutation after it, so the render that
+      // the property change causes still sees the ltr snapshot.
+      el.summary = 'Changed';
+      document.documentElement.dir = 'rtl';
+      await el.updateComplete;
+      const sameTask = view();
+      await task();
+      await el.updateComplete;
+      const afterObserver = view();
+      document.documentElement.dir = 'ltr';
+      await task();
+      return { sameTask, afterObserver };
+    });
+    expect(r).toEqual({
+      sameTask: { icons: ['chevron-right', 'chevron-right'], rtl: false },
+      afterObserver: { icons: ['chevron-left', 'chevron-left'], rtl: true },
+    });
   });
 });
 
