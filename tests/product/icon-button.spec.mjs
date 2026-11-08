@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { documentsLoaded, watchNetwork } from './support/loaded.mjs';
+import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
@@ -21,9 +21,7 @@ const velcroDir = fileURLToPath(new URL('../../packages/velcro/', import.meta.ur
 async function openPage(page) {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
-  // Litro's client router remounts the page component once after load, which reloads the iframes; wait for it to settle.
-  await page.goto(PAGE, { waitUntil: 'networkidle' });
-  await expect(page.locator('litro-outlet')).toHaveAttribute('data-litro-settled', '');
+  await openDocs(page, PAGE);
   const frame = page.frameLocator(`iframe.example[title="${title('Default')}"]`);
   await expect(frame.locator('sl-icon-button').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-icon-button'));
