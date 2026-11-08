@@ -96,7 +96,8 @@ export class VelcroCheckbox extends CoreCheckbox {
   // Shoelace's `static dependencies` for the checkbox: the elements its template renders. Shoelace keys them by tag; here
   // the tag is derived from each class's `baseName` (`sl-icon` for `VelcroIcon`), the same tag `defineVelcroComponent`
   // defines and the template renders. As in Shoelace's base element, each one that is not defined yet is defined when a
-  // checkbox is constructed, and a tag that another constructor already owns is left alone. If the platform refuses the
+  // checkbox is constructed, and a tag that another constructor already owns is left alone, without the warning Shoelace
+  // logs when the registered version differs from its own. If the platform refuses the
   // class itself (for example because it is already registered under another tag), an anonymous subclass is defined
   // instead, as Shoelace does. Not part of the documented API (Shoelace's manifest does not document it).
   private static readonly shoelaceDependencies: readonly VelcroComponentConstructor[] = [VelcroIcon];

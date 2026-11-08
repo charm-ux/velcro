@@ -567,8 +567,12 @@ test.describe('class-only entry', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test('an sl-icon another constructor already owns is left in place, without an error', async ({ page }) => {
+  test('an sl-icon another constructor already owns is left in place, without an error or a console warning', async ({ page }) => {
     const pageErrors = await load(page);
+    const warnings = [];
+    page.on('console', message => {
+      if (message.type() === 'warning' || message.type() === 'error') warnings.push(message.text());
+    });
     const r = await page.evaluate(async () => {
       class OtherIcon extends HTMLElement {}
       customElements.define('sl-icon', OtherIcon);
@@ -580,6 +584,7 @@ test.describe('class-only entry', () => {
       return [customElements.get('sl-icon') === OtherIcon, checkbox.shadowRoot.querySelector('sl-icon') instanceof OtherIcon];
     });
     expect(r).toEqual([true, true]);
+    expect(warnings).toEqual([]);
     expect(pageErrors).toEqual([]);
   });
 });
@@ -757,7 +762,14 @@ test.describe('React examples', () => {
       await render(page, name);
       const actual = await page.evaluate(summarize);
       expect(actual.length, name).toBeGreaterThan(0);
-      expect(actual, name).toEqual(expected[name]);
+      if (name === 'help-text') {
+        // Shoelace's React Help Text snippet keeps its upstream text, which says "switch" where the HTML example says
+        // "checkbox"; only the help text differs.
+        expect(actual.map(c => c.helpText), name).toEqual(['What should the user know about the switch?']);
+        expect(actual.map(c => ({ ...c, helpText: '' })), name).toEqual(expected[name].map(c => ({ ...c, helpText: '' })));
+      } else {
+        expect(actual, name).toEqual(expected[name]);
+      }
     }
     expect(expected['custom-validity'][0].message).toBe('Don\'t forget to check me!');
     expect(await page.evaluate(() => window.errors)).toEqual([]);
