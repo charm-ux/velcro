@@ -9,6 +9,7 @@ import { html, type PropertyValues } from 'lit';
 import { property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { defineVelcroComponent, type VelcroComponentConstructor } from '../../utilities/registration.js';
 import { LocalizeController } from '../../utilities/localize.js';
 import { VelcroIconButton } from '../icon-button/class.js';
@@ -23,6 +24,8 @@ import styles from './tag.styles.js';
  * Velcro extension inherited from the core base element and kept: the non-bubbling `ready` event, emitted on the first
  * update. Shoelace's tag does not emit it.
  *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
+ *
  * @tag sl-tag
  * @status prototype
  *
@@ -35,7 +38,7 @@ import styles from './tag.styles.js';
  * @csspart remove-button - The tag's remove button, an `<sl-icon-button>`.
  * @csspart remove-button__base - The remove button's exported `base` part.
  */
-export class VelcroTag extends CharmElement {
+export class VelcroTag extends ShoelaceCompat(CharmElement, { lang: true, dir: true, reflected: true }) {
   public static override baseName = 'tag';
 
   // The core base styles are replaced by Shoelace's own (see the styles file). Core's add a `:host([hidden]) { display:
@@ -58,26 +61,7 @@ export class VelcroTag extends CharmElement {
     for (const component of VelcroTag.shoelaceDependencies) defineVelcroComponent(component);
   }
 
-  // Shoelace's base element restores a reflected property's initial value when its attribute is removed (see
-  // attributeChangedCallback). `variant`, `size` and `pill` are the reflected properties here.
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-  private hasRecordedInitialProperties = false;
-
   private readonly localize = new LocalizeController(this);
-
-  // Shoelace's base element declares `lang` and `dir` as reactive properties with no initial value and no reflection,
-  // which also makes them observed attributes. Without the `lang` declaration, `lang` would be the native one, which
-  // reflects: assigning it would change the attribute and reading it would give '' instead of undefined. Core declares
-  // `dir` as a reactive property whose getter computes the direction (`ltr` or `rtl`) when it is unset or `auto`;
-  // Shoelace's returns the value as set (undefined when unset), so the accessor is replaced.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep core's
-  // declared type, because TypeScript does not let a subclass widen an inherited property's read type; at runtime it
-  // returns whatever was set.
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
-
-  private shoelaceDir?: string;
 
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
@@ -85,11 +69,10 @@ export class VelcroTag extends CharmElement {
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.shoelaceDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
-
   public override set dir(value: string) {
-    this.shoelaceDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
 
   /** The tag's theme variant. */
@@ -108,30 +91,9 @@ export class VelcroTag extends CharmElement {
   @property({ type: Boolean })
   public removable = false;
 
-  // Records the reflected properties' values the first time any attribute changes (during upgrade, before the
-  // attribute values are applied), so that removing a reflected attribute later restores that value instead of
-  // leaving the property null. Same timing and rule as Shoelace's base element.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroTag).elementProperties.forEach((options, prop) => {
-        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-        if (options.reflect && current != null) {
-          this.initialReflectedProperties.set(prop as string, current);
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroTag) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   private handleRemoveClick() {

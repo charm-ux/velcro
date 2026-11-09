@@ -8,6 +8,7 @@ import { type PropertyValues, html } from 'lit';
 import { property, query } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { animateTo, parseDuration, stopAnimations } from '../../internal/animate.js';
 import { waitForEvent } from '../../internal/event.js';
 import { documentDir } from '../../internal/localize.js';
@@ -53,6 +54,8 @@ declare const CloseWatcher: { new (): CloseWatcher };
  * properties are accepted but have no effect: the arrow always shows and the tooltip always anchors to its default
  * slot, as in Shoelace.
  *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
+ *
  * @tag sl-tooltip
  * @status prototype
  *
@@ -83,7 +86,7 @@ declare const CloseWatcher: { new (): CloseWatcher };
  * @animation tooltip.show - The animation to use when showing the tooltip.
  * @animation tooltip.hide - The animation to use when hiding the tooltip.
  */
-export class VelcroTooltip extends CoreTooltipTyping {
+export class VelcroTooltip extends ShoelaceCompat(CoreTooltipTyping, { lang: true, dir: true, reflected: true }) {
   // Only Shoelace's styles: core's tooltip styles and tokens do not apply.
   public static override styles = [styles];
 
@@ -106,10 +109,6 @@ export class VelcroTooltip extends CoreTooltipTyping {
   // animations' direction is resolved by animationDirection(), as Shoelace's controller resolves it.
   private readonly localize = new LocalizeController(this);
   private closeWatcher: CloseWatcher | null = null;
-
-  private hasRecordedInitialProperties = false;
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-  private velcroDir?: string;
   private velcroContent = '';
   private velcroPlacement: TooltipPlacement = 'top';
   private velcroDisabled = false;
@@ -137,21 +136,16 @@ export class VelcroTooltip extends CoreTooltipTyping {
     this.addEventListener('mouseout', this.mouseOutListener);
   }
 
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
 
   /**
@@ -161,12 +155,8 @@ export class VelcroTooltip extends CoreTooltipTyping {
    * shared controller reads the host attribute instead, which misses a direction set only through the property.
    */
   private animationDirection(): string {
-    return `${this.velcroDir || documentDir()}`.toLowerCase();
+    return `${this.dir || documentDir()}`.toLowerCase();
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   @query('slot:not([name])')
   public defaultSlot!: HTMLSlotElement;
@@ -337,32 +327,9 @@ export class VelcroTooltip extends CoreTooltipTyping {
     document.removeEventListener('keydown', this.handleDocumentKeyDown);
   }
 
-  // Records the reflected properties' values the first time any attribute changes (during upgrade, before the
-  // attribute values are applied), so that removing a reflected attribute later restores that value instead of
-  // leaving the property null. Same timing and rule as Shoelace's base element.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroTooltip).elementProperties.forEach((options, prop) => {
-        // Reflection is checked first, as upstream does, so that a non-reflected property's getter is not read here.
-        if (!options.reflect) return;
-        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-        if (current != null) {
-          this.initialReflectedProperties.set(prop as string, current);
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroTooltip) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   protected override update(changed: PropertyValues<this>) {
