@@ -1,0 +1,26 @@
+{
+  "files": {
+    "src/components/breadcrumb-item/breadcrumb-item.test.ts": "1be474aade1abd2f2b996aa21119632264cf8978f354bfacab1ba074999f88f8"
+  },
+  "tests": [
+    "<sl-breadcrumb-item> > when not provided a href attribute > should pass accessibility tests",
+    "<sl-breadcrumb-item> > when not provided a href attribute > should hide the separator from screen readers",
+    "<sl-breadcrumb-item> > when not provided a href attribute > should render a HTMLButtonElement as the part \"label\", with a set type \"button\"",
+    "<sl-breadcrumb-item> > when provided a href attribute > and no target > should pass accessibility tests",
+    "<sl-breadcrumb-item> > when provided a href attribute > and no target > should render a HTMLAnchorElement as the part \"label\", with the supplied href value",
+    "<sl-breadcrumb-item> > when provided a href attribute > and target, without rel > should pass accessibility tests",
+    "<sl-breadcrumb-item> > when provided a href attribute > and target, without rel > should render a HTMLAnchorElement as the part \"label\" > should use the supplied href value, as the href attribute value",
+    "<sl-breadcrumb-item> > when provided a href attribute > and target, without rel > should render a HTMLAnchorElement as the part \"label\" > should default rel attribute to \"noreferrer noopener\"",
+    "<sl-breadcrumb-item> > when provided a href attribute > and target, with rel > should pass accessibility tests",
+    "<sl-breadcrumb-item> > when provided a href attribute > and target, with rel > should render a HTMLAnchorElement > should use the supplied href value, as the href attribute value",
+    "<sl-breadcrumb-item> > when provided a href attribute > and target, with rel > should render a HTMLAnchorElement > should use the supplied rel value, as the rel attribute value",
+    "<sl-breadcrumb-item> > when rendering a sl-dropdown in the default slot > should not render a link or button tag, but a div wrapper",
+    "<sl-breadcrumb-item> > when provided an element in the slot \"prefix\" to support prefix icons > should pass accessibility tests",
+    "<sl-breadcrumb-item> > when provided an element in the slot \"prefix\" to support prefix icons > should accept as an assigned child in the shadow root",
+    "<sl-breadcrumb-item> > when provided an element in the slot \"prefix\" to support prefix icons > should append class \"breadcrumb-item--has-prefix\" to \"base\" part",
+    "<sl-breadcrumb-item> > when provided an element in the slot \"suffix\" to support suffix icons > should pass accessibility tests",
+    "<sl-breadcrumb-item> > when provided an element in the slot \"suffix\" to support suffix icons > should accept as an assigned child in the shadow root",
+    "<sl-breadcrumb-item> > when provided an element in the slot \"suffix\" to support suffix icons > should append class \"breadcrumb-item--has-suffix\" to \"base\" part"
+  ],
+  "knownFailures": []
+}

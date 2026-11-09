@@ -36,9 +36,11 @@ component-level problem (`infrastructure`, `no-results`, `records`) or for why t
 `records-drift`, `results-differ` and the like). Every word comes from a constant table and is chosen by which row
 matched, never copied from the output; a result line that matches no row is `blocked: internal`. A component is named
 only if it is in the catalog and a title only if it is exactly a title pinned in that component's record, survives the
-same redaction as the browser summary and is not shaped like a path (a backslash, a slash that starts a path, or two
-slashes); otherwise the line says `unlisted component` or `unlisted title`. Counts, messages, values, stack traces and
-paths are never printed.
+same redaction as the browser summary (with its own length bound, `MAX_TITLE`, 300 characters, instead of the browser
+summary's 200, so a long pinned title such as some of sl-breadcrumb's is printed whole and never cut), is not shaped
+like a path (a backslash, a slash that starts a path, or two slashes) and leaves the whole public line, with its
+`verify:product: ` prefix, within the 300 characters the workflow keeps of each line (`PUBLIC_LINE`); otherwise the line
+says `unlisted component` or `unlisted title`. Counts, messages, values, stack traces and paths are never printed.
 
 Many upstream titles are generated (template literals, loops, the shared form-control helper), so the literal-title
 scan cannot see all of them. The records are therefore also held to their baseline, the merge base with `origin/main`

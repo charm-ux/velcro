@@ -9,6 +9,15 @@
 import { redactLine } from './product-summary.mjs';
 
 export const MAX_FINDINGS = 20;
+/** The longest test title that is printed. Higher than the browser summary's MAX_LINE, because a title is printed only when
+ * it is exactly a pinned inventory title and some upstream titles (sl-breadcrumb's nested describes) run past 200
+ * characters; a longer title is 'unlisted title' rather than cut, so a printed title is always the whole of it. */
+export const MAX_TITLE = 300;
+/** The public CI log keeps only the first PUBLIC_LINE characters of each line (the workflows' `substr($0, 1, 300)`), and
+ * verify-product writes each summary line after PUBLIC_PREFIX. A finding whose whole public line would be longer names
+ * its test as 'unlisted title' instead, so the workflow never cuts a printed title. */
+export const PUBLIC_LINE = 300;
+export const PUBLIC_PREFIX = 'verify:product: ';
 /** The outcome of one test: failed (an inventoried test failed, not ledgered), unexpected (an outcome the records do not
  * expect: not in the inventory, repeated, a known failure that now passes or a new known failure), missing (an inventoried
  * test with no outcome) or skipped-mismatch (a skip upstream does not declare, or one it declares that was not reported). */
@@ -67,7 +76,7 @@ function shownTitle(inventory, component, title) {
   const list = inventory?.[component];
   if (!Array.isArray(list) || !list.includes(title)) return null;
   if (PATHY.test(title)) return null;
-  const shown = redactLine(title);
+  const shown = redactLine(title, undefined, MAX_TITLE);
   return shown === squash(title) && shown !== '' ? shown : null;
 }
 
@@ -102,7 +111,8 @@ export function summarizeUpstream(log, { inventory = {}, catalog = new Set() } =
     if (f.kind === 'blocked') return `upstream blocked: ${f.word}`;
     if (f.kind === 'problem') return `upstream problem ${f.word}: ${name(f.component)}`;
     const title = f.title === null ? null : shownTitle(inventory, f.component, f.title);
-    return `upstream ${f.word}: ${name(f.component)}: ${title ?? 'unlisted title'}`;
+    const line = `upstream ${f.word}: ${name(f.component)}: ${title ?? 'unlisted title'}`;
+    return PUBLIC_PREFIX.length + line.length <= PUBLIC_LINE ? line : `upstream ${f.word}: ${name(f.component)}: unlisted title`;
   };
   const lines = [];
   for (const f of sorted.slice(0, MAX_FINDINGS)) lines.push(text(f));

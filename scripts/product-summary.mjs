@@ -15,11 +15,11 @@ function walk(suite, out) {
   for (const child of suite?.suites ?? []) walk(child, out);
 }
 
-export function redactLine(text, root) {
+export function redactLine(text, root, maxLine = MAX_LINE) {
   let s = String(text ?? '').replace(ANSI, '').replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ');
   if (root) s = s.split(root).join('<repo>');
   s = s.replace(ABS_PATH, '<path>').replace(/\b[A-Za-z0-9_-]{32,}\b/g, '<token>').replace(/\s+/g, ' ').trim();
-  if (s.length > MAX_LINE) s = `${s.slice(0, MAX_LINE - 3)}...`;
+  if (s.length > maxLine) s = `${s.slice(0, maxLine - 3)}...`;
   try { if (scanText(s, 'summary.txt').length) return '[redacted]'; } catch { return '[redacted]'; }
   return s;
 }

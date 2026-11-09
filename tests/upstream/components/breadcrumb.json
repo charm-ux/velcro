@@ -1,0 +1,16 @@
+{
+  "files": {
+    "src/components/breadcrumb/breadcrumb.test.ts": "cf2705c93c25932cab81420f36dfedb7c4fe5681f5b8b01641d183fd3fec0fa0"
+  },
+  "tests": [
+    "<sl-breadcrumb> > when provided a standard list of el-breadcrumb-item children and no parameters > should pass accessibility tests",
+    "<sl-breadcrumb> > when provided a standard list of el-breadcrumb-item children and no parameters > should render sl-icon as separator",
+    "<sl-breadcrumb> > when provided a standard list of el-breadcrumb-item children and no parameters > should attach aria-current \"page\" on the last breadcrumb item.",
+    "<sl-breadcrumb> > when provided a standard list of el-breadcrumb-item children and an element in the slot \"separator\" to support Custom Separators > should pass accessibility tests",
+    "<sl-breadcrumb> > when provided a standard list of el-breadcrumb-item children and an element in the slot \"separator\" to support Custom Separators > should accept \"separator\" as an assigned child in the shadow root",
+    "<sl-breadcrumb> > when provided a standard list of el-breadcrumb-item children and an element in the slot \"separator\" to support Custom Separators > should replace the sl-icon separator with the provided separator",
+    "<sl-breadcrumb> > when provided a standard list of el-breadcrumb-item children and an element in the slot \"prefix\" to support prefix icons > should pass accessibility tests",
+    "<sl-breadcrumb> > when provided a standard list of el-breadcrumb-item children and an element in the slot \"suffix\" to support suffix icons > should pass accessibility tests"
+  ],
+  "knownFailures": []
+}
