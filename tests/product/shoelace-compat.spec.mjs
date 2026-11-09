@@ -26,7 +26,7 @@ test('captures inherited reflected values at the first attribute callback, not c
       constructor() { super(); this.count = 0; }
       get unreflected() { nonReflectingReads++; return 'unused'; }
     }
-    class Probe extends ShoelaceCompat(Parent, { lang: true, reflected: true }) {
+    class Probe extends ShoelaceCompat(Parent, { lang: true, reflected: 'read-all' }) {
       willUpdate(changed) { restoreReflectedProperties(this, changed); }
       render() { return this.count; }
     }
@@ -54,6 +54,30 @@ test('captures inherited reflected values at the first attribute callback, not c
     };
   });
   expect(result).toEqual({ first: [7, 'recorded', '7', 'recorded'], second: [0, null], readsAtCapture: 2 });
+});
+
+test('preserves each component snapshot policy for non-reflected consumer getters', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    await import('/components.js');
+    const results = [];
+    for (const name of ['input', 'tooltip', 'radio-group', 'mutation-observer', 'tag']) {
+      let reads = 0;
+      class Consumer extends customElements.get(`sl-${name}`) {
+        static properties = { deferred: { attribute: false } };
+        get deferred() {
+          reads++;
+          if (name !== 'tag') throw new Error('not ready');
+          return 'ready';
+        }
+      }
+      customElements.define(`sl-compat-consumer-${name}`, Consumer);
+      const element = new Consumer();
+      element.attributeChangedCallback('lang', null, 'en');
+      results.push([reads, element.lang]);
+    }
+    return results;
+  });
+  expect(result).toEqual([[0, 'en'], [0, 'en'], [0, 'en'], [0, 'en'], [1, 'en']]);
 });
 
 test('does not capture before the first observed attribute, and keeps restoration at the caller lifecycle point', async ({ page }) => {

@@ -6,8 +6,10 @@ import type { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-
 
 interface CompatOptions {
   lang?: boolean;
+  /** Components keep their decorated forwarding accessor for reactivity. */
   dir?: boolean;
-  reflected?: boolean;
+  /** Read non-reflected getters only for components whose original snapshot did so. */
+  reflected?: boolean | 'read-all';
 }
 
 const initialValues = new WeakMap<CharmElement, { values: Map<PropertyKey, unknown>; recorded: boolean }>();
@@ -36,6 +38,7 @@ export function ShoelaceCompat<T extends typeof CharmElement>(Base: T, options: 
         }
         if (!initial.recorded) {
           (this.constructor as typeof CharmElement).elementProperties.forEach((declaration, key) => {
+            if (!declaration.reflect && options.reflected !== 'read-all') return;
             const value: unknown = Reflect.get(this, key);
             if (declaration.reflect && value != null) initial.values.set(key, value);
           });

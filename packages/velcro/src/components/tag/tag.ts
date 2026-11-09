@@ -38,7 +38,7 @@ import styles from './tag.styles.js';
  * @csspart remove-button - The tag's remove button, an `<sl-icon-button>`.
  * @csspart remove-button__base - The remove button's exported `base` part.
  */
-export class VelcroTag extends ShoelaceCompat(CharmElement, { lang: true, dir: true, reflected: true }) {
+export class VelcroTag extends ShoelaceCompat(CharmElement, { lang: true, dir: true, reflected: 'read-all' }) {
   public static override baseName = 'tag';
 
   // The core base styles are replaced by Shoelace's own (see the styles file). Core's add a `:host([hidden]) { display:
