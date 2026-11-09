@@ -150,8 +150,8 @@ test('class-only entry: importing defines nothing; constructing a menu item defi
   expect(pageErrors).toEqual([]);
 });
 
-// The constructor's dependency fallback, through the class-only entry (the registering entry registers the dependencies up
-// front and does not use it; the docs page lists that as a gap).
+// The constructor's dependency handling, through the class-only entry (the registering entry's own clash cases are in
+// registration-clash.spec.mjs).
 test('class-only entry: a dependency tag owned by another constructor is left alone when an item is constructed, and existing items upgrade', async ({ page }) => {
   const pageErrors = await loadBundle(page, CLASS_ENTRY, {
     beforeScript: () => {
