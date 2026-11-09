@@ -124,7 +124,9 @@ verify in parallel.
   CI builds once and runs each engine in four Playwright shards plus the
   upstream gate as separate jobs (`.github/workflows/product.yml`), through
   `verify:product --stage build|browser|upstream|evidence`; locally, run
-  `verify:product` without arguments.
+  `verify:product` without arguments. The browser and upstream jobs run in the
+  official Playwright container image (see "Playwright container image" below),
+  so CI installs no system packages and downloads no engine at run time.
 - `pnpm verify:source`: pinned tools, complete executable hook files, real scanner,
   meaningful tests with zero skips, and the actual proposed index. Raw test output
   stays under ignored `.airig/verify/`; summaries contain no raw tool errors.
@@ -494,8 +496,49 @@ an oversized download fails at once and is never retried. A longer outage can
 still fail the job. Because the job runs the base's installer, the retry applies
 only once the base has it; an older base ignores the variable and downloads once.
 The other downloads in CI are pinned by version but not by our own checksum: Node
-(`setup-node`), pnpm (`pnpm/action-setup`), npm packages (lockfile integrity) and
-Playwright browsers (cached by lockfile hash, as before).
+(`setup-node`), pnpm (`pnpm/action-setup`) and npm packages (lockfile integrity).
+The browser jobs' container image is pinned by digest (next section).
+
+### Playwright container image
+
+The product `browser` (every engine and shard) and `upstream` jobs run in the
+official Playwright image, `mcr.microsoft.com/playwright:v<version>-noble`, for the
+lockfile's `@playwright/test` version, pinned by the digest of its multi-platform
+index: `image: mcr.microsoft.com/playwright:v<version>-noble@sha256:<digest>`. The
+image already holds the engine builds and the system libraries they need, so these
+jobs run no `apt` and no `playwright install`, and keep no engine cache; the build
+job, the build-output scan and every security, scanner and privacy step run on the
+runner as before. Docker verifies the pulled bytes against the digest, so the tag is
+only a label; the image is trusted the way the engines were before (Microsoft's
+Playwright builds), now pinned to exact bytes. The container runs as the runner's
+non-root uid (1001, which owns the mounted workspace; Firefox refuses to run as root
+there) with `--init` and 2 GB of shared memory (`--shm-size`), and no host namespace,
+device or extra capability.
+
+Two checks keep the image and the lockfile together, and both fail closed:
+
+- `tests/bootstrap/ci.test.mjs` (in `verify:source`) requires both jobs to use one
+  image whose tag is exactly the lockfile's `@playwright/test` version (which must be
+  the root `package.json` pin) with a 64-hex digest, and no install step or engine cache.
+- In each job, after the dependency install,
+  `node scripts/ci/playwright-image.mjs <engine>` requires the installed
+  `@playwright/test`, `playwright` and `playwright-core` to be exactly the lockfile's
+  version, and every build that version's own installer would place for the engine
+  (`playwright install --dry-run`, which downloads nothing) to be complete in the
+  image's `/ms-playwright`. The image records no package version of its own; its
+  builds are what a version changes, so an image for another version stops the job
+  (`playwright image: blocked (engine-missing)`) instead of downloading anything.
+
+Updating Playwright means updating the tag and the digest together with the
+lockfile. Read the digest of the new tag's index from the registry, without
+credentials:
+
+```sh
+curl -sI -H 'Accept: application/vnd.oci.image.index.v1+json' \
+  https://mcr.microsoft.com/v2/playwright/manifests/v<version>-noble | grep -i docker-content-digest
+```
+
+then download that manifest and check its SHA-256 equals the digest before pinning it.
 
 Protected changes are reported for a separate, mandatory human merge/publication
 gate; green data checks do not satisfy that gate. Candidate policy files are

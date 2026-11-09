@@ -4,7 +4,8 @@
 # Playwright shard) and the upstream gate check that digest on the downloaded output before and after their checks, and
 # nothing rebuilds it. The caller records publication evidence only in a job that needs this whole workflow to succeed.
 # Raw output stays in each runner's ignored .airig/; only fixed status lines and verify:product's bounded, redacted summary
-# are printed.
+# are printed. The browser and upstream jobs run in the official Playwright container image pinned by digest, so no job
+# installs system packages or downloads an engine at run time.
 name: Product
 on:
   workflow_call:
@@ -92,9 +93,17 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    # Browsers live in the ignored workspace scratch, so they can be cached by a workspace-relative path.
+    # The official Playwright image for the lockfile's Playwright version, pinned by digest: the engine builds and their system
+    # libraries are in the image, so nothing is installed with apt or downloaded at run time. The tag names the version (the
+    # bootstrap tests require it to be the lockfile's) and the digest fixes the bytes; the check step below confirms the
+    # image holds exactly the builds that version expects. A non-root user (the hosted runner's uid, which owns the mounted
+    # workspace and home; Firefox refuses to run as root there), an init process to reap engine child processes, and a
+    # larger shared-memory size than Docker's 64 MB default instead of sharing the host's IPC namespace.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
+      options: --init --user 1001 --shm-size=2g
     env:
-      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.airig/ms-playwright
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     strategy:
       fail-fast: false
       matrix:
@@ -127,46 +136,10 @@ jobs:
           mkdir -p .airig/ci
           pnpm install --frozen-lockfile --prefer-offline --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
           echo 'install: passed'
-      # The lockfile pins the Playwright version, and with it the browser builds.
-      - name: Cache the Playwright browser
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: .airig/ms-playwright
-          key: playwright-${{ runner.os }}-${{ matrix.engine }}-${{ hashFiles('pnpm-lock.yaml') }}
-      - name: Install system dependencies for the engine (disposable runner)
-        timeout-minutes: 12
+      - name: Check the image against the lockfile's Playwright
         env:
           ENGINE: ${{ matrix.engine }}
-          DEBIAN_FRONTEND: noninteractive
-          NEEDRESTART_MODE: a
-        run: |
-          mkdir -p .airig/ci
-          echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
-          # A stalled mirror connection must time out and retry instead of hanging the download.
-          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' | sudo tee "$(apt-config shell d Dir::Etc::parts/d | sed "s/^d='//; s/'$//")80-velcro-ci" > .airig/ci/apt-config.log
-          ok=0
-          for attempt in 1 2; do
-            code=0
-            timeout -k 10 330 pnpm exec playwright install-deps "$ENGINE" > .airig/ci/browser-deps-$attempt.log 2>&1 || code=$?
-            if [ "$code" = 0 ]; then ok=1; break; fi
-            if [ "$code" = 124 ] || [ "$code" = 137 ]; then echo "browser system dependencies: attempt $attempt timed out"; else echo "browser system dependencies: attempt $attempt failed (exit code $code)"; fi
-          done
-          [ "$ok" = 1 ] || { echo 'browser system dependencies: blocked; private evidence retained'; exit 1; }
-          echo 'browser system dependencies: passed'
-      - name: Install the engine (disposable runner; a no-op on a cache hit)
-        timeout-minutes: 12
-        env:
-          ENGINE: ${{ matrix.engine }}
-        run: |
-          mkdir -p .airig/ci
-          code=0
-          timeout -k 10 480 pnpm exec playwright install "$ENGINE" > .airig/ci/browser.log 2>&1 || code=$?
-          if [ "$code" != 0 ]; then
-            if [ "$code" = 124 ] || [ "$code" = 137 ]; then echo 'browser setup: timed out'; else echo "browser setup: failed (exit code $code)"; fi
-            echo 'browser setup: blocked; private evidence retained'
-            exit 1
-          fi
-          echo 'browser setup: passed'
+        run: node scripts/ci/playwright-image.mjs "$ENGINE"
       - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
@@ -187,9 +160,12 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    # Browsers live in the ignored workspace scratch, so they can be cached by a workspace-relative path.
+    # The same pinned image and options as the browser jobs (see there).
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
+      options: --init --user 1001 --shm-size=2g
     env:
-      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.airig/ms-playwright
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -217,46 +193,11 @@ jobs:
           mkdir -p .airig/ci
           pnpm install --frozen-lockfile --prefer-offline --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
           echo 'install: passed'
-      # Shoelace's own tests run in Chromium; this shares the Chromium shards' browser cache.
-      - name: Cache the Playwright browser
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: .airig/ms-playwright
-          key: playwright-${{ runner.os }}-chromium-${{ hashFiles('pnpm-lock.yaml') }}
-      - name: Install system dependencies for the engine (disposable runner)
-        timeout-minutes: 12
+      # Shoelace's own tests run in Chromium.
+      - name: Check the image against the lockfile's Playwright
         env:
           ENGINE: chromium
-          DEBIAN_FRONTEND: noninteractive
-          NEEDRESTART_MODE: a
-        run: |
-          mkdir -p .airig/ci
-          echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
-          # A stalled mirror connection must time out and retry instead of hanging the download.
-          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' | sudo tee "$(apt-config shell d Dir::Etc::parts/d | sed "s/^d='//; s/'$//")80-velcro-ci" > .airig/ci/apt-config.log
-          ok=0
-          for attempt in 1 2; do
-            code=0
-            timeout -k 10 330 pnpm exec playwright install-deps "$ENGINE" > .airig/ci/browser-deps-$attempt.log 2>&1 || code=$?
-            if [ "$code" = 0 ]; then ok=1; break; fi
-            if [ "$code" = 124 ] || [ "$code" = 137 ]; then echo "browser system dependencies: attempt $attempt timed out"; else echo "browser system dependencies: attempt $attempt failed (exit code $code)"; fi
-          done
-          [ "$ok" = 1 ] || { echo 'browser system dependencies: blocked; private evidence retained'; exit 1; }
-          echo 'browser system dependencies: passed'
-      - name: Install the engine (disposable runner; a no-op on a cache hit)
-        timeout-minutes: 12
-        env:
-          ENGINE: chromium
-        run: |
-          mkdir -p .airig/ci
-          code=0
-          timeout -k 10 480 pnpm exec playwright install "$ENGINE" > .airig/ci/browser.log 2>&1 || code=$?
-          if [ "$code" != 0 ]; then
-            if [ "$code" = 124 ] || [ "$code" = 137 ]; then echo 'browser setup: timed out'; else echo "browser setup: failed (exit code $code)"; fi
-            echo 'browser setup: blocked; private evidence retained'
-            exit 1
-          fi
-          echo 'browser setup: passed'
+        run: node scripts/ci/playwright-image.mjs "$ENGINE"
       - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
