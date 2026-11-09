@@ -90,12 +90,14 @@ test('docs page is prerendered with Velcro branding, prototype status, the keybo
   expect(html).toContain('the page gives every preview a body with room for the open panel');
   // The React examples differ from Shoelace's snippets in more than imports for exactly two examples, and the page says so.
   expect(html).toContain('apart from two examples that are adapted further (hoisting and submenus');
-  expect(html).toContain('the submenus example drops the unused css constant and the fragment');
+  expect(html).toContain('the submenus example passes style as an object');
+  expect(html).toContain('the rest of that snippet, including the css constant and the fragment it carries, is kept as Shoelace wrote it');
+  expect(html).not.toContain('drops the unused css constant');
   expect(html).toContain('which React rejects');
   expect(html).toContain('the hoisting example adds position: relative to its class');
   expect(html).not.toContain('only its import lines differ (see below)');
   // The CloseWatcher and never-settling show() quirks are listed.
-  expect(html).toContain('Where the browser has the CloseWatcher API (Chromium)');
+  expect(html).toContain('Where the browser has the CloseWatcher API (for example Chromium)');
   expect(html).toContain('the promise show() returned never settles');
   // Shoelace's headings, in order (the opening example and the second selection example have none).
   const headings = ['selection', 'placement', 'distance', 'skidding', 'submenus', 'hoisting'].map(id => html.indexOf(`<h3 id="${id}">`));
@@ -231,6 +233,41 @@ test('Hoisting example: the hoisted panel is positioned with the fixed strategy 
   expect(hoisted.overflowsContainer).toBe(true);
   expect(hoisted.scrolls).toBe(false);
   expect(hoisted.hitInPanel).toBe(true);
+});
+
+test('React Hoisting example (with the position: relative its port adds): the hoisted panel is fixed and escapes the clipping container; the other one is clipped and its menu scrolls; without it the clipping does not happen', async ({ page }) => {
+  const code = await bundleExamples('dropdown', ['hoisting']);
+  const pageErrors = await loadExamples(page, code);
+  await page.evaluate(async () => {
+    window.renderExample('hoisting');
+    await customElements.whenDefined('sl-dropdown');
+    await new Promise(resolve => setTimeout(resolve, 100));
+  });
+  const dropdowns = page.locator('#hoisting sl-dropdown');
+  const info = async index => {
+    const dropdown = dropdowns.nth(index);
+    await dropdown.locator('sl-button').click();
+    await expect(dropdown).toHaveAttribute('open', '');
+    await expect.poll(() => dropdown.evaluate(el => el.popup.popup.getAnimations().length)).toBe(0);
+    const result = await dropdown.evaluate(el => {
+      const container = el.closest('.dropdown-hoist').getBoundingClientRect();
+      const menu = el.querySelector('sl-menu');
+      const panel = menu.getBoundingClientRect();
+      const hit = el.ownerDocument.elementFromPoint(panel.left + 10, panel.bottom - 5);
+      return { strategy: getComputedStyle(el.popup.popup).position, hoist: el.hoist, overflowsContainer: panel.bottom > container.bottom, scrolls: menu.scrollHeight > menu.clientHeight, hitInPanel: el.contains(hit) };
+    });
+    await page.keyboard.press('Escape');
+    await expect(dropdown).not.toHaveAttribute('open', '');
+    await expect.poll(() => page.evaluate(() => document.querySelector('#hoisting sl-dropdown').popup.popup.getAnimations().length)).toBe(0);
+    return result;
+  };
+  expect(await info(0)).toEqual({ strategy: 'absolute', hoist: false, overflowsContainer: false, scrolls: true, hitInPanel: true });
+  const hoisted = await info(1);
+  expect(hoisted).toMatchObject({ strategy: 'fixed', hoist: true, overflowsContainer: true, scrolls: false, hitInPanel: true });
+  // Shoelace's React snippet lacks position: relative; without it the container is not the panel's containing block.
+  await page.evaluate(() => { const style = document.querySelector('#hoisting style'); style.textContent = style.textContent.replace('position: relative;', ''); });
+  expect(await info(0)).toMatchObject({ strategy: 'absolute', hoist: false, overflowsContainer: true });
+  expect(pageErrors).toEqual([]);
 });
 
 test('sl-dropdown registers as the exported class, with the base name dropdown, its dependency sl-popup, no core marker and no ch-* definitions', async ({ page }) => {

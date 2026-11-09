@@ -291,9 +291,10 @@ export class VelcroDropdown extends CharmElement {
 
   // Upstream quirk: when the browser has the CloseWatcher API, Escape is handled by the watcher alone. The panel's keydown
   // handler is then never attached (addOpenListeners), so an Escape keydown inside the panel is not stopped and reaches the
-  // page's listeners; without the API the handler below stops it. The reference to a destroyed watcher is never cleared
-  // either, which keeps the document handler's Escape branch off from the first open on. Listed on the docs page and
-  // covered by tests/product/dropdown.spec.mjs (the propagation).
+  // page's listeners; without the API the handler below stops it. Listed on the docs page and covered by
+  // tests/product/dropdown.spec.mjs (the propagation). Internal note, not observable beyond that propagation: the reference
+  // to a destroyed watcher is never cleared either, which keeps the document handler's Escape branch off from the first
+  // open on.
   private handleKeyDown = (event: KeyboardEvent) => {
     // Close when escape is pressed inside an open dropdown. We need to listen on the panel itself and stop propagation
     // in case any ancestors are also listening for this key.

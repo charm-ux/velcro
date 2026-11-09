@@ -12,9 +12,8 @@
   wording adapted from `docs/pages/components/dropdown.md`) and the React examples
   `packages/docs/examples/dropdown/react/*.jsx` (the same page's React examples, with the import lines changed to
   Velcro's React wrappers and two further adaptations: `hoisting.jsx` adds `position: relative` to its class, as the
-  page's HTML example has; `submenus.jsx` drops the unused `css` constant and the fragment that the page's snippet
-  carries and passes `style={{ maxWidth: '200px' }}` where the snippet has the string `style="max-width: 200px;"`,
-  which React rejects). The dropdown also uses the shared `internal/tabbable.ts` and
+  page's HTML example has; `submenus.jsx` passes `style={{ maxWidth: '200px' }}` where the snippet has the string
+  `style="max-width: 200px;"`, which React rejects). The dropdown also uses the shared `internal/tabbable.ts` and
   `internal/active-elements.ts` helpers, which are recorded with the other shared helpers above. The dropdown is built on
   the `@charm-ux/core` base element; no Shoelace runtime is included. Shoelace's `src/components/dropdown/dropdown.test.ts`
   is vendored unchanged for the conformance run (see `tests/upstream/`).
