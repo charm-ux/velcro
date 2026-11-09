@@ -7,6 +7,8 @@
 {"name":"button","title":"Button","tag":"sl-button","example":"#demo-primary"}
 {"name":"button-group","title":"Button Group","tag":"sl-button-group","example":"#demo-default"}
 {"name":"card","title":"Card","tag":"sl-card","example":"#demo-basic"}
+{"name":"carousel","title":"Carousel","tag":"sl-carousel","example":"#demo-default"}
+{"name":"carousel-item","title":"Carousel Item","tag":"sl-carousel-item","example":"#demo-default"}
 {"name":"checkbox","title":"Checkbox","tag":"sl-checkbox","example":"#demo-default"}
 {"name":"copy-button","title":"Copy Button","tag":"sl-copy-button","example":"#demo-default"}
 {"name":"details","title":"Details","tag":"sl-details","example":"#demo-default"}

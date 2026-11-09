@@ -263,11 +263,20 @@ test('a skip passes only when the vendored upstream file itself marks that exact
   // A scan with a dynamic title binds a skip only through the per-skip identity checks (next test).
   assert.equal(run('suite > x', { a: { skipped: ['suite > x'], declared: ['suite > x', 'other > x', 'y', null] } }).ok, true,
     'a dynamic title elsewhere does not block an unambiguous literal skip');
-  // The real vendored files: icon's, radio-group's and tab-group's own it.skip are the only upstream skips. Icon's and
-  // tab-group's are bound by the exact comparison; radio-group's file has dynamic titles (template-literal describes), so
-  // its skip is bound alone.
+  // The real vendored files: carousel's, icon's, radio-group's and tab-group's own it.skip are the only upstream skips.
+  // Icon's and tab-group's are bound by the exact comparison; radio-group's file has dynamic titles (template-literal
+  // describes) and carousel's has some too (its pages-count tests are generated in a loop), so their skips are bound alone.
   const real = upstreamSkips(root, components);
-  assert.deepEqual(Object.keys(real), ['icon', 'radio-group', 'tab-group']);
+  assert.deepEqual(Object.keys(real), ['carousel', 'icon', 'radio-group', 'tab-group']);
+  assert.deepEqual(real.carousel.skipped, [
+    '<sl-carousel> > when `autoplay` attribute is provided > should scroll forwards every `autoplay-interval` milliseconds',
+    '<sl-carousel> > when `mouse-dragging` attribute is provided > should be possible to drag the carousel using the mouse',
+  ]);
+  assert.ok(real.carousel.declared.includes(null));
+  const skippedCarousel = new Set(real.carousel.skipped);
+  const carouselRun = evaluate(scoreboard(keyResults(inventory.carousel.map(t => r('carousel', t, true, skippedCarousel.has(t) ? { skipped: true } : {})))),
+    {}, { carousel: inventory.carousel }, ['carousel'], { carousel: real.carousel });
+  assert.deepEqual(carouselRun.problems, []);
   assert.deepEqual(real['tab-group'].skipped, [
     '<sl-tab-group> > scrolling behavior > does not show scroll buttons if placement is start',
     '<sl-tab-group> > scrolling behavior > does not show scroll buttons if placement is end',
