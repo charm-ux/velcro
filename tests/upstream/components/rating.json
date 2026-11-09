@@ -1,0 +1,19 @@
+{
+  "files": {
+    "src/components/rating/rating.test.ts": "8c9701b99ebb8e3d18a723d9a7bd4aea64f0c2a54ec9595e460d24ebcf49e5d1"
+  },
+  "tests": [
+    "<sl-rating> > should pass accessibility tests",
+    "<sl-rating> > should be readonly with the readonly attribute",
+    "<sl-rating> > should be disabled with the disabled attribute",
+    "<sl-rating> > should set max value by attribute",
+    "<sl-rating> > should set selected value by attribute",
+    "<sl-rating> > should emit sl-change when clicked",
+    "<sl-rating> > should emit sl-change when the value is changed with the keyboard",
+    "<sl-rating> > should not emit sl-change when disabled",
+    "<sl-rating> > should not emit sl-change when the value is changed programmatically",
+    "<sl-rating> > focus > should focus inner div",
+    "<sl-rating> > blur > should blur inner div"
+  ],
+  "knownFailures": []
+}

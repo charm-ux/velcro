@@ -1,0 +1,36 @@
+<div class="detect-hover">
+  <sl-rating label="Rating"></sl-rating>
+  <span></span>
+</div>
+
+<script>
+  const rating = document.querySelector('.detect-hover > sl-rating');
+  const span = rating.nextElementSibling;
+  const terms = ['No rating', 'Terrible', 'Bad', 'OK', 'Good', 'Excellent'];
+
+  rating.addEventListener('sl-hover', event => {
+    span.textContent = terms[event.detail.value];
+
+    // Clear feedback when hovering stops
+    if (event.detail.phase === 'end') {
+      span.textContent = '';
+    }
+  });
+</script>
+
+<style>
+  .detect-hover span {
+    position: relative;
+    top: -4px;
+    left: 8px;
+    border-radius: var(--sl-border-radius-small);
+    background: var(--sl-color-neutral-900);
+    color: var(--sl-color-neutral-0);
+    text-align: center;
+    padding: 4px 6px;
+  }
+
+  .detect-hover span:empty {
+    display: none;
+  }
+</style>
