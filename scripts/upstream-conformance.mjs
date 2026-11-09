@@ -361,6 +361,13 @@ export function evaluate(board, ledger, inventory, components, skips = {}) {
   return { ok: !problems.length && !unexpected.length && !fixed.length, unexpected, fixed, problems };
 }
 
+/** The log lines main() prints for an evaluate() result; scripts/upstream-summary.mjs reads exactly these. */
+export const resultLines = result => [
+  ...result.problems.map(p => `problem: ${p}`),
+  ...result.unexpected.map(u => `unexpected failure: ${u}`),
+  ...result.fixed.map(f => `now passes, remove from ledger: ${f}`),
+];
+
 function main() {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const args = new Set(process.argv.slice(2));
@@ -419,9 +426,7 @@ function main() {
   for (const [c, b] of Object.entries(board)) { passed += b.passed; failed += b.failed; say(`${c} ${b.passed} passed, ${b.failed} failed`); }
   say(`total ${passed + failed}, passed ${passed}, failed ${failed}; scoreboard in ignored .airig/upstream/`);
   const result = evaluate(board, ledger, inventory, components, upstreamSkips(root, components));
-  for (const p of result.problems) say(`problem: ${p}`);
-  for (const u of result.unexpected) say(`unexpected failure: ${u}`);
-  for (const f of result.fixed) say(`now passes, remove from ledger: ${f}`);
+  for (const l of resultLines(result)) say(l);
   if (!result.ok) return fail(`blocked (results differ from the component records in ${RECORDS}/)`);
   say('passed (every failure is ledgered and every ledgered test still fails)');
 }
