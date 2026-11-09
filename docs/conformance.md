@@ -67,6 +67,11 @@ quirk itself is pinned in `tests/product/menu-item.spec.mjs` and listed on the m
 Upstream's icon sprite sheet tests load `/docs/assets/images/sprite.svg`, which Shoelace's docs build generates
 from Bootstrap Icons; the runner serves that one path from the same Bootstrap Icons sprite that Velcro's docs
 site ships (`packages/docs/public/assets/images/sprite.svg`).
+Upstream's animated image tests load `/docs/assets/images/walk.gif` and `/docs/assets/images/tie.webp`, Shoelace's own
+demo images. Velcro does not commit binary files, so the runner serves those two paths from two small synthetic images
+written for Velcro (`tests/upstream/docs-images.json`, stored as base64 text and decoded by the runner). The docs examples
+carry the same bytes as `data:` URLs, and `tests/product/animated-image.spec.mjs` pins their sizes, hashes, dimensions and
+frames.
 
 ## Dependency note: inflation override
 

@@ -52,9 +52,19 @@ const velcroEntries = {
 
 // Upstream's sprite sheet tests load '/docs/assets/images/sprite.svg', a file Shoelace's docs build generates from
 // Bootstrap Icons in its own web root. Velcro's docs site ships the same Bootstrap Icons sprite at
-// packages/docs/public/assets/images/sprite.svg, so that one path is served from there. Nothing else is rewritten.
+// packages/docs/public/assets/images/sprite.svg, so that one path is served from there. Upstream's animated image tests
+// load '/docs/assets/images/walk.gif' and '/docs/assets/images/tie.webp', Shoelace's own demo images. Velcro neither ships
+// nor commits binary files, so those two paths are served from small synthetic stand-ins (docs-images.json, stored as
+// base64 text and decoded here). Nothing else is rewritten.
+const docsImages = JSON.parse(readFileSync(new URL('./docs-images.json', import.meta.url), 'utf8')).images;
 const upstreamDocsAssets = (ctx, next) => {
   if (ctx.path === '/docs/assets/images/sprite.svg') ctx.url = '/packages/docs/public/assets/images/sprite.svg';
+  const image = ctx.path.match(/^\/docs\/assets\/images\/([^/]+)$/)?.[1];
+  if (image && Object.hasOwn(docsImages, image)) {
+    ctx.type = docsImages[image].type;
+    ctx.body = Buffer.from(docsImages[image].base64, 'base64');
+    return undefined;
+  }
   return next();
 };
 
