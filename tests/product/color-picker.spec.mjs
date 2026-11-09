@@ -299,8 +299,13 @@ test('pointer: dragging the grid emits sl-input while moving and one sl-change a
   expect(seen.filter(e => e[0] === 'sl-change')).toEqual([['sl-change', '#000000']]);
   expect(seen.filter(e => e[0] === 'sl-input').length).toBeGreaterThan(1);
   expect(await picker(page, (el, root) => root.querySelector('[part="grid-handle"]').classList.contains('color-picker__grid-handle--dragging'))).toBe(false);
-  // Back to full brightness and saturation, then the middle of the hue slider (180 degrees).
-  await page.mouse.click(x + w - 1, y + 1);
+  // A press half way across the grid and a quarter of the way down (saturation 50%, brightness 75%), then the middle of the
+  // hue slider (180 degrees). The press is well inside the grid on purpose: the grid's top corners are rounded (4px) and
+  // Firefox hit-tests a press against the rounded shape, so a press 1px from a corner lands outside it, reaches the
+  // picker's base instead of the grid and changes nothing (Chromium and WebKit hit-test the whole box).
+  const press = [x + w / 2, y + h / 4];
+  expect(await picker(page, (el, root, [px, py]) => root.elementFromPoint(px, py).getAttribute('part'), press)).toBe('grid');
+  await page.mouse.click(...press);
   const hue = await picker(page, (el, root) => {
     const r = root.querySelector('[part~="hue-slider"]').getBoundingClientRect();
     return [r.left + r.width / 2, r.top + r.height / 2];
@@ -308,7 +313,8 @@ test('pointer: dragging the grid emits sl-input while moving and one sl-change a
   await page.mouse.click(...hue);
   await settle(page);
   expect(await picker(page, (el, root) => root.querySelector('[part~="hue-slider-handle"]').getAttribute('aria-valuenow'))).toBe('180');
-  expect(await picker(page, el => el.getFormattedValue('hsl'))).toMatch(/^hsl\(180, (99|100)%, 50%\)$/);
+  expect(await picker(page, el => el.getFormattedValue('hsv'))).toBe('hsv(180, 50%, 75%)');
+  expect(await picker(page, el => el.getFormattedValue('hsl'))).toBe('hsl(180, 43%, 56%)');
 });
 
 test('the input: a parsable color (any format, a wrapping hue or a CSS name) is applied in the picker\'s format on Enter; an unparsable one is reverted', async ({ page }) => {
