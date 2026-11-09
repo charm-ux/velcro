@@ -73,7 +73,7 @@ function summarize() {
   return [...document.querySelectorAll('sl-button-group')].map(group => ({
     label: group.label,
     role: group.shadowRoot.querySelector('[part="base"]').getAttribute('role'),
-    slotted: [...group.children].map(el => ({ tag: el.localName, title: el.getAttribute('title'), data: dataOf(el), buttons: [...el.querySelectorAll('sl-button')].concat(el.localName === 'sl-button' ? [el] : []).map(buttonOf) })),
+    slotted: [...group.children].map(el => ({ tag: el.localName, content: el.content ?? null, data: dataOf(el), buttons: [...el.querySelectorAll('sl-button')].concat(el.localName === 'sl-button' ? [el] : []).map(buttonOf) })),
   }));
 }
 
@@ -210,7 +210,7 @@ test('data attributes: every example\'s buttons get data-sl-button-group__button
   expect(summaries['theme-buttons'].map(g => g.slotted[0].buttons[0].variant)).toEqual(['primary', 'success', 'neutral', 'warning', 'danger']);
   expect(summaries.pill.every(g => g.slotted.every(s => s.buttons[0].pill))).toBe(true);
 
-  // Through a stand-in wrapper: the wrapper gets nothing, the button inside it gets the attributes of the wrapper's position.
+  // Through a wrapper (a span stands in for the dropdown, sl-tooltip wraps the tooltip buttons): the wrapper gets nothing, the button inside it gets the attributes of the wrapper's position.
   const dropdown = summaries.dropdown[0];
   expect(dropdown.label).toBe('Example Button Group');
   expect(dropdown.slotted.map(s => s.tag)).toEqual(['sl-button', 'sl-button', 'span']);
@@ -226,14 +226,14 @@ test('data attributes: every example\'s buttons get data-sl-button-group__button
   expect(split.slotted[1].data).toEqual([]);
 
   const tooltips = summaries.tooltips[0];
-  expect(tooltips.slotted.map(s => s.tag)).toEqual(['span', 'span', 'span']);
-  expect(tooltips.slotted.map(s => s.title)).toEqual(["I'm on the left", "I'm in the middle", "I'm on the right"]);
+  expect(tooltips.slotted.map(s => s.tag)).toEqual(['sl-tooltip', 'sl-tooltip', 'sl-tooltip']);
+  expect(tooltips.slotted.map(s => s.content)).toEqual(["I'm on the left", "I'm in the middle", "I'm on the right"]);
   expect(tooltips.slotted.map(s => s.buttons[0].data)).toEqual([first, inner, last]);
   expect(tooltips.slotted.map(s => s.data)).toEqual(plain(3));
 
   const toolbar = summaries.toolbar;
   expect(toolbar.map(g => g.label)).toEqual(['History', 'Formatting', 'Alignment']);
-  expect(toolbar.map(g => g.slotted.map(s => s.title))).toEqual([['Undo', 'Redo'], ['Bold', 'Italic', 'Underline'], ['Align Left', 'Align Center', 'Align Right']]);
+  expect(toolbar.map(g => g.slotted.map(s => s.content))).toEqual([['Undo', 'Redo'], ['Bold', 'Italic', 'Underline'], ['Align Left', 'Align Center', 'Align Right']]);
   expect(toolbar.map(g => g.slotted.map(s => s.buttons[0].icon))).toEqual([
     ['arrow-counterclockwise', 'arrow-clockwise'], ['type-bold', 'type-italic', 'type-underline'], ['justify-left', 'justify', 'justify-right'],
   ]);

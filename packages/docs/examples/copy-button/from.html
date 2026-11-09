@@ -1,0 +1,15 @@
+<!-- Copies the span's textContent -->
+<span id="my-phone">+1 (234) 456-7890</span>
+<sl-copy-button from="my-phone"></sl-copy-button>
+
+<br><br>
+
+<!-- Copies the input's "value" property -->
+<sl-input id="my-input" type="text" value="User input" style="display: inline-block; max-width: 300px;"></sl-input>
+<sl-copy-button from="my-input.value"></sl-copy-button>
+
+<br><br>
+
+<!-- Copies the link's "href" attribute -->
+<a id="my-link" href="https://example.com/">Example Website</a>
+<sl-copy-button from="my-link[href]"></sl-copy-button>
