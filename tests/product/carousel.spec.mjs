@@ -76,16 +76,21 @@ const state = (frame, selector = '#c') => frame.locator(selector).evaluate(el =>
   };
 });
 
-// True once the carousel has stopped scrolling and the slide at `index` (counting clones) sits at the start edge of the scroll container.
-const atSlide = (frame, selector, index) => frame.locator(selector).evaluate((el, i) => {
+// The carousel has stopped scrolling and the slide at `index` (counting clones) sits at the start edge of the scroll container. The two
+// conditions are separate polls on separate lines, so a failure names the one that did not hold (a failing run's summary gives only the
+// matcher and the line): `toBe(false)` below is "still scrolling" (aria-busy), `toBeLessThan(2)` is "slide not at the start edge".
+const isScrolling = (frame, selector) => frame.locator(selector).evaluate(el => el.scrolling);
+// Only the scrolling axis is compared: slides are centered on the other one.
+const startOffset = (frame, selector, index) => frame.locator(selector).evaluate((el, i) => {
   const slides = [...el.children].filter(c => c.localName === 'sl-carousel-item');
   const box = el.scrollContainer.getBoundingClientRect();
   const r = slides[i].getBoundingClientRect();
-  // Only the scrolling axis is compared: slides are centered on the other one.
-  const offset = el.orientation === 'vertical' ? r.top - box.top : r.left - box.left;
-  return !el.scrolling && Math.abs(offset) < 2;
+  return Math.abs(el.orientation === 'vertical' ? r.top - box.top : r.left - box.left);
 }, index);
-const settle = (frame, selector, index) => expect.poll(() => atSlide(frame, selector, index), { timeout: 8000 }).toBe(true);
+const settle = async (frame, selector, index) => {
+  await expect.poll(() => isScrolling(frame, selector), { timeout: 8000 }).toBe(false);
+  await expect.poll(() => startOffset(frame, selector, index), { timeout: 8000 }).toBeLessThan(2);
+};
 
 test('docs page is prerendered with Velcro branding, prototype status, every Shoelace section, the keyboard, the quirks and explicit limits', async ({ request }) => {
   const response = await request.get(PAGE);
@@ -417,9 +422,13 @@ test('keyboard: arrows, Home and End move the carousel, keys are prevented, righ
 
 test('keyboard from a real key press: arrow keys on the focused scroll container change the slide', async ({ page }) => {
   const { frame } = await openPage(page);
-  await mount(frame, CAROUSEL('', 3));
-  // A real click on the scroll container focuses it (it has tabindex 0) and makes its frame the one that receives the key presses.
-  await frame.locator('#c #scroll-container').click({ position: { x: 10, y: 10 } });
+  // A focusable sentinel before the carousel (a text input: WebKit does not focus a button on click): clicking it gives the example frame real focus (a script focus() alone does not make the
+  // frame receive key presses in Firefox, and a click on the slotted slides does not focus the carousel's scroll container there).
+  // Focusing the scroll container (tabindex 0) from there, the key presses reach it.
+  await mount(frame, '<input id="sentinel" aria-label="Sentinel">' + CAROUSEL('', 3));
+  await frame.locator('#sentinel').click();
+  await expect(frame.locator('#sentinel')).toBeFocused();
+  await frame.locator('#c #scroll-container').focus();
   await expect(frame.locator('#c #scroll-container')).toBeFocused();
   await page.keyboard.press('ArrowRight');
   await settle(frame, '#c', 1);
