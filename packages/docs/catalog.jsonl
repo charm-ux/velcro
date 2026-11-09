@@ -18,6 +18,7 @@
 {"name":"input","title":"Input","tag":"sl-input","example":"#demo-default"}
 {"name":"menu-label","title":"Menu Label","tag":"sl-menu-label","example":"sl-menu-label"}
 {"name":"mutation-observer","title":"Mutation Observer","tag":"sl-mutation-observer","example":"#demo-observer"}
+{"name":"option","title":"Option","tag":"sl-option","example":"#demo-default"}
 {"name":"popup","title":"Popup","tag":"sl-popup","example":"#demo-default"}
 {"name":"progress-bar","title":"Progress Bar","tag":"sl-progress-bar","example":"#demo-default"}
 {"name":"progress-ring","title":"Progress Ring","tag":"sl-progress-ring","example":"#demo-default"}
@@ -26,6 +27,7 @@
 {"name":"radio-group","title":"Radio Group","tag":"sl-radio-group","example":"#demo-default"}
 {"name":"relative-time","title":"Relative Time","tag":"sl-relative-time","example":"#demo-default"}
 {"name":"resize-observer","title":"Resize Observer","tag":"sl-resize-observer","example":"#demo-observer"}
+{"name":"select","title":"Select","tag":"sl-select","example":"#demo-default"}
 {"name":"skeleton","title":"Skeleton","tag":"sl-skeleton","example":"#demo-avatar"}
 {"name":"spinner","title":"Spinner","tag":"sl-spinner","example":"sl-spinner"}
 {"name":"split-panel","title":"Split Panel","tag":"sl-split-panel","example":"sl-split-panel"}

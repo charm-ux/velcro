@@ -1,0 +1,13 @@
+{
+  "files": {
+    "src/components/option/option.test.ts": "25845baeb083b3f7902dbb84ceb3f2c43a59c497cf301e1cc0ca2e59169f4db3"
+  },
+  "tests": [
+    "<sl-option> > passes accessibility test",
+    "<sl-option> > default properties",
+    "<sl-option> > changes aria attributes",
+    "<sl-option> > should convert non-string values to string",
+    "<sl-option> > should escape HTML when calling getTextLabel()"
+  ],
+  "knownFailures": []
+}

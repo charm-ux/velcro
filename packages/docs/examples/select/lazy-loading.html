@@ -1,0 +1,86 @@
+<form id="lazy-options-example">
+  <div>
+    <sl-select name="select-1" value="foo" label="Single select (with existing options)">
+      <sl-option value="bar">Bar</sl-option>
+      <sl-option value="baz">Baz</sl-option>
+    </sl-select>
+    <br>
+    <sl-button type="button">Add "foo" option</sl-button>
+  </div>
+
+  <br>
+
+  <div>
+    <sl-select name="select-2" value="foo" label="Single select (with no existing options)">
+    </sl-select>
+    <br>
+    <sl-button type="button">Add "foo" option</sl-button>
+  </div>
+
+  <br>
+
+  <div>
+    <sl-select name="select-3" value="foo bar baz" multiple label="Multiple Select (with existing options)">
+      <sl-option value="bar">Bar</sl-option>
+      <sl-option value="baz">Baz</sl-option>
+    </sl-select>
+    <br>
+    <sl-button type="button">Add "foo" option</sl-button>
+  </div>
+
+  <br>
+
+  <div>
+    <sl-select name="select-4" value="foo" multiple label="Multiple Select (with no existing options)">
+    </sl-select>
+    <br>
+    <sl-button type="button">Add "foo" option</sl-button>
+  </div>
+
+  <br><br>
+
+  <div style="display: flex; gap: 16px;">
+    <sl-button type="reset">Reset</sl-button>
+    <sl-button type="submit" variant="brand">Show FormData</sl-button>
+  </div>
+
+  <br>
+
+  <pre hidden><code id="lazy-options-example-form-data"></code></pre>
+
+  <br>
+</form>
+
+<script type="module">
+  function addFooOption(e) {
+    const addFooButton = e.target.closest("sl-button[type='button']")
+    if (!addFooButton) {
+      return
+    }
+    const select = addFooButton.parentElement.querySelector("sl-select")
+    if (select.querySelector("sl-option[value='foo']")) {
+      // Foo already exists. no-op.
+      return
+    }
+    const option = document.createElement("sl-option")
+    option.setAttribute("value", "foo")
+    option.innerText = "Foo"
+    select.append(option)
+  }
+  function handleLazySubmit (event) {
+    event.preventDefault()
+    const formData = new FormData(event.target)
+    const codeElement = document.querySelector("#lazy-options-example-form-data")
+    const obj = {}
+    for (const key of formData.keys()) {
+      const val = formData.getAll(key).length > 1 ? formData.getAll(key) : formData.get(key)
+      obj[key] = val
+    }
+    codeElement.textContent = JSON.stringify(obj, null, 2)
+    const preElement = codeElement.parentElement
+    preElement.removeAttribute("hidden")
+  }
+  const container = document.querySelector("#lazy-options-example")
+  container.addEventListener("click", addFooOption)
+  container.addEventListener("submit", handleLazySubmit)
+</script>
