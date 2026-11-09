@@ -160,8 +160,7 @@ test('shadow structure, parts, slots, divider semantics and default state', asyn
 // Gives the divider keyboard focus, so it matches :focus-visible: a real click on a focusable sentinel placed right before
 // the split panel gives the example's frame the page focus (Firefox does not move focus into an unfocused frame from
 // script), then Tab moves the focus from the sentinel to the divider, inside the frame. The sentinel is an element with a
-// tabindex, not a button, because WebKit on macOS does not focus a clicked button. It is removed afterwards. The focus
-// state is compared as a whole, so a failure names the part that differs.
+// tabindex, not a button, because WebKit on macOS does not focus a clicked button. It is removed afterwards.
 async function keyboardFocus(page, frame, host) {
   await host.evaluate(el => {
     const sentinel = document.createElement('div');
@@ -177,7 +176,11 @@ async function keyboardFocus(page, frame, host) {
   });
   await expect.poll(focus).toEqual({ frameFocused: true, active: 'keyboard-start', divider: false, focusVisible: false });
   await page.keyboard.press('Tab');
-  await expect.poll(focus).toEqual({ frameFocused: true, active: await host.evaluate(el => el.id || el.localName), divider: true, focusVisible: true });
+  // One poll per part, on its own line, so a failure's line names the part (CI summaries report the line, not the diff).
+  await expect.poll(async () => (await focus()).frameFocused, 'the frame keeps the page focus').toBe(true);
+  await expect.poll(async () => (await focus()).active, 'the split panel is the active element').toBe(await host.evaluate(el => el.id || el.localName));
+  await expect.poll(async () => (await focus()).divider, 'the divider has the focus').toBe(true);
+  await expect.poll(async () => (await focus()).focusVisible, 'the divider matches :focus-visible').toBe(true);
   await frame.locator('#keyboard-start').evaluate(el => el.remove());
 }
 
