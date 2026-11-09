@@ -1,7 +1,7 @@
-// Adapted from Shoelace v2.20.1 (src/components/alert/alert.component.ts, `blurActiveElement` in
-// src/internal/closeActiveElement.ts, the `watch` decorator in src/internal/watch.ts and the reflected-property restore
-// in src/internal/shoelace-element.ts), Copyright (c) 2020 A Beautiful Site, LLC, MIT License. See
-// THIRD_PARTY_NOTICES.md.
+// Adapted from Shoelace v2.20.1 (src/components/alert/alert.component.ts, the `watch` decorator in
+// src/internal/watch.ts and the reflected-property restore in src/internal/shoelace-element.ts), Copyright (c) 2020
+// A Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md. `blurActiveElement` is the shared copy in
+// ../../internal/close-active-element.ts.
 // The API documentation wording, the rendered structure (a `base` <div role="alert"> with the `alert` / `alert--*` class
 // names around the `icon` and `message` parts, an optional `<sl-icon-button>` close button, the hidden timer and the
 // optional countdown bar), the auto-hide timer, the countdown, the toast stack, the events and the animations follow
@@ -12,6 +12,7 @@ import { classMap } from 'lit/directives/class-map.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
 import { CoreAlert } from '@charm-ux/core/dist/components/alert/alert.js';
 import { animateTo, stopAnimations } from '../../internal/animate.js';
+import { blurActiveElement } from '../../internal/close-active-element.js';
 import { waitForEvent } from '../../internal/event.js';
 import { documentDir } from '../../internal/localize.js';
 import { HasSlotController } from '../../internal/slot.js';
@@ -20,20 +21,6 @@ import { LocalizeController } from '../../utilities/localize.js';
 import { defineVelcroComponent, type VelcroComponentConstructor } from '../../utilities/registration.js';
 import { VelcroIconButton } from '../icon-button/class.js';
 import styles from './alert.styles.js';
-
-/**
- * Calls the blur method on the current active element if it is a child of the provided element.
- * Needed for fixing a11y errors in console.
- * @see https://github.com/shoelace-style/shoelace/issues/2283
- * @param elm The element to check
- */
-// Shoelace's internal helper, unchanged. Kept in this module (not exported) until a second component needs it.
-const blurActiveElement = (elm: HTMLElement) => {
-  const { activeElement } = document;
-  if (activeElement && elm.contains(activeElement)) {
-    (document.activeElement as HTMLElement)?.blur();
-  }
-};
 
 /**
  * Alerts are used to display important messages inline or as toast notifications.

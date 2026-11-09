@@ -1,0 +1,22 @@
+<sl-dialog label="Dialog" class="dialog-deny-close">
+  This dialog will not close when you click on the overlay.
+  <sl-button slot="footer" variant="primary">Close</sl-button>
+</sl-dialog>
+
+<sl-button>Open Dialog</sl-button>
+
+<script>
+  const dialog = document.querySelector('.dialog-deny-close');
+  const openButton = dialog.nextElementSibling;
+  const closeButton = dialog.querySelector('sl-button[slot="footer"]');
+
+  openButton.addEventListener('click', () => dialog.show());
+  closeButton.addEventListener('click', () => dialog.hide());
+
+  // Prevent the dialog from closing when the user clicks on the overlay
+  dialog.addEventListener('sl-request-close', event => {
+    if (event.detail.source === 'overlay') {
+      event.preventDefault();
+    }
+  });
+</script>
