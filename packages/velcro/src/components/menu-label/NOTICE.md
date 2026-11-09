@@ -5,6 +5,5 @@
   unchanged) and the docs page and examples `packages/docs/pages/components/menu-label.ts` and
   `packages/docs/examples/menu-label/*.html` (example markup and wording adapted from
   `docs/pages/components/menu-label.md`) and the React example `packages/docs/examples/menu-label/react/basic.jsx`
-  (copied from the same page's React example; the import lines are changed to Velcro's React wrappers and Velcro-side
-  stand-ins replace `SlMenu` and `SlMenuItem`). The menu label is built on the `@charm-ux/core` base element; no
+  (copied from the same page's React example; the import lines are changed to Velcro's React wrappers). The menu label is built on the `@charm-ux/core` base element; no
   Shoelace runtime or source files are included.

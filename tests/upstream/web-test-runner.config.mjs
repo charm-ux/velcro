@@ -126,7 +126,27 @@ export default {
             try { return nativeClone(value, options); } catch { return nativeClone(plain(value), options); }
           };
         </script>
-        <script type="module" src="${testFramework}"></script>
+        <script type="module">
+          // Harness guard (not upstream), generic: it runs in the runner page of every test file and knows no component.
+          // It parks the pointer in the bottom-right corner before the test framework is loaded, so before any test.
+          // A page's pointer rests at (0,0) until something moves it, and (0,0) is a vertex of the clip-path triangle
+          // that sl-menu-item draws over the viewport while a submenu is open (its cursor variables default to 0). Chrome's
+          // delayed hover update then sends a mouseover to the item, whose handler takes the focus back from the
+          // submenu a key press had just opened, and two menu item tests fail (only where the pointer is known at (0,0),
+          // as on CI's headless Linux Chromium). A/B evidence: Shoelace 2.20.1 built from its own source and run in this
+          // runner page fails the same two tests with the pointer at (0,0) and passes with it anywhere else, with
+          // boxes identical to Velcro's; Velcro behaves identically. See docs/conformance.md and the menu item docs
+          // page ("Upstream quirks matched"). The tests start only after the move, and no assertion is touched.
+          import { sendMouse } from '@web/test-runner-commands';
+          (async () => {
+            try { await sendMouse({ type: 'move', position: [799, 599] }); } finally {
+              const framework = document.createElement('script');
+              framework.type = 'module';
+              framework.src = '${testFramework}';
+              document.body.append(framework);
+            }
+          })();
+        </script>
       </body>
     </html>
   `,
