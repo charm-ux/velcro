@@ -445,19 +445,24 @@ test('keyboard: the arrows swap in right-to-left text, and the keys leave a nest
 test('keyboard: Enter with focus on an element inside the tree that is not an item throws a TypeError after preventing the key (quirk); the arrows still work', async ({ page }) => {
   const { frame } = await openExample(page);
   await mount(frame, '<sl-tree id="t"><sl-tree-item id="x">X <button id="btn" type="button">Button</button></sl-tree-item><sl-tree-item id="y">Y</sl-tree-item></sl-tree>');
-  const errors = [];
-  page.on('pageerror', error => errors.push(error.name));
+  // The error is recorded in the example document itself: its `error` event carries the thrown object, so the check is of the
+  // type (in that document's realm), not of an engine's message wording or of how an engine reports an error from a frame.
   await frame.locator('#btn').evaluate(el => {
+    window.uncaught = [];
+    window.addEventListener('error', event => window.uncaught.push({ typeError: event.error instanceof TypeError }));
     window.clicks = 0;
     el.addEventListener('click', () => window.clicks++);
     el.focus();
   });
+  expect(await focusedId(frame)).toBe('btn');
   await page.keyboard.press('Enter');
-  await expect.poll(() => errors).toEqual(['TypeError']);
+  await expect.poll(() => frame.locator('body').evaluate(() => window.uncaught)).toEqual([{ typeError: true }]);
+  // The key's default action was prevented before the throw: the button was not activated.
   expect(await frame.locator('body').evaluate(() => window.clicks)).toBe(0);
   // From there the arrows move to an item: no item has focus, so ArrowDown goes to the first one.
   await page.keyboard.press('ArrowDown');
   expect(await focusedId(frame)).toBe('x');
+  expect(await frame.locator('body').evaluate(() => window.uncaught)).toEqual([{ typeError: true }]);
 });
 
 test('roving tabindex: focus moves the tab stop to the item, and leaving the tree leaves both the tree and the last item as tab stops (quirk)', async ({ page }) => {
