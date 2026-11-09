@@ -71,7 +71,8 @@ Upstream's animated image tests load `/docs/assets/images/walk.gif` and `/docs/a
 demo images. Velcro does not commit binary files, so the runner serves those two paths from two small synthetic images
 written for Velcro (`tests/upstream/docs-images.json`, stored as base64 text and decoded by the runner). The docs examples
 carry the same bytes as `data:` URLs, and `tests/product/animated-image.spec.mjs` pins their sizes, hashes, dimensions and
-frames.
+frames. Those six test titles name an image path, which the public CI summary would otherwise withhold as path-shaped; the
+exact titles are pinned in `PATH_TITLES_PRINTED` (`scripts/upstream-summary.mjs`).
 
 ## Dependency note: inflation override
 

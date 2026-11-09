@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 import { evaluate, readInventory, resultLines, vendoredComponents } from '../../scripts/upstream-conformance.mjs';
-import { BLOCKED, MAX_FINDINGS, MAX_TITLE, OUTCOMES, PROBLEMS, PUBLIC_LINE, PUBLIC_PREFIX, summarizeUpstream } from '../../scripts/upstream-summary.mjs';
+import { BLOCKED, MAX_FINDINGS, MAX_TITLE, OUTCOMES, PATH_TITLES_PRINTED, PROBLEMS, PUBLIC_LINE, PUBLIC_PREFIX, summarizeUpstream } from '../../scripts/upstream-summary.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const inventory = { alpha: ['<sl-alpha> > one', '<sl-alpha> > two', '<sl-alpha> > three'], beta: ['<sl-beta> > only'] };
@@ -136,6 +136,91 @@ test('upstream summary: ordinary slash text in a title is still printed', () => 
   for (const title of titles) {
     assert.deepEqual(summarize([`unexpected failure: alpha: ${title}`], { inventory: { alpha: [title] } }).lines, [`upstream failed: alpha: ${title}`]);
   }
+});
+
+// The exact-string list of path-shaped titles that are printed (PATH_TITLES_PRINTED): public Shoelace titles that name Shoelace's
+// own demo image paths and cannot be renamed. Four conditions: each pinned title prints; a one-character variant of each is
+// still withheld; any other title with two or more slashes stays withheld; and the list holds only exact, real, path-shaped
+// inventory titles.
+const PATH_TITLE_MESSAGES = [['unexpected failure', 'failed'], ['problem: skipped test in', 'skipped-mismatch']];
+const messageFor = (prefix, component, title) => (prefix.endsWith(' in') ? `${prefix} ${component}: ${title}` : `${prefix}: ${component}: ${title}`);
+
+test('upstream summary: every pinned path-shaped title is printed whole, under the longest and the shortest outcome word', () => {
+  const real = readInventory(root);
+  const names = new Set(readCatalog(root).map(c => c.name));
+  assert.equal(PATH_TITLES_PRINTED.length, 6);
+  for (const title of PATH_TITLES_PRINTED) {
+    for (const [prefix, word] of PATH_TITLE_MESSAGES) {
+      const { lines } = summarizeUpstream(log([messageFor(prefix, 'animated-image', title)]), { inventory: real, catalog: names });
+      assert.deepEqual(lines, [`upstream ${word}: animated-image: ${title}`]);
+      assert.ok(PUBLIC_PREFIX.length + lines[0].length <= PUBLIC_LINE);
+    }
+  }
+});
+
+test('upstream summary: a one-character variant of a pinned path-shaped title is still withheld, even when the inventory holds it', () => {
+  const variants = title => {
+    const out = new Set();
+    for (let i = 0; i < title.length; i++) {
+      out.add(title.slice(0, i) + title.slice(i + 1)); // one character removed
+      out.add(title.slice(0, i) + (title[i] === 'x' ? 'y' : 'x') + title.slice(i + 1)); // one character replaced
+      out.add(title.slice(0, i) + 'x' + title.slice(i)); // one character inserted
+    }
+    out.add(`${title}x`);
+    out.delete(title);
+    return [...out];
+  };
+  let checked = 0;
+  for (const title of PATH_TITLES_PRINTED) {
+    for (const variant of variants(title)) {
+      // A variant that is not path-shaped any more would print as an ordinary title; every pinned title has three slashes, so
+      // none can lose enough of them with one edit.
+      assert.ok((variant.match(/\//g) ?? []).length >= 2, variant);
+      const poisoned = { 'animated-image': [variant] }; // the inventory holds the variant, so only the path rule can withhold it
+      const { lines } = summarizeUpstream(log([`unexpected failure: animated-image: ${variant}`]), { inventory: poisoned, catalog: new Set(['animated-image']) });
+      assert.deepEqual(lines, ['upstream failed: animated-image: unlisted title'], variant);
+      checked++;
+    }
+  }
+  assert.ok(checked > 1000);
+});
+
+test('upstream summary: a path-shaped title that is not on the pinned list stays withheld, for any component and any number of slashes', () => {
+  const [pinned] = PATH_TITLES_PRINTED;
+  const others = [
+    '<sl-animated-image> > should load a docs/assets/images/other.gif without errors',
+    '<sl-alpha> > reads data/sub/example.txt',
+    '<sl-alpha> > a/b/c',
+    '<sl-alpha> > a/b/',
+    '<sl-alpha> > /a',
+    '<sl-alpha> > should load a docs/assets/images/walk.gif without errors', // a pinned title's text under another component's name
+    pinned.replace('<sl-animated-image>', '<sl-alpha>'),
+  ];
+  for (const title of others) {
+    const component = title.startsWith('<sl-animated-image>') ? 'animated-image' : 'alpha';
+    const { lines } = summarizeUpstream(log([`unexpected failure: ${component}: ${title}`]), { inventory: { [component]: [title] }, catalog: new Set([component]) });
+    assert.deepEqual(lines, [`upstream failed: ${component}: unlisted title`], title);
+  }
+  // A pinned title is only printed for a component whose inventory holds it exactly: not from the log alone.
+  assert.deepEqual(summarizeUpstream(log([`unexpected failure: animated-image: ${pinned}`]), { inventory: { 'animated-image': ['<sl-animated-image> > other'] }, catalog: new Set(['animated-image']) }).lines,
+    ['upstream failed: animated-image: unlisted title']);
+  assert.deepEqual(summarizeUpstream(log([`unexpected failure: animated-image: ${pinned}`]), { inventory: undefined, catalog: new Set(['animated-image']) }).lines,
+    ['upstream failed: animated-image: unlisted title']);
+});
+
+test('upstream summary: the pinned path-shaped list holds only exact, path-shaped titles of the real inventory, once each', () => {
+  const real = readInventory(root);
+  const all = new Set(Object.values(real).flat());
+  assert.ok(Object.isFrozen(PATH_TITLES_PRINTED));
+  assert.equal(new Set(PATH_TITLES_PRINTED).size, PATH_TITLES_PRINTED.length);
+  for (const title of PATH_TITLES_PRINTED) {
+    assert.equal(typeof title, 'string');
+    assert.ok(all.has(title), `not a real inventory title: ${title}`);
+    assert.ok((title.match(/\//g) ?? []).length >= 2, `not path-shaped, so it needs no entry: ${title}`);
+  }
+  // Every real inventory title that PATHY withholds is on the list: a new one fails here until it is reviewed and pinned.
+  const pathShaped = [...all].filter(title => /\\|(?:^|\W)\/|\/.*\//.test(title));
+  assert.deepEqual([...pathShaped].sort(), [...PATH_TITLES_PRINTED].sort());
 });
 
 test('upstream summary: a pinned title is printed whole only when its whole public line fits the CI cut; otherwise it is unlisted, never cut', () => {
