@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import {
   chmodSync,
@@ -21,6 +21,7 @@ import path from 'node:path';
 import { after, describe, test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import { settleAll, spawnAsync, TEST_CONCURRENCY } from '../support/spawn.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const scriptPath = path.join(repoRoot, 'scripts', 'security', 'gitleaks.mjs');
@@ -82,8 +83,8 @@ function assertIncludes(output, expected, context) {
   assert.ok(output.includes(expected), `${context}: expected text missing`);
 }
 
-function runCli(args, options = {}) {
-  const result = spawnSync(process.execPath, [options.script ?? scriptPath, ...args], {
+async function runCli(args, options = {}) {
+  const result = await spawnAsync(process.execPath, [options.script ?? scriptPath, ...args], {
     cwd: options.cwd ?? repoRoot,
     encoding: 'utf8',
     env: { ...process.env, ...options.env },
@@ -119,43 +120,46 @@ const gitEnv = {
   GIT_COMMITTER_EMAIL: ['test', 'example.invalid'].join('@'),
 };
 
-function git(cwd, ...args) {
-  return gitWithInput(cwd, undefined, ...args);
+async function git(cwd, ...args) {
+  return await gitWithInput(cwd, undefined, ...args);
 }
 
-function gitWithInput(cwd, input, ...args) {
-  return execFileSync('git', ['-c', 'commit.gpgsign=false', '-c', 'init.defaultBranch=main', ...args], {
+// Like execFileSync: resolves to the trimmed output and rejects when Git does not succeed.
+async function gitWithInput(cwd, input, ...args) {
+  const result = await spawnAsync('git', ['-c', 'commit.gpgsign=false', '-c', 'init.defaultBranch=main', ...args], {
     cwd,
     env: gitEnv,
     encoding: 'utf8',
     input,
     stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
-  }).trim();
+  });
+  if (result.error || result.status !== 0) throw result.error ?? new Error(`fixture Git operation failed (${args[0]})`);
+  return result.stdout.trim();
 }
 
-function initRepo(label) {
+async function initRepo(label) {
   const dir = scratch(label);
-  git(dir, 'init', '-q');
+  await git(dir, 'init', '-q');
   return dir;
 }
 
-function commitFile(repo, name, content, message) {
+async function commitFile(repo, name, content, message) {
   mkdirSync(path.dirname(path.join(repo, name)), { recursive: true });
   writeFileSync(path.join(repo, name), content);
-  git(repo, 'add', '--', name);
-  git(repo, 'commit', '-q', '-m', message);
-  return git(repo, 'rev-parse', 'HEAD');
+  await git(repo, 'add', '--', name);
+  await git(repo, 'commit', '-q', '-m', message);
+  return await git(repo, 'rev-parse', 'HEAD');
 }
 
 // Builds a commit object outside any branch, without touching the index,
 // working tree, or stash machinery.
-function detachedCommit(repo, parent, files, message) {
-  const entries = Object.entries(files).map(([name, content]) => {
-    const blob = gitWithInput(repo, content, 'hash-object', '-w', '--stdin');
+async function detachedCommit(repo, parent, files, message) {
+  const entries = await settleAll(Object.entries(files).map(async ([name, content]) => {
+    const blob = await gitWithInput(repo, content, 'hash-object', '-w', '--stdin');
     return `100644 blob ${blob}\t${name}`;
-  });
-  const tree = gitWithInput(repo, `${entries.join('\n')}\n`, 'mktree');
-  return git(repo, 'commit-tree', tree, ...(parent ? ['-p', parent] : []), '-m', message);
+  }));
+  const tree = await gitWithInput(repo, `${entries.join('\n')}\n`, 'mktree');
+  return await git(repo, 'commit-tree', tree, ...(parent ? ['-p', parent] : []), '-m', message);
 }
 
 // ---------------------------------------------------------------------------
@@ -272,7 +276,7 @@ const OFFICIAL_ARCHIVE_SHA256 = {
 };
 
 describe('pinned manifest', () => {
-  test('pins Gitleaks 8.30.1 official archives for supported Darwin/Linux targets only', () => {
+  test('pins Gitleaks 8.30.1 official archives for supported Darwin/Linux targets only', async () => {
     const manifest = scanner.loadManifest(repoRoot);
     assert.equal(manifest.version, '8.30.1');
     assert.deepEqual(Object.keys(manifest.targets).sort(), Object.keys(OFFICIAL_ARCHIVE_SHA256).sort());
@@ -287,7 +291,7 @@ describe('pinned manifest', () => {
     assert.equal(raw.releaseBaseUrl, 'https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/');
   });
 
-  test('download URLs point at the official release for the selected target', () => {
+  test('download URLs point at the official release for the selected target', async () => {
     const manifest = scanner.loadManifest(repoRoot);
     const target = scanner.selectTarget(manifest, 'linux', 'arm64');
     assert.equal(
@@ -303,7 +307,7 @@ describe('pinned manifest', () => {
     ['freebsd', 'x64'],
     ['linux', 'arm'],
   ]) {
-    test(`unsupported target ${platform}-${arch} fails clearly`, () => {
+    test(`unsupported target ${platform}-${arch} fails clearly`, async () => {
       const manifest = scanner.loadManifest(repoRoot);
       assert.throws(
         () => scanner.selectTarget(manifest, platform, arch),
@@ -312,7 +316,7 @@ describe('pinned manifest', () => {
     });
   }
 
-  test('malformed or tampered manifests are rejected', () => {
+  test('malformed or tampered manifests are rejected', async () => {
     const good = JSON.parse(readFileSync(manifestPath, 'utf8'));
     const cases = [
       '{ not json',
@@ -335,14 +339,14 @@ describe('pinned manifest', () => {
 });
 
 describe('archive extraction', () => {
-  test('selects only the top-level gitleaks executable', () => {
+  test('selects only the top-level gitleaks executable', async () => {
     const exe = randomBytes(2048);
     const result = scanner.extractExecutable(tarArchive(standardEntries(exe)));
     assert.ok(Buffer.isBuffer(result));
     assert.equal(sha256(result), sha256(exe));
   });
 
-  test('accepts a leading ./ on the executable entry', () => {
+  test('accepts a leading ./ on the executable entry', async () => {
     const result = scanner.extractExecutable(tarArchive([{ name: './gitleaks', data: 'x', mode: 0o755 }]));
     assert.equal(result.toString(), 'x');
   });
@@ -364,7 +368,7 @@ describe('archive extraction', () => {
     'executable is a directory': [{ name: 'gitleaks/', type: '5' }],
   };
   for (const [label, entries] of Object.entries(hostile)) {
-    test(`rejects archive with ${label}`, () => {
+    test(`rejects archive with ${label}`, async () => {
       assert.throws(
         () => scanner.extractExecutable(tarArchive(entries)),
         (error) => error instanceof scanner.SafeError && error.code === 'archive-unsafe',
@@ -372,7 +376,7 @@ describe('archive extraction', () => {
     });
   }
 
-  test('rejects corrupt header checksum, truncation, and non-gzip input', () => {
+  test('rejects corrupt header checksum, truncation, and non-gzip input', async () => {
     const corrupt = tarHeader({ name: 'gitleaks', size: 1 });
     corrupt[0] = 'h'.charCodeAt(0);
     const samples = [
@@ -389,8 +393,8 @@ describe('archive extraction', () => {
   });
 });
 
-function installRoot(label, manifestOverride) {
-  const root = initRepo(label);
+async function installRoot(label, manifestOverride) {
+  const root = await initRepo(label);
   mkdirSync(path.join(root, 'security'));
   if (manifestOverride) {
     writeFileSync(path.join(root, 'security', 'gitleaks-checksums.json'), JSON.stringify(manifestOverride));
@@ -400,8 +404,8 @@ function installRoot(label, manifestOverride) {
   return root;
 }
 
-function ignoredRoot(label, manifestOverride) {
-  const root = installRoot(label, manifestOverride);
+async function ignoredRoot(label, manifestOverride) {
+  const root = await installRoot(label, manifestOverride);
   writeFileSync(path.join(root, '.gitignore'), '.airig/\n');
   return root;
 }
@@ -439,7 +443,7 @@ function fakeVersionExecutable(version) {
 
 describe('install transport (mocked)', () => {
   test('checksum mismatch fails before any extraction or install', async () => {
-    const root = ignoredRoot('install-mismatch');
+    const root = await ignoredRoot('install-mismatch');
     const calls = [];
     const fetchImpl = async (url) => {
       calls.push(url);
@@ -461,7 +465,7 @@ describe('install transport (mocked)', () => {
   });
 
   test('network errors are reported without echoing raw transport detail', async () => {
-    const root = ignoredRoot('install-network');
+    const root = await ignoredRoot('install-network');
     const hostileDetail = `${syntheticToken()} at ${path.join(homedir(), 'private', 'file')}`;
     const fetchImpl = async () => {
       throw new Error(hostileDetail);
@@ -474,13 +478,13 @@ describe('install transport (mocked)', () => {
   });
 
   test('HTTP failures fail closed', async () => {
-    const root = ignoredRoot('install-http');
+    const root = await ignoredRoot('install-http');
     const fetchImpl = async () => new Response('missing', { status: 404 });
     await expectSafeError(scanner.installGitleaks({ root, platform: 'linux', arch: 'arm64', fetchImpl }), 'download-failed');
   });
 
   test('oversized streamed downloads are aborted', async () => {
-    const root = ignoredRoot('install-oversize');
+    const root = await ignoredRoot('install-oversize');
     const chunk = new Uint8Array(1024 * 1024);
     let sent = 0;
     const body = new ReadableStream({
@@ -495,7 +499,7 @@ describe('install transport (mocked)', () => {
   });
 
   test('a declared oversized Content-Length is rejected before reading the body', async () => {
-    const root = ignoredRoot('install-content-length');
+    const root = await ignoredRoot('install-content-length');
     let pulled = 0;
     const body = new ReadableStream({
       pull(controller) {
@@ -514,7 +518,7 @@ describe('install transport (mocked)', () => {
   });
 
   test('refuses to install into a scratch location Git does not ignore', async () => {
-    const root = installRoot('install-unignored');
+    const root = await installRoot('install-unignored');
     let called = false;
     const fetchImpl = async () => {
       called = true;
@@ -527,7 +531,7 @@ describe('install transport (mocked)', () => {
   });
 
   test('install honours the normal user ignore configuration', async () => {
-    const root = installRoot('install-global-ignore');
+    const root = await installRoot('install-global-ignore');
     let called = false;
     const fetchImpl = async () => {
       called = true;
@@ -540,7 +544,7 @@ describe('install transport (mocked)', () => {
   });
 
   test('unsupported platform fails before any download', async () => {
-    const root = ignoredRoot('install-unsupported');
+    const root = await ignoredRoot('install-unsupported');
     let called = false;
     const fetchImpl = async () => {
       called = true;
@@ -553,7 +557,7 @@ describe('install transport (mocked)', () => {
   test('verified archive installs atomically, then reinstall is idempotent', async () => {
     const executable = fakeVersionExecutable('8.30.1');
     const { manifest, archive } = syntheticInstallManifest(executable);
-    const root = ignoredRoot('install-happy', manifest);
+    const root = await ignoredRoot('install-happy', manifest);
     let calls = 0;
     const fetchImpl = async () => {
       calls += 1;
@@ -588,7 +592,7 @@ describe('install transport (mocked)', () => {
   test('a miss downloads, verifies and keeps exactly the pinned archive in the cached directory', async () => {
     const executable = fakeVersionExecutable('8.30.1');
     const { manifest, archive } = syntheticInstallManifest(executable);
-    const root = ignoredRoot('install-keep', manifest);
+    const root = await ignoredRoot('install-keep', manifest);
     const calls = [];
     const fetchImpl = async (url) => {
       calls.push(String(url));
@@ -618,7 +622,7 @@ describe('install transport (mocked)', () => {
   test('a restored archive with the pinned bytes installs without a download', async () => {
     const executable = fakeVersionExecutable('8.30.1');
     const { manifest, archive } = syntheticInstallManifest(executable);
-    const root = ignoredRoot('install-restored-good', manifest);
+    const root = await ignoredRoot('install-restored-good', manifest);
     mkdirSync(path.dirname(keptArchive(root)), { recursive: true });
     writeFileSync(keptArchive(root), archive);
     const calls = [];
@@ -631,7 +635,7 @@ describe('install transport (mocked)', () => {
   test('a restored archive with wrong bytes fails closed: no extraction, no download, no install', async () => {
     const executable = fakeVersionExecutable('8.30.1');
     const { manifest } = syntheticInstallManifest(executable);
-    const root = ignoredRoot('install-restored-bad', manifest);
+    const root = await ignoredRoot('install-restored-bad', manifest);
     mkdirSync(path.dirname(keptArchive(root)), { recursive: true });
     // A well-formed archive whose executable would even run: only the pinned archive hash decides.
     const wrong = tarArchive(standardEntries(fakeVersionExecutable('8.30.1') + '// tampered\n'));
@@ -649,7 +653,7 @@ describe('install transport (mocked)', () => {
   test('wrong kept bytes fail closed even when a verified executable is already installed', async () => {
     const executable = fakeVersionExecutable('8.30.1');
     const { manifest, archive } = syntheticInstallManifest(executable);
-    const root = ignoredRoot('install-restored-bad-installed', manifest);
+    const root = await ignoredRoot('install-restored-bad-installed', manifest);
     await scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl: async () => new Response(archive) });
     writeFileSync(keptArchive(root), Buffer.concat([archive, Buffer.from('x')]));
     const calls = [];
@@ -671,7 +675,7 @@ describe('install transport (mocked)', () => {
     test(`a kept archive that is ${label} fails closed`, async () => {
       const executable = fakeVersionExecutable('8.30.1');
       const { manifest, archive } = syntheticInstallManifest(executable);
-      const root = ignoredRoot('install-restored-odd', manifest);
+      const root = await ignoredRoot('install-restored-odd', manifest);
       mkdirSync(path.dirname(keptArchive(root)), { recursive: true });
       place(keptArchive(root), archive, scratch('install-restored-elsewhere'));
       const calls = [];
@@ -687,7 +691,7 @@ describe('install transport (mocked)', () => {
   test('an executable reporting the wrong version is rolled back', async () => {
     const executable = fakeVersionExecutable('8.30.0');
     const { manifest, archive } = syntheticInstallManifest(executable);
-    const root = ignoredRoot('install-wrong-version', manifest);
+    const root = await ignoredRoot('install-wrong-version', manifest);
     const fetchImpl = async () => new Response(archive, { status: 200 });
     await expectSafeError(scanner.installGitleaks({ root, platform: 'linux', arch: 'x64', fetchImpl }), 'version-mismatch');
     const target = scanner.selectTarget(scanner.loadManifest(root), 'linux', 'x64');
@@ -718,7 +722,7 @@ describe('install download retry (mocked)', () => {
   async function install(label, responses, { retry = true, manifestBytes, perAttemptMs = 0 } = {}) {
     const executable = fakeVersionExecutable('8.30.1');
     const { manifest, archive } = manifestBytes ?? syntheticInstallManifest(executable);
-    const root = ignoredRoot(label, manifest);
+    const root = await ignoredRoot(label, manifest);
     const temp = scratch(`${label}-tmp`);
     const time = fakeTime();
     const seen = [];
@@ -869,7 +873,7 @@ describe('install download retry (mocked)', () => {
   async function stalledInstall(label, statusFor, retry = true) {
     const executable = fakeVersionExecutable('8.30.1');
     const { manifest } = syntheticInstallManifest(executable);
-    const root = ignoredRoot(label, manifest);
+    const root = await ignoredRoot(label, manifest);
     const transport = stallingTransport(statusFor);
     const time = fakeTime();
     const started = performance.now();
@@ -932,7 +936,7 @@ describe('install download retry (mocked)', () => {
     const local = `http://${loopback}:${server.address().port}/archive`;
     const executable = fakeVersionExecutable('8.30.1');
     const { manifest } = syntheticInstallManifest(executable);
-    const root = ignoredRoot('retry-real-socket', manifest);
+    const root = await ignoredRoot('retry-real-socket', manifest);
     const time = fakeTime();
     // A stand-in sleep that also yields long enough for a close to reach the server.
     const sleep = async (ms) => {
@@ -954,8 +958,8 @@ describe('install download retry (mocked)', () => {
     assert.ok(requests.every((r) => r.closed), 'the last connection closed when the installer gave up');
   });
 
-  test('the CLI accepts only VELCRO_GITLEAKS_DOWNLOAD_RETRY=1 or unset', () => {
-    const result = runCli(['install'], { env: { VELCRO_GITLEAKS_DOWNLOAD_RETRY: 'yes' } });
+  test('the CLI accepts only VELCRO_GITLEAKS_DOWNLOAD_RETRY=1 or unset', async () => {
+    const result = await runCli(['install'], { env: { VELCRO_GITLEAKS_DOWNLOAD_RETRY: 'yes' } });
     assert.equal(result.code, 2);
     assert.match(result.stderr, /VELCRO_GITLEAKS_DOWNLOAD_RETRY must be 1 or unset/);
   });
@@ -1202,9 +1206,9 @@ describe('scanner process handling (fake executables)', () => {
   });
 
   test('git scans default to publishable refs with forced text and no drivers', async () => {
-    const repo = initRepo('fake-git');
-    commitFile(repo, 'a.txt', 'a\n', 'first');
-    git(repo, 'tag', 'v0');
+    const repo = await initRepo('fake-git');
+    await commitFile(repo, 'a.txt', 'a\n', 'first');
+    await git(repo, 'tag', 'v0');
     const record = path.join(dir, `record-${randomBytes(4).toString('hex')}.json`);
     const binary = fakeScanner(dir, fakeReportBody({ exit: 0, record }));
     const result = await withEnv({ GIT_DIR: path.join(dir, 'elsewhere') }, () => scanner.scanGit({ repo, binary }));
@@ -1228,9 +1232,9 @@ describe('scanner process handling (fake executables)', () => {
   });
 
   test('git ranges are resolved to full commit ids before reaching the scanner', async () => {
-    const repo = initRepo('fake-range');
-    const first = commitFile(repo, 'a.txt', 'a\n', 'first');
-    const second = commitFile(repo, 'b.txt', 'b\n', 'second');
+    const repo = await initRepo('fake-range');
+    const first = await commitFile(repo, 'a.txt', 'a\n', 'first');
+    const second = await commitFile(repo, 'b.txt', 'b\n', 'second');
     const record = path.join(dir, `record-${randomBytes(4).toString('hex')}.json`);
     const binary = fakeScanner(dir, fakeReportBody({ exit: 0, record }));
     const result = await scanner.scanGit({ repo, range: 'HEAD~1..main', binary });
@@ -1243,7 +1247,7 @@ describe('scanner process handling (fake executables)', () => {
   });
 });
 
-describe('scanner diagnostics classification (fake executables)', () => {
+describe('scanner diagnostics classification (fake executables)', { concurrency: TEST_CONCURRENCY }, () => {
   const dir = scratch('diag');
   const target = scratch('diag-target');
   writeFileSync(path.join(target, 'readme.txt'), 'nothing here\n');
@@ -1322,7 +1326,7 @@ describe('scanner diagnostics classification (fake executables)', () => {
   }
 });
 
-describe('dir target completeness (fake executables)', { skip: ROOT_SKIP }, () => {
+describe('dir target completeness (fake executables)', { skip: ROOT_SKIP, concurrency: TEST_CONCURRENCY }, () => {
   const dir = scratch('walk');
 
   async function expectRefusedWithoutRunning(target, code, options = {}) {
@@ -1375,7 +1379,7 @@ describe('dir target completeness (fake executables)', { skip: ROOT_SKIP }, () =
   });
 });
 
-describe('CLI input validation', () => {
+describe('CLI input validation', { concurrency: TEST_CONCURRENCY }, () => {
   const cleanDir = scratch('cli-clean');
   writeFileSync(path.join(cleanDir, 'ok.txt'), 'ok\n');
 
@@ -1384,62 +1388,62 @@ describe('CLI input validation', () => {
     assertExcludes(result.output, forbiddenFragments(cleanDir), context);
   }
 
-  test('usage errors exit 2', () => {
-    assertSafeFailure(runCli([]), 'no command');
-    assertSafeFailure(runCli(['frobnicate']), 'unknown command');
-    assertSafeFailure(runCli(['dir']), 'missing dir target');
-    assertSafeFailure(runCli(['dir', cleanDir, 'extra']), 'extra argument');
-    assertSafeFailure(runCli(['dir', cleanDir, '--unknown']), 'unknown option');
-    assertSafeFailure(runCli(['git']), 'missing repo');
-    assertSafeFailure(runCli(['install', '--write-locations']), 'install flag');
+  test('usage errors exit 2', async () => {
+    assertSafeFailure(await runCli([]), 'no command');
+    assertSafeFailure(await runCli(['frobnicate']), 'unknown command');
+    assertSafeFailure(await runCli(['dir']), 'missing dir target');
+    assertSafeFailure(await runCli(['dir', cleanDir, 'extra']), 'extra argument');
+    assertSafeFailure(await runCli(['dir', cleanDir, '--unknown']), 'unknown option');
+    assertSafeFailure(await runCli(['git']), 'missing repo');
+    assertSafeFailure(await runCli(['install', '--write-locations']), 'install flag');
   });
 
   for (const value of ['-1', 'abc', '999', '1.5', '']) {
-    test(`rejects decode depth value ${JSON.stringify(value)}`, () => {
-      assertSafeFailure(runCli(['dir', cleanDir, '--max-decode-depth', value]), 'decode depth');
+    test(`rejects decode depth value ${JSON.stringify(value)}`, async () => {
+      assertSafeFailure(await runCli(['dir', cleanDir, '--max-decode-depth', value]), 'decode depth');
     });
   }
 
-  test('archive traversal is explicitly unsupported', () => {
+  test('archive traversal is explicitly unsupported', async () => {
     for (const args of [
       ['dir', cleanDir, '--max-archive-depth', '2'],
       ['dir', cleanDir, '--max-archive-depth=0'],
       ['git', repoRoot, '--max-archive-depth', '1'],
     ]) {
-      const result = runCli(args);
+      const result = await runCli(args);
       assertSafeFailure(result, 'archive depth');
       assertIncludes(result.stderr, 'archive', 'archive explanation');
     }
   });
 
-  test('rejects timeout values outside the bounded range', () => {
+  test('rejects timeout values outside the bounded range', async () => {
     for (const value of ['0', '-5', '100000', 'soon']) {
-      assertSafeFailure(runCli(['dir', cleanDir, '--timeout', value]), 'timeout');
+      assertSafeFailure(await runCli(['dir', cleanDir, '--timeout', value]), 'timeout');
     }
   });
 
-  test('nonexistent targets fail without echoing the path', () => {
+  test('nonexistent targets fail without echoing the path', async () => {
     const missing = path.join(cleanDir, 'missing', 'deeper');
-    const result = runCli(['dir', missing]);
+    const result = await runCli(['dir', missing]);
     assertSafeFailure(result, 'missing dir');
     assertExcludes(result.output, [missing], 'missing dir');
   });
 
-  test('shell metacharacters in inputs are never interpreted', () => {
+  test('shell metacharacters in inputs are never interpreted', async () => {
     const marker = path.join(cleanDir, 'pwned');
     const hostile = `$(touch ${marker})`;
-    assertSafeFailure(runCli(['dir', hostile]), 'hostile dir');
-    const repo = initRepo('cli-hostile');
-    commitFile(repo, 'a.txt', 'a\n', 'first');
-    assertSafeFailure(runCli(['git', repo, `HEAD;touch ${marker}`]), 'hostile range');
-    assertSafeFailure(runCli(['git', hostile]), 'hostile repo');
+    assertSafeFailure(await runCli(['dir', hostile]), 'hostile dir');
+    const repo = await initRepo('cli-hostile');
+    await commitFile(repo, 'a.txt', 'a\n', 'first');
+    assertSafeFailure(await runCli(['git', repo, `HEAD;touch ${marker}`]), 'hostile range');
+    assertSafeFailure(await runCli(['git', hostile]), 'hostile repo');
     assert.equal(existsSync(marker), false);
   });
 
-  test('unsafe or reflog revision ranges are rejected', () => {
-    const repo = initRepo('cli-ranges');
-    commitFile(repo, 'a.txt', 'a\n', 'first');
-    commitFile(repo, 'b.txt', 'b\n', 'second');
+  test('unsafe or reflog revision ranges are rejected', async () => {
+    const repo = await initRepo('cli-ranges');
+    await commitFile(repo, 'a.txt', 'a\n', 'first');
+    await commitFile(repo, 'b.txt', 'b\n', 'second');
     for (const range of [
       '--output=evil',
       '-p',
@@ -1452,86 +1456,86 @@ describe('CLI input validation', () => {
       'HEAD..does-not-exist',
       '--all',
     ]) {
-      const result = runCli(['git', repo, range]);
+      const result = await runCli(['git', repo, range]);
       assert.equal(result.code, 2, `range ${JSON.stringify(range)} should be rejected`);
       assertExcludes(result.output, [repo], 'range rejection');
     }
   });
 
-  test('suppression files in the target refuse the scan', () => {
+  test('suppression files in the target refuse the scan', async () => {
     const dirTarget = scratch('cli-ignorefile');
     writeFileSync(path.join(dirTarget, 'ok.txt'), 'ok\n');
     writeFileSync(path.join(dirTarget, '.gitleaksignore'), 'anything\n');
-    const result = runCli(['dir', dirTarget]);
+    const result = await runCli(['dir', dirTarget]);
     assert.equal(result.code, 2);
     assertIncludes(result.stderr, '.gitleaksignore', 'suppression explanation');
 
-    const repo = initRepo('cli-ignorefile-git');
-    commitFile(repo, 'a.txt', 'a\n', 'first');
+    const repo = await initRepo('cli-ignorefile-git');
+    await commitFile(repo, 'a.txt', 'a\n', 'first');
     writeFileSync(path.join(repo, '.gitleaksignore'), 'anything\n');
-    assert.equal(runCli(['git', repo]).code, 2);
+    assert.equal((await runCli(['git', repo])).code, 2);
   });
 
-  test('symlinked dir target is refused', () => {
+  test('symlinked dir target is refused', async () => {
     const link = path.join(scratch('cli-link'), 'link');
     symlinkSync(cleanDir, link);
-    assertSafeFailure(runCli(['dir', link]), 'symlink target');
+    assertSafeFailure(await runCli(['dir', link]), 'symlink target');
   });
 
-  test('non-repositories, shallow clones, and repositories without refs fail closed', () => {
-    assertSafeFailure(runCli(['git', cleanDir]), 'not a repository');
+  test('non-repositories, shallow clones, and repositories without refs fail closed', async () => {
+    assertSafeFailure(await runCli(['git', cleanDir]), 'not a repository');
 
-    const empty = initRepo('cli-empty');
-    assertSafeFailure(runCli(['git', empty]), 'no publishable refs');
+    const empty = await initRepo('cli-empty');
+    assertSafeFailure(await runCli(['git', empty]), 'no publishable refs');
 
-    const source = initRepo('cli-shallow-source');
-    commitFile(source, 'a.txt', 'a\n', 'first');
-    commitFile(source, 'b.txt', 'b\n', 'second');
+    const source = await initRepo('cli-shallow-source');
+    await commitFile(source, 'a.txt', 'a\n', 'first');
+    await commitFile(source, 'b.txt', 'b\n', 'second');
     const shallow = path.join(scratch('cli-shallow'), 'clone');
-    git(path.dirname(shallow), 'clone', '-q', '--depth', '1', pathToFileURL(source).href, shallow);
-    assertSafeFailure(runCli(['git', shallow]), 'shallow clone');
+    await git(path.dirname(shallow), 'clone', '-q', '--depth', '1', pathToFileURL(source).href, shallow);
+    assertSafeFailure(await runCli(['git', shallow]), 'shallow clone');
   });
 
-  test('legacy grafts are refused', () => {
-    const repo = initRepo('cli-grafts');
-    const first = commitFile(repo, 'a.txt', 'a\n', 'first');
-    commitFile(repo, 'b.txt', 'b\n', 'second');
+  test('legacy grafts are refused', async () => {
+    const repo = await initRepo('cli-grafts');
+    const first = await commitFile(repo, 'a.txt', 'a\n', 'first');
+    await commitFile(repo, 'b.txt', 'b\n', 'second');
     mkdirSync(path.join(repo, '.git', 'info'), { recursive: true });
     writeFileSync(path.join(repo, '.git', 'info', 'grafts'), `${first}\n`);
-    const result = runCli(['git', repo]);
+    const result = await runCli(['git', repo]);
     assertSafeFailure(result, 'grafts');
     assertIncludes(result.stderr, 'grafts', 'grafts explanation');
   });
 
-  test('archive blobs in scanned history are refused rather than reported clean', () => {
-    const repo = initRepo('cli-git-archive');
-    const base = commitFile(repo, 'a.txt', 'a\n', 'first');
+  test('archive blobs in scanned history are refused rather than reported clean', async () => {
+    const repo = await initRepo('cli-git-archive');
+    const base = await commitFile(repo, 'a.txt', 'a\n', 'first');
     mkdirSync(path.join(repo, 'fixtures'));
     writeFileSync(path.join(repo, 'fixtures', 'bundle.tar.gz'), tarArchive([{ name: 'inner.txt', data: 'x\n' }]));
-    git(repo, 'add', '--', 'fixtures/bundle.tar.gz');
-    git(repo, 'commit', '-q', '-m', 'add archive');
-    git(repo, 'rm', '-q', '--', 'fixtures/bundle.tar.gz');
-    git(repo, 'commit', '-q', '-m', 'remove archive');
+    await git(repo, 'add', '--', 'fixtures/bundle.tar.gz');
+    await git(repo, 'commit', '-q', '-m', 'add archive');
+    await git(repo, 'rm', '-q', '--', 'fixtures/bundle.tar.gz');
+    await git(repo, 'commit', '-q', '-m', 'remove archive');
     for (const args of [['git', repo], ['git', repo, `${base}..main`]]) {
-      const result = runCli(args);
+      const result = await runCli(args);
       assertSafeFailure(result, 'archive history');
       assertIncludes(result.stderr, 'archive', 'archive explanation');
       assertExcludes(result.output, ['bundle.tar.gz', 'fixtures'], 'archive history');
     }
   });
 
-  test('--write-locations refuses a scratch location Git does not ignore', () => {
+  test('--write-locations refuses a scratch location Git does not ignore', async () => {
     const root = scratch('cli-locations-unignored');
     mkdirSync(path.join(root, 'scripts', 'security'), { recursive: true });
     mkdirSync(path.join(root, 'security'));
     copyFileSync(scriptPath, path.join(root, 'scripts', 'security', 'gitleaks.mjs'));
     copyFileSync(manifestPath, path.join(root, 'security', 'gitleaks-checksums.json'));
-    const result = runCli(['dir', cleanDir, '--write-locations'], { script: path.join(root, 'scripts', 'security', 'gitleaks.mjs') });
+    const result = await runCli(['dir', cleanDir, '--write-locations'], { script: path.join(root, 'scripts', 'security', 'gitleaks.mjs') });
     assertSafeFailure(result, 'unignored locations');
   });
 });
 
-describe('CLI binary integrity', () => {
+describe('CLI binary integrity', { concurrency: TEST_CONCURRENCY }, () => {
   function relocatedLayout() {
     const root = scratch('layout');
     mkdirSync(path.join(root, 'scripts', 'security'), { recursive: true });
@@ -1544,15 +1548,15 @@ describe('CLI binary integrity', () => {
   const cleanDir = scratch('integrity-target');
   writeFileSync(path.join(cleanDir, 'ok.txt'), 'ok\n');
 
-  test('missing binary fails closed with an install hint', () => {
+  test('missing binary fails closed with an install hint', async () => {
     const { script } = relocatedLayout();
-    const result = runCli(['dir', cleanDir], { script });
+    const result = await runCli(['dir', cleanDir], { script });
     assert.equal(result.code, 2);
     assertIncludes(result.stderr, 'gitleaks.mjs install', 'install hint');
     assertExcludes(result.output, forbiddenFragments(), 'missing binary');
   });
 
-  test('a wrong binary at the pinned location is never executed', () => {
+  test('a wrong binary at the pinned location is never executed', async () => {
     const { root, script } = relocatedLayout();
     const manifest = scanner.loadManifest(root);
     const target = scanner.selectTarget(manifest, process.platform, process.arch);
@@ -1562,7 +1566,7 @@ describe('CLI binary integrity', () => {
     writeFileSync(location, `#!${process.execPath}\nrequire('node:fs').writeFileSync(${JSON.stringify(marker)}, 'x');\n`);
     chmodSync(location, 0o755);
     for (const args of [['dir', cleanDir], ['version']]) {
-      const result = runCli(args, { script });
+      const result = await runCli(args, { script });
       assert.equal(result.code, 2);
       assertIncludes(result.stderr, 'checksum', 'checksum explanation');
       assertExcludes(result.output, forbiddenFragments(), 'wrong binary');
@@ -1570,10 +1574,10 @@ describe('CLI binary integrity', () => {
     assert.equal(existsSync(marker), false);
   });
 
-  test('malformed manifest is an infrastructure failure', () => {
+  test('malformed manifest is an infrastructure failure', async () => {
     const { root, script } = relocatedLayout();
     writeFileSync(path.join(root, 'security', 'gitleaks-checksums.json'), '{');
-    const result = runCli(['dir', cleanDir], { script });
+    const result = await runCli(['dir', cleanDir], { script });
     assert.equal(result.code, 2);
   });
 });
@@ -1597,7 +1601,7 @@ function realBinaryState() {
 const real = realBinaryState();
 const requireReal = process.env.VELCRO_REQUIRE_GITLEAKS === '1';
 
-test('real scanner availability', { skip: !real.available && !requireReal ? real.reason : false }, () => {
+test('real scanner availability', { skip: !real.available && !requireReal ? real.reason : false }, async () => {
   assert.ok(real.available, `required real scanner missing: ${real.reason}`);
 });
 
@@ -1605,71 +1609,72 @@ function tokenLine(token = syntheticToken()) {
   return `token = "${token}"\n`;
 }
 
-describe('real pinned scanner', { skip: real.available ? false : real.reason }, () => {
-  test('version reports the pinned release with a verified checksum', () => {
-    const result = runCli(['version']);
+// These suites change no process-wide state and every test owns its scratch files, so their tests run concurrently.
+describe('real pinned scanner', { skip: real.available ? false : real.reason, concurrency: TEST_CONCURRENCY }, () => {
+  test('version reports the pinned release with a verified checksum', async () => {
+    const result = await runCli(['version']);
     assert.equal(result.code, 0);
     assertIncludes(result.stdout, 'gitleaks 8.30.1', 'version');
     assertIncludes(result.stdout, 'sha256 verified', 'checksum evidence');
   });
 
-  test('install is idempotent and re-verifies the existing executable', () => {
-    const result = runCli(['install']);
+  test('install is idempotent and re-verifies the existing executable', async () => {
+    const result = await runCli(['install']);
     assert.equal(result.code, 0);
     assertIncludes(result.stdout, '8.30.1', 'install version');
     assertIncludes(result.stdout, 'verified', 'install verification');
     assertExcludes(result.output, forbiddenFragments(repoRoot), 'install output');
   });
 
-  test('dir: rejects a synthesized token without printing it or its file name', () => {
+  test('dir: rejects a synthesized token without printing it or its file name', async () => {
     const token = syntheticToken();
     const dir = scratch('real-dir-leak');
     mkdirSync(path.join(dir, 'conf'));
     writeFileSync(path.join(dir, 'conf', 'settings.txt'), `first line\n${tokenLine(token)}`);
-    const result = runCli(['dir', dir]);
+    const result = await runCli(['dir', dir]);
     assert.equal(result.code, 1);
     assertIncludes(result.stdout, 'F1  github-pat  line 2', 'opaque finding');
     assertExcludes(result.output, [token, 'settings.txt', 'conf/', ...forbiddenFragments(dir)], 'dir leak output');
   });
 
-  test('dir: credential- and email-shaped file names are never echoed', () => {
+  test('dir: credential- and email-shaped file names are never echoed', async () => {
     const token = syntheticToken();
     const email = syntheticEmail();
     const dir = scratch('real-dir-names');
     writeFileSync(path.join(dir, `${token}.txt`), tokenLine());
     mkdirSync(path.join(dir, email));
     writeFileSync(path.join(dir, email, 'notes.txt'), tokenLine());
-    const result = runCli(['dir', dir]);
+    const result = await runCli(['dir', dir]);
     assert.equal(result.code, 1);
     assertIncludes(result.stdout, '2 findings', 'both findings');
     assertExcludes(result.output, [token, email, 'notes.txt'], 'hostile file names');
   });
 
-  test('dir: accepts a clean fixture', () => {
+  test('dir: accepts a clean fixture', async () => {
     const dir = scratch('real-dir-clean');
     writeFileSync(path.join(dir, 'readme.md'), '# Clean\n\nImport from `@charm-ux/velcro`.\n');
-    const result = runCli(['dir', dir]);
+    const result = await runCli(['dir', dir]);
     assert.equal(result.code, 0);
     assertIncludes(result.stdout, 'no findings', 'clean summary');
   });
 
-  test('dir: scans an explicit single file target', () => {
+  test('dir: scans an explicit single file target', async () => {
     const file = path.join(scratch('real-dir-single'), 'single.txt');
     writeFileSync(file, tokenLine());
-    assert.equal(runCli(['dir', file]).code, 1);
+    assert.equal((await runCli(['dir', file])).code, 1);
   });
 
-  test('dir: inline allow comments cannot suppress findings', () => {
+  test('dir: inline allow comments cannot suppress findings', async () => {
     const token = syntheticToken();
     const dir = scratch('real-dir-allow');
     writeFileSync(path.join(dir, 'a.txt'), `token = "${token}" # gitleaks:allow\n`);
-    const result = runCli(['dir', dir]);
+    const result = await runCli(['dir', dir]);
     assert.equal(result.code, 1);
     assertIncludes(result.stdout, 'github-pat', 'allow-commented rule');
     assertExcludes(result.output, [token], 'allow comment output');
   });
 
-  test('dir: a target .gitleaks.toml cannot disable default rules', () => {
+  test('dir: a target .gitleaks.toml cannot disable default rules', async () => {
     const token = syntheticToken();
     const dir = scratch('real-dir-config');
     writeFileSync(path.join(dir, 'a.txt'), `${token}\n`);
@@ -1677,54 +1682,54 @@ describe('real pinned scanner', { skip: real.available ? false : real.reason }, 
       path.join(dir, '.gitleaks.toml'),
       '[extend]\nuseDefault = true\ndisabledRules = ["github-pat", "generic-api-key"]\n',
     );
-    const result = runCli(['dir', dir]);
+    const result = await runCli(['dir', dir]);
     assert.equal(result.code, 1);
     assertIncludes(result.stdout, 'github-pat', 'disabled rule still applied');
     assertExcludes(result.output, [token], 'config override output');
   });
 
-  test('dir: decode depth finds encoded tokens and is configurable', () => {
+  test('dir: decode depth finds encoded tokens and is configurable', async () => {
     const token = syntheticToken();
     const dir = scratch('real-dir-decode');
     writeFileSync(path.join(dir, 'blob.txt'), `data: ${Buffer.from(`token = "${token}"`).toString('base64')}\n`);
-    const encoded = runCli(['dir', dir]);
+    const encoded = await runCli(['dir', dir]);
     assert.equal(encoded.code, 1);
     assertExcludes(encoded.output, [token], 'decoded output');
-    assert.equal(runCli(['dir', dir, '--max-decode-depth', '0']).code, 0);
+    assert.equal((await runCli(['dir', dir, '--max-decode-depth', '0'])).code, 0);
   });
 
-  test('dir: archives are refused rather than reported clean', () => {
+  test('dir: archives are refused rather than reported clean', async () => {
     for (const name of ['bundle.tar.gz', 'bundle.tgz', 'bundle.zip']) {
       const dir = scratch('real-dir-archive');
       writeFileSync(path.join(dir, 'ok.txt'), 'ok\n');
       writeFileSync(path.join(dir, name), tarArchive([{ name: 'inner/settings.txt', data: tokenLine() }]));
-      const result = runCli(['dir', dir]);
+      const result = await runCli(['dir', dir]);
       assert.equal(result.code, 2, `${name} should be refused`);
       assertIncludes(result.stderr, 'archive or binary', 'unsupported content explanation');
       assertExcludes(result.output, [name], 'archive name');
     }
   });
 
-  test('dir: binary-typed files are refused rather than reported clean', () => {
+  test('dir: binary-typed files are refused rather than reported clean', async () => {
     const dir = scratch('real-dir-binary');
     writeFileSync(path.join(dir, 'looks-like-text.txt'), `%PDF-1.4\n${tokenLine()}`);
-    const result = runCli(['dir', dir]);
+    const result = await runCli(['dir', dir]);
     assert.equal(result.code, 2);
     assertIncludes(result.stderr, 'archive or binary', 'unsupported content explanation');
   });
 
-  test('dir: stock allowlisted paths are disclosed as not inspected', () => {
+  test('dir: stock allowlisted paths are disclosed as not inspected', async () => {
     const dir = scratch('real-dir-allowlisted');
     mkdirSync(path.join(dir, 'node_modules', 'pkg'), { recursive: true });
     writeFileSync(path.join(dir, 'node_modules', 'pkg', 'index.js'), tokenLine());
     writeFileSync(path.join(dir, 'ok.txt'), 'ok\n');
-    const result = runCli(['dir', dir]);
+    const result = await runCli(['dir', dir]);
     assert.equal(result.code, 0);
     assertIncludes(result.stdout, '1 path excluded by the stock Gitleaks path allowlist', 'exclusion disclosure');
     assertExcludes(result.output, ['node_modules'], 'exclusion disclosure');
   });
 
-  test('dir: unreadable files and subtrees fail closed', { skip: ROOT_SKIP }, () => {
+  test('dir: unreadable files and subtrees fail closed', { skip: ROOT_SKIP }, async () => {
     const fileCase = scratch('real-dir-unreadable-file');
     writeFileSync(path.join(fileCase, 'ok.txt'), 'ok\n');
     writeFileSync(path.join(fileCase, 'locked.txt'), tokenLine());
@@ -1734,16 +1739,16 @@ describe('real pinned scanner', { skip: real.available ? false : real.reason }, 
     writeFileSync(path.join(dirCase, 'locked', 'a.txt'), tokenLine());
     chmodSync(path.join(dirCase, 'locked'), 0);
     for (const target of [fileCase, dirCase, path.join(fileCase, 'locked.txt')]) {
-      const result = runCli(['dir', target]);
+      const result = await runCli(['dir', target]);
       assert.equal(result.code, 2);
       assertIncludes(result.stderr, 'unreadable', 'unreadable explanation');
       assertExcludes(result.output, ['locked'], 'unreadable output');
     }
   });
 
-  test('dir: --write-locations records names only in ignored scratch', () => {
+  test('dir: --write-locations records names only in ignored scratch', async () => {
     const root = scratch('real-locations');
-    git(root, 'init', '-q');
+    await git(root, 'init', '-q');
     writeFileSync(path.join(root, '.gitignore'), '.airig/\n');
     mkdirSync(path.join(root, 'scripts', 'security'), { recursive: true });
     mkdirSync(path.join(root, 'security'));
@@ -1758,7 +1763,7 @@ describe('real pinned scanner', { skip: real.available ? false : real.reason }, 
     const token = syntheticToken();
     const dir = scratch('real-locations-target');
     writeFileSync(path.join(dir, `${token}.txt`), tokenLine());
-    const result = runCli(['dir', dir, '--write-locations'], { script });
+    const result = await runCli(['dir', dir, '--write-locations'], { script });
     assert.equal(result.code, 1);
     assertIncludes(result.stdout, '.airig/security/gitleaks-locations.json', 'locations hint');
     assertExcludes(result.output, [token, ...forbiddenFragments(root)], 'locations output');
@@ -1768,86 +1773,86 @@ describe('real pinned scanner', { skip: real.available ? false : real.reason }, 
     assert.equal(recorded.findings[0].path, `${token}.txt`);
   });
 
-  test('git: finds a token in history under a clean tip', () => {
+  test('git: finds a token in history under a clean tip', async () => {
     const token = syntheticToken();
-    const repo = initRepo('real-git-history');
-    commitFile(repo, 'readme.txt', 'hello\n', 'initial');
-    const leaky = commitFile(repo, 'conf.txt', tokenLine(token), 'add config');
-    commitFile(repo, 'conf.txt', 'token = from-environment\n', 'remove token');
-    const result = runCli(['git', repo]);
+    const repo = await initRepo('real-git-history');
+    await commitFile(repo, 'readme.txt', 'hello\n', 'initial');
+    const leaky = await commitFile(repo, 'conf.txt', tokenLine(token), 'add config');
+    await commitFile(repo, 'conf.txt', 'token = from-environment\n', 'remove token');
+    const result = await runCli(['git', repo]);
     assert.equal(result.code, 1);
     assertIncludes(result.stdout, `F1  github-pat  line 1 @ ${leaky.slice(0, 12)}`, 'commit location');
     assertExcludes(result.output, [token, 'conf.txt', 'Velcro Test', 'example.invalid', ...forbiddenFragments(repo)], 'git output');
   });
 
-  test('git: reflog, stash, and recovery refs are not treated as publishable history', () => {
-    const repo = initRepo('real-git-private');
-    const base = commitFile(repo, 'readme.txt', 'hello\n', 'initial');
-    const discarded = detachedCommit(repo, base, { 'readme.txt': 'hello\n', 'conf.txt': tokenLine() }, 'oops');
-    git(repo, 'update-ref', '-m', 'move', 'refs/heads/main', discarded);
-    git(repo, 'update-ref', '-m', 'move back', 'refs/heads/main', base);
-    const recovery = detachedCommit(repo, base, { 'recovered.txt': tokenLine() }, 'recovery');
-    git(repo, 'update-ref', 'refs/original/refs/heads/main', recovery);
-    const stashed = detachedCommit(repo, base, { 'wip.txt': tokenLine() }, 'WIP on main');
-    git(repo, 'update-ref', 'refs/stash', stashed);
-    assert.ok(git(repo, 'reflog', 'show', 'main').includes(discarded.slice(0, 7)), 'fixture reflog missing');
+  test('git: reflog, stash, and recovery refs are not treated as publishable history', async () => {
+    const repo = await initRepo('real-git-private');
+    const base = await commitFile(repo, 'readme.txt', 'hello\n', 'initial');
+    const discarded = await detachedCommit(repo, base, { 'readme.txt': 'hello\n', 'conf.txt': tokenLine() }, 'oops');
+    await git(repo, 'update-ref', '-m', 'move', 'refs/heads/main', discarded);
+    await git(repo, 'update-ref', '-m', 'move back', 'refs/heads/main', base);
+    const recovery = await detachedCommit(repo, base, { 'recovered.txt': tokenLine() }, 'recovery');
+    await git(repo, 'update-ref', 'refs/original/refs/heads/main', recovery);
+    const stashed = await detachedCommit(repo, base, { 'wip.txt': tokenLine() }, 'WIP on main');
+    await git(repo, 'update-ref', 'refs/stash', stashed);
+    assert.ok((await git(repo, 'reflog', 'show', 'main')).includes(discarded.slice(0, 7)), 'fixture reflog missing');
 
-    const result = runCli(['git', repo]);
+    const result = await runCli(['git', repo]);
     assert.equal(result.code, 0, 'default scan should cover publishable branches and tags only');
     for (const explicit of [discarded, recovery, stashed]) {
-      assert.equal(runCli(['git', repo, explicit]).code, 1, 'explicit revision should still be scannable');
+      assert.equal((await runCli(['git', repo, explicit])).code, 1, 'explicit revision should still be scannable');
     }
   });
 
-  test('git: tags are publishable history', () => {
-    const repo = initRepo('real-git-tag');
-    const base = commitFile(repo, 'readme.txt', 'hello\n', 'initial');
-    const tagged = detachedCommit(repo, base, { 'readme.txt': 'hello\n', 'conf.txt': tokenLine() }, 'tagged leak');
-    git(repo, 'tag', 'v-leak', tagged);
-    assert.equal(runCli(['git', repo]).code, 1);
+  test('git: tags are publishable history', async () => {
+    const repo = await initRepo('real-git-tag');
+    const base = await commitFile(repo, 'readme.txt', 'hello\n', 'initial');
+    const tagged = await detachedCommit(repo, base, { 'readme.txt': 'hello\n', 'conf.txt': tokenLine() }, 'tagged leak');
+    await git(repo, 'tag', 'v-leak', tagged);
+    assert.equal((await runCli(['git', repo])).code, 1);
   });
 
-  test('git: content introduced only by a merge commit is found', () => {
-    const repo = initRepo('real-git-merge');
-    commitFile(repo, 'a.txt', 'a\n', 'base');
-    git(repo, 'checkout', '-q', '-b', 'side');
-    commitFile(repo, 's.txt', 's\n', 'side');
-    git(repo, 'checkout', '-q', 'main');
-    commitFile(repo, 'm.txt', 'm\n', 'main');
-    git(repo, 'merge', '-q', '--no-commit', 'side');
+  test('git: content introduced only by a merge commit is found', async () => {
+    const repo = await initRepo('real-git-merge');
+    await commitFile(repo, 'a.txt', 'a\n', 'base');
+    await git(repo, 'checkout', '-q', '-b', 'side');
+    await commitFile(repo, 's.txt', 's\n', 'side');
+    await git(repo, 'checkout', '-q', 'main');
+    await commitFile(repo, 'm.txt', 'm\n', 'main');
+    await git(repo, 'merge', '-q', '--no-commit', 'side');
     writeFileSync(path.join(repo, 'evil.txt'), tokenLine());
-    git(repo, 'add', 'evil.txt');
-    git(repo, 'commit', '-q', '-m', 'merge side');
-    const merge = git(repo, 'rev-parse', 'HEAD');
-    const result = runCli(['git', repo]);
+    await git(repo, 'add', 'evil.txt');
+    await git(repo, 'commit', '-q', '-m', 'merge side');
+    const merge = await git(repo, 'rev-parse', 'HEAD');
+    const result = await runCli(['git', repo]);
     assert.equal(result.code, 1);
     assertIncludes(result.stdout, `@ ${merge.slice(0, 12)}`, 'merge location');
   });
 
-  test('git: explicit ranges limit the scan', () => {
-    const repo = initRepo('real-git-range');
-    const base = commitFile(repo, 'readme.txt', 'hello\n', 'initial');
-    commitFile(repo, 'conf.txt', tokenLine(), 'leak');
-    const leakTip = git(repo, 'rev-parse', 'HEAD');
-    commitFile(repo, 'other.txt', 'clean\n', 'clean change');
-    assert.equal(runCli(['git', repo, `${leakTip}..main`]).code, 0);
-    assert.equal(runCli(['git', repo, `${base}..main`]).code, 1);
+  test('git: explicit ranges limit the scan', async () => {
+    const repo = await initRepo('real-git-range');
+    const base = await commitFile(repo, 'readme.txt', 'hello\n', 'initial');
+    await commitFile(repo, 'conf.txt', tokenLine(), 'leak');
+    const leakTip = await git(repo, 'rev-parse', 'HEAD');
+    await commitFile(repo, 'other.txt', 'clean\n', 'clean change');
+    assert.equal((await runCli(['git', repo, `${leakTip}..main`])).code, 0);
+    assert.equal((await runCli(['git', repo, `${base}..main`])).code, 1);
   });
 
   for (const attributes of ['conf.txt -diff\n', '*.txt binary\n', '* -text -diff\n']) {
-    test(`git: diff attributes (${attributes.trim()}) cannot hide history content`, () => {
-      const repo = initRepo('real-git-attributes');
-      commitFile(repo, '.gitattributes', attributes, 'attributes');
-      commitFile(repo, 'conf.txt', tokenLine(), 'leak');
-      commitFile(repo, 'conf.txt', 'clean\n', 'clean tip');
-      const result = runCli(['git', repo]);
+    test(`git: diff attributes (${attributes.trim()}) cannot hide history content`, async () => {
+      const repo = await initRepo('real-git-attributes');
+      await commitFile(repo, '.gitattributes', attributes, 'attributes');
+      await commitFile(repo, 'conf.txt', tokenLine(), 'leak');
+      await commitFile(repo, 'conf.txt', 'clean\n', 'clean tip');
+      const result = await runCli(['git', repo]);
       assert.equal(result.code, 1);
       assertIncludes(result.stdout, 'github-pat', 'rule');
     });
   }
 
-  test('git: repository textconv and external diff drivers never run', () => {
-    const repo = initRepo('real-git-drivers');
+  test('git: repository textconv and external diff drivers never run', async () => {
+    const repo = await initRepo('real-git-drivers');
     const markers = scratch('real-git-drivers-markers');
     const textconvMarker = path.join(markers, 'textconv-ran');
     const externalMarker = path.join(markers, 'external-ran');
@@ -1856,36 +1861,36 @@ describe('real pinned scanner', { skip: real.available ? false : real.reason }, 
       writeFileSync(file, `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'x'); process.stdout.write('clean\\n');\n`);
       return `"${process.execPath}" "${file}"`;
     };
-    git(repo, 'config', 'diff.hide.textconv', helper(textconvMarker));
-    git(repo, 'config', 'diff.external', helper(externalMarker));
-    commitFile(repo, '.gitattributes', 'conf.txt diff=hide\n', 'attributes');
-    commitFile(repo, 'conf.txt', tokenLine(), 'leak');
-    const result = runCli(['git', repo]);
+    await git(repo, 'config', 'diff.hide.textconv', helper(textconvMarker));
+    await git(repo, 'config', 'diff.external', helper(externalMarker));
+    await commitFile(repo, '.gitattributes', 'conf.txt diff=hide\n', 'attributes');
+    await commitFile(repo, 'conf.txt', tokenLine(), 'leak');
+    const result = await runCli(['git', repo]);
     assert.equal(result.code, 1);
     assert.equal(existsSync(textconvMarker), false, 'textconv helper executed');
     assert.equal(existsSync(externalMarker), false, 'external diff helper executed');
   });
 
-  test('git: replacement objects cannot substitute clean history', () => {
-    const repo = initRepo('real-git-replace');
-    const base = commitFile(repo, 'readme.txt', 'hello\n', 'initial');
-    const leaky = commitFile(repo, 'conf.txt', tokenLine(), 'add config');
-    const leakyBlob = git(repo, 'rev-parse', `${leaky}:conf.txt`);
-    const cleanBlob = gitWithInput(repo, 'token = from-environment\n', 'hash-object', '-w', '--stdin');
-    git(repo, 'replace', leakyBlob, cleanBlob);
-    const cleanCommit = detachedCommit(repo, base, { 'readme.txt': 'hello\n', 'conf.txt': 'clean\n' }, 'add config');
-    git(repo, 'replace', leaky, cleanCommit);
-    assert.ok(git(repo, 'replace', '-l').split('\n').length >= 2, 'fixture replacements missing');
+  test('git: replacement objects cannot substitute clean history', async () => {
+    const repo = await initRepo('real-git-replace');
+    const base = await commitFile(repo, 'readme.txt', 'hello\n', 'initial');
+    const leaky = await commitFile(repo, 'conf.txt', tokenLine(), 'add config');
+    const leakyBlob = await git(repo, 'rev-parse', `${leaky}:conf.txt`);
+    const cleanBlob = await gitWithInput(repo, 'token = from-environment\n', 'hash-object', '-w', '--stdin');
+    await git(repo, 'replace', leakyBlob, cleanBlob);
+    const cleanCommit = await detachedCommit(repo, base, { 'readme.txt': 'hello\n', 'conf.txt': 'clean\n' }, 'add config');
+    await git(repo, 'replace', leaky, cleanCommit);
+    assert.ok((await git(repo, 'replace', '-l')).split('\n').length >= 2, 'fixture replacements missing');
     for (const args of [['git', repo], ['git', repo, `${base}..main`], ['git', repo, 'main']]) {
-      const result = runCli(args);
+      const result = await runCli(args);
       assert.equal(result.code, 1, `replacement hid content for ${args.slice(2).join(' ') || 'default'}`);
     }
   });
 
-  test('git: hostile local and global presentation settings cannot hide history', () => {
-    const repo = initRepo('real-git-presentation');
-    commitFile(repo, 'root.txt', tokenLine(), 'root commit leak');
-    commitFile(repo, 'root.txt', 'clean\n', 'clean tip');
+  test('git: hostile local and global presentation settings cannot hide history', async () => {
+    const repo = await initRepo('real-git-presentation');
+    await commitFile(repo, 'root.txt', tokenLine(), 'root commit leak');
+    await commitFile(repo, 'root.txt', 'clean\n', 'clean tip');
     for (const [key, value] of [
       ['log.showRoot', 'false'],
       ['diff.noprefix', 'true'],
@@ -1896,30 +1901,30 @@ describe('real pinned scanner', { skip: real.available ? false : real.reason }, 
       ['log.decorate', 'full'],
       ['diff.relative', 'true'],
     ]) {
-      git(repo, 'config', key, value);
+      await git(repo, 'config', key, value);
     }
     const home = scratch('real-git-presentation-home');
     writeFileSync(path.join(home, '.gitconfig'), '[log]\n\tshowRoot = false\n[core]\n\tattributesFile = attrs\n');
     writeFileSync(path.join(home, 'attrs'), '* -diff\n');
-    const result = runCli(['git', repo], { env: { HOME: home, XDG_CONFIG_HOME: path.join(home, '.config') } });
+    const result = await runCli(['git', repo], { env: { HOME: home, XDG_CONFIG_HOME: path.join(home, '.config') } });
     assert.equal(result.code, 1, 'presentation configuration hid root-commit content');
     assertIncludes(result.stdout, 'github-pat', 'rule');
   });
 
-  test('git: inline allow comments in history cannot suppress findings', () => {
+  test('git: inline allow comments in history cannot suppress findings', async () => {
     const token = syntheticToken();
-    const repo = initRepo('real-git-allow');
-    commitFile(repo, 'a.txt', `token = "${token}" # gitleaks:allow\n`, 'allow');
-    const result = runCli(['git', repo]);
+    const repo = await initRepo('real-git-allow');
+    await commitFile(repo, 'a.txt', `token = "${token}" # gitleaks:allow\n`, 'allow');
+    const result = await runCli(['git', repo]);
     assert.equal(result.code, 1);
     assertExcludes(result.output, [token], 'git allow output');
   });
 
-  test('git: a committed .gitleaks.toml cannot disable default rules', () => {
-    const repo = initRepo('real-git-config');
-    commitFile(repo, '.gitleaks.toml', '[extend]\nuseDefault = true\ndisabledRules = ["github-pat", "generic-api-key"]\n', 'cfg');
-    commitFile(repo, 'a.txt', `${syntheticToken()}\n`, 'leak');
-    const result = runCli(['git', repo]);
+  test('git: a committed .gitleaks.toml cannot disable default rules', async () => {
+    const repo = await initRepo('real-git-config');
+    await commitFile(repo, '.gitleaks.toml', '[extend]\nuseDefault = true\ndisabledRules = ["github-pat", "generic-api-key"]\n', 'cfg');
+    await commitFile(repo, 'a.txt', `${syntheticToken()}\n`, 'leak');
+    const result = await runCli(['git', repo]);
     assert.equal(result.code, 1);
     assertIncludes(result.stdout, 'github-pat', 'disabled rule still applied');
   });
