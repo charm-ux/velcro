@@ -68,23 +68,16 @@ export class VelcroDetails extends CharmElement {
   // Shoelace's `static dependencies` for the details: the elements its template renders. Shoelace keys them by tag; here
   // the tag is derived from each class's `baseName` (`sl-icon` for `VelcroIcon`), the same tag `defineVelcroComponent`
   // defines and the template renders. As in Shoelace's base element, each one that is not defined yet is defined when a
-  // details is constructed, and a tag that another constructor already owns is left alone (without the warning Shoelace
-  // logs when the registered version differs from its own). If the platform refuses the class itself (for example because
-  // it is already registered under another tag), an anonymous subclass is defined instead, as Shoelace does. Core's own
-  // array-typed `dependencies` (registration in core's scope) stays empty. Not part of the documented API (Shoelace's
-  // manifest lists `dependencies` without a description).
+  // details is constructed, and a tag that another constructor already owns is left alone (with Shoelace's warning
+  // when the versions differ). If the platform refuses the class itself (for example because it is already registered
+  // under another tag), an anonymous subclass is defined instead, as Shoelace does. Core's own array-typed
+  // `dependencies` (registration in core's scope) stays empty. Not part of the documented API (Shoelace's manifest lists
+  // `dependencies` without a description).
   private static readonly shoelaceDependencies: readonly VelcroComponentConstructor[] = [VelcroIcon];
 
   public constructor() {
     super();
-    for (const component of VelcroDetails.shoelaceDependencies) {
-      if (customElements.get(`sl-${component.baseName}`)) continue;
-      try {
-        defineVelcroComponent(component);
-      } catch {
-        defineVelcroComponent(class extends component {});
-      }
-    }
+    for (const component of VelcroDetails.shoelaceDependencies) defineVelcroComponent(component);
   }
 
   // Shoelace's base element restores a reflected property's initial value when its attribute is removed (see

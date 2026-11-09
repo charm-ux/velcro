@@ -46,25 +46,19 @@ export class VelcroTab extends CoreTab {
   // Core's base and tab styles are replaced by Shoelace's own (see the styles file).
   public static override styles = [styles];
 
-  // Shoelace's `static dependencies` for the tab: the elements its template renders. Shoelace keys them by tag; here the
-  // tag is derived from each class's `baseName` (`sl-icon-button` for `VelcroIconButton`), the same tag
-  // `defineVelcroComponent` defines and the template renders. As in Shoelace's base element, each one that is not defined
-  // yet is defined when a tab is constructed, and a tag that another constructor already owns is left alone (without
-  // Shoelace's version warning). If the platform refuses the class itself (for example because it is already registered
-  // under another tag), an anonymous subclass is defined instead, as Shoelace does. The icon button in turn defines
-  // `<sl-icon>` when it is constructed. Core's own array-typed `dependencies` (registration in core's scope) stays empty.
+  // Shoelace's `static dependencies` for the tab: the elements its template renders. Shoelace keys them by tag; here
+  // the tag is derived from each class's `baseName` (`sl-icon-button` for `VelcroIconButton`), the same tag
+  // `defineVelcroComponent` defines and the template renders. As in Shoelace's base element, each one that is not
+  // defined yet is defined when a tab is constructed, and a tag that another constructor already owns is left alone
+  // (with Shoelace's warning when the versions differ). If the platform refuses the class itself (for example because
+  // it is already registered under another tag), an anonymous subclass is defined instead, as Shoelace does. The icon
+  // button in turn defines `<sl-icon>` when it is constructed. Core's own array-typed `dependencies` (registration in
+  // core's scope) stays empty.
   private static readonly shoelaceDependencies: readonly VelcroComponentConstructor[] = [VelcroIconButton];
 
   public constructor() {
     super();
-    for (const component of VelcroTab.shoelaceDependencies) {
-      if (customElements.get(`sl-${component.baseName}`)) continue;
-      try {
-        defineVelcroComponent(component);
-      } catch {
-        defineVelcroComponent(class extends component {});
-      }
-    }
+    for (const component of VelcroTab.shoelaceDependencies) defineVelcroComponent(component);
   }
 
   private readonly localize = new LocalizeController(this);

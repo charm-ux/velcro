@@ -8,7 +8,9 @@ export * from './class.js';
 // Registers the exported class itself as <sl-alert> through the native registry. Core's shared prefix and scope are not
 // touched. The close button is an <sl-icon-button>, which draws an <sl-icon>, so Velcro's icon button and icon are
 // registered too (Shoelace's alert lists the icon button as a dependency in the same way, and the icon button its icon).
-// All calls are idempotent and fail loudly if a different constructor owns the tag.
+// Every tag is registered as Shoelace's `define` registers it: a tag that is already defined is left alone (with
+// Shoelace's console warning when the versions differ), and if the platform refuses the class itself, an anonymous
+// subclass is defined instead.
 defineVelcroComponent(VelcroAlert);
 defineVelcroComponent(VelcroIconButton);
 defineVelcroComponent(VelcroIcon);

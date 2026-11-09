@@ -109,7 +109,8 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
   expect(html).toContain('never settles');
   expect(html).toContain('interrupts a hide animation');
   expect(html).toContain('The document&#39;s direction is a snapshot, not a live read');
-  expect(html).toContain('it throws on import when another constructor already owns sl-icon');
+  expect(html).toContain('importing never throws on a tag clash');
+  expect(html).toContain('logs a console warning when the two versions differ');
   expect(html).not.toContain('accessibility-tree check is Playwright');
   expect(html).toContain('expandIconSlot');
   expect(html).toContain('Shoelace&#39;s own details tests (11, including two axe accessibility checks');

@@ -111,9 +111,10 @@ export class VelcroRadioGroup extends CoreRadioGroup {
 
   // Shoelace's `static dependencies` for the radio group: the elements its template renders. Shoelace keys them by tag;
   // here the tag is derived from each class's `baseName` (`sl-button-group`). As in Shoelace's base element, each one
-  // that is not defined yet is defined when a radio group is constructed, a tag that another constructor already owns is
-  // left alone, and if the platform refuses the class itself an anonymous subclass is defined instead. Core's own
-  // array-typed `dependencies` stays empty. Not part of the documented API.
+  // that is not defined yet is defined when a radio group is constructed, a tag that another constructor already owns
+  // is left alone (with Shoelace's warning when the versions differ), and if the platform refuses the class itself an
+  // anonymous subclass is defined instead. Core's own array-typed `dependencies` stays empty. Not part of the
+  // documented API.
   private static readonly shoelaceDependencies: readonly VelcroComponentConstructor[] = [VelcroButtonGroup];
 
   // `autofocus` is the platform's own property, as in Shoelace (see the accessor installed after the class): core's
@@ -125,14 +126,7 @@ export class VelcroRadioGroup extends CoreRadioGroup {
   public constructor() {
     super();
     constructed.add(this);
-    for (const component of VelcroRadioGroup.shoelaceDependencies) {
-      if (customElements.get(`sl-${component.baseName}`)) continue;
-      try {
-        defineVelcroComponent(component);
-      } catch {
-        defineVelcroComponent(class extends component {});
-      }
-    }
+    for (const component of VelcroRadioGroup.shoelaceDependencies) defineVelcroComponent(component);
   }
 
   protected readonly formControlController = new FormControlController(this);
