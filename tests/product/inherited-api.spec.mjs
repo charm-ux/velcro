@@ -102,8 +102,7 @@ for (const [tag, decl] of elements) {
       await page.mouse.up();
       await page.mouse.move(0, 0);
       await page.evaluate(() => { document.activeElement?.blur?.(); document.getElementById('probe').blur?.(); });
-      await page.keyboard.down('Shift');
-      await page.keyboard.up('Shift');
+      await page.keyboard.press('Shift');
       await page.evaluate(() => document.getElementById('probe').focus?.());
       await measure(`${state ?? 'default'} + :focus-visible`);
       await page.evaluate(() => document.getElementById('probe').blur?.());

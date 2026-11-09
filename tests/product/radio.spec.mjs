@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
@@ -194,7 +195,7 @@ test('keyboard: only a checked radio is a tab stop; outside a group Space and ar
   });
   await frame.locator('#start').focus();
   await page.keyboard.press('Tab');
-  expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-default');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-default');
   // The focus ring is drawn on the control, as in Shoelace.
   const ring = await first.evaluate(el => {
     const control = getComputedStyle(el.shadowRoot.querySelector('[part~="control"]'));
@@ -204,7 +205,7 @@ test('keyboard: only a checked radio is a tab stop; outside a group Space and ar
   expect(ring).toEqual({ style: 'solid', width: '3px', offset: '1px', focused: true });
   // Unchecked radios have tabindex="-1", so Tab leaves the group.
   await page.keyboard.press('Tab');
-  expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('end');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('end');
   expect(await first.evaluate(() => window.__events)).toEqual(['sl-focus:true:true', 'sl-blur:true:true']);
   expect(await first.evaluate(el => el.shadowRoot.querySelector('[part="base"]').classList.contains('radio--focused'))).toBe(false);
   // Outside a radio group, Space and the arrow keys do nothing on a radio, checked or not.
@@ -212,10 +213,11 @@ test('keyboard: only a checked radio is a tab stop; outside a group Space and ar
   const solo = () => frame.locator('#mount').evaluate(host => [...host.querySelectorAll('sl-radio')].map(r => r.checked));
   await frame.locator('#solo-1').evaluate(el => { el.checked = true; });
   await frame.locator('#solo-1').focus();
-  for (const key of ['ArrowDown', 'ArrowRight', 'ArrowUp', 'Space']) await page.keyboard.press(key);
+  await recordKeys(frame.locator('body'));
+  for (const key of ['ArrowDown', 'ArrowRight', 'ArrowUp', 'Space']) await pressReceived(page, frame.locator('body'), key);
   expect(await solo()).toEqual([true, false]);
   await frame.locator('#solo-2').focus();
-  await page.keyboard.press('Space');
+  await pressReceived(page, frame.locator('body'), 'Space');
   expect(await solo()).toEqual([true, false]);
 });
 
