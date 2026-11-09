@@ -1071,7 +1071,9 @@ test('bundles of the class-only and registering entries keep Shoelace\'s scrolle
 
 // Shoelace's React examples, ported in packages/docs/examples/carousel/react/*.jsx, bundled with React 19 and the generated
 // wrappers, which are resolved through the package's real export map.
-test('React examples render the same carousels as the HTML examples through the generated wrappers; the dynamic, mouse dragging and gallery ones work', async ({ page }) => {
+// The title is short on purpose: CI's public failure summary is cut at 200 characters, and a long title pushes the failing line
+// number out of it. Every property is asserted on its own line for the same reason.
+test('React examples render through the generated wrappers with the HTML examples\' props; the dynamic, drag and gallery ones work', async ({ page }) => {
   const names = ORDER.map(([id]) => id);
   const fromVelcro = createRequire(path.join(velcroDir, 'package.json'));
   const pkgDir = name => path.dirname(fromVelcro.resolve(`${name}/package.json`));
@@ -1133,24 +1135,42 @@ test('React examples render the same carousels as the HTML examples through the 
     toggle.dispatchEvent(new CustomEvent('sl-input', { bubbles: true, composed: true }));
     await until(() => drag.querySelector('sl-carousel').mouseDragging === true);
     out.dragOn = drag.querySelector('sl-carousel').mouseDragging;
-    // The gallery: a thumbnail click goes to the slide, and the slide change highlights the thumbnail.
-    const gallery = document.querySelector('#gallery');
-    const thumbs = () => [...gallery.querySelectorAll('.thumbnails__image')];
-    thumbs()[3].click();
-    await until(() => thumbs()[3].classList.contains('active') && !gallery.querySelector('sl-carousel').scrolling);
-    out.gallery = [thumbs().map(t => t.classList.contains('active')), gallery.querySelector('sl-carousel').activeSlide];
     return { out, errors: window.errors };
   }, names);
-  expect(r.out).toEqual({
-    // As on Shoelace's page, the React version of the opening example has only pagination and mouse-dragging, and the vertical one has loop.
-    basic: [5, false, false, true, false, true, 1, 'horizontal'], pagination: [5, false, false, true, false, false, 1, 'horizontal'],
-    navigation: [5, false, true, false, false, false, 1, 'horizontal'], loop: [5, true, true, true, false, false, 1, 'horizontal'],
-    autoplay: [5, true, false, true, true, false, 1, 'horizontal'], 'mouse-dragging': [5, false, true, false, false, false, 1, 'horizontal'],
-    'slides-per-page': [6, false, true, true, false, false, 2, 'horizontal'], dynamic: [3, false, true, true, false, false, 1, 'horizontal'],
-    vertical: [5, true, false, true, false, false, 1, 'vertical'], 'aspect-ratio': [5, false, true, true, false, false, 1, 'horizontal'],
-    'scroll-hint': [5, false, false, true, false, false, 1, 'horizontal'], gallery: [5, true, true, false, false, false, 1, 'horizontal'],
-    dynamicCounts: [3, 4, 2], dragOn: true, gallery: [[false, false, false, true, false], 3],
-  });
+  // As on Shoelace's page, the React version of the opening example has only pagination and mouse-dragging, and the vertical one has loop.
+  expect(r.out.basic).toEqual([5, false, false, true, false, true, 1, 'horizontal']);
+  expect(r.out.pagination).toEqual([5, false, false, true, false, false, 1, 'horizontal']);
+  expect(r.out.navigation).toEqual([5, false, true, false, false, false, 1, 'horizontal']);
+  expect(r.out.loop).toEqual([5, true, true, true, false, false, 1, 'horizontal']);
+  expect(r.out.autoplay).toEqual([5, true, false, true, true, false, 1, 'horizontal']);
+  expect(r.out['mouse-dragging']).toEqual([5, false, true, false, false, false, 1, 'horizontal']);
+  expect(r.out['slides-per-page']).toEqual([6, false, true, true, false, false, 2, 'horizontal']);
+  expect(r.out.dynamic).toEqual([3, false, true, true, false, false, 1, 'horizontal']);
+  expect(r.out.vertical).toEqual([5, true, false, true, false, false, 1, 'vertical']);
+  expect(r.out['aspect-ratio']).toEqual([5, false, true, true, false, false, 1, 'horizontal']);
+  expect(r.out['scroll-hint']).toEqual([5, false, false, true, false, false, 1, 'horizontal']);
+  expect(r.out.gallery).toEqual([5, true, true, false, false, false, 1, 'horizontal']);
+  expect(r.out.dynamicCounts).toEqual([3, 4, 2]);
+  expect(r.out.dragOn).toBe(true);
+  // The gallery: a thumbnail click goes to the slide, and the slide change highlights the thumbnail. The test acts on the carousel only
+  // once its intersection observer has reported the first slide (the second child, after the leading clone) in view, as for the opening
+  // example of the docs page, and not on the scroll ending. That report is not held back by a go-to scroll that is pending: after a
+  // click that lands before it, activeSlide goes 3, then 0 (the observer sees the carousel still at its start), then back to 3 when
+  // the scroll ends, while the thumbnails show what React last rendered, so a snapshot taken at the wrong moment pairs the highlighted
+  // thumbnail 3 with activeSlide 0 (seen on WebKit). After the click what is asserted is the state the carousel comes to rest in,
+  // each property on its own line. The reads are polls because activeSlide follows the scroll's end by one observer report and the
+  // thumbnail follows activeSlide by one render.
+  const gallery = page.locator('#gallery sl-carousel');
+  await expect.poll(() => gallery.evaluate(el => {
+    const first = el.children[1];
+    return first.classList.contains('--in-view') && first.getAttribute('aria-hidden') === 'false' && !first.hasAttribute('inert') && el.activeSlide === 0;
+  })).toBe(true);
+  await page.locator('#gallery .thumbnails__image').nth(3).evaluate(img => img.click());
+  await settle(page, '#gallery sl-carousel', 4);
+  const highlighted = () => page.locator('#gallery .thumbnails__image').evaluateAll(imgs => imgs.map(i => i.classList.contains('active')));
+  await expect.poll(highlighted).toEqual([false, false, false, true, false]);
+  await expect.poll(() => gallery.evaluate(el => el.activeSlide)).toBe(3);
+  await expect.poll(() => gallery.evaluate(el => el.scrolling)).toBe(false);
   expect(r.errors).toEqual([]);
   expect(pageErrors).toEqual([]);
 });
