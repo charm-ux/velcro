@@ -157,16 +157,17 @@ test('shadow structure, parts, slots, divider semantics and default state', asyn
   expect(s.start[3]).toBe(120);
 });
 
-// Gives the divider keyboard focus: script focus, then Tab away and Shift+Tab back, each awaited, so the focus arrives by
-// keyboard (Firefox does not always treat script focus as :focus-visible). Tab may leave the example's frame, whose
-// activeElement Firefox then leaves in place, so "away" is read with the frame's focus.
+// Gives the divider focus after a keyboard interaction, so it matches :focus-visible (Firefox does not always treat script
+// focus as :focus-visible otherwise): script focus, Tab away, then script focus again, each step awaited. Tab may leave the
+// example's frame (Shift+Tab then does not come back in every engine), and Firefox leaves the frame's activeElement in
+// place when it does, so the focus is read with the frame's focus.
 async function keyboardFocus(page, host) {
-  await host.locator('.divider').focus();
   const focused = () => host.evaluate(el => document.hasFocus() && Boolean(el.shadowRoot.activeElement?.classList.contains('divider')));
+  await host.locator('.divider').focus();
   await expect.poll(focused).toBe(true);
   await page.keyboard.press('Tab');
   await expect.poll(focused).toBe(false);
-  await page.keyboard.press('Shift+Tab');
+  await host.locator('.divider').focus();
   await expect.poll(focused).toBe(true);
 }
 
