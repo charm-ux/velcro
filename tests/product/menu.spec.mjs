@@ -77,7 +77,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the keybo
   expect(html).toContain('Not implemented or unverified');
   expect(html).toContain('without changing the shared core prefix');
   expect(html).toContain('id="keyboard"');
-  // The page states what is missing: the dropdown example, and the type-to-select its own source lacks.
+  // The page now has the dropdown example, and states the type-to-select its own source lacks (checked below).
   expect(html).toContain('In Dropdowns');
   expect(html).toContain('Menus work really well when used inside');
   expect(html).not.toContain('does not implement sl-dropdown');

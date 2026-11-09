@@ -88,6 +88,15 @@ test('docs page is prerendered with Velcro branding, prototype status, the keybo
   expect(html).toContain('Playwright&#39;s ARIA snapshot');
   expect(html).toContain('19 tests');
   expect(html).toContain('the page gives every preview a body with room for the open panel');
+  // The React examples differ from Shoelace's snippets in more than imports for exactly two examples, and the page says so.
+  expect(html).toContain('apart from two examples that are adapted further (hoisting and submenus');
+  expect(html).toContain('the submenus example drops the unused css constant and the fragment');
+  expect(html).toContain('which React rejects');
+  expect(html).toContain('the hoisting example adds position: relative to its class');
+  expect(html).not.toContain('only its import lines differ (see below)');
+  // The CloseWatcher and never-settling show() quirks are listed.
+  expect(html).toContain('Where the browser has the CloseWatcher API (Chromium)');
+  expect(html).toContain('the promise show() returned never settles');
   // Shoelace's headings, in order (the opening example and the second selection example have none).
   const headings = ['selection', 'placement', 'distance', 'skidding', 'submenus', 'hoisting'].map(id => html.indexOf(`<h3 id="${id}">`));
   expect(headings.every(p => p > 0)).toBe(true);
@@ -233,10 +242,12 @@ test('sl-dropdown registers as the exported class, with the base name dropdown, 
       popup: customElements.get('sl-popup')?.baseName,
       chDefined: ['ch-dropdown', 'ch-popup', 'ch-menu'].filter(t => customElements.get(t)),
       observed: [...ctor.observedAttributes].sort(),
+      // No core base-name marker attribute (core writes one only for a tag in its own scope): the host has only the reflected placement.
+      attrs: el.getAttributeNames().sort(),
     };
   });
   expect(info).toEqual({
-    baseName: 'dropdown', instance: true, viaConstructor: 'sl-dropdown', popup: 'popup', chDefined: [],
+    baseName: 'dropdown', instance: true, viaConstructor: 'sl-dropdown', popup: 'popup', chDefined: [], attrs: ['placement'],
     observed: ['dir', 'disabled', 'distance', 'hoist', 'lang', 'open', 'placement', 'skidding', 'stay-open-on-select', 'sync'],
   });
 });
@@ -278,11 +289,9 @@ test('defaults, reflection and restoring a reflected property\'s initial value; 
     return { defaults, reflected, fromAttribute, restored: { placement: d.placement, disabled: d.disabled, stay: d.stayOpenOnSelect, sync: d.sync, distance: d.distance, hoist: d.hoist } };
   });
   expect(r.defaults).toEqual({ open: false, placement: 'bottom-start', disabled: false, stay: false, distance: 0, skidding: 0, hoist: false, sync: undefined, containing: true, dir: undefined, lang: undefined });
-  // Only the reflected properties write attributes (and `id`, `ch-dropdown`'s marker from the core base element aside).
-  expect(r.reflected.filter(n => n !== 'id')).toEqual(expect.arrayContaining(['disabled', 'placement', 'stay-open-on-select', 'sync']));
-  expect(r.reflected).not.toContain('distance');
-  expect(r.reflected).not.toContain('skidding');
-  expect(r.reflected).not.toContain('hoist');
+  // Exactly the reflected properties that were set write attributes (and `id`, which the test gave the element); distance, skidding and
+  // hoist write none, and there is no marker attribute from the core base element.
+  expect(r.reflected).toEqual(['disabled', 'id', 'placement', 'stay-open-on-select', 'sync']);
   // Reflected properties go back to their initial value, as Shoelace's base element does; `sync` started undefined, so it is null
   // after its attribute is removed, and the non-reflected distance is set to null by the attribute change, as upstream.
   expect(r.fromAttribute).toBe(3);
@@ -633,7 +642,7 @@ test('animations: dropdown.show and dropdown.hide come from the registry, and a 
   expect(seen).toEqual([321]);
 });
 
-test('an upstream quirk: a disabled dropdown cannot be opened and emits nothing, and disabling an open one does not close it', async ({ page }) => {
+test('an upstream quirk: a disabled dropdown cannot be opened, emits nothing and its show() promise never settles, and disabling an open one does not close it', async ({ page }) => {
   await loadBundle(page, ENTRY);
   await mount(page, { attrs: 'disabled' });
   await page.evaluate(() => { document.querySelector('#d').open = true; });
@@ -642,11 +651,33 @@ test('an upstream quirk: a disabled dropdown cannot be opened and emits nothing,
   await page.waitForTimeout(150);
   expect(await state(page)).toMatchObject({ open: false, panelHidden: true });
   expect(await log(page)).toEqual([]);
+  // The promise show() returns waits for sl-after-show, which never comes.
+  const settled = await page.evaluate(() => Promise.race([document.querySelector('#d').show().then(() => 'settled'), new Promise(resolve => setTimeout(() => resolve('pending'), 300))]));
+  expect(settled).toBe('pending');
   await mount(page);
   await openIt(page);
   await page.evaluate(() => { document.querySelector('#d').disabled = true; });
   await page.waitForTimeout(150);
   expect((await state(page)).open).toBe(true);
+});
+
+test('an upstream quirk: where CloseWatcher exists the panel\'s own Escape handler is not attached and the keydown reaches the page; without it the panel stops the keydown; either way the panel closes and the trigger is focused', async ({ page }) => {
+  await loadBundle(page, ENTRY);
+  await mount(page);
+  const hasWatcher = await page.evaluate(() => 'CloseWatcher' in window);
+  await page.evaluate(() => {
+    window.escapes = 0;
+    document.body.addEventListener('keydown', e => { if (e.key === 'Escape') window.escapes++; });
+    document.querySelector('#trigger').focus();
+  });
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => active(page)).toBe('one');
+  await expect.poll(() => log(page)).toEqual(['sl-show', 'sl-after-show']);
+  await page.keyboard.press('Escape');
+  await expect.poll(() => state(page).then(s => s.open)).toBe(false);
+  expect(await active(page)).toBe('trigger');
+  // The keydown is seen by a listener above the dropdown only where the watcher, not the panel's handler, closes the panel.
+  expect(await page.evaluate(() => window.escapes)).toBe(hasWatcher ? 1 : 0);
 });
 
 test('an upstream quirk: removing an open dropdown closes it with sl-hide and sl-after-hide on the detached element, and putting it back leaves it closed', async ({ page }) => {
@@ -759,6 +790,30 @@ test('React examples render the same dropdowns as the HTML examples through the 
 
 test.describe('React wrapper', () => {
   const mountWrapper = reactWrapperPage(test);
+  test('React rejects a string style (the page\'s error handler sees it and nothing renders), which is why the Submenus port passes an object where Shoelace\'s snippet has style="max-width: 200px;"', async ({ page }) => {
+    await mountWrapper(page);
+    const rejected = await page.evaluate(async () => {
+      try {
+        window.renderWrapper('VelcroMenu', { style: 'max-width: 200px;' }, '<sl-menu-item>A</sl-menu-item>');
+      } catch (e) {
+        window.errors.push(String(e.message));
+      }
+      await new Promise(resolve => setTimeout(resolve, 150));
+      return { errors: window.errors.length, rendered: Boolean(document.querySelector('#wrapped')) };
+    });
+    expect(rejected.errors).toBeGreaterThan(0);
+    expect(rejected.rendered).toBe(false);
+    // The same wrapper with an object renders and applies the width.
+    const errors = await mountWrapper(page);
+    const accepted = await page.evaluate(async () => {
+      window.renderWrapper('VelcroMenu', { style: { maxWidth: '200px' } }, '<sl-menu-item>A</sl-menu-item>');
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return { errors: window.errors.length, width: document.querySelector('#wrapped')?.style.maxWidth };
+    });
+    expect(accepted).toEqual({ errors: 0, width: '200px' });
+    expect(errors).toEqual([]);
+  });
+
   test('VelcroDropdown passes its props through, reflects open, and calls onSlShow, onSlAfterShow, onSlHide and onSlAfterHide', async ({ page }) => {
     const errors = await mountWrapper(page);
     await page.evaluate(async () => {

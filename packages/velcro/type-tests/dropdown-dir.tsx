@@ -33,9 +33,10 @@ dropdown.placement = 'middle';
 // @ts-expect-error only width, height and both are sync modes
 dropdown.sync = 'depth';
 
-// show() and hide() resolve to nothing when already in that state, else with the event.
-const shown: Promise<unknown> = dropdown.show();
-const hidden: Promise<unknown> = dropdown.hide();
+// show() and hide() return a promise of nothing: undefined at once when the dropdown is already in that state, else void once
+// sl-after-show or sl-after-hide has been emitted.
+const shown: Promise<void> = dropdown.show();
+const hidden: Promise<void> = dropdown.hide();
 dropdown.reposition();
 void [shown, hidden];
 
