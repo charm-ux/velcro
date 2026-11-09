@@ -1,0 +1,27 @@
+{
+  "files": {
+    "src/components/dropdown/dropdown.test.ts": "b176f5692f2d7c17796242dda00e9d7dbb123320a891050d1249258de29d21eb"
+  },
+  "tests": [
+    "<sl-dropdown> > should be visible with the open attribute",
+    "<sl-dropdown> > should not be visible without the open attribute",
+    "<sl-dropdown> > should emit sl-show and sl-after-show when calling show()",
+    "<sl-dropdown> > should emit sl-hide and sl-after-hide when calling hide()",
+    "<sl-dropdown> > should emit sl-show and sl-after-show when setting open = true",
+    "<sl-dropdown> > should emit sl-hide and sl-after-hide when setting open = false",
+    "<sl-dropdown> > should still open on arrow navigation when no menu items",
+    "<sl-dropdown> > should open on arrow down navigation",
+    "<sl-dropdown> > should open on arrow up navigation",
+    "<sl-dropdown> > should navigate to first focusable item on arrow navigation",
+    "<sl-dropdown> > should close on escape key",
+    "<sl-dropdown> > should not open on arrow navigation when no menu exists",
+    "<sl-dropdown> > should open on enter key",
+    "<sl-dropdown> > should focus on menu items when clicking the trigger and arrowing through options",
+    "<sl-dropdown> > should open on enter key when no menu exists",
+    "<sl-dropdown> > should hide when clicked outside container and initially open",
+    "<sl-dropdown> > should hide when clicked outside container",
+    "<sl-dropdown> > when a sl-menu is provided and the dropdown is opened > should remain open on tab key",
+    "<sl-dropdown> > when arbitrary content is provided and the dropdown is opened > should remain open on tab key"
+  ],
+  "knownFailures": []
+}

@@ -6,7 +6,9 @@ Velcro's components in Chromium. A resolver plugin points each test's Shoelace l
 (`dist/shoelace.js`) at Velcro's package root, which registers every component, and a test's own
 `./<name>.js` at Velcro's registering entry for that component, and a test's `../../utilities/<name>.js` import (for
 example the textarea test's `serialize`) at Velcro's export of the same utility, so the test runs against Velcro's
-module. The vendored upstream copy of such a helper stays pinned in the record of the component that brings it. No
+module. The vendored upstream copy of such a helper stays pinned in the record of the component that brings it. A test's
+bare `lit` and `lit/decorators.js` imports resolve to the lit copy Velcro itself loads (the workspace root cannot resolve
+them), so a test's `@customElement` fixtures extend the same `LitElement` as Velcro's components. No
 test is edited, and Velcro skips none.
 A test that upstream itself marks `it.skip` in its vendored file is reported as skipped, and the gate allows
 only those. Run it with `pnpm test:upstream`; it prints each component's passed, failed and skipped counts and the

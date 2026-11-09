@@ -1,0 +1,21 @@
+<div class="dropdown-selection-alt">
+  <sl-dropdown>
+    <sl-button slot="trigger" caret>Edit</sl-button>
+    <sl-menu>
+      <sl-menu-item value="cut">Cut</sl-menu-item>
+      <sl-menu-item value="copy">Copy</sl-menu-item>
+      <sl-menu-item value="paste">Paste</sl-menu-item>
+    </sl-menu>
+  </sl-dropdown>
+</div>
+
+<script>
+  const container = document.querySelector('.dropdown-selection-alt');
+  const cut = container.querySelector('sl-menu-item[value="cut"]');
+  const copy = container.querySelector('sl-menu-item[value="copy"]');
+  const paste = container.querySelector('sl-menu-item[value="paste"]');
+
+  cut.addEventListener('click', () => console.log('cut'));
+  copy.addEventListener('click', () => console.log('copy'));
+  paste.addEventListener('click', () => console.log('paste'));
+</script>
