@@ -173,10 +173,10 @@ counterpart registered first, and core logic that finds elements by marker attri
 as `[accordion-item]` or `closest('[menu]')`) has to be replaced in the Velcro subclass. Any actual
 core change still needs a failing reproduction and separate approval.
 
-`sl-avatar` and `sl-icon-button` do not use the scope resolver: their templates render a literal `<sl-icon>`, and, like
-Shoelace's base element with `static dependencies`, their constructors define Velcro's `sl-icon` with `defineVelcroComponent` on every construction, as
-Shoelace's constructor does (left alone when that tag is already defined, an anonymous subclass when the platform refuses
-the class itself), so their class-only
+`sl-avatar`, `sl-details` and `sl-icon-button` do not use the scope resolver: their templates render a literal
+`<sl-icon>`, and, like Shoelace's base element with `static dependencies`, their constructors define Velcro's `sl-icon`
+with `defineVelcroComponent` on every construction, as Shoelace's constructor does (left alone when that tag is already
+defined, an anonymous subclass when the platform refuses the class itself), so their class-only
 entries need no extra registration. `sl-tag` does the same for its remove button: it renders a literal
 `<sl-icon-button>`, so its constructor defines Velcro's `sl-icon-button` (and that one defines `sl-icon`), and `sl-tooltip` does it for the
 `<sl-popup>` it renders. Alert, checkbox, input, tab, tab group and radio group do the same for theirs. Other

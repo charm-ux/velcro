@@ -2,7 +2,8 @@
 // which registers it as Shoelace 2.20.1's `ShoelaceElement.define` does: a tag that is already defined is left alone
 // (with Shoelace's version-mismatch warning) and a class the platform refuses is defined as an anonymous subclass, so
 // importing a registering entry never throws on a tag clash. This fails when a component entry or class registers a tag
-// in any other (strict) way, or when the helper module exports a second registration function.
+// in any other (strict) way, when a constructor skips a dependency whose tag is already defined (which would suppress
+// Shoelace's warning), or when the helper module exports a second registration function.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -24,7 +25,7 @@ const code = source => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"
 
 test('the guard finds the component entries it checks', () => {
   assert.ok(components.length > 30, `${components.length} components`);
-  for (const name of ['alert', 'avatar', 'button', 'checkbox', 'icon-button', 'input', 'radio', 'radio-group', 'tab', 'tab-group', 'tag', 'tooltip']) {
+  for (const name of ['alert', 'avatar', 'button', 'checkbox', 'details', 'icon-button', 'input', 'radio', 'radio-group', 'tab', 'tab-group', 'tag', 'tooltip']) {
     assert.ok(components.includes(name), name);
   }
 });
@@ -53,5 +54,35 @@ for (const name of components) {
       const source = code(readFileSync(path.join(dir, file), 'utf8'));
       for (const pattern of STRICT) assert.doesNotMatch(source, pattern, `${name}/${file} registers a tag with ${pattern}`);
     }
+  });
+}
+
+// Shoelace's constructor calls `define` for every dependency on every construction. A class that declares Shoelace's
+// dependencies must hand each one to the helper unconditionally: skipping a tag that is already defined, or catching and
+// retrying around the helper, would drop Shoelace's version warning or duplicate its fallback.
+const withDependencies = components.filter(name =>
+  readdirSync(path.join(componentsDir, name)).some(file => file.endsWith('.ts') &&
+    /\bshoelaceDependencies\b/.test(code(readFileSync(path.join(componentsDir, name, file), 'utf8')))));
+
+test('the guard finds the classes that declare Shoelace dependencies', () => {
+  for (const name of ['alert', 'avatar', 'checkbox', 'details', 'icon-button', 'input', 'radio-group', 'tab', 'tab-group', 'tag', 'tooltip']) {
+    assert.ok(withDependencies.includes(name), name);
+  }
+});
+
+for (const name of withDependencies) {
+  test(`${name}: the constructor hands every dependency to defineVelcroComponent unconditionally`, () => {
+    const dir = path.join(componentsDir, name);
+    const sources = readdirSync(dir).filter(file => file.endsWith('.ts') && file !== 'index.ts')
+      .map(file => code(readFileSync(path.join(dir, file), 'utf8')))
+      .filter(source => /\bshoelaceDependencies\b/.test(source));
+    assert.equal(sources.length, 1, `${name}: one source declares shoelaceDependencies`);
+    const [source] = sources;
+    const uses = [...source.matchAll(/\bshoelaceDependencies\b/g)].length;
+    const loops = [...source.matchAll(
+      /^\s*for \(const component of \w+\.shoelaceDependencies\) defineVelcroComponent\(component\);$/gm)].length;
+    // One declaration and one loop that is exactly the helper call, with no other use of the list.
+    assert.equal(loops, 1, `${name}: the dependency loop is not a bare defineVelcroComponent call`);
+    assert.equal(uses, 2, `${name}: shoelaceDependencies is used outside the declaration and the loop`);
   });
 }

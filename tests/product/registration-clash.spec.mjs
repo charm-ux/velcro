@@ -17,6 +17,7 @@ const ENTRIES = [
   ['avatar', 'sl-avatar', 'VelcroAvatar', [ICON]],
   ['button', 'sl-button', 'VelcroButton', [['sl-spinner', 'VelcroSpinner', 'spinnerClass']]],
   ['checkbox', 'sl-checkbox', 'VelcroCheckbox', [ICON]],
+  ['details', 'sl-details', 'VelcroDetails', [ICON]],
   ['icon-button', 'sl-icon-button', 'VelcroIconButton', [ICON]],
   ['input', 'sl-input', 'VelcroInput', [ICON]],
   ['radio', 'sl-radio', 'VelcroRadio', [ICON]],
@@ -32,6 +33,7 @@ const ENTRIES = [
 const CLASS_ONLY = [
   ['alertClass', 'VelcroAlert', 'sl-alert', [ICON_BUTTON]],
   ['avatarClass', 'VelcroAvatar', 'sl-avatar', [ICON]],
+  ['detailsClass', 'VelcroDetails', 'sl-details', [ICON]],
   ['radioGroupClass', 'VelcroRadioGroup', 'sl-radio-group', [['sl-button-group', 'VelcroButtonGroup', 'buttonGroupClass']]],
   ['tabGroupClass', 'VelcroTabGroup', 'sl-tab-group', [ICON_BUTTON, ['sl-resize-observer', 'VelcroResizeObserver', 'resizeObserverClass']]],
   ['tagClass', 'VelcroTag', 'sl-tag', [ICON_BUTTON]],
