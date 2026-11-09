@@ -2,6 +2,7 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { bundleExamples, docsDir, loadBundle, loadExamples } from './support/bundle.mjs';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 
@@ -229,31 +230,34 @@ test('keyboard: Down and Up move through the items and wrap, Home and End jump, 
   await page.locator('#m sl-menu-item[value="one"]').focus();
   expect(await focused(page)).toBe('one');
   await page.keyboard.press('ArrowDown');
-  expect(await focused(page)).toBe('two');
+  await expect.poll(() => focused(page)).toBe('two');
   expect(await tabindexes(page)).toEqual(['-1', '0', '-1', '-1']);
   await page.keyboard.press('ArrowDown');
+  await expect.poll(() => focused(page)).toBe('three');
   await page.keyboard.press('ArrowDown');
-  expect(await focused(page)).toBe('four');
+  await expect.poll(() => focused(page)).toBe('four');
   // The divider is skipped, and Down on the last item wraps to the first.
   await page.keyboard.press('ArrowDown');
-  expect(await focused(page)).toBe('one');
+  await expect.poll(() => focused(page)).toBe('one');
   await page.keyboard.press('ArrowUp');
-  expect(await focused(page)).toBe('four');
+  await expect.poll(() => focused(page)).toBe('four');
   await page.keyboard.press('Home');
-  expect(await focused(page)).toBe('one');
+  await expect.poll(() => focused(page)).toBe('one');
   await page.keyboard.press('End');
-  expect(await focused(page)).toBe('four');
+  await expect.poll(() => focused(page)).toBe('four');
   await page.keyboard.press('Enter');
+  await expect.poll(async () => (await selects(page)).map(s => s.value)).toEqual(['four']);
   await page.keyboard.press('ArrowUp');
+  await expect.poll(() => focused(page)).toBe('three');
   await page.keyboard.press('Space');
-  expect((await selects(page)).map(s => s.value)).toEqual(['four', 'three']);
+  await expect.poll(async () => (await selects(page)).map(s => s.value)).toEqual(['four', 'three']);
   // The handled keys are consumed by the menu: they do not reach the page.
   await page.evaluate(() => {
     window.keys = [];
     document.body.addEventListener('keydown', e => window.keys.push(e.key));
   });
-  for (const key of ['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter', 'Space']) await page.keyboard.press(key);
-  await page.keyboard.press('a');
+  await recordKeys(page);
+  for (const key of ['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter', 'Space', 'a']) await pressReceived(page, page, key);
   expect(await page.evaluate(() => window.keys)).toEqual(['a']);
   expect(pageErrors).toEqual([]);
 });
@@ -268,10 +272,10 @@ test('upstream quirk: the keys act on the tab-stop item, not the focused one; ho
   expect(await tabindexes(page)).toEqual(['0', '-1', '-1', '-1']);
   // Enter clicks the tab-stop item, not the hovered, focused one.
   await page.keyboard.press('Enter');
-  expect((await selects(page)).map(s => s.value)).toEqual(['one']);
+  await expect.poll(async () => (await selects(page)).map(s => s.value)).toEqual(['one']);
   // Down moves from the tab-stop item (one to two), not from the focused item (three to four).
   await page.keyboard.press('ArrowDown');
-  expect(await focused(page)).toBe('two');
+  await expect.poll(() => focused(page)).toBe('two');
   expect(await tabindexes(page)).toEqual(['-1', '0', '-1', '-1']);
   // A mouse press does move the tab stop; the keys then act from that item.
   await page.locator('#m sl-menu-item[value="four"]').hover();
@@ -287,7 +291,8 @@ test('upstream quirk: there is no type-to-select; letter keys do nothing, althou
   await loadBundle(page, ENTRY);
   await mount(page);
   await page.locator('#m sl-menu-item[value="one"]').focus();
-  for (const key of ['t', 'f', 'T']) await page.keyboard.press(key);
+  await recordKeys(page);
+  for (const key of ['t', 'f', 'T']) await pressReceived(page, page, key);
   expect(await focused(page)).toBe('one');
   expect(await selects(page)).toEqual([]);
   expect(await tabindexes(page)).toEqual(['0', '-1', '-1', '-1']);
@@ -299,15 +304,17 @@ test('Enter, Space and a click select nothing on a disabled item, which the arro
   await page.locator('#m sl-menu-item[value="a"]').focus();
   await page.keyboard.press('ArrowDown');
   // Arrow navigation includes disabled items (only inert items are skipped); Enter and Space on one select nothing.
-  expect(await focused(page)).toBe('b');
-  await page.keyboard.press('Enter');
-  await page.keyboard.press('Space');
+  await expect.poll(() => focused(page)).toBe('b');
+  await recordKeys(page);
+  await pressReceived(page, page, 'Enter');
+  await pressReceived(page, page, 'Space');
   expect(await selects(page)).toEqual([]);
   await page.locator('#m sl-menu-item[value="b"]').click({ force: true });
   expect(await selects(page)).toEqual([]);
   await page.keyboard.press('ArrowDown');
+  await expect.poll(() => focused(page)).toBe('c');
   await page.keyboard.press('Enter');
-  expect((await selects(page)).map(s => s.value)).toEqual(['c']);
+  await expect.poll(async () => (await selects(page)).map(s => s.value)).toEqual(['c']);
   // With no item holding the tab stop (a menu holding only a non-item), Enter and the arrow keys do nothing and throw nothing.
   const errors = await page.evaluate(async () => {
     const menu = document.createElement('sl-menu');
@@ -381,11 +388,11 @@ test('items are the sl-menu-item elements and elements with a menu item role, mi
   expect(r).toEqual({ all: ['a', 'm-div', 'm-radio'], current: 'a' });
   await page.locator('#m sl-menu-item[value="a"]').focus();
   await page.keyboard.press('ArrowDown');
-  expect(await focused(page)).toBe('m-div');
+  await expect.poll(() => focused(page)).toBe('m-div');
   await page.keyboard.press('ArrowDown');
-  expect(await focused(page)).toBe('m-radio');
+  await expect.poll(() => focused(page)).toBe('m-radio');
   await page.keyboard.press('ArrowDown');
-  expect(await focused(page)).toBe('a');
+  await expect.poll(() => focused(page)).toBe('a');
   await page.locator('#m-div').click();
   expect(await selects(page)).toEqual([expect.objectContaining({ target: 'm' })]);
   await page.locator('#m-radio').click();

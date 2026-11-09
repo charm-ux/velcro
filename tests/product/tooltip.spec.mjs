@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 
@@ -257,7 +258,9 @@ test('upstream quirk: a tooltip rendered with open ignores Escape until it is op
   await mount(frame, '<sl-tooltip id="t" content="Tip" trigger="manual" open><button id="b">Target</button></sl-tooltip><input id="field">');
   await expect.poll(async () => state(frame)).toEqual({ open: true, hidden: false, active: true });
   await frame.locator('#field').focus();
-  await frame.locator('#field').press('Escape');
+  await recordKeys(frame.locator('body'));
+  await pressReceived(page, frame.locator('body'), 'Escape');
+  // The window in which a wrong close could still show.
   await frame.locator('body').evaluate(() => new Promise(r => setTimeout(r, 300)));
   // The first render shows it without the open handler, so neither CloseWatcher nor the keydown listener is installed.
   expect(await state(frame)).toEqual({ open: true, hidden: false, active: true });
