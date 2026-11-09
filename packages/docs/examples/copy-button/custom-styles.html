@@ -1,0 +1,35 @@
+<sl-copy-button value="I'm so stylish" class="custom-styles">
+  <sl-icon slot="copy-icon" name="asterisk"></sl-icon>
+  <sl-icon slot="success-icon" name="check-lg"></sl-icon>
+  <sl-icon slot="error-icon" name="x-lg"></sl-icon>
+</sl-copy-button>
+
+<style>
+  .custom-styles {
+    --success-color: white;
+    --error-color: white;
+    color: white;
+  }
+
+  .custom-styles::part(button) {
+    background-color: #ff1493;
+    border: solid 4px #ff7ac1;
+    border-right-color: #ad005c;
+    border-bottom-color: #ad005c;
+    border-radius: 0;
+    transition: 100ms scale ease-in-out, 100ms translate ease-in-out;
+  }
+
+  .custom-styles::part(button):hover {
+    scale: 1.1;
+  }
+
+  .custom-styles::part(button):active {
+    translate: 0 2px;
+  }
+
+  .custom-styles::part(button):focus-visible {
+    outline: dashed 2px deeppink;
+    outline-offset: 4px;
+  }
+</style>

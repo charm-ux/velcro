@@ -10,10 +10,9 @@ import { reactWrapperPage } from './support/react.mjs';
 test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/icon-button';
-// Shoelace 2.20.1's icon button page has six examples, in this order. The tooltip one was ported before Velcro had sl-tooltip, so it is
-// source only (no iframe, no React version); the other five are live and each has a React version.
+// Shoelace 2.20.1's icon button page has six examples, in this order; every one is live and has a React version.
 const ORDER = [['basic', 'Default'], ['sizes', 'Sizes'], ['colors', 'Colors'], ['link-buttons', 'Link Buttons'], ['tooltip', 'Icon Button with Tooltip'], ['disabled', 'Disabled']];
-const SECTIONS = ORDER.filter(([id]) => id !== 'tooltip').map(([, section]) => section);
+const SECTIONS = ORDER.map(([, section]) => section);
 const title = section => `Icon Button example: ${section}`;
 const docsDir = fileURLToPath(new URL('../../packages/docs/', import.meta.url));
 const velcroDir = fileURLToPath(new URL('../../packages/velcro/', import.meta.url));
@@ -62,11 +61,12 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
   expect(examplesPart).toContain('Use the <code>disabled</code> attribute to disable the icon button.');
   expect(examplesPart).toContain('Use the <code>href</code> attribute to convert the button to a link.');
   expect(examplesPart).toContain("inherit their parent element's <code>font-size</code>");
-  // The tooltip example was ported before Velcro had sl-tooltip: source only, no iframe and no React version.
+  // The tooltip example is live, with Velcro's sl-tooltip and a React version.
   expect(html).toContain('id="tooltip"');
-  expect(html).toContain('This port predates Velcro\'s <code>sl-tooltip</code>');
-  expect(html).not.toContain(`title="${title('Icon Button with Tooltip')}"`);
+  expect(html).toContain(`title="${title('Icon Button with Tooltip')}"`);
+  expect(html).not.toContain('predates');
   expect(html).toContain('&lt;sl-tooltip content=&quot;Settings&quot;&gt;');
+  expect(html).toContain('import { VelcroTooltip as SlTooltip } from &#39;@charm-ux/velcro/react/VelcroTooltip.js&#39;;');
   expect(html).toContain('does not hide the icon button');
   expect(html).toContain('throws a TypeError');
   expect(html).toContain('HTMLLinkElement');
@@ -624,21 +624,39 @@ test('the examples render in their own documents in Shoelace\'s order', async ({
   expect(titles).toEqual(SECTIONS.map(title));
   const counts = [];
   for (const section of SECTIONS) counts.push(await page.frameLocator(`iframe.example[title="${title(section)}"]`).locator('sl-icon-button').count());
-  expect(counts).toEqual([1, 3, 3, 1, 1]);
-  // The sections follow Shoelace's order on the page, the tooltip one (source only) between Link Buttons and Disabled.
+  expect(counts).toEqual([1, 3, 3, 1, 1, 1]);
+  // The sections follow Shoelace's order on the page, the tooltip one between Link Buttons and Disabled.
   const ids = await page.locator('h3[id]').evaluateAll(hs => hs.map(h => h.id));
   expect(ids.filter(id => ORDER.some(([known]) => known === id))).toEqual(ORDER.map(([id]) => id));
-  // Every example file of Shoelace's page is present: the six HTML ones and the five React ones (none for the tooltip).
+  // Every example file of Shoelace's page is present: the six HTML ones and the six React ones.
   const files = dir => readdirSync(path.join(docsDir, 'examples/icon-button', dir)).filter(f => /\.(html|jsx)$/.test(f)).sort();
   expect(files('')).toEqual(ORDER.map(([id]) => `${id}.html`).sort());
-  expect(files('react')).toEqual(ORDER.filter(([id]) => id !== 'tooltip').map(([id]) => `${id}.jsx`).sort());
+  expect(files('react')).toEqual(ORDER.map(([id]) => `${id}.jsx`).sort());
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
+});
+
+test('the Icon Button with Tooltip example is live: Velcro\'s sl-tooltip wraps the icon button, carries the content Settings and opens on show()', async ({ page }) => {
+  const { example } = await openPage(page);
+  const frame = example('Icon Button with Tooltip');
+  await expect(frame.locator('sl-tooltip > sl-icon-button')).toBeVisible();
+  const r = await frame.locator('sl-tooltip').evaluate(async el => {
+    await customElements.whenDefined('sl-tooltip');
+    await el.updateComplete;
+    const body = el.shadowRoot.querySelector('[part="body"]');
+    const before = [el.open, body.hidden];
+    await el.show();
+    return {
+      tag: el.localName, child: el.firstElementChild.localName, content: el.content, defined: customElements.get('sl-tooltip').baseName,
+      before, after: [el.open, body.hidden], text: body.textContent.trim(),
+    };
+  });
+  expect(r).toEqual({ tag: 'sl-tooltip', child: 'sl-icon-button', content: 'Settings', defined: 'tooltip', before: [false, true], after: [true, false], text: 'Settings' });
 });
 
 // Shoelace's React examples, ported in packages/docs/examples/icon-button/react/*.jsx (the files the docs page shows), bundled
 // with React 19 and the generated wrappers, which are resolved through the package's real export map.
 test.describe('React examples', () => {
-  const names = ['basic', 'sizes', 'colors', 'link-buttons', 'disabled'];
+  const names = ['basic', 'sizes', 'colors', 'link-buttons', 'tooltip', 'disabled'];
   let bundle;
 
   test.beforeAll(async () => {
@@ -716,6 +734,7 @@ test.describe('React examples', () => {
       sizes: [['button', 'Edit', 'pencil', 40, null, null, false, false], ['button', 'Edit', 'pencil', 48, null, null, false, false], ['button', 'Edit', 'pencil', 56, null, null, false, false]],
       colors: [['button', 'Bold', 'type-bold', 32, null, null, false, false], ['button', 'Italic', 'type-italic', 32, null, null, false, false], ['button', 'Underline', 'type-underline', 32, null, null, false, false]],
       'link-buttons': [['a', 'Settings', 'gear', 32, 'https://example.com', '_blank', false, false]],
+      tooltip: [['button', 'Settings', 'gear', 32, null, null, false, false]],
       disabled: [['button', 'Settings', 'gear', 32, null, null, true, true]],
     });
     expect(r.colored).toBe('rgb(176, 0, 145)');

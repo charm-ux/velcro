@@ -1,6 +1,7 @@
 import { VelcroButton as SlButton } from '@charm-ux/velcro/react/VelcroButton.js';
 import { VelcroButtonGroup as SlButtonGroup } from '@charm-ux/velcro/react/VelcroButtonGroup.js';
 import { VelcroIcon as SlIcon } from '@charm-ux/velcro/react/VelcroIcon.js';
+import { VelcroTooltip as SlTooltip } from '@charm-ux/velcro/react/VelcroTooltip.js';
 
 const css = `
   .button-group-toolbar sl-button-group:not(:last-of-type) {
@@ -8,57 +9,56 @@ const css = `
   }
 `;
 
-// <span title> stands in for <sl-tooltip>, which Velcro does not implement yet: the browser's own tooltip shows.
 const App = () => (
   <>
     <div className="button-group-toolbar">
       <SlButtonGroup label="History">
-        <span title="Undo">
+        <SlTooltip content="Undo">
           <SlButton>
             <SlIcon name="arrow-counterclockwise" label="Undo"></SlIcon>
           </SlButton>
-        </span>
-        <span title="Redo">
+        </SlTooltip>
+        <SlTooltip content="Redo">
           <SlButton>
             <SlIcon name="arrow-clockwise" label="Redo"></SlIcon>
           </SlButton>
-        </span>
+        </SlTooltip>
       </SlButtonGroup>
 
       <SlButtonGroup label="Formatting">
-        <span title="Bold">
+        <SlTooltip content="Bold">
           <SlButton>
             <SlIcon name="type-bold" label="Bold"></SlIcon>
           </SlButton>
-        </span>
-        <span title="Italic">
+        </SlTooltip>
+        <SlTooltip content="Italic">
           <SlButton>
             <SlIcon name="type-italic" label="Italic"></SlIcon>
           </SlButton>
-        </span>
-        <span title="Underline">
+        </SlTooltip>
+        <SlTooltip content="Underline">
           <SlButton>
             <SlIcon name="type-underline" label="Underline"></SlIcon>
           </SlButton>
-        </span>
+        </SlTooltip>
       </SlButtonGroup>
 
       <SlButtonGroup label="Alignment">
-        <span title="Align Left">
+        <SlTooltip content="Align Left">
           <SlButton>
             <SlIcon name="justify-left" label="Align Left"></SlIcon>
           </SlButton>
-        </span>
-        <span title="Align Center">
+        </SlTooltip>
+        <SlTooltip content="Align Center">
           <SlButton>
             <SlIcon name="justify" label="Align Center"></SlIcon>
           </SlButton>
-        </span>
-        <span title="Align Right">
+        </SlTooltip>
+        <SlTooltip content="Align Right">
           <SlButton>
             <SlIcon name="justify-right" label="Align Right"></SlIcon>
           </SlButton>
-        </span>
+        </SlTooltip>
       </SlButtonGroup>
     </div>
 
