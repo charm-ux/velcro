@@ -549,6 +549,32 @@ test.describe('animation registry', () => {
     });
   });
 
+  test('the document direction is the localization controller\'s snapshot, as in Shoelace: a change made in the same task as show() is not seen until the observer runs', async ({ page }) => {
+    await setup(page);
+    const r = await page.evaluate(async () => {
+      const { setDefaultAnimation } = window.registry;
+      setDefaultAnimation('tooltip.show', { keyframes: [{ opacity: 0.1 }, { opacity: 1 }], rtlKeyframes: [{ opacity: 0.9 }, { opacity: 1 }], options: { duration: 10 } });
+      setDefaultAnimation('tooltip.hide', { keyframes: [{ opacity: 0.2 }, { opacity: 0 }], rtlKeyframes: [{ opacity: 0.8 }, { opacity: 0 }], options: { duration: 10 } });
+      document.documentElement.dir = 'ltr';
+      await new Promise(resolve => setTimeout(resolve));
+      const el = document.getElementById('a');
+      // Queued in sl-show, this runs before show()'s continuation reads the direction; the document observer's callback,
+      // which refreshes the snapshot, is queued behind that continuation. A live read of <html dir> would see rtl.
+      el.addEventListener('sl-show', () => queueMicrotask(() => { document.documentElement.dir = 'rtl'; }), { once: true });
+      window.calls = [];
+      await el.show();
+      const shown = window.calls.map(call => call.keyframes[0].opacity);
+      window.calls = [];
+      await el.hide();
+      const hidden = window.calls.map(call => call.keyframes[0].opacity);
+      document.documentElement.dir = 'ltr';
+      await new Promise(resolve => setTimeout(resolve));
+      return { shown, hidden };
+    });
+    // Shown with the stale ltr snapshot; hidden after the observer refreshed it to rtl.
+    expect(r).toEqual({ shown: [0.1], hidden: [0.8] });
+  });
+
   test('one registry module: the exports, the built components and the docs bundle share a single copy; internal/animate is not exported', () => {
     const pkg = JSON.parse(readFileSync(path.join(velcroDir, 'package.json'), 'utf8'));
     expect(pkg.exports['./utilities/animation-registry']).toEqual({

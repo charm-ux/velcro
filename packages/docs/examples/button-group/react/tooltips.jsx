@@ -1,19 +1,19 @@
 import { VelcroButton as SlButton } from '@charm-ux/velcro/react/VelcroButton.js';
 import { VelcroButtonGroup as SlButtonGroup } from '@charm-ux/velcro/react/VelcroButtonGroup.js';
+import { VelcroTooltip as SlTooltip } from '@charm-ux/velcro/react/VelcroTooltip.js';
 
-// <span title> stands in for <sl-tooltip>, which Velcro does not implement yet: the browser's own tooltip shows.
 const App = () => (
   <SlButtonGroup label="Alignment">
-    <span title="I'm on the left">
+    <SlTooltip content="I'm on the left">
       <SlButton>Left</SlButton>
-    </span>
+    </SlTooltip>
 
-    <span title="I'm in the middle">
+    <SlTooltip content="I'm in the middle">
       <SlButton>Center</SlButton>
-    </span>
+    </SlTooltip>
 
-    <span title="I'm on the right">
+    <SlTooltip content="I'm on the right">
       <SlButton>Right</SlButton>
-    </span>
+    </SlTooltip>
   </SlButtonGroup>
 );
