@@ -8,9 +8,9 @@ import { reactWrapperPage } from './support/react.mjs';
 test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/menu';
-// Shoelace 2.20.1's menu page has three examples (the opening one, In Dropdowns and Submenus). In Dropdowns needs sl-dropdown,
-// which Velcro does not implement yet, so the other two are ported, in Shoelace's order, each live and with a React version.
-const ORDER = [['basic', 'Default'], ['submenus', 'Submenus']];
+// Shoelace 2.20.1's menu page has three examples (the opening one, In Dropdowns and Submenus), all ported in Shoelace's order, each
+// live and with a React version. In Dropdowns uses Velcro's sl-dropdown.
+const ORDER = [['basic', 'Default'], ['dropdowns', 'In Dropdowns'], ['submenus', 'Submenus']];
 const title = section => `Menu example: ${section}`;
 
 async function openExample(page, section = 'Default') {
@@ -18,10 +18,11 @@ async function openExample(page, section = 'Default') {
   page.on('request', request => requests.push(request.url()));
   await openDocs(page, PAGE);
   const frame = page.frameLocator(`iframe.example[title="${title(section)}"]`);
-  await expect(frame.locator('sl-menu').first()).toBeVisible();
+  // The menu of the dropdown example is hidden until the dropdown opens, so that example waits for its trigger.
+  await expect(frame.locator(section === 'In Dropdowns' ? 'sl-button' : 'sl-menu').first()).toBeVisible();
   await frame.locator('body').evaluate(async () => {
-    await Promise.all(['sl-menu', 'sl-menu-item', 'sl-divider'].map(t => customElements.whenDefined(t)));
-    await Promise.all([...document.querySelectorAll('sl-menu, sl-menu-item')].map(el => el.updateComplete));
+    await Promise.all(['sl-menu', 'sl-menu-item', 'sl-divider', 'sl-dropdown', 'sl-button'].map(t => customElements.whenDefined(t)));
+    await Promise.all([...document.querySelectorAll('sl-menu, sl-menu-item, sl-dropdown, sl-button')].map(el => el.updateComplete));
   });
   await documentsLoaded(page);
   return { frame, requests };
@@ -78,7 +79,9 @@ test('docs page is prerendered with Velcro branding, prototype status, the keybo
   expect(html).toContain('id="keyboard"');
   // The page states what is missing: the dropdown example, and the type-to-select its own source lacks.
   expect(html).toContain('In Dropdowns');
-  expect(html).toContain('does not implement sl-dropdown yet');
+  expect(html).toContain('Menus work really well when used inside');
+  expect(html).not.toContain('does not implement sl-dropdown');
+  expect(html).not.toContain('is not ported');
   expect(html).toContain('pressing a letter key does nothing');
   expect(html).toContain('was run locally in Chromium and WebKit only, and Firefox is covered only by the project&#39;s CI run');
   expect(html).toContain('Playwright&#39;s ARIA snapshot');
@@ -107,7 +110,7 @@ test('examples: Shoelace\'s order, live in their own documents, with a React ver
     counts.push(await page.frameLocator(`iframe.example[title="${title(section)}"]`).locator('sl-menu-item').count());
   }
   // The submenu example has seven items at the top and six nested ones; each count includes the nested items.
-  expect(counts).toEqual([6, 13]);
+  expect(counts).toEqual([6, 3, 13]);
   const files = dir => readdirSync(path.join(docsDir, 'examples/menu', dir)).filter(f => /\.(html|jsx)$/.test(f)).sort();
   expect(files('')).toEqual(ORDER.map(([id]) => `${id}.html`).sort());
   expect(files('react')).toEqual(ORDER.map(([id]) => `${id}.jsx`).sort());
@@ -452,16 +455,37 @@ test('dir and lang are reactive, not reflected and undefined by default, as Shoe
 });
 
 // Shoelace's React examples, ported in packages/docs/examples/menu/react/*.jsx, bundled with React 19 and the generated wrappers.
+test('In Dropdowns example: the trigger opens the menu in the dropdown, a selection reports the item through sl-select and closes the panel', async ({ page }) => {
+  const { frame } = await openExample(page, 'In Dropdowns');
+  const dropdown = frame.locator('sl-dropdown');
+  await frame.locator('body').evaluate(() => {
+    window.selected = [];
+    document.querySelector('sl-menu').addEventListener('sl-select', e => window.selected.push(e.detail.item.value));
+  });
+  await expect(frame.locator('sl-menu')).toBeHidden();
+  await frame.locator('sl-button').click();
+  await expect(dropdown).toHaveAttribute('open', '');
+  await expect(frame.locator('sl-menu')).toBeVisible();
+  await frame.locator('sl-menu-item', { hasText: 'Copy' }).click();
+  await expect(dropdown).not.toHaveAttribute('open', '');
+  expect(await frame.locator('body').evaluate(() => window.selected)).toEqual(['copy']);
+});
+
 test('React examples render the same menus as the HTML examples through the generated wrappers, and onSlSelect receives the item', async ({ page }) => {
   const code = await bundleExamples('menu', ORDER.map(([id]) => id));
   const pageErrors = await loadExamples(page, code);
   const r = await page.evaluate(async () => {
     const out = {};
-    for (const name of ['basic', 'submenus']) {
+    for (const name of ['basic', 'dropdowns', 'submenus']) {
       window.renderExample(name);
       await customElements.whenDefined('sl-menu');
       await new Promise(r => setTimeout(r, 100));
       const menu = document.querySelector(`#${name} sl-menu`);
+      if (name === 'dropdowns') {
+        const dropdown = document.querySelector('#dropdowns sl-dropdown');
+        out[name] = { values: [...menu.querySelectorAll(':scope > sl-menu-item')].map(i => i.value), trigger: dropdown.querySelector('[slot="trigger"]').textContent.trim(), inPanel: menu.parentElement === dropdown };
+        continue;
+      }
       out[name] = {
         values: [...menu.querySelectorAll(':scope > sl-menu-item')].map(i => i.value),
         nested: [...menu.querySelectorAll('sl-menu[slot="submenu"]')].length,
@@ -473,6 +497,7 @@ test('React examples render the same menus as the HTML examples through the gene
     return { out, errors: window.errors };
   });
   expect(r.out.basic).toEqual({ values: ['undo', 'redo', 'cut', 'copy', 'paste', 'delete'], nested: 0, dividers: 1, width: 200, role: 'menu' });
+  expect(r.out.dropdowns).toEqual({ values: ['cut', 'copy', 'paste'], trigger: 'Edit', inPanel: true });
   expect(r.out.submenus).toEqual({ values: ['undo', 'redo', 'cut', 'copy', 'paste', '', ''], nested: 2, dividers: 2, width: 200, role: 'menu' });
   expect(r.errors).toEqual([]);
   expect(pageErrors).toEqual([]);

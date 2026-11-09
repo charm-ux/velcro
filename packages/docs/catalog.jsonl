@@ -9,6 +9,7 @@
 {"name":"copy-button","title":"Copy Button","tag":"sl-copy-button","example":"#demo-default"}
 {"name":"details","title":"Details","tag":"sl-details","example":"#demo-default"}
 {"name":"divider","title":"Divider","tag":"sl-divider","example":"#demo-horizontal"}
+{"name":"dropdown","title":"Dropdown","tag":"sl-dropdown","example":"sl-dropdown"}
 {"name":"format-bytes","title":"Format Bytes","tag":"sl-format-bytes","example":"#demo-default"}
 {"name":"format-date","title":"Format Date","tag":"sl-format-date","example":"#demo-default"}
 {"name":"format-number","title":"Format Number","tag":"sl-format-number","example":"#demo-default"}

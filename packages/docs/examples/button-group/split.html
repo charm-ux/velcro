@@ -1,9 +1,13 @@
-<!-- <span> stands in for <sl-dropdown>, which Velcro does not implement yet. There is no menu. -->
 <sl-button-group id="demo-split" label="Example Button Group">
   <sl-button variant="primary">Save</sl-button>
-  <span>
-    <sl-button variant="primary" caret>
+  <sl-dropdown placement="bottom-end">
+    <sl-button slot="trigger" variant="primary" caret>
       <sl-visually-hidden>More options</sl-visually-hidden>
     </sl-button>
-  </span>
+    <sl-menu>
+      <sl-menu-item>Save</sl-menu-item>
+      <sl-menu-item>Save as&hellip;</sl-menu-item>
+      <sl-menu-item>Save all</sl-menu-item>
+    </sl-menu>
+  </sl-dropdown>
 </sl-button-group>
