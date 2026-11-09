@@ -364,12 +364,22 @@ test('keyboard: arrows step by precision (by 1 with Shift), Home and End go to 0
   await mount(page, 'label="Rating" precision="0.5"');
   await page.evaluate(() => document.querySelector('#r').focus());
   await events(page);
-  // The rating sets its value in its keydown handler, so the value is read once the whole press was received; keys that
-  // change nothing (ArrowRight at max, ArrowLeft at 0, Enter) are read the same way.
+  // Each step waits for the value its key produces before the next key: a key that changes the value is followed by a
+  // poll for the new value; a key that changes nothing (ArrowRight at max, ArrowLeft at 0, Enter) waits until the whole
+  // press was received and then reads the value.
   await recordKeys(page);
   const values = [];
-  for (const key of ['ArrowRight', 'ArrowUp', 'Shift+ArrowRight', 'ArrowLeft', 'ArrowDown', 'Shift+ArrowLeft', 'End', 'ArrowRight', 'Home', 'ArrowLeft', 'Enter']) {
-    await pressReceived(page, page, key);
+  for (const [key, expected, changes] of [
+    ['ArrowRight', 0.5, true], ['ArrowUp', 1, true], ['Shift+ArrowRight', 2, true], ['ArrowLeft', 1.5, true], ['ArrowDown', 1, true],
+    ['Shift+ArrowLeft', 0, true], ['End', 5, true], ['ArrowRight', 5, false], ['Home', 0, true], ['ArrowLeft', 0, false], ['Enter', 0, false],
+  ]) {
+    if (changes) {
+      await page.keyboard.press(key);
+      await expect.poll(() => value(page), key).toBe(expected);
+    } else {
+      await pressReceived(page, page, key);
+      expect(await value(page), key).toBe(expected);
+    }
     values.push(await value(page));
   }
   expect(values).toEqual([0.5, 1, 2, 1.5, 1, 0, 5, 5, 0, 0, 0]);
