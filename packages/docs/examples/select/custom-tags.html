@@ -1,0 +1,37 @@
+<sl-select
+  placeholder="Select one"
+  value="email phone"
+  multiple
+  clearable
+  class="custom-tag"
+>
+  <sl-option value="email">
+    <sl-icon slot="prefix" name="envelope"></sl-icon>
+    Email
+  </sl-option>
+  <sl-option value="phone">
+    <sl-icon slot="prefix" name="telephone"></sl-icon>
+    Phone
+  </sl-option>
+  <sl-option value="chat">
+    <sl-icon slot="prefix" name="chat-dots"></sl-icon>
+    Chat
+  </sl-option>
+</sl-select>
+
+<script type="module">
+  const select = document.querySelector('.custom-tag');
+
+  select.getTag = (option, index) => {
+    // Use the same icon used in the <sl-option>
+    const name = option.querySelector('sl-icon[slot="prefix"]').name;
+
+    // You can return a string, a Lit Template, or an HTMLElement here
+    return `
+      <sl-tag removable>
+        <sl-icon name="${name}" style="padding-inline-end: .5rem;"></sl-icon>
+        ${option.getTextLabel()}
+      </sl-tag>
+    `;
+  };
+</script>

@@ -69,6 +69,7 @@ test('every other superclass shape is unchanged by the typing-class step (apart 
 // accessor cannot be redeclared as a field, so it is overridden by a get/set pair typed `any` that only forwards to core's).
 const TYPING_CLASS_COMPONENTS = {
   'sl-input': { typingClass: 'CoreInputTyping', coreClass: 'CoreInput', declared: ['max', 'min', 'step'], accessors: [] },
+  'sl-select': { typingClass: 'CoreSelectTyping', coreClass: 'CoreSelect', declared: ['size'], accessors: ['value'] },
   'sl-textarea': { typingClass: 'CoreTextAreaTyping', coreClass: 'CoreTextArea', declared: ['autocomplete', 'resize'], accessors: [] },
   'sl-tooltip': { typingClass: 'CoreTooltipTyping', coreClass: 'CoreTooltip', declared: ['popup'], accessors: ['placement'] },
 };

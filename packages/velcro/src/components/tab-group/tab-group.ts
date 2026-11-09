@@ -18,7 +18,7 @@ import { VelcroIconButton } from '../icon-button/class.js';
 import { VelcroResizeObserver } from '../resize-observer/class.js';
 import type { VelcroTab } from '../tab/class.js';
 import type { VelcroTabPanel } from '../tab-panel/class.js';
-import { scrollIntoView } from './scroll.js';
+import { scrollIntoView } from '../../internal/scroll.js';
 import styles from './tab-group.styles.js';
 
 /**

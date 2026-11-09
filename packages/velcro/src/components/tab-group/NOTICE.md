@@ -4,8 +4,7 @@
   `src/components/tab-group/tab-group.component.ts`, and the restore of reflected properties' initial values adapted from
   `src/internal/shoelace-element.ts`), `packages/velcro/src/components/tab-group/tab-group.styles.ts` (styles
   concatenated from `src/styles/component.styles.ts` and `src/components/tab-group/tab-group.styles.ts`, rules
-  unchanged), `packages/velcro/src/components/tab-group/scroll.ts` (the `scrollIntoView` and `getOffset` helpers, adapted
-  from `src/internal/scroll.ts` and `src/internal/offset.ts`), `packages/velcro/src/components/tab-group/scrollend-polyfill.ts`
+  unchanged), `packages/velcro/src/components/tab-group/scrollend-polyfill.ts`
   (adapted from `src/internal/scrollend-polyfill.ts`), the docs page and examples
   `packages/docs/pages/components/tab-group.ts` and `packages/docs/examples/tab-group/*.html` (example markup and wording
   adapted from `docs/pages/components/tab-group.md`), the React examples `packages/docs/examples/tab-group/react/*.jsx`

@@ -31,6 +31,8 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   for the inline caret), `packages/velcro/src/internal/form.ts` (the form control controller adapted from
   `src/internal/form.ts`), `packages/velcro/src/internal/slot.ts` (the slot controller and
   `getTextContent` adapted from `src/internal/slot.ts`, used by the radio button and the menu item),
+  `packages/velcro/src/internal/scroll.ts` and `packages/velcro/src/internal/offset.ts` (the `scrollIntoView` and
+  `getOffset` helpers, used by the tab group and the select; listed with the modal utilities below),
   `packages/velcro/src/components/spinner/spinner.ts` (API documentation wording, and the rendered structure: an svg
   `base` part with `role="progressbar"` and a track and an indicator circle, adapted from
   `src/components/spinner/spinner.component.ts`), `packages/velcro/src/components/spinner/spinner.styles.ts`
