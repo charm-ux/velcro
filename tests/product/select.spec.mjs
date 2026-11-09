@@ -117,6 +117,16 @@ const record = (page, selector = 'sl-select') => page.evaluate(selector => {
   }
 }, selector);
 const log = page => page.evaluate(() => window.log);
+// Opening focuses the highlighted option in the next animation frame (the display input then emits sl-blur) and emits
+// sl-after-show when the show animation ends. The two are scheduled independently, here as in Shoelace: when that frame comes
+// late, as in WebKit on a loaded runner, it runs only after the animation has ended and sl-after-show comes first. This reads
+// the log with each such pair after an sl-show in one order; waiting for both also keeps the next key or click from landing
+// before the option has the focus.
+const openLog = page => page.evaluate(() => window.log.map((type, i, l) => {
+  if (l[i - 1] === 'sl-show' && type === 'sl-after-show' && l[i + 1] === 'sl-blur') return 'sl-blur';
+  if (l[i - 2] === 'sl-show' && type === 'sl-blur' && l[i - 1] === 'sl-after-show') return 'sl-after-show';
+  return type;
+}));
 
 test('docs page is prerendered with Velcro branding, prototype status, every Shoelace section, the quirks and explicit limits', async ({ request }) => {
   const response = await request.get(PAGE);
@@ -232,19 +242,19 @@ test('pointer: a click on the combobox opens the listbox; a click on an option s
   await page.locator('sl-select').evaluate(el => el.shadowRoot.querySelector('[part="combobox"]').getBoundingClientRect());
   await page.locator('sl-select [part="combobox"]').click();
   // Opening moves the focus to the highlighted option (Shoelace focuses it), so the display input emits sl-blur.
-  await expect.poll(() => log(page)).toEqual(['sl-focus', 'sl-show', 'sl-blur', 'sl-after-show']);
+  await expect.poll(() => openLog(page)).toEqual(['sl-focus', 'sl-show', 'sl-blur', 'sl-after-show']);
   expect(await page.evaluate(() => document.activeElement?.localName)).toBe('sl-option');
   const combobox = page.getByRole('combobox', { name: 'Choose' });
   await expect(combobox).toHaveAttribute('aria-expanded', 'true');
   expect(await page.locator('sl-select').evaluate(el => [el.open, el.hasAttribute('open'), el.shadowRoot.querySelector('[part="listbox"]').hidden])).toEqual([true, true, false]);
   await page.getByRole('option', { name: 'Option 3' }).click();
   // The focus returns to the display input (sl-focus) before the input and change events, which follow the update.
-  await expect.poll(() => log(page)).toEqual(['sl-focus', 'sl-show', 'sl-blur', 'sl-after-show', 'sl-focus', 'sl-hide', 'sl-input', 'sl-change', 'sl-after-hide']);
+  await expect.poll(() => openLog(page)).toEqual(['sl-focus', 'sl-show', 'sl-blur', 'sl-after-show', 'sl-focus', 'sl-hide', 'sl-input', 'sl-change', 'sl-after-hide']);
   expect(await page.locator('sl-select').evaluate(el => [el.value, el.open, el.shadowRoot.querySelector('[part="display-input"]').value, el.getAttribute('value')])).toEqual(['option-3', false, 'Option 3', null]);
   // A click on the option already selected changes nothing and emits no input or change.
   await page.locator('sl-select [part="combobox"]').click();
   await expect(combobox).toHaveAttribute('aria-expanded', 'true');
-  await expect.poll(() => log(page).then(l => l.at(-1))).toBe('sl-after-show');
+  await expect.poll(() => openLog(page).then(l => l.slice(9))).toEqual(['sl-show', 'sl-blur', 'sl-after-show']);
   await page.evaluate(() => (window.log = []));
   await page.getByRole('option', { name: 'Option 3' }).click();
   await expect.poll(() => log(page)).toEqual(['sl-focus', 'sl-hide', 'sl-after-hide']);
@@ -267,7 +277,7 @@ test('keyboard: Tab focuses without opening; Enter, Space and the arrows open; t
   expect((await state())[0]).toBe(false);
   await page.keyboard.press('ArrowDown');
   await expect.poll(state).toEqual([true, 'option-2', [false, true, false]]);
-  await expect.poll(() => log(page)).toEqual(['sl-focus', 'sl-show', 'sl-blur', 'sl-after-show']);
+  await expect.poll(() => openLog(page)).toEqual(['sl-focus', 'sl-show', 'sl-blur', 'sl-after-show']);
   await page.keyboard.press('ArrowDown');
   await expect.poll(state).toEqual([true, 'option-2', [false, false, true]]);
   await page.keyboard.press('ArrowDown');
@@ -283,17 +293,21 @@ test('keyboard: Tab focuses without opening; Enter, Space and the arrows open; t
   await expect.poll(state).toEqual([false, 'option-3', [false, false, true]]);
   await expect.poll(() => log(page)).toEqual(['sl-focus', 'sl-hide', 'sl-input', 'sl-change', 'sl-after-hide']);
   // Space opens too; Escape closes without changing the value and keeps the focus.
-  // (Escape waits for the open to finish: the option focus that opening schedules for the next frame would otherwise run after
-  // Escape returned the focus to the display input, in Shoelace as here.)
+  // (Escape waits for the open to finish, sl-blur included: the option focus that opening schedules for the next frame would
+  // otherwise run after Escape returned the focus to the display input, in Shoelace as here.)
   await page.evaluate(() => (window.log = []));
   await page.keyboard.press(' ');
-  await expect.poll(() => log(page)).toEqual(['sl-show', 'sl-blur', 'sl-after-show']);
+  await expect.poll(() => openLog(page)).toEqual(['sl-show', 'sl-blur', 'sl-after-show']);
   await page.keyboard.press('Escape');
   await expect.poll(state).toEqual([false, 'option-3', [false, false, true]]);
   expect(await page.evaluate(() => document.activeElement?.localName)).toBe('sl-select');
+  // (Enter waits for the close to finish: reopening during the hide animation ends with the listbox hidden while open.)
+  await expect.poll(() => openLog(page)).toEqual(['sl-show', 'sl-blur', 'sl-after-show', 'sl-focus', 'sl-hide', 'sl-after-hide']);
   // Type to select moves the highlight to the first option whose label starts with the typed text.
+  await page.evaluate(() => (window.log = []));
   await page.keyboard.press('Enter');
-  await expect.poll(() => state().then(s => s[0])).toBe(true);
+  await expect.poll(() => openLog(page)).toEqual(['sl-show', 'sl-blur', 'sl-after-show']);
+  expect((await state())[0]).toBe(true);
   await page.keyboard.type('option 1');
   await expect.poll(() => state().then(s => s[2])).toEqual([true, false, false]);
   await page.keyboard.press('Enter');
