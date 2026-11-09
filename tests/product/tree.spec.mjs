@@ -442,31 +442,57 @@ test('keyboard: the arrows swap in right-to-left text, and the keys leave a nest
   expect(await frame.locator('body').evaluate(() => window.keys)).toEqual([['ArrowDown', false], ['Home', false]]);
 });
 
-test('keyboard: Enter with focus on an element inside the tree that is not an item throws a TypeError after preventing the key (quirk); the arrows still work', async ({ page }) => {
+// Enter with focus on an element inside the tree that is not an item (a focusable span, not a button: a button's own reaction
+// to Enter and to focus differs between engines). One test per claim, each with its own short title, so a failure in any
+// engine names the claim. The error and the key's state are recorded in the example document itself, by listeners on its own
+// window and document (the code that throws runs in that realm): its `error` event carries the thrown object, so the check is
+// of the type (the document's own TypeError, by class and by name), not of an engine's message wording or of how the test
+// runner reports an error from a frame; and a listener on the document sees whether the tree's handler had prevented the key.
+// Focus enters the example's frame through the tree first (as in the other keyboard checks), then moves to the span.
+async function focusSpanInItem(page) {
   const { frame } = await openExample(page);
-  // A focusable span, not a button: a button's own reaction to Enter (and to focus) differs between engines.
   await mount(frame, '<sl-tree id="t"><sl-tree-item id="x">X <span id="inner" tabindex="0">Inner</span></sl-tree-item><sl-tree-item id="y">Y</sl-tree-item></sl-tree>');
-  // The error and the key's state are recorded in the example document itself, by listeners on its own window and document
-  // (the code that throws runs in that realm): its `error` event carries the thrown object, so the check is of the type (the
-  // document's own TypeError, by class and by name), not of an engine's message wording or of how the test runner reports an
-  // error from a frame; and a listener on the document sees whether the tree's handler had prevented the key.
-  await frame.locator('#inner').evaluate(el => {
+  await frame.locator('body').evaluate(() => {
     window.uncaught = [];
     window.keys = [];
     window.addEventListener('error', event => window.uncaught.push({ typeError: event.error instanceof TypeError && event.error.name === 'TypeError' }));
     document.addEventListener('keydown', event => window.keys.push([event.key, event.defaultPrevented]));
-    el.focus();
   });
-  expect(await focusedId(frame)).toBe('inner');
+  await frame.locator('#t').focus();
+  await frame.locator('#inner').evaluate(el => el.focus());
+  return frame;
+}
+
+test('non-item focus: the tree hands focus to its first item', async ({ page }) => {
+  const { frame } = await openExample(page);
+  await mount(frame, '<sl-tree id="t"><sl-tree-item id="x">X <span id="inner" tabindex="0">Inner</span></sl-tree-item><sl-tree-item id="y">Y</sl-tree-item></sl-tree>');
+  await frame.locator('#t').focus();
+  expect(await focusedId(frame)).toBe('x');
+});
+
+test('non-item focus: a focusable span inside an item can hold focus', async ({ page }) => {
+  const frame = await focusSpanInItem(page);
+  await expect.poll(() => focusedId(frame)).toBe('inner');
+});
+
+test('Enter on a non-item: the key is prevented (quirk)', async ({ page }) => {
+  const frame = await focusSpanInItem(page);
+  await page.keyboard.press('Enter');
+  await expect.poll(() => frame.locator('body').evaluate(() => window.keys)).toEqual([['Enter', true]]);
+});
+
+test('Enter on a non-item: a TypeError is thrown (quirk)', async ({ page }) => {
+  const frame = await focusSpanInItem(page);
   await page.keyboard.press('Enter');
   await expect.poll(() => frame.locator('body').evaluate(() => window.uncaught)).toEqual([{ typeError: true }]);
-  // The key's default action was prevented before the throw.
-  expect(await frame.locator('body').evaluate(() => window.keys)).toEqual([['Enter', true]]);
-  // From there the arrows move to an item: no item has focus, so ArrowDown goes to the first one.
+});
+
+test('Enter on a non-item: ArrowDown still moves focus to the first item', async ({ page }) => {
+  const frame = await focusSpanInItem(page);
   await page.keyboard.press('ArrowDown');
   await expect.poll(() => focusedId(frame)).toBe('x');
-  expect(await frame.locator('body').evaluate(() => window.keys)).toEqual([['Enter', true], ['ArrowDown', true]]);
-  expect(await frame.locator('body').evaluate(() => window.uncaught)).toEqual([{ typeError: true }]);
+  expect(await frame.locator('body').evaluate(() => window.keys)).toEqual([['ArrowDown', true]]);
+  expect(await frame.locator('body').evaluate(() => window.uncaught)).toEqual([]);
 });
 
 test('roving tabindex: focus moves the tab stop to the item, and leaving the tree leaves both the tree and the last item as tab stops (quirk)', async ({ page }) => {
