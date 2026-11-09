@@ -1,6 +1,7 @@
 // Reflected-default restoration is adapted from Shoelace v2.20.1 (src/internal/shoelace-element.ts),
 // Copyright (c) 2020 A Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md.
 import type { PropertyValues } from 'lit';
+import { property } from 'lit/decorators.js';
 import type { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
 
 interface CompatOptions {
@@ -9,7 +10,7 @@ interface CompatOptions {
   reflected?: boolean;
 }
 
-const initialValues = new WeakMap<CharmElement, Map<PropertyKey, unknown>>();
+const initialValues = new WeakMap<CharmElement, { values: Map<PropertyKey, unknown>; recorded: boolean }>();
 const directions = new WeakMap<CharmElement, string>();
 
 /**
@@ -17,25 +18,28 @@ const directions = new WeakMap<CharmElement, string>();
  * Dependency registration deliberately stays in component constructors, after their own initializers.
  */
 export function ShoelaceCompat<T extends typeof CharmElement>(Base: T, options: CompatOptions): T {
-  class CompatElement extends (Base as typeof CharmElement) {
-    public static override properties = {
-      ...(options.lang ? { lang: {} } : {}),
-    };
-  }
+  class CompatElement extends (Base as typeof CharmElement) {}
+
+  // Keep the exact @property() defaults, including converter and change detection.
+  if (options.lang) property()(CompatElement.prototype, 'lang');
 
   if (options.reflected) {
     Object.defineProperty(CompatElement.prototype, 'attributeChangedCallback', {
       configurable: true,
       writable: true,
       value(this: CharmElement, name: string, previous: string | null, next: string | null) {
-        if (!initialValues.has(this)) {
-          const values = new Map<PropertyKey, unknown>();
+        let initial = initialValues.get(this);
+        if (!initial) {
+          // A failed capture retains its partial map and retries on the next callback.
+          initial = { values: new Map<PropertyKey, unknown>(), recorded: false };
+          initialValues.set(this, initial);
+        }
+        if (!initial.recorded) {
           (this.constructor as typeof CharmElement).elementProperties.forEach((declaration, key) => {
-            if (!declaration.reflect) return;
             const value: unknown = Reflect.get(this, key);
-            if (value != null) values.set(key, value);
+            if (declaration.reflect && value != null) initial.values.set(key, value);
           });
-          initialValues.set(this, values);
+          initial.recorded = true;
         }
         Base.prototype.attributeChangedCallback.call(this, name, previous, next);
       },
@@ -64,7 +68,7 @@ export function ShoelaceCompat<T extends typeof CharmElement>(Base: T, options: 
  */
 export function restoreReflectedProperties(element: CharmElement, changed: PropertyValues): void {
   const properties = element as CharmElement & Record<PropertyKey, unknown>;
-  initialValues.get(element)?.forEach((value, key) => {
+  initialValues.get(element)?.values.forEach((value, key) => {
     if (changed.has(key) && properties[key] == null) properties[key] = value;
   });
 }

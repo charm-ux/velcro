@@ -53,7 +53,7 @@ test('captures inherited reflected values at the first attribute callback, not c
       readsAtCapture,
     };
   });
-  expect(result).toEqual({ first: [7, 'recorded', '7', 'recorded'], second: [0, null], readsAtCapture: 0 });
+  expect(result).toEqual({ first: [7, 'recorded', '7', 'recorded'], second: [0, null], readsAtCapture: 2 });
 });
 
 test('does not capture before the first observed attribute, and keeps restoration at the caller lifecycle point', async ({ page }) => {
@@ -90,6 +90,9 @@ test('does not capture before the first observed attribute, and keeps restoratio
 test('language-only compatibility retains computed core direction and does not restore reflected properties', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const { CharmElement, ShoelaceCompat, restoreReflectedProperties } = await import('/compat.js');
+    class Reference extends CharmElement {}
+    Reference.createProperty('lang');
+    customElements.define('sl-compat-reference', Reference);
     class Probe extends ShoelaceCompat(CharmElement, { lang: true }) {
       static properties = { value: { reflect: true } };
       constructor() { super(); this.value = 'default'; }
@@ -105,9 +108,13 @@ test('language-only compatibility retains computed core direction and does not r
     const language = [element.lang, element.getAttribute('lang')];
     element.removeAttribute('value');
     await element.updateComplete;
-    return { initial, language, value: element.value };
+    const metadata = Probe.getPropertyOptions('lang');
+    const reference = Reference.getPropertyOptions('lang');
+    const sameMetadata = Object.keys(metadata).length === Object.keys(reference).length
+      && Object.keys(reference).every(key => metadata[key] === reference[key]);
+    return { initial, language, value: element.value, sameMetadata };
   });
-  expect(result).toEqual({ initial: [undefined, 'ltr'], language: ['fr', null], value: null });
+  expect(result).toEqual({ initial: [undefined, 'ltr'], language: ['fr', null], value: null, sameMetadata: true });
 });
 
 test('direction resolution keeps reading stored direction when a consumer overrides the public getter', async ({ page }) => {
@@ -125,4 +132,38 @@ test('direction resolution keeps reading stored direction when a consumer overri
     };
   });
   expect(result).toEqual({ public: ['rtl', 'rtl'], resolved: ['ltr', 'ltr'] });
+});
+
+test('a failed snapshot retains partial values and retries getter reads until capture completes', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { CharmElement, ShoelaceCompat, restoreReflectedProperties } = await import('/compat.js');
+    let shouldThrow = true;
+    let reads = 0;
+    class Parent extends CharmElement {
+      static properties = { value: { reflect: true }, failing: { reflect: true } };
+      constructor() { super(); this.value = 'first'; }
+      get failing() {
+        reads++;
+        if (shouldThrow) throw new Error('capture');
+        return 'ready';
+      }
+    }
+    class Probe extends ShoelaceCompat(Parent, { lang: true, reflected: true }) {}
+    customElements.define('sl-compat-retry', Probe);
+    const element = new Probe();
+    let failed = false;
+    try {
+      element.attributeChangedCallback('lang', null, 'en');
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== 'capture') throw error;
+      failed = true;
+    }
+    element.value = null;
+    shouldThrow = false;
+    element.attributeChangedCallback('lang', null, 'fr');
+    element.attributeChangedCallback('lang', 'fr', 'de');
+    restoreReflectedProperties(element, new Map([['value', 'first']]));
+    return { failed, reads, value: element.value, lang: element.lang };
+  });
+  expect(result).toEqual({ failed: true, reads: 2, value: 'first', lang: 'de' });
 });
