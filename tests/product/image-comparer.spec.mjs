@@ -362,6 +362,9 @@ test('mouse drag: the divider follows the pointer from the first move (rounded t
   await loadBundle(page, ENTRY);
   // 300px wide (the images are cropped), so that a whole-pixel pointer position gives a percentage that needs rounding.
   await mount(page, 'style="width: 300px"');
+  // Room on the left, so the pointer can leave the image comparer without leaving the viewport (Firefox delivers no
+  // pointer events at negative viewport coordinates).
+  await page.evaluate(() => { document.body.style.paddingLeft = '100px'; });
   // Pressing on the divider away from its center (it is 2px wide, so near the center) does not move it.
   const [x0, y0] = await point(page, 0.5);
   await page.mouse.move(x0, y0 - 80);
