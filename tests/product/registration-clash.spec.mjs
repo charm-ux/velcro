@@ -18,6 +18,7 @@ const TAG = ['sl-tag', 'VelcroTag', 'tagClass'];
 const ENTRIES = [
   ['alert', 'sl-alert', 'VelcroAlert', [ICON_BUTTON, ICON]],
   ['avatar', 'sl-avatar', 'VelcroAvatar', [ICON]],
+  ['breadcrumb', 'sl-breadcrumb', 'VelcroBreadcrumb', [ICON]],
   ['button', 'sl-button', 'VelcroButton', [['sl-spinner', 'VelcroSpinner', 'spinnerClass']]],
   ['checkbox', 'sl-checkbox', 'VelcroCheckbox', [ICON]],
   ['details', 'sl-details', 'VelcroDetails', [ICON]],
@@ -40,6 +41,7 @@ const ENTRIES = [
 const CLASS_ONLY = [
   ['alertClass', 'VelcroAlert', 'sl-alert', [ICON_BUTTON]],
   ['avatarClass', 'VelcroAvatar', 'sl-avatar', [ICON]],
+  ['breadcrumbClass', 'VelcroBreadcrumb', 'sl-breadcrumb', [ICON]],
   ['detailsClass', 'VelcroDetails', 'sl-details', [ICON]],
   ['dropdownClass', 'VelcroDropdown', 'sl-dropdown', [POPUP]],
   ['menuItemClass', 'VelcroMenuItem', 'sl-menu-item', [ICON, POPUP, SPINNER]],

@@ -9,6 +9,10 @@
 import { redactLine } from './product-summary.mjs';
 
 export const MAX_FINDINGS = 20;
+/** The longest test title that is printed. Higher than the browser summary's MAX_LINE, because a title is printed only when
+ * it is exactly a pinned inventory title and some upstream titles (sl-breadcrumb's nested describes) run past 200
+ * characters; a longer title is 'unlisted title' rather than cut, so a printed title is always the whole of it. */
+export const MAX_TITLE = 300;
 /** The outcome of one test: failed (an inventoried test failed, not ledgered), unexpected (an outcome the records do not
  * expect: not in the inventory, repeated, a known failure that now passes or a new known failure), missing (an inventoried
  * test with no outcome) or skipped-mismatch (a skip upstream does not declare, or one it declares that was not reported). */
@@ -67,7 +71,7 @@ function shownTitle(inventory, component, title) {
   const list = inventory?.[component];
   if (!Array.isArray(list) || !list.includes(title)) return null;
   if (PATHY.test(title)) return null;
-  const shown = redactLine(title);
+  const shown = redactLine(title, undefined, MAX_TITLE);
   return shown === squash(title) && shown !== '' ? shown : null;
 }
 

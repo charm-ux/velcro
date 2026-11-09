@@ -2,6 +2,8 @@
 {"name":"animation","title":"Animation","tag":"sl-animation","example":"#demo-overview"}
 {"name":"avatar","title":"Avatar","tag":"sl-avatar","example":"#demo-default"}
 {"name":"badge","title":"Badge","tag":"sl-badge","example":"#demo-default"}
+{"name":"breadcrumb","title":"Breadcrumb","tag":"sl-breadcrumb","example":"sl-breadcrumb"}
+{"name":"breadcrumb-item","title":"Breadcrumb Item","tag":"sl-breadcrumb-item","example":"sl-breadcrumb-item"}
 {"name":"button","title":"Button","tag":"sl-button","example":"#demo-primary"}
 {"name":"button-group","title":"Button Group","tag":"sl-button-group","example":"#demo-default"}
 {"name":"card","title":"Card","tag":"sl-card","example":"#demo-basic"}

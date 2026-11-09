@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 import { evaluate, readInventory, resultLines, vendoredComponents } from '../../scripts/upstream-conformance.mjs';
-import { BLOCKED, MAX_FINDINGS, OUTCOMES, PROBLEMS, summarizeUpstream } from '../../scripts/upstream-summary.mjs';
+import { BLOCKED, MAX_FINDINGS, MAX_TITLE, OUTCOMES, PROBLEMS, summarizeUpstream } from '../../scripts/upstream-summary.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const inventory = { alpha: ['<sl-alpha> > one', '<sl-alpha> > two', '<sl-alpha> > three'], beta: ['<sl-beta> > only'] };
@@ -136,6 +136,17 @@ test('upstream summary: ordinary slash text in a title is still printed', () => 
   for (const title of titles) {
     assert.deepEqual(summarize([`unexpected failure: alpha: ${title}`], { inventory: { alpha: [title] } }).lines, [`upstream failed: alpha: ${title}`]);
   }
+});
+
+test('upstream summary: a pinned title up to MAX_TITLE characters is printed whole; a longer one is unlisted, never cut', () => {
+  const title = length => `<sl-alpha> > ${'when nested '.repeat(30)}`.slice(0, length - 1) + 'x';
+  for (const length of [201, MAX_TITLE]) {
+    const t = title(length);
+    assert.equal(t.length, length);
+    assert.deepEqual(summarize([`unexpected failure: alpha: ${t}`], { inventory: { alpha: [t] } }).lines, [`upstream failed: alpha: ${t}`]);
+  }
+  const long = title(MAX_TITLE + 1);
+  assert.deepEqual(summarize([`unexpected failure: alpha: ${long}`], { inventory: { alpha: [long] } }).lines, ['upstream failed: alpha: unlisted title']);
 });
 
 test('upstream summary: a result line no table row matches is "blocked: internal" and nothing of it is echoed', () => {
