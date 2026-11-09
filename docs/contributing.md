@@ -523,11 +523,18 @@ Two checks keep the image and the lockfile together, and both fail closed:
 - In each job, after the dependency install,
   `node scripts/ci/playwright-image.mjs <engine>` requires the installed
   `@playwright/test`, `playwright` and `playwright-core` to be exactly the lockfile's
-  version, and every build that version's own installer would place for the engine
-  (`playwright install --dry-run`, which downloads nothing) to be complete in the
-  image's `/ms-playwright`. The image records no package version of its own; its
-  builds are what a version changes, so an image for another version stops the job
-  (`playwright image: blocked (engine-missing)`) instead of downloading anything.
+  version, and the image's own version record to name that same version. The image
+  build marks the image with Playwright's `mark-docker-image`, which writes
+  `.docker-info` (`driverVersion` and `dockerImageName`) into `/ms-playwright`; the
+  record must be a small regular JSON file with `driverVersion` equal to the lockfile's
+  version and `dockerImageName` equal to `mcr.microsoft.com/playwright:v<version>-noble`.
+  A missing, malformed or different record stops the job
+  (`playwright image: blocked (image-version-missing|image-version-malformed|image-version-mismatch)`),
+  even when every browser build is present (a patch release can keep the browser
+  revisions). As further evidence, every build that version's own installer would place
+  for the engine (`playwright install --dry-run`, which downloads nothing) must be
+  complete in `/ms-playwright` (`engine-missing` otherwise). Nothing is downloaded on a
+  mismatch.
 
 Updating Playwright means updating the tag and the digest together with the
 lockfile. Read the digest of the new tag's index from the registry, without

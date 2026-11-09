@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { IMAGE_BROWSERS_PATH, ImageError, checkImage, installedPlaywright, lockedPlaywright } from '../../scripts/ci/playwright-image.mjs';
+import { IMAGE_BROWSERS_PATH, ImageError, checkImage, imageName, installedPlaywright, lockedPlaywright } from '../../scripts/ci/playwright-image.mjs';
 
 const gate = new URL('../../scripts/ci-gate.mjs', import.meta.url);
 const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
@@ -214,7 +214,7 @@ test('product browser jobs run in the official Playwright image for the lockfile
   const locked = lockedPlaywright(readFileSync(new URL('../../pnpm-lock.yaml', import.meta.url), 'utf8'));
   const pinned = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).devDependencies['@playwright/test'];
   assert.equal(locked, pinned, 'the lockfile resolves the pinned @playwright/test');
-  const image = `mcr.microsoft.com/playwright:v${locked.replaceAll('.', '\\.')}-noble@sha256:[0-9a-f]{64}`;
+  const image = `${imageName(locked).replaceAll('.', '\\.')}@sha256:[0-9a-f]{64}`;
   const container = new RegExp(`^ {4}container:\\n {6}image: (${image})\\n {6}options: --init --user 1001 --shm-size=2g\\n {4}env:\\n {6}PLAYWRIGHT_BROWSERS_PATH: /ms-playwright\\n`, 'm');
   const images = [];
   for (const [name, engine] of [['browser', '${{ matrix.engine }}'], ['upstream', 'chromium']]) {
@@ -240,7 +240,7 @@ test('product browser jobs run in the official Playwright image for the lockfile
 });
 
 // The in-job image check, against a stand-in install (packages, lockfile and the installer's dry run) and image directory.
-test('image check: installed Playwright equals the lockfile and every expected engine build is complete in the image', () => {
+test('image check: installed Playwright and the image\'s recorded version equal the lockfile, and every expected build is complete', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'velcro-image-'));
   try {
     const root = path.join(dir, 'repo');
@@ -275,7 +275,14 @@ test('image check: installed Playwright equals the lockfile and every expected e
     const check = (engine, run, browsersPath = image) => {
       try { return checkImage({ root, engine, browsersPath, run }); } catch (e) { assert.ok(e instanceof ImageError, e.stack); return e.code; }
     };
+    const record = (value, raw) => {
+      rmSync(path.join(image, '.docker-info'), { recursive: true, force: true });
+      mkdirSync(image, { recursive: true });
+      if (value !== undefined) writeFileSync(path.join(image, '.docker-info'), raw ? value : JSON.stringify(value, null, 2));
+    };
+    const recorded = v => ({ driverVersion: v, dockerImageName: `mcr.microsoft.com/playwright:v${v}-noble` });
     setup();
+    record(recorded('1.64.1'));
     build('chromium-1248'); build('chromium_headless_shell-1248'); build('ffmpeg-1013'); build('webkit-2370');
     const chromium = ['chromium-1248', 'ffmpeg-1013', 'chromium_headless_shell-1248'];
     assert.deepEqual(check('chromium', dryRun(chromium)), { version: '1.64.1', builds: chromium });
@@ -291,6 +298,31 @@ test('image check: installed Playwright equals the lockfile and every expected e
     assert.equal(check('chromium', dryRun(chromium, 1)), 'dry-run-failed');
     assert.equal(check('edge', dryRun(chromium)), 'engine');
     assert.equal(check('chromium', dryRun(chromium), 'relative/path'), 'browsers-path');
+    // The image's own version record must name exactly the lockfile's version and its official image, even when every
+    // expected build is present (a patch release can keep the same browser revisions).
+    for (const [value, code, raw] of [
+      [recorded('1.64.0'), 'image-version-mismatch'], [recorded('1.64.10'), 'image-version-mismatch'],
+      [{ ...recorded('1.64.1'), dockerImageName: 'mcr.microsoft.com/playwright:v1.64.1-jammy' }, 'image-version-mismatch'],
+      [{ ...recorded('1.64.1'), dockerImageName: 'mcr.microsoft.com/playwright:v1.64.0-noble' }, 'image-version-mismatch'],
+      [{ ...recorded('1.64.1'), driverVersion: '1.64.1-next' }, 'image-version-mismatch'],
+      [undefined, 'image-version-missing'],
+      ['{"driverVersion": "1.64.1"', 'image-version-malformed', true], ['', 'image-version-malformed', true],
+      [['1.64.1'], 'image-version-malformed'], [null, 'image-version-malformed'], ['1.64.1', 'image-version-malformed'],
+      [{ driverVersion: '1.64.1' }, 'image-version-malformed'], [{ ...recorded('1.64.1'), driverVersion: 1.641 }, 'image-version-malformed'],
+      [JSON.stringify({ ...recorded('1.64.1'), pad: 'x'.repeat(5000) }), 'image-version-malformed', true],
+    ]) {
+      record(value, raw);
+      assert.equal(check('chromium', dryRun(chromium)), code, JSON.stringify(value)?.slice(0, 80));
+    }
+    record(undefined);
+    mkdirSync(path.join(image, '.docker-info'));
+    assert.equal(check('chromium', dryRun(chromium)), 'image-version-malformed', 'a directory is not a record');
+    record(undefined);
+    writeFileSync(path.join(dir, 'elsewhere.json'), JSON.stringify(recorded('1.64.1')));
+    symlinkSync(path.join(dir, 'elsewhere.json'), path.join(image, '.docker-info'));
+    assert.equal(check('chromium', dryRun(chromium)), 'image-version-malformed', 'a symlink is not followed');
+    record(recorded('1.64.1'));
+    assert.deepEqual(check('chromium', dryRun(chromium)), { version: '1.64.1', builds: chromium });
     // The installed packages must all be exactly the lockfile's version, and the lockfile must pin it exactly.
     for (const [versions, code] of [[{ core: '1.64.0' }, 'version-mismatch'], [{ runner: '1.65.0' }, 'version-mismatch'],
       [{ test: '1.64.0' }, 'version-mismatch'], [{ locked: '1.64.0' }, 'version-mismatch'], [{ locked: '^1.64.1' }, 'lockfile']]) {
@@ -313,12 +345,14 @@ test('image check: the real installer and lockfile, against an image directory b
     assert.equal(dry.status, 0);
     const names = [...dry.stdout.matchAll(/Install location: +(\S+)/g)].map(m => path.basename(m[1]));
     assert.ok(names.some(n => /^firefox-\d+$/.test(n)), 'the dry run names the firefox build');
+    const version = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).devDependencies['@playwright/test'];
+    assert.throws(() => checkImage({ root, engine: 'firefox', browsersPath: dir }), { code: 'image-version-missing' });
+    writeFileSync(path.join(dir, '.docker-info'), JSON.stringify({ driverVersion: version, dockerImageName: imageName(version) }));
     assert.throws(() => checkImage({ root, engine: 'firefox', browsersPath: dir }), { code: 'engine-missing' });
     for (const n of names) {
       mkdirSync(path.join(dir, n));
       writeFileSync(path.join(dir, n, 'INSTALLATION_COMPLETE'), '');
     }
-    const version = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).devDependencies['@playwright/test'];
     assert.deepEqual(checkImage({ root, engine: 'firefox', browsersPath: dir }), { version, builds: names });
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

@@ -96,7 +96,7 @@ jobs:
     # The official Playwright image for the lockfile's Playwright version, pinned by digest: the engine builds and their system
     # libraries are in the image, so nothing is installed with apt or downloaded at run time. The tag names the version (the
     # bootstrap tests require it to be the lockfile's) and the digest fixes the bytes; the check step below confirms the
-    # image holds exactly the builds that version expects. A non-root user (the hosted runner's uid, which owns the mounted
+    # image records that version and holds the builds it expects. A non-root user (the hosted runner's uid, which owns the mounted
     # workspace and home; Firefox refuses to run as root there), an init process to reap engine child processes, and a
     # larger shared-memory size than Docker's 64 MB default instead of sharing the host's IPC namespace.
     container:
