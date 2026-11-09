@@ -33,6 +33,7 @@ const quirks = [
   'Hovering an item focuses it (the item calls focus() on mouseover and stops the event), but that does not move the menu\'s tab stop, which only moves on a mouse down or with the arrow keys; the menu\'s keys keep acting from the tab-stop item (see the menu page).',
   'In a submenu, the click handler compares the click target\'s tagName with the lower-case "sl-menu-item", which never matches (tag names are upper case in HTML); only the role check can close the submenu after a click on a nested item.',
   'The submenu-icon part is described as "not yet implemented", although the chevron it names is rendered and shown for items with a submenu. The description is kept as Shoelace words it.',
+  'While a submenu is open, the item draws a viewport-sized pseudo-element clipped to the safe triangle between the pointer, the start of the submenu and its end. The custom properties for the pointer default to 0 and only a mousemove on the item sets them, so until the pointer has moved over the item, the safe triangle has a vertex at the top-left corner of the viewport and the item, not the page, is what is at that point. A pointer that rests at 0,0 (where a page\'s pointer starts) then hovers the item as soon as the submenu opens, and the item\'s hover handler focuses it, taking the focus back from the submenu that a key press has just opened. Shoelace 2.20.1\'s own build behaves identically in the same page.',
 ] as const;
 
 const gaps = [

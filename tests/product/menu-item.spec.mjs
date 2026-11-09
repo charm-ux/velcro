@@ -79,6 +79,7 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
   expect(html).toContain('<title>Menu Item - Velcro</title>');
   expect(html).toContain('Velcro is an unreleased prototype');
   expect(html).toContain('Upstream quirks matched');
+  expect(html).toContain('the safe triangle has a vertex at the top-left corner of the viewport');
   expect(html).toContain('Not implemented or unverified');
   // The part's description says "not yet implemented" as Shoelace's does, although the chevron is rendered (a listed quirk).
   expect(html).toContain('The submenu icon, visible only when the menu item has a submenu (not yet implemented)');
@@ -552,6 +553,42 @@ test('submenu keyboard: Right, Enter and Space open it at once and focus the fir
   await page.keyboard.press('Enter');
   expect(await page.evaluate(() => window.selects)).toEqual(['child-1']);
   await expect.poll(() => open(page)).toBe(false);
+  expect(pageErrors).toEqual([]);
+});
+
+// The safe triangle's custom properties default to 0 and only a mousemove on the item sets the cursor ones, so until the
+// pointer has moved over the item, the triangle drawn over the viewport while a submenu is open has a vertex at 0,0. A page's
+// pointer rests there when nothing has moved it, so Chrome's hover update then sends a mouseover to the item, whose handler
+// focuses it (the upstream conformance runner parks the pointer elsewhere for this reason; see docs/conformance.md).
+test('upstream quirk: until the pointer has moved, an open submenu\'s safe triangle has a vertex at 0,0, so the item and not the page is at that corner', async ({ page }) => {
+  const pageErrors = await loadBundle(page, ENTRY);
+  // The menu is narrow so the submenu opens to its right: the triangle then has area on the page, and 0,0 is a corner of it.
+  await mount(page, SUBMENU, 'style="max-width: 200px"');
+  const probe = () => page.evaluate(() => {
+    const parent = document.querySelector('#parent');
+    const hit = document.elementFromPoint(0, 0);
+    return {
+      hit: hit?.id || hit?.localName,
+      clip: getComputedStyle(parent.shadowRoot.querySelector('[part="base"]'), '::after').clipPath,
+      cursor: ['x', 'y'].map(axis => parent.style.getPropertyValue(`--safe-triangle-cursor-${axis}`)),
+    };
+  });
+  // Closed: no triangle, and the page is at the corner.
+  expect((await probe()).hit).toBe('html');
+  await page.locator('#parent').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => open(page)).toBe(true);
+  // Open, with no pointer move yet: the cursor variables are unset (so 0), and the item is what is at 0,0.
+  await expect.poll(async () => (await probe()).clip).toMatch(/^polygon\(0(px)? 0(px)?, (?!0(px)? 0(px)?,)/);
+  const opened = await probe();
+  expect(opened.cursor).toEqual(['', '']);
+  expect(opened.hit).toBe('parent');
+  // A pointer move over the item sets the cursor variables, the triangle leaves 0,0 and the page is at the corner again.
+  const box = await page.locator('#parent').boundingBox();
+  await page.mouse.move(box.x + 20, box.y + 10);
+  await expect.poll(async () => (await probe()).cursor).toEqual([expect.stringMatching(/^[1-9]\d*(\.\d+)?px$/), expect.stringMatching(/^[1-9]\d*(\.\d+)?px$/)]);
+  await expect.poll(async () => (await probe()).hit).toBe('html');
+  expect((await probe()).clip).not.toMatch(/^polygon\(0(px)? 0(px)?,/);
   expect(pageErrors).toEqual([]);
 });
 

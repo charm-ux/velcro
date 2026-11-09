@@ -57,7 +57,9 @@ A third guard parks the pointer in the bottom-right corner before the first test
 (0,0), which is a vertex of the clip-path triangle that `sl-menu-item` (Shoelace's and Velcro's alike) draws over the
 viewport while a submenu is open, so Chrome's delayed hover update would send a `mouseover` to the item, and the item's
 handler would take the focus back from a submenu that a key press had just opened. It moves no element and changes no
-assertion.
+assertion, and it applies to every test file. `tests/product/upstream-harness.spec.mjs` checks that the pointer was
+moved before the first test starts, and that the same check fails when the guard is cut out of the runner page; the
+quirk itself is pinned in `tests/product/menu-item.spec.mjs` and listed on the menu item docs page.
 Upstream's icon sprite sheet tests load `/docs/assets/images/sprite.svg`, which Shoelace's docs build generates
 from Bootstrap Icons; the runner serves that one path from the same Bootstrap Icons sprite that Velcro's docs
 site ships (`packages/docs/public/assets/images/sprite.svg`).
