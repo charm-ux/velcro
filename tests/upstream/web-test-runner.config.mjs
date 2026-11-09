@@ -14,6 +14,7 @@ import { esbuildPlugin } from '@web/dev-server-esbuild';
 import { playwrightLauncher } from '@web/test-runner-playwright';
 import { defaultReporter } from '@web/test-runner';
 import { writeFileSync } from 'node:fs';
+import { serveDocsImage } from './docs-images.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const vendor = 'tests/upstream/shoelace-2.20.1';
@@ -54,17 +55,13 @@ const velcroEntries = {
 // Bootstrap Icons in its own web root. Velcro's docs site ships the same Bootstrap Icons sprite at
 // packages/docs/public/assets/images/sprite.svg, so that one path is served from there. Upstream's animated image tests
 // load '/docs/assets/images/walk.gif' and '/docs/assets/images/tie.webp', Shoelace's own demo images. Velcro neither ships
-// nor commits binary files, so those two paths are served from small synthetic stand-ins (docs-images.json, stored as
-// base64 text and decoded here). Nothing else is rewritten.
-const docsImages = JSON.parse(readFileSync(new URL('./docs-images.json', import.meta.url), 'utf8')).images;
+// nor commits binary files, so those two exact names are served from two small synthetic stand-ins (docs-images.json, base64
+// text, decoded in docs-images.mjs) with the content type of their extension. The lookup is by exact name only; any other
+// path under that directory, or one with a further segment or a '..', falls through to the normal server. Nothing else is
+// rewritten.
 const upstreamDocsAssets = (ctx, next) => {
   if (ctx.path === '/docs/assets/images/sprite.svg') ctx.url = '/packages/docs/public/assets/images/sprite.svg';
-  const image = ctx.path.match(/^\/docs\/assets\/images\/([^/]+)$/)?.[1];
-  if (image && Object.hasOwn(docsImages, image)) {
-    ctx.type = docsImages[image].type;
-    ctx.body = Buffer.from(docsImages[image].base64, 'base64');
-    return undefined;
-  }
+  if (serveDocsImage(ctx)) return undefined;
   return next();
 };
 
