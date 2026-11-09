@@ -1,0 +1,17 @@
+{
+  "files": {
+    "src/components/drawer/drawer.test.ts": "2611a1afb18821046e869c8abb46b3dba138351046d72d87431195f88979c222"
+  },
+  "tests": [
+    "<sl-drawer> > should be visible with the open attribute",
+    "<sl-drawer> > should not be visible without the open attribute",
+    "<sl-drawer> > should emit sl-show and sl-after-show when calling show()",
+    "<sl-drawer> > should emit sl-hide and sl-after-hide when calling hide()",
+    "<sl-drawer> > should emit sl-show and sl-after-show when setting open = true",
+    "<sl-drawer> > should emit sl-hide and sl-after-hide when setting open = false",
+    "<sl-drawer> > should not close when sl-request-close is prevented",
+    "<sl-drawer> > should allow initial focus to be set",
+    "<sl-drawer> > should close when pressing Escape"
+  ],
+  "knownFailures": []
+}

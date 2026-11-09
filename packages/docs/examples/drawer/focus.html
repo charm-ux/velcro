@@ -1,0 +1,16 @@
+<sl-drawer label="Drawer" class="drawer-focus">
+  <sl-input autofocus placeholder="I will have focus when the drawer is opened"></sl-input>
+  <sl-button slot="footer" variant="primary">Close</sl-button>
+</sl-drawer>
+
+<sl-button>Open Drawer</sl-button>
+
+<script>
+  const drawer = document.querySelector('.drawer-focus');
+  const input = drawer.querySelector('sl-input');
+  const openButton = drawer.nextElementSibling;
+  const closeButton = drawer.querySelector('sl-button[variant="primary"]');
+
+  openButton.addEventListener('click', () => drawer.show());
+  closeButton.addEventListener('click', () => drawer.hide());
+</script>

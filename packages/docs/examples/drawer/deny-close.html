@@ -1,0 +1,22 @@
+<sl-drawer label="Drawer" class="drawer-deny-close">
+  This drawer will not close when you click on the overlay.
+  <sl-button slot="footer" variant="primary">Close</sl-button>
+</sl-drawer>
+
+<sl-button>Open Drawer</sl-button>
+
+<script>
+  const drawer = document.querySelector('.drawer-deny-close');
+  const openButton = drawer.nextElementSibling;
+  const closeButton = drawer.querySelector('sl-button[variant="primary"]');
+
+  openButton.addEventListener('click', () => drawer.show());
+  closeButton.addEventListener('click', () => drawer.hide());
+
+  // Prevent the drawer from closing when the user clicks on the overlay
+  drawer.addEventListener('sl-request-close', event => {
+    if (event.detail.source === 'overlay') {
+      event.preventDefault();
+    }
+  });
+</script>

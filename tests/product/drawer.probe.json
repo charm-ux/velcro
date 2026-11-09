@@ -1,0 +1,5 @@
+{
+  "content": "Content<div slot=\"label\">label</div><div slot=\"header-actions\">header-actions</div><div slot=\"footer\">footer</div>",
+  "attrs": { "open": "" },
+  "note": "Open, so the panel and the slotted content render: a closed drawer's base is hidden and its display: contents host has no box."
+}

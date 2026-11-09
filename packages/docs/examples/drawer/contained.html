@@ -1,0 +1,21 @@
+<div
+  style="position: relative; border: solid 2px var(--sl-panel-border-color); height: 300px; padding: 1rem; margin-bottom: 1rem;"
+>
+  The drawer will be contained to this box. This content won't shift or be affected in any way when the drawer opens.
+
+  <sl-drawer label="Drawer" contained class="drawer-contained" style="--size: 50%;">
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+    <sl-button slot="footer" variant="primary">Close</sl-button>
+  </sl-drawer>
+</div>
+
+<sl-button>Toggle Drawer</sl-button>
+
+<script>
+  const drawer = document.querySelector('.drawer-contained');
+  const openButton = drawer.parentElement.nextElementSibling;
+  const closeButton = drawer.querySelector('sl-button[variant="primary"]');
+
+  openButton.addEventListener('click', () => (drawer.open = !drawer.open));
+  closeButton.addEventListener('click', () => drawer.hide());
+</script>
