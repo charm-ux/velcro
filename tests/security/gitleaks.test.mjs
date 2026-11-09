@@ -21,7 +21,7 @@ import path from 'node:path';
 import { after, describe, test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
-import { spawnAsync, TEST_CONCURRENCY } from '../support/spawn.mjs';
+import { settleAll, spawnAsync, TEST_CONCURRENCY } from '../support/spawn.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const scriptPath = path.join(repoRoot, 'scripts', 'security', 'gitleaks.mjs');
@@ -154,7 +154,7 @@ async function commitFile(repo, name, content, message) {
 // Builds a commit object outside any branch, without touching the index,
 // working tree, or stash machinery.
 async function detachedCommit(repo, parent, files, message) {
-  const entries = await Promise.all(Object.entries(files).map(async ([name, content]) => {
+  const entries = await settleAll(Object.entries(files).map(async ([name, content]) => {
     const blob = await gitWithInput(repo, content, 'hash-object', '-w', '--stdin');
     return `100644 blob ${blob}\t${name}`;
   }));

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { after, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { installedBinary } from '../../scripts/security/gitleaks.mjs';
-import { spawnAsync, TEST_CONCURRENCY } from '../support/spawn.mjs';
+import { settleAll, spawnAsync, TEST_CONCURRENCY } from '../support/spawn.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const script = path.join(root, 'scripts/security/git-privacy.mjs');
@@ -100,7 +100,7 @@ describe('git publication guard', { concurrency: TEST_CONCURRENCY }, () => {
   });
 
   test('raw author and committer must both match approved metadata', async () => {
-    await Promise.all(['AUTHOR', 'COMMITTER'].map(async kind => {
+    await settleAll(['AUTHOR', 'COMMITTER'].map(async kind => {
       const repo = await fixture();
       const oid = await commit(repo, 'clean\n', { [`GIT_${kind}_NAME`]: 'Unapproved Fixture' });
       assert.equal(await run(repo, ['history', oid]), 1);
@@ -399,7 +399,7 @@ describe('git publication guard', { concurrency: TEST_CONCURRENCY }, () => {
       [{ GIT_COMMITTER_NAME: platform.name, GIT_COMMITTER_EMAIL: platform.email.toUpperCase() }, 1],
     ];
     // Each case has its own repository: run them together.
-    await Promise.all([...cases.map(async ([extra, expected]) => {
+    await settleAll([...cases.map(async ([extra, expected]) => {
       const repo = await fixture();
       const tip = await commit(repo, 'clean\n', extra);
       assert.equal(await run(repo, ['history', tip]), expected);
@@ -460,7 +460,7 @@ describe('git publication guard', { concurrency: TEST_CONCURRENCY }, () => {
 
   test('secrets in old or later commits of the published range are caught', async () => {
     // Three independent repositories: run them together.
-    await Promise.all([
+    await settleAll([
       (async () => {
         const early = await prFixture();
         await commitFiles(early.repo, { 'notes.txt': `token = "${secretToken()}"\n` });
@@ -553,12 +553,12 @@ describe('git publication guard', { concurrency: TEST_CONCURRENCY }, () => {
     // These checks only read the fixture: run them together, then check each result.
     const wrongApprovals = [atLimit, base, over.slice(0, 12), over.toUpperCase(), `${over}\n`, '1'];
     const approved = { VELCRO_HISTORY_APPROVED: over };
-    const [unapprovedPush, unapprovedHistory, wrongResults, approvedPush] = await Promise.all([
+    const [unapprovedPush, unapprovedHistory, wrongResults, approvedPush] = await settleAll([
       run(repo, ['pre-push'], { input: proposed(over), notice }),
       run(repo, ['history', `${base}..${over}`], { notice }),
-      Promise.all(wrongApprovals.map(async wrong => {
+      settleAll(wrongApprovals.map(async wrong => {
         const extra = { VELCRO_HISTORY_APPROVED: wrong };
-        return Promise.all([run(repo, ['pre-push'], { input: proposed(over), extra, notice }),
+        return settleAll([run(repo, ['pre-push'], { input: proposed(over), extra, notice }),
           run(repo, ['history', `${base}..${over}`], { extra, notice })]);
       })),
       run(repo, ['pre-push'], { input: proposed(over), extra: approved }),
@@ -634,7 +634,7 @@ describe('git publication guard', { concurrency: TEST_CONCURRENCY }, () => {
       assert.equal(await run(repo, ['history', `${base}..${tip}`]), 2);
     };
     // Each case builds its own repository: run them together.
-    await Promise.all([
+    await settleAll([
       blocked('source.txt', '120000'),
       blocked('', '160000'),
       (async () => {
@@ -712,9 +712,9 @@ describe('git publication guard', { concurrency: TEST_CONCURRENCY }, () => {
     const notice = 'history scan exceeds 1,000 changed files; owner approval required';
     // The step only reads the fixture, so its runs are independent: start them together, then check each.
     const wrongApprovals = [target, base];
-    const [unapproved, wrongResults, approvedTarget, retargeted, approvedMain, group, groupTarget, push] = await Promise.all([
+    const [unapproved, wrongResults, approvedTarget, retargeted, approvedMain, group, groupTarget, push] = await settleAll([
       step$('pull_request', target),
-      Promise.all(wrongApprovals.map(wrong => step$('pull_request', target, wrong))),
+      settleAll(wrongApprovals.map(wrong => step$('pull_request', target, wrong))),
       step$('pull_request', target, head),
       step$('pull_request', base),
       step$('pull_request', base, head),

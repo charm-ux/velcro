@@ -7,6 +7,17 @@ import { availableParallelism } from 'node:os';
 // process-wide state (process.env, the working directory) stay serial.
 export const TEST_CONCURRENCY = Math.max(2, Math.min(8, availableParallelism()));
 
+// Promise.all for parallel workers that share fixtures: it waits for EVERY worker to settle before it rejects, so a
+// failing worker never lets the caller's cleanup (a finally block or an after hook) remove repositories that its
+// siblings are still using. Values keep the input order; the first rejection in input order is rethrown. Nest it
+// (never Promise.all) inside a worker, so each inner group drains too before its rejection reaches the outer one.
+export async function settleAll(workers) {
+  const settled = await Promise.allSettled(workers);
+  const failed = settled.find(({ status }) => status === 'rejected');
+  if (failed) throw failed.reason;
+  return settled.map(({ value }) => value);
+}
+
 // Same inputs and result shape as spawnSync for the options these tests use: cwd, env, input, encoding, timeout,
 // maxBuffer and stdio. `status` is null and `signal` is set when the process was killed (including on timeout);
 // `error` is set when it could not be started, timed out or exceeded maxBuffer.
@@ -23,6 +34,9 @@ export function spawnAsync(file, args = [], options = {}) {
     const kill = (reason) => {
       error ??= reason;
       child.kill('SIGTERM');
+      // Like spawnSync, stop reading at once: a grandchild that inherited the pipes must not hold the result open.
+      child.stdout?.destroy();
+      child.stderr?.destroy();
     };
     // Like spawnSync, the bound applies to stdout and stderr separately.
     const collect = (chunks) => {

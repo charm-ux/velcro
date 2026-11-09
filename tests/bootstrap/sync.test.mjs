@@ -15,7 +15,7 @@ import { PACKAGE_JSON, assembleNotices, checkDerived, checkPackageJson, checkPro
   renderPackageJson, velcroExports, writePackageJson } from '../../scripts/sync.mjs';
 import { checkBaseline, checkVendor, readBaseline, readInventory, readRecords, readSharedPins }
   from '../../scripts/upstream-conformance.mjs';
-import { spawnAsync, TEST_CONCURRENCY } from '../support/spawn.mjs';
+import { settleAll, spawnAsync, TEST_CONCURRENCY } from '../support/spawn.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -185,7 +185,7 @@ describe('derived lists', { concurrency: TEST_CONCURRENCY }, () => {
         // order only.
         const differ = (await ok(dir, 'diff', '--name-only', 'full', 'HEAD')).split('\n').filter(Boolean);
         const kept = differ.filter(f => !NAMES.some(n => f === `.changeset/add-${n}.md`));
-        const real = await Promise.all(kept.map(f => ok(dir, 'show', `full:${f}`)));
+        const real = await settleAll(kept.map(f => ok(dir, 'show', `full:${f}`)));
         assert.deepEqual(kept.filter((f, index) => {
           const a = real[index].split('\n').sort().join('\n');
           return a !== readFileSync(path.join(dir, f), 'utf8').split('\n').sort().join('\n');
