@@ -1,6 +1,6 @@
-// Adapted from Shoelace v2.20.1 (src/internal/slot.ts, `HasSlotController`), Copyright (c) 2020 A Beautiful Site, LLC,
-// MIT License. See THIRD_PARTY_NOTICES.md. Changes: TypeScript member accessibility and comments only; the default-slot
-// rule is unchanged.
+// Adapted from Shoelace v2.20.1 (src/internal/slot.ts, `HasSlotController` and `getTextContent`), Copyright (c) 2020
+// A Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md. Changes: TypeScript member accessibility and comments
+// only; the default-slot rule and `getTextContent` are unchanged.
 //
 // Core's controller of the same name differs in its default-slot rule: it ignores any element with a
 // `visually-hidden` class and compares a lowercase `visually-hidden` substring with the uppercase tag name, so it counts
@@ -65,4 +65,24 @@ export class HasSlotController implements ReactiveController {
       this.host.requestUpdate();
     }
   };
+}
+
+/**
+ * Given a slot, this function iterates over all of its assigned text nodes and returns the concatenated text as a
+ * string. This is useful because we can't use slot.textContent as an alternative.
+ */
+export function getTextContent(slot: HTMLSlotElement | undefined | null): string {
+  if (!slot) {
+    return '';
+  }
+  const nodes = slot.assignedNodes({ flatten: true });
+  let text = '';
+
+  [...nodes].forEach(node => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      text += node.textContent;
+    }
+  });
+
+  return text;
 }

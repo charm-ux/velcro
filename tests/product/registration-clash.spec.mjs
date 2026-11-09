@@ -12,6 +12,8 @@ import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 // Registering entries with dependencies: [entry, own tag, own class export, [[dependency tag, class export, class fixture]]].
 const ICON = ['sl-icon', 'VelcroIcon', 'iconClass'];
 const ICON_BUTTON = ['sl-icon-button', 'VelcroIconButton', 'iconButtonClass'];
+const POPUP = ['sl-popup', 'VelcroPopup', 'popupClass'];
+const SPINNER = ['sl-spinner', 'VelcroSpinner', 'spinnerClass'];
 const ENTRIES = [
   ['alert', 'sl-alert', 'VelcroAlert', [ICON_BUTTON, ICON]],
   ['avatar', 'sl-avatar', 'VelcroAvatar', [ICON]],
@@ -20,6 +22,7 @@ const ENTRIES = [
   ['details', 'sl-details', 'VelcroDetails', [ICON]],
   ['icon-button', 'sl-icon-button', 'VelcroIconButton', [ICON]],
   ['input', 'sl-input', 'VelcroInput', [ICON]],
+  ['menu-item', 'sl-menu-item', 'VelcroMenuItem', [ICON, POPUP, SPINNER]],
   ['radio', 'sl-radio', 'VelcroRadio', [ICON]],
   ['radio-group', 'sl-radio-group', 'VelcroRadioGroup', [['sl-button-group', 'VelcroButtonGroup', 'buttonGroupClass']]],
   ['tab', 'sl-tab', 'VelcroTab', [ICON_BUTTON, ICON]],
@@ -34,6 +37,7 @@ const CLASS_ONLY = [
   ['alertClass', 'VelcroAlert', 'sl-alert', [ICON_BUTTON]],
   ['avatarClass', 'VelcroAvatar', 'sl-avatar', [ICON]],
   ['detailsClass', 'VelcroDetails', 'sl-details', [ICON]],
+  ['menuItemClass', 'VelcroMenuItem', 'sl-menu-item', [ICON, POPUP, SPINNER]],
   ['radioGroupClass', 'VelcroRadioGroup', 'sl-radio-group', [['sl-button-group', 'VelcroButtonGroup', 'buttonGroupClass']]],
   ['tabGroupClass', 'VelcroTabGroup', 'sl-tab-group', [ICON_BUTTON, ['sl-resize-observer', 'VelcroResizeObserver', 'resizeObserverClass']]],
   ['tagClass', 'VelcroTag', 'sl-tag', [ICON_BUTTON]],

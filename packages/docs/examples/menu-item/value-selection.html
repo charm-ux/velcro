@@ -1,0 +1,24 @@
+<sl-menu class="menu-value" style="max-width: 200px;">
+  <sl-menu-item value="opt-1">Option 1</sl-menu-item>
+  <sl-menu-item value="opt-2">Option 2</sl-menu-item>
+  <sl-menu-item value="opt-3">Option 3</sl-menu-item>
+  <sl-divider></sl-divider>
+  <sl-menu-item type="checkbox" value="opt-4">Checkbox 4</sl-menu-item>
+  <sl-menu-item type="checkbox" value="opt-5">Checkbox 5</sl-menu-item>
+  <sl-menu-item type="checkbox" value="opt-6">Checkbox 6</sl-menu-item>
+</sl-menu>
+
+<script>
+  const menu = document.querySelector('.menu-value');
+
+  menu.addEventListener('sl-select', event => {
+    const item = event.detail.item;
+
+    // Log value
+    if (item.type === 'checkbox') {
+      console.log(`Selected value: ${item.value} (${item.checked ? 'checked' : 'unchecked'})`);
+    } else {
+      console.log(`Selected value: ${item.value}`);
+    }
+  });
+</script>
