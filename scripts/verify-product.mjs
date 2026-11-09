@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSy
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDigest, collect as collectBuild } from './ci/build-output.mjs';
-import { summarizeReport } from './product-summary.mjs';
+import { redactLine, summarizeReport } from './product-summary.mjs';
 import { readCatalog } from './site/catalog.mjs';
 import { readInventory } from './upstream-conformance.mjs';
 import { summarizeUpstream } from './upstream-summary.mjs';
@@ -180,6 +180,8 @@ function main() {
       try {
         const { lines } = summarizeReport(JSON.parse(readFileSync(reportFile, 'utf8')), { root, engines });
         for (const line of lines) process.stdout.write(`verify:product: ${line}\n`);
+        // DIAGNOSTIC (throw-away, reverted right after one CI run): the redacted reason lines printed above for two tests.
+        for (const l of log.split('\n')) if (/^test:upstream: diag: [12]: /.test(l)) process.stdout.write(`verify:product: ${redactLine(l.slice('test:upstream: '.length), root)}\n`);
       } catch { process.stdout.write('verify:product: no readable report to summarize\n'); }
     };
     if (!ok) { publish(); return fail('blocked'); }
