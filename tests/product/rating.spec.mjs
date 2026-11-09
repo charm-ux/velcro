@@ -148,9 +148,9 @@ test('Symbol Sizes, Readonly, Disabled and Custom Icons examples: the symbol siz
   await openExample(page);
   const read = (section, fn) => page.frameLocator(`iframe.example[title="${title(section)}"]`).locator('sl-rating').evaluate(fn);
   expect(await read('Symbol Sizes', el => getComputedStyle(el.shadowRoot.querySelector('.rating__symbols')).fontSize)).toBe('32px');
-  // 1.2rem (WebKit reports fractional pixels with float noise).
+  // 1.2rem (WebKit and Firefox report fractional pixels with rounding noise: Firefox snaps font sizes to 1/60 px).
   const [size, rem] = await read('Default', el => [getComputedStyle(el.shadowRoot.querySelector('.rating__symbols')).fontSize, getComputedStyle(document.documentElement).fontSize].map(parseFloat));
-  expect(size).toBeCloseTo(1.2 * rem, 3);
+  expect(size).toBeCloseTo(1.2 * rem, 1);
   // Every symbol's icon resolves to an SVG (the default library's heart and emoji icons, the system star).
   for (const section of ['Default', 'Custom Icons', 'Value-based Icons']) {
     await expect.poll(() => read(section, el => [...el.shadowRoot.querySelectorAll('sl-icon')].map(i => Boolean(i.shadowRoot?.querySelector('svg'))))).toEqual(Array(5).fill(true));
@@ -392,11 +392,8 @@ test('right-to-left: the arrows swap and the pointer reads from the right; with 
   expect((await state(page)).value).toBe(5);
   // The document's direction, when the rating has none of its own; re-rendered when the document's direction changes.
   await mount(page, 'label="Rating" value="2"');
-  await page.evaluate(async () => {
-    document.documentElement.dir = 'rtl';
-    await new Promise(r => setTimeout(r, 50));
-  });
-  expect(await page.evaluate(() => document.querySelector('#r').shadowRoot.querySelector('[part="base"]').classList.contains('rating--rtl'))).toBe(true);
+  await page.evaluate(() => { document.documentElement.dir = 'rtl'; });
+  await expect.poll(() => page.evaluate(() => document.querySelector('#r').shadowRoot.querySelector('[part="base"]').classList.contains('rating--rtl'))).toBe(true);
   await page.evaluate(() => document.querySelector('#r').focus());
   await page.keyboard.press('ArrowLeft');
   expect((await state(page)).value).toBe(3);
@@ -447,6 +444,46 @@ test('focus() and blur() move the focus to and from the base element', async ({ 
     return [...focused, el.shadowRoot.activeElement];
   });
   expect(r).toEqual([true, true, null]);
+});
+
+test('upstream quirk: the arrow keys bound each step on one side only, so an out-of-range value moves one step and stays out of range', async ({ page }) => {
+  await loadBundle(page, ENTRY);
+  for (const [value, key, expected] of [[10, 'ArrowDown', 9], [-2, 'ArrowUp', -1], [10, 'ArrowUp', 5], [-2, 'ArrowDown', 0]]) {
+    await mount(page);
+    await page.evaluate(value => {
+      const el = document.querySelector('#r');
+      el.value = value;
+      el.focus();
+      return el.updateComplete;
+    }, value);
+    await events(page);
+    await page.keyboard.press(key);
+    await expect.poll(() => state(page).then(s => [s.value, s.valuenow])).toEqual([expected, String(expected)]);
+    expect(await events(page)).toEqual([['sl-change', expected]]);
+  }
+});
+
+test('readonly and disabled set to null or undefined get their initial value back (Shoelace\'s base element restore), once any attribute has been set', async ({ page }) => {
+  await loadBundle(page, ENTRY);
+  await mount(page, 'label="Rating" readonly');
+  const r = await page.evaluate(async () => {
+    const el = document.querySelector('#r');
+    el.disabled = true;
+    await el.updateComplete;
+    el.readonly = null;
+    el.disabled = undefined;
+    await el.updateComplete;
+    const restored = [el.readonly, el.disabled, el.hasAttribute('readonly'), el.hasAttribute('disabled')];
+    // As in Shoelace, the initial values are recorded on the first attribute change: a rating that never had an
+    // attribute keeps the null.
+    const bare = document.createElement('sl-rating');
+    document.body.append(bare);
+    await bare.updateComplete;
+    bare.disabled = null;
+    await bare.updateComplete;
+    return { restored, bare: bare.disabled };
+  });
+  expect(r).toEqual({ restored: [false, false, false, false], bare: null });
 });
 
 test('attributes: readonly and disabled reflect; value, max and precision do not and become null when removed; a getsymbol attribute breaks rendering (upstream quirks)', async ({ page }) => {
@@ -559,7 +596,8 @@ test('React examples render the same ratings as the HTML examples; Shoelace\'s D
   // errors carry the message: Chromium and Firefox say "rating is not defined", WebKit "Can't find variable: rating".
   expect(r.errors.length).toBe(2);
   expect(r.feedback).toBe('');
-  expect(pageErrors.length).toBe(2);
+  // Playwright delivers page errors asynchronously (Firefox later than the page's own error events).
+  await expect.poll(() => pageErrors.length).toBe(2);
   expect(pageErrors.every(e => /rating is not defined|Can't find variable: rating/.test(e)), JSON.stringify(pageErrors)).toBe(true);
 });
 

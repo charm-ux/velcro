@@ -74,6 +74,12 @@ export class VelcroRating extends CharmElement {
 
   private velcroDir?: string;
 
+  // Shoelace's base element restores a reflected property's initial value when it becomes null or undefined (see
+  // attributeChangedCallback). `readonly` and `disabled` are the reflected properties here.
+  private readonly initialReflectedProperties = new Map<string, unknown>();
+
+  private hasRecordedInitialProperties = false;
+
   // Shoelace's public `@query('.rating')` field: the `base` element.
   @query('.rating')
   public rating!: HTMLElement;
@@ -123,9 +129,8 @@ export class VelcroRating extends CharmElement {
   @property({ type: Number })
   public precision = 1;
 
-  // `readonly` and `disabled` are the only reflected properties. Shoelace's base element restores a reflected property's
-  // initial value when its attribute is removed; for these two booleans the attribute converter already yields that
-  // value (false), so no restore step is needed.
+  // `readonly` and `disabled` are the only reflected properties. Shoelace's base element records their initial values
+  // and restores them whenever they become null or undefined (see `attributeChangedCallback` and `willUpdate`).
   /** Makes the rating readonly. */
   @property({ type: Boolean, reflect: true })
   public readonly = false;
@@ -143,6 +148,35 @@ export class VelcroRating extends CharmElement {
    */
   @property()
   public getSymbol: (value: number) => string = () => '<sl-icon name="star-fill" library="system"></sl-icon>';
+
+  // Records the reflected properties' values the first time any attribute changes (during upgrade, before the
+  // attribute values are applied), so that a reflected property set to null or undefined later (for a boolean, by
+  // assignment; removing its attribute already yields false) gets that value back instead. Same timing and rule as
+  // Shoelace's base element.
+  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
+    if (!this.hasRecordedInitialProperties) {
+      (this.constructor as typeof VelcroRating).elementProperties.forEach((options, prop) => {
+        if (options.reflect) {
+          const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
+          if (current != null) {
+            this.initialReflectedProperties.set(prop as string, current);
+          }
+        }
+      });
+      this.hasRecordedInitialProperties = true;
+    }
+    super.attributeChangedCallback(name, previous, next);
+  }
+
+  protected override willUpdate(changed: PropertyValues<this>) {
+    super.willUpdate(changed);
+    this.initialReflectedProperties.forEach((value, prop) => {
+      const self = this as unknown as Record<string, unknown>;
+      if (changed.has(prop as keyof VelcroRating) && self[prop] == null) {
+        self[prop] = value;
+      }
+    });
+  }
 
   // Shoelace's controller resolves the direction from the host's `dir` property, else the document's snapshot (`<html
   // dir>`, else ltr), lower-cased. Velcro's shared controller reads the host's `dir` attribute instead, which would miss a
@@ -189,6 +223,8 @@ export class VelcroRating extends CharmElement {
     this.isHovering = false;
   }
 
+  // Upstream quirk: each step is bounded on one side only (decrements at 0, increments at max), so a value set out of
+  // range from script moves one step and stays out of range (10 with max 5 goes to 9 on ArrowDown, emitting sl-change).
   private handleKeyDown(event: KeyboardEvent) {
     const isLtr = this.direction() === 'ltr';
     const isRtl = this.direction() === 'rtl';
