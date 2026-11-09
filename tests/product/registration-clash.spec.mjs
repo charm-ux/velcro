@@ -14,6 +14,7 @@ const ICON = ['sl-icon', 'VelcroIcon', 'iconClass'];
 const ICON_BUTTON = ['sl-icon-button', 'VelcroIconButton', 'iconButtonClass'];
 const POPUP = ['sl-popup', 'VelcroPopup', 'popupClass'];
 const SPINNER = ['sl-spinner', 'VelcroSpinner', 'spinnerClass'];
+const TAG = ['sl-tag', 'VelcroTag', 'tagClass'];
 const ENTRIES = [
   ['alert', 'sl-alert', 'VelcroAlert', [ICON_BUTTON, ICON]],
   ['avatar', 'sl-avatar', 'VelcroAvatar', [ICON]],
@@ -24,8 +25,10 @@ const ENTRIES = [
   ['icon-button', 'sl-icon-button', 'VelcroIconButton', [ICON]],
   ['input', 'sl-input', 'VelcroInput', [ICON]],
   ['menu-item', 'sl-menu-item', 'VelcroMenuItem', [ICON, POPUP, SPINNER]],
+  ['option', 'sl-option', 'VelcroOption', [ICON]],
   ['radio', 'sl-radio', 'VelcroRadio', [ICON]],
   ['radio-group', 'sl-radio-group', 'VelcroRadioGroup', [['sl-button-group', 'VelcroButtonGroup', 'buttonGroupClass']]],
+  ['select', 'sl-select', 'VelcroSelect', [POPUP, TAG, ICON_BUTTON, ICON]],
   ['tab', 'sl-tab', 'VelcroTab', [ICON_BUTTON, ICON]],
   ['tab-group', 'sl-tab-group', 'VelcroTabGroup', [ICON_BUTTON, ICON, ['sl-resize-observer', 'VelcroResizeObserver', 'resizeObserverClass']]],
   ['tag', 'sl-tag', 'VelcroTag', [ICON_BUTTON, ICON]],
@@ -40,7 +43,9 @@ const CLASS_ONLY = [
   ['detailsClass', 'VelcroDetails', 'sl-details', [ICON]],
   ['dropdownClass', 'VelcroDropdown', 'sl-dropdown', [POPUP]],
   ['menuItemClass', 'VelcroMenuItem', 'sl-menu-item', [ICON, POPUP, SPINNER]],
+  ['optionClass', 'VelcroOption', 'sl-option', [ICON]],
   ['radioGroupClass', 'VelcroRadioGroup', 'sl-radio-group', [['sl-button-group', 'VelcroButtonGroup', 'buttonGroupClass']]],
+  ['selectClass', 'VelcroSelect', 'sl-select', [ICON, POPUP, TAG]],
   ['tabGroupClass', 'VelcroTabGroup', 'sl-tab-group', [ICON_BUTTON, ['sl-resize-observer', 'VelcroResizeObserver', 'resizeObserverClass']]],
   ['tagClass', 'VelcroTag', 'sl-tag', [ICON_BUTTON]],
   ['tooltipClass', 'VelcroTooltip', 'sl-tooltip', [['sl-popup', 'VelcroPopup', 'popupClass']]],

@@ -1,0 +1,1228 @@
+// Adapted from Shoelace v2.20.1 (src/components/select/select.component.ts, the `watch` decorator in
+// src/internal/watch.ts and the reflected-property restore in src/internal/shoelace-element.ts), Copyright (c) 2020 A
+// Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md. The API documentation wording, the rendered structure
+// (the `form-control` wrapper around the label, an `<sl-popup>` whose anchor is the `combobox` box holding the prefix,
+// the read-only display input, the tags, the hidden value input, the clear button, the suffix and the expand icon, and
+// whose panel is the `listbox` around the options, and the help text), the events, the open and close animations, the
+// keyboard and pointer handling, type to select, the validation and form participation API and the tag rendering follow
+// Shoelace. Velcro changes: built on the @charm-ux/core select (core-only extras are kept, see the class comment), and
+// Shoelace's `@watch` handlers are called from `update()` with the same timing.
+import { LitElement, html, type PropertyValues, type TemplateResult } from 'lit';
+import { property, query, state } from 'lit/decorators.js';
+import { classMap } from 'lit/directives/class-map.js';
+import { unsafeHTML } from 'lit/directives/unsafe-html.js';
+import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { CharmFocusableElement } from '@charm-ux/core/dist/base/focusable-element/charm-focusable-element.js';
+import type { CoreSelect } from '@charm-ux/core/dist/components/select/select.js';
+import { animateTo, stopAnimations } from '../../internal/animate.js';
+import { waitForEvent } from '../../internal/event.js';
+import { FormControlController } from '../../internal/form.js';
+import { documentDir } from '../../internal/localize.js';
+import { scrollIntoView } from '../../internal/scroll.js';
+import { HasSlotController } from '../../internal/slot.js';
+import { getAnimation, setDefaultAnimation } from '../../utilities/animation-registry.js';
+import { LocalizeController } from '../../utilities/localize.js';
+import { defineVelcroComponent, type VelcroComponentConstructor } from '../../utilities/registration.js';
+import { VelcroIcon } from '../icon/class.js';
+import type { VelcroOption } from '../option/class.js';
+import { VelcroPopup } from '../popup/class.js';
+import { VelcroTag } from '../tag/class.js';
+import { CoreSelectTyping } from './core-typing.js';
+import styles from './select.styles.js';
+
+// The window's CloseWatcher, where the engine has one (Chromium). Not in TypeScript's lib.dom yet.
+interface CloseWatcherLike {
+  onclose: (() => void) | null;
+  destroy(): void;
+}
+type CloseWatcherConstructor = new () => CloseWatcherLike;
+
+/**
+ * Selects allow you to choose items from a menu of predefined options.
+ *
+ * Velcro extensions inherited from the core select and kept working: `hide-label` (visually hides the label and help
+ * text, which stay accessible) and `error-message` (sets a custom validity message, like `setCustomValidity()`; it is
+ * not rendered). The core `invalid`, `label-position` and `readonly` properties are accepted but have no effect (use
+ * `data-invalid`, as in Shoelace). As with every Velcro form control the host carries core's `focusable` attribute.
+ * The core select's native `<select>`, its slotted `<option>` and `<optgroup>` elements and its `start` and `end` slots
+ * are not rendered: the template is Shoelace's, with `<sl-option>` children and `prefix` and `suffix` slots.
+ *
+ * @tag sl-select
+ * @status prototype
+ *
+ * @dependency sl-icon
+ * @dependency sl-popup
+ * @dependency sl-tag
+ *
+ * @slot - The listbox options. Must be `<sl-option>` elements. You can use `<sl-divider>` to group items visually.
+ * @slot label - The input's label. Alternatively, you can use the `label` attribute.
+ * @slot prefix - Used to prepend a presentational icon or similar element to the combobox.
+ * @slot suffix - Used to append a presentational icon or similar element to the combobox.
+ * @slot clear-icon - An icon to use in lieu of the default clear icon.
+ * @slot expand-icon - The icon to show when the control is expanded and collapsed. Rotates on open and close.
+ * @slot help-text - Text that describes how to use the input. Alternatively, you can use the `help-text` attribute.
+ *
+ * @event sl-change - Emitted when the control's value changes.
+ * @event sl-clear - Emitted when the control's value is cleared.
+ * @event sl-input - Emitted when the control receives input.
+ * @event sl-focus - Emitted when the control gains focus.
+ * @event sl-blur - Emitted when the control loses focus.
+ * @event sl-show - Emitted when the select's menu opens.
+ * @event sl-after-show - Emitted after the select's menu opens and all animations are complete.
+ * @event sl-hide - Emitted when the select's menu closes.
+ * @event sl-after-hide - Emitted after the select's menu closes and all animations are complete.
+ * @event sl-invalid - Emitted when the form control has been checked for validity and its constraints aren't satisfied.
+ *
+ * @csspart form-control - The form control that wraps the label, input, and help text.
+ * @csspart form-control-label - The label's wrapper.
+ * @csspart form-control-input - The select's wrapper.
+ * @csspart form-control-help-text - The help text's wrapper.
+ * @csspart combobox - The container the wraps the prefix, suffix, combobox, clear icon, and expand button.
+ * @csspart prefix - The container that wraps the prefix slot.
+ * @csspart suffix - The container that wraps the suffix slot.
+ * @csspart display-input - The element that displays the selected option's label, an `<input>` element.
+ * @csspart listbox - The listbox container where options are slotted.
+ * @csspart tags - The container that houses option tags when `multiselect` is used.
+ * @csspart tag - The individual tags that represent each multiselect option.
+ * @csspart tag__base - The tag's base part.
+ * @csspart tag__content - The tag's content part.
+ * @csspart tag__remove-button - The tag's remove button.
+ * @csspart tag__remove-button__base - The tag's remove button base part.
+ * @csspart clear-button - The clear button.
+ * @csspart expand-icon - The container that wraps the expand icon.
+ *
+ * @inheritedEventDropped change - Never emitted: Shoelace's `sl-change` is emitted instead.
+ * @inheritedEventDropped input - Never emitted: Shoelace's `sl-input` is emitted instead.
+ */
+export class VelcroSelect extends CoreSelectTyping {
+  // Only Shoelace's styles: core's base element styles would, for example, hide the host for the `hidden` attribute,
+  // which Shoelace's select does not do. The one Velcro rule visually hides the label and help text for `hide-label`.
+  public static override styles = [styles];
+
+  // Shoelace's select uses Lit's default shadow root options ({ mode: 'open' }). Core's focusable base delegates focus,
+  // which would, for example, focus the combobox (and emit sl-focus) on a click on its help text.
+  public static override shadowRootOptions = { ...LitElement.shadowRootOptions } as typeof CoreSelect.shadowRootOptions;
+
+  // Shoelace's select is not form-associated: the form is found from `form` / the closest <form> and the value is added
+  // in its `formdata` event. Core's ElementInternals association is switched off so the host does not join
+  // `form.elements`, submit core's form value or follow a disabled fieldset, which Shoelace's select does not do either.
+  protected static override formAssociated = false;
+
+  // Core's dependencies are registered in core's scope for core's own template, which this class replaces; the elements
+  // it renders are Shoelace's, handled below.
+  public static override get dependencies() {
+    return [];
+  }
+
+  // Shoelace's `static dependencies` for the select: the elements its template renders. Shoelace keys them by tag; here
+  // the tag is derived from each class's `baseName` (`sl-icon`, `sl-popup` and `sl-tag`), the same tag
+  // `defineVelcroComponent` defines and the template renders. As in Shoelace's base element, each one that is not
+  // defined yet is defined when a select is constructed, and a tag that another constructor already owns is left alone
+  // (with Shoelace's warning when the versions differ). If the platform refuses the class itself, an anonymous subclass
+  // is defined instead, as Shoelace does. The tag in turn defines `<sl-icon-button>` when it is constructed. As in
+  // Shoelace, `<sl-option>` is not a dependency: register it with its own entry. Not part of the documented API
+  // (Shoelace's manifest lists `dependencies` without a description).
+  private static readonly shoelaceDependencies: readonly VelcroComponentConstructor[] = [VelcroIcon, VelcroPopup, VelcroTag];
+
+  private readonly formControlController = new FormControlController(this, {
+    assumeInteractionOn: ['sl-blur', 'sl-input'],
+  });
+  private readonly hasSlotController = new HasSlotController(this, 'help-text', 'label');
+  private readonly localize = new LocalizeController(this);
+  private typeToSelectString = '';
+  private typeToSelectTimeout?: number;
+  private closeWatcher?: CloseWatcherLike | null;
+
+  // Focus and blur are handled on the display input, as in Shoelace, instead of core's host listeners.
+  protected override useBlurHandler = false;
+  protected override useFocusHandler = false;
+
+  private hasRecordedInitialProperties = false;
+  private readonly initialReflectedProperties = new Map<string, unknown>();
+  private velcroValue: string | string[] = '';
+  private velcroDisabled = false;
+  private velcroReadonly = false;
+  private velcroErrorMessage = '';
+  private velcroDir?: string;
+
+  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
+  // initial value (undefined). Core's `dir` would return the computed direction instead.
+  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
+  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
+  // runtime it returns whatever was set.
+  /**
+   * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
+   * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
+   */
+  @property()
+  public override get dir(): 'ltr' | 'rtl' | 'auto' {
+    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+  }
+  public override set dir(value: string) {
+    this.velcroDir = value;
+  }
+
+  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
+  @property()
+  public override lang!: string;
+
+  /** @internal Shoelace's public but undocumented `popup` field: the `<sl-popup>` around the combobox and listbox. */
+  @query('.select')
+  public popup!: VelcroPopup;
+
+  /** @internal Shoelace's public but undocumented `combobox` field. */
+  @query('.select__combobox')
+  public combobox!: HTMLSlotElement;
+
+  /** @internal Shoelace's public but undocumented `displayInput` field: the read-only input that shows the label. */
+  @query('.select__display-input')
+  public displayInput!: HTMLInputElement;
+
+  /** @internal Shoelace's public but undocumented `valueInput` field: the hidden input that holds the validation state. */
+  @query('.select__value-input')
+  public valueInput!: HTMLInputElement;
+
+  /** @internal Shoelace's public but undocumented `listbox` field. */
+  @query('.select__listbox')
+  public listbox!: HTMLSlotElement;
+
+  /** @internal Shoelace's public but undocumented `displayLabel` state: the text in the display input. */
+  @state()
+  public displayLabel = '';
+
+  /** @internal Shoelace's public but undocumented `currentOption` state: the option the user is interacting with. */
+  @state()
+  public currentOption!: VelcroOption;
+
+  /** @internal Shoelace's public but undocumented `selectedOptions` state. */
+  @state()
+  public selectedOptions: VelcroOption[] = [];
+
+  @state()
+  private valueHasChanged = false;
+
+  /** The name of the select, submitted as a name/value pair with form data. */
+  @property()
+  public override name = '';
+
+  /**
+   * The current value of the select, submitted as a name/value pair with form data. When `multiple` is enabled, the
+   * value attribute will be a space-delimited list of values based on the options selected, and the value property will
+   * be an array. **For this reason, values must not contain spaces.**
+   */
+  // Shoelace's getter has no return type annotation, so its manifest gives `value` no type; the getter here is unannotated
+  // too (TypeScript infers `string | string[]` from the field it returns), and the manifest matches.
+  @state()
+  public override get value() {
+    return this.velcroValue;
+  }
+  public override set value(val: string | string[]) {
+    if (this.multiple) {
+      val = Array.isArray(val) ? val : val.split(' ');
+    } else {
+      val = Array.isArray(val) ? val.join(' ') : val;
+    }
+
+    if (this.velcroValue === val) {
+      return;
+    }
+
+    this.valueHasChanged = true;
+    this.velcroValue = val;
+  }
+
+  /** The default value of the form control. Primarily used for resetting the form control. */
+  @property({ attribute: 'value' })
+  public defaultValue: string | string[] = '';
+
+  /** The select's size. */
+  @property({ reflect: true })
+  public override size: 'small' | 'medium' | 'large' = 'medium';
+
+  /** Placeholder text to show as a hint when the select is empty. */
+  @property()
+  public placeholder = '';
+
+  /** Allows more than one option to be selected. */
+  @property({ type: Boolean, reflect: true })
+  public override multiple = false;
+
+  /**
+   * The maximum number of selected options to show when `multiple` is true. After the maximum, "+n" will be shown to
+   * indicate the number of additional items that are selected. Set to 0 to remove the limit.
+   */
+  @property({ attribute: 'max-options-visible', type: Number })
+  public maxOptionsVisible = 3;
+
+  /**
+   * Disables the select control.
+   * @default false
+   */
+  @property({ type: Boolean, reflect: true })
+  public override get disabled(): boolean {
+    return this.velcroDisabled;
+  }
+  public override set disabled(value: boolean) {
+    this.velcroDisabled = value;
+  }
+
+  /** Adds a clear button when the select is not empty. */
+  @property({ type: Boolean })
+  public clearable = false;
+
+  /**
+   * Indicates whether or not the select is open. You can toggle this attribute to show and hide the menu, or you can
+   * use the `show()` and `hide()` methods and this attribute will reflect the select's open state.
+   */
+  @property({ type: Boolean, reflect: true })
+  public open = false;
+
+  /**
+   * Enable this option to prevent the listbox from being clipped when the component is placed inside a container with
+   * `overflow: auto|scroll`. Hoisting uses a fixed positioning strategy that works in many, but not all, scenarios.
+   */
+  @property({ type: Boolean })
+  public hoist = false;
+
+  /** Draws a filled select. */
+  @property({ type: Boolean, reflect: true })
+  public filled = false;
+
+  /** Draws a pill-style select with rounded edges. */
+  @property({ type: Boolean, reflect: true })
+  public pill = false;
+
+  /** The select's label. If you need to display HTML, use the `label` slot instead. */
+  @property()
+  public override label = '';
+
+  /**
+   * The preferred placement of the select's menu. Note that the actual placement may vary as needed to keep the listbox
+   * inside of the viewport.
+   */
+  @property({ reflect: true })
+  public placement: 'top' | 'bottom' = 'bottom';
+
+  /** The select's help text. If you need to display HTML, use the `help-text` slot instead. */
+  @property({ attribute: 'help-text' })
+  public override helpText = '';
+
+  /**
+   * By default, form controls are associated with the nearest containing `<form>` element. This attribute allows you
+   * to place the form control outside of a form and associate it with the form that has this `id`. The form must be in
+   * the same document or shadow root for this to work.
+   */
+  @property({ reflect: true })
+  public form = '';
+
+  /** The select's required attribute. */
+  @property({ type: Boolean, reflect: true })
+  public override required = false;
+
+  /**
+   * A function that customizes the tags to be rendered when multiple=true. The first argument is the option, the second
+   * is the current tag's index.  The function should return either a Lit TemplateResult or a string containing trusted HTML of the symbol to render at
+   * the specified value.
+   * @type {(option: SlOption, index: number) => TemplateResult | string | HTMLElement}
+   */
+  // The manifest type names the option class as Shoelace's does (`SlOption`, the alias `../option/class.js` exports for
+  // `VelcroOption`); the TypeScript type is the same class.
+  @property()
+  public getTag: (option: VelcroOption, index: number) => TemplateResult | string | HTMLElement = option => {
+    return html`
+      <sl-tag
+        part="tag"
+        exportparts="
+              base:tag__base,
+              content:tag__content,
+              remove-button:tag__remove-button,
+              remove-button__base:tag__remove-button__base
+            "
+        ?pill=${this.pill}
+        size=${this.size}
+        removable
+        @sl-remove=${(event: Event) => this.handleTagRemove(event, option)}
+      >
+        ${option.getTextLabel()}
+      </sl-tag>
+    `;
+  };
+
+  /**
+   * Velcro extension (core): a custom validity message, applied with `setCustomValidity()` after the next update. It
+   * is not rendered. An empty string restores validity.
+   * @default ''
+   */
+  @property({ attribute: 'error-message' })
+  public override get errorMessage(): string {
+    return this.velcroErrorMessage;
+  }
+  public override set errorMessage(message: string) {
+    this.velcroErrorMessage = message ?? '';
+  }
+
+  /** Velcro extension (core): visually hides the label and help text, which stay accessible. */
+  @property({ type: Boolean, attribute: 'hide-label', reflect: true })
+  public override hideLabel = false;
+
+  /**
+   * Velcro extension (core), inert: accepted and reflected for compatibility with the core select, but not
+   * maintained and without effect. Use `validity` or the `data-invalid` attribute, as in Shoelace.
+   */
+  @property({ type: Boolean, reflect: true })
+  public override invalid = false;
+
+  /** Velcro extension (core), inert: accepted and reflected for compatibility with the core select, without effect. */
+  @property({ attribute: 'label-position', reflect: true })
+  public override labelPosition?: 'end' | 'start' | 'top';
+
+  /**
+   * Velcro extension (core), inert: accepted and reflected for compatibility with the core select, without effect (a
+   * Shoelace select has no read-only state).
+   * @default false
+   */
+  @property({ type: Boolean, reflect: true })
+  public override get readonly(): boolean {
+    return this.velcroReadonly;
+  }
+  public override set readonly(value: boolean) {
+    this.velcroReadonly = value;
+  }
+
+  public constructor() {
+    super();
+    for (const component of VelcroSelect.shoelaceDependencies) defineVelcroComponent(component);
+  }
+
+  /** Gets the validity state object */
+  public override get validity() {
+    return this.valueInput.validity;
+  }
+
+  /** Gets the validation message */
+  public override get validationMessage() {
+    return this.valueInput.validationMessage;
+  }
+
+  // Skips core's form-control connectedCallback, which writes ElementInternals form state that a non-form-associated
+  // element cannot hold; core's focusable and base element setup still runs.
+  public override connectedCallback() {
+    CharmFocusableElement.prototype.connectedCallback.call(this);
+
+    setTimeout(() => {
+      this.handleDefaultSlotChange();
+    });
+
+    // Because this is a form control, it shouldn't be opened initially
+    this.open = false;
+  }
+
+  // Records the reflected properties' values the first time any attribute changes (during upgrade, before the
+  // attribute values are applied), so that removing a reflected attribute later restores that value instead of
+  // leaving the property null. Same timing and rule as Shoelace's base element. Then, as Shoelace's select does for
+  // backwards compatibility, a change of the `value` attribute (which sets `defaultValue`) also sets `value`.
+  public override attributeChangedCallback(name: string, oldVal: string | null, newVal: string | null) {
+    if (!this.hasRecordedInitialProperties) {
+      (this.constructor as typeof VelcroSelect).elementProperties.forEach((options, prop) => {
+        // Reflection is checked first, so that a non-reflected property's getter is not read here.
+        if (!options.reflect) return;
+        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
+        if (current != null) {
+          this.initialReflectedProperties.set(prop as string, current);
+        }
+      });
+      this.hasRecordedInitialProperties = true;
+    }
+    super.attributeChangedCallback(name, oldVal, newVal);
+
+    /** This is a backwards compatibility call. In a new major version we should make a clean separation between "value" the attribute mapping to "defaultValue" property and "value" the property not reflecting. */
+    if (name === 'value') {
+      const cachedValueHasChanged = this.valueHasChanged;
+      this.value = this.defaultValue;
+
+      // Set it back to false since this isn't an interaction.
+      this.valueHasChanged = cachedValueHasChanged;
+    }
+  }
+
+  protected override willUpdate(changed: PropertyValues<this>) {
+    super.willUpdate(changed);
+    this.initialReflectedProperties.forEach((value, prop) => {
+      const self = this as unknown as Record<string, unknown>;
+      if (changed.has(prop as keyof VelcroSelect) && self[prop] == null) {
+        self[prop] = value;
+      }
+    });
+  }
+
+  protected override update(changed: PropertyValues<this>) {
+    // Shoelace's `@watch` handlers (all with `waitUntilFirstUpdate: true`) run before render. Each decorator wraps the
+    // previous `update`, so the handler declared last (open) runs first; the value handler watches `defaultValue` and
+    // then `value`, and runs once for each of them that changed.
+    if (this.hasUpdated) {
+      if (changed.has('open') && changed.get('open') !== this.open) {
+        void this.handleOpenChange();
+      }
+      if (changed.has('defaultValue') && changed.get('defaultValue') !== this.defaultValue) {
+        this.handleValueChange();
+      }
+      if (changed.has('value') && changed.get('value') !== this.value) {
+        this.handleValueChange();
+      }
+      if (changed.has('disabled') && changed.get('disabled') !== this.disabled) {
+        this.handleDisabledChange();
+      }
+    }
+    super.update(changed);
+  }
+
+  // Skips core's form-control and select firstUpdated (ElementInternals validity, native select padding); core's base
+  // element still emits `ready`.
+  protected override firstUpdated() {
+    (CharmElement.prototype as unknown as { firstUpdated(): void }).firstUpdated.call(this);
+  }
+
+  protected override updated(changed: PropertyValues<this>) {
+    super.updated(changed);
+    if (changed.has('errorMessage')) {
+      this.setCustomValidity(this.errorMessage);
+    }
+  }
+
+  private addOpenListeners() {
+    //
+    // Listen on the root node instead of the document in case the elements are inside a shadow root
+    //
+    // https://github.com/shoelace-style/shoelace/issues/1763
+    //
+    document.addEventListener('focusin', this.handleDocumentFocusIn);
+    document.addEventListener('keydown', this.handleDocumentKeyDown);
+    document.addEventListener('mousedown', this.handleDocumentMouseDown);
+
+    // If the component is rendered in a shadow root, we need to attach the focusin listener there too
+    if (this.getRootNode() !== document) {
+      this.getRootNode().addEventListener('focusin', this.handleDocumentFocusIn as EventListener);
+    }
+
+    if ('CloseWatcher' in window) {
+      this.closeWatcher?.destroy();
+      this.closeWatcher = new (window as unknown as { CloseWatcher: CloseWatcherConstructor }).CloseWatcher();
+      this.closeWatcher.onclose = () => {
+        if (this.open) {
+          this.hide();
+          this.displayInput.focus({ preventScroll: true });
+        }
+      };
+    }
+  }
+
+  private removeOpenListeners() {
+    document.removeEventListener('focusin', this.handleDocumentFocusIn);
+    document.removeEventListener('keydown', this.handleDocumentKeyDown);
+    document.removeEventListener('mousedown', this.handleDocumentMouseDown);
+
+    if (this.getRootNode() !== document) {
+      this.getRootNode().removeEventListener('focusin', this.handleDocumentFocusIn as EventListener);
+    }
+
+    this.closeWatcher?.destroy();
+  }
+
+  protected override handleFocus() {
+    this.hasFocus = true;
+    this.displayInput.setSelectionRange(0, 0);
+    this.emit('sl-focus');
+  }
+
+  protected override handleBlur() {
+    this.hasFocus = false;
+    this.emit('sl-blur');
+  }
+
+  private handleDocumentFocusIn = (event: FocusEvent) => {
+    // Close when focusing out of the select
+    const path = event.composedPath();
+    if (this && !path.includes(this)) {
+      this.hide();
+    }
+  };
+
+  private handleDocumentKeyDown = (event: KeyboardEvent) => {
+    const target = event.target as HTMLElement;
+    const isClearButton = target.closest('.select__clear') !== null;
+    const isIconButton = target.closest('sl-icon-button') !== null;
+
+    // Ignore presses when the target is an icon button (e.g. the remove button in <sl-tag>)
+    if (isClearButton || isIconButton) {
+      return;
+    }
+
+    // Close when pressing escape
+    if (event.key === 'Escape' && this.open && !this.closeWatcher) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.hide();
+      this.displayInput.focus({ preventScroll: true });
+    }
+
+    // Handle enter and space. When pressing space, we allow for type to select behaviors so if there's anything in the
+    // buffer we _don't_ close it.
+    if (event.key === 'Enter' || (event.key === ' ' && this.typeToSelectString === '')) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      // If it's not open, open it
+      if (!this.open) {
+        this.show();
+        return;
+      }
+
+      // If it is open, update the value based on the current selection and close it
+      if (this.currentOption && !this.currentOption.disabled) {
+        this.valueHasChanged = true;
+        if (this.multiple) {
+          this.toggleOptionSelection(this.currentOption);
+        } else {
+          this.setSelectedOptions(this.currentOption);
+        }
+
+        // Emit after updating
+        this.updateComplete.then(() => {
+          this.emit('sl-input');
+          this.emit('sl-change');
+        });
+
+        if (!this.multiple) {
+          this.hide();
+          this.displayInput.focus({ preventScroll: true });
+        }
+      }
+
+      return;
+    }
+
+    // Navigate options
+    if (['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
+      const allOptions = this.getAllOptions();
+      const currentIndex = allOptions.indexOf(this.currentOption);
+      let newIndex = Math.max(0, currentIndex);
+
+      // Prevent scrolling
+      event.preventDefault();
+
+      // Open it
+      if (!this.open) {
+        this.show();
+
+        // If an option is already selected, stop here because we want that one to remain highlighted when the listbox
+        // opens for the first time
+        if (this.currentOption) {
+          return;
+        }
+      }
+
+      if (event.key === 'ArrowDown') {
+        newIndex = currentIndex + 1;
+        if (newIndex > allOptions.length - 1) newIndex = 0;
+      } else if (event.key === 'ArrowUp') {
+        newIndex = currentIndex - 1;
+        if (newIndex < 0) newIndex = allOptions.length - 1;
+      } else if (event.key === 'Home') {
+        newIndex = 0;
+      } else if (event.key === 'End') {
+        newIndex = allOptions.length - 1;
+      }
+
+      this.setCurrentOption(allOptions[newIndex]);
+    }
+
+    // All other "printable" keys trigger type to select
+    if ((event.key && event.key.length === 1) || event.key === 'Backspace') {
+      const allOptions = this.getAllOptions();
+
+      // Don't block important key combos like CMD+R
+      if (event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+
+      // Open, unless the key that triggered is backspace
+      if (!this.open) {
+        if (event.key === 'Backspace') {
+          return;
+        }
+
+        this.show();
+      }
+
+      event.stopPropagation();
+      event.preventDefault();
+
+      clearTimeout(this.typeToSelectTimeout);
+      this.typeToSelectTimeout = window.setTimeout(() => (this.typeToSelectString = ''), 1000);
+
+      if (event.key === 'Backspace') {
+        this.typeToSelectString = this.typeToSelectString.slice(0, -1);
+      } else {
+        this.typeToSelectString += event.key.toLowerCase();
+      }
+
+      for (const option of allOptions) {
+        const label = option.getTextLabel().toLowerCase();
+
+        if (label.startsWith(this.typeToSelectString)) {
+          this.setCurrentOption(option);
+          break;
+        }
+      }
+    }
+  };
+
+  private handleDocumentMouseDown = (event: MouseEvent) => {
+    // Close when clicking outside of the select
+    const path = event.composedPath();
+    if (this && !path.includes(this)) {
+      this.hide();
+    }
+  };
+
+  private handleLabelClick() {
+    this.displayInput.focus();
+  }
+
+  private handleComboboxMouseDown(event: MouseEvent) {
+    const path = event.composedPath();
+    const isIconButton = path.some(el => el instanceof Element && el.tagName.toLowerCase() === 'sl-icon-button');
+
+    // Ignore disabled controls and clicks on tags (remove buttons)
+    if (this.disabled || isIconButton) {
+      return;
+    }
+
+    event.preventDefault();
+    this.displayInput.focus({ preventScroll: true });
+    this.open = !this.open;
+  }
+
+  private handleComboboxKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Tab') {
+      return;
+    }
+
+    event.stopPropagation();
+    this.handleDocumentKeyDown(event);
+  }
+
+  private handleClearClick(event: MouseEvent) {
+    event.stopPropagation();
+
+    this.valueHasChanged = true;
+
+    if (this.value !== '') {
+      this.setSelectedOptions([]);
+      this.displayInput.focus({ preventScroll: true });
+
+      // Emit after update
+      this.updateComplete.then(() => {
+        this.emit('sl-clear');
+        this.emit('sl-input');
+        this.emit('sl-change');
+      });
+    }
+  }
+
+  private handleClearMouseDown(event: MouseEvent) {
+    // Don't lose focus or propagate events when clicking the clear button
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  private handleOptionClick(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    const option = target.closest('sl-option') as VelcroOption | null;
+    const oldValue = this.value;
+
+    if (option && !option.disabled) {
+      this.valueHasChanged = true;
+      if (this.multiple) {
+        this.toggleOptionSelection(option);
+      } else {
+        this.setSelectedOptions(option);
+      }
+
+      // Set focus after updating so the value is announced by screen readers
+      this.updateComplete.then(() => this.displayInput.focus({ preventScroll: true }));
+
+      if (this.value !== oldValue) {
+        // Emit after updating
+        this.updateComplete.then(() => {
+          this.emit('sl-input');
+          this.emit('sl-change');
+        });
+      }
+
+      if (!this.multiple) {
+        this.hide();
+        this.displayInput.focus({ preventScroll: true });
+      }
+    }
+  }
+
+  /** @internal Shoelace's public but undocumented method, called by the options when their label changes. */
+  public handleDefaultSlotChange() {
+    if (!customElements.get('sl-option')) {
+      customElements.whenDefined('sl-option').then(() => this.handleDefaultSlotChange());
+    }
+
+    const allOptions = this.getAllOptions();
+    const val = this.valueHasChanged ? this.value : this.defaultValue;
+    const value = Array.isArray(val) ? val : [val];
+    const values: string[] = [];
+
+    // Check for duplicate values in menu items
+    allOptions.forEach(option => values.push(option.value));
+
+    // Select only the options that match the new value
+    this.setSelectedOptions(allOptions.filter(el => value.includes(el.value)));
+  }
+
+  private handleTagRemove(event: Event, option: VelcroOption) {
+    event.stopPropagation();
+
+    this.valueHasChanged = true;
+
+    if (!this.disabled) {
+      this.toggleOptionSelection(option, false);
+
+      // Emit after updating
+      this.updateComplete.then(() => {
+        this.emit('sl-input');
+        this.emit('sl-change');
+      });
+    }
+  }
+
+  // Gets an array of all <sl-option> elements
+  private getAllOptions() {
+    return [...this.querySelectorAll<VelcroOption>('sl-option')];
+  }
+
+  // Gets the first <sl-option> element
+  private getFirstOption() {
+    return this.querySelector<VelcroOption>('sl-option');
+  }
+
+  // Sets the current option, which is the option the user is currently interacting with (e.g. via keyboard). Only one
+  // option may be "current" at a time.
+  private setCurrentOption(option: VelcroOption | null) {
+    const allOptions = this.getAllOptions();
+
+    // Clear selection
+    allOptions.forEach(el => {
+      el.current = false;
+      el.tabIndex = -1;
+    });
+
+    // Select the target option
+    if (option) {
+      this.currentOption = option;
+      option.current = true;
+      option.tabIndex = 0;
+      option.focus();
+    }
+  }
+
+  // Sets the selected option(s)
+  private setSelectedOptions(option: VelcroOption | VelcroOption[]) {
+    const allOptions = this.getAllOptions();
+    const newSelectedOptions = Array.isArray(option) ? option : [option];
+
+    // Clear existing selection
+    allOptions.forEach(el => (el.selected = false));
+
+    // Set the new selection
+    if (newSelectedOptions.length) {
+      newSelectedOptions.forEach(el => (el.selected = true));
+    }
+
+    // Update selection, value, and display label
+    this.selectionChanged();
+  }
+
+  // Toggles an option's selected state
+  private toggleOptionSelection(option: VelcroOption, force?: boolean) {
+    if (force === true || force === false) {
+      option.selected = force;
+    } else {
+      option.selected = !option.selected;
+    }
+
+    this.selectionChanged();
+  }
+
+  // This method must be called whenever the selection changes. It will update the selected options cache, the current
+  // value, and the display value
+  private selectionChanged() {
+    const options = this.getAllOptions();
+    // Update selected options cache
+    this.selectedOptions = options.filter(el => el.selected);
+
+    // Keep a reference to the previous `valueHasChanged`. Changes made here don't count has changing the value.
+    const cachedValueHasChanged = this.valueHasChanged;
+
+    // Update the value and display label
+    if (this.multiple) {
+      this.value = this.selectedOptions.map(el => el.value);
+
+      if (this.placeholder && this.value.length === 0) {
+        // When no items are selected, keep the value empty so the placeholder shows
+        this.displayLabel = '';
+      } else {
+        this.displayLabel = this.localize.term('numOptionsSelected', this.selectedOptions.length);
+      }
+    } else {
+      const selectedOption = this.selectedOptions[0];
+      this.value = selectedOption?.value ?? '';
+      this.displayLabel = selectedOption?.getTextLabel?.() ?? '';
+    }
+    this.valueHasChanged = cachedValueHasChanged;
+
+    // Update validity
+    this.updateComplete.then(() => {
+      this.formControlController.updateValidity();
+    });
+  }
+
+  protected get tags() {
+    return this.selectedOptions.map((option, index) => {
+      if (index < this.maxOptionsVisible || this.maxOptionsVisible <= 0) {
+        const tag = this.getTag(option, index);
+        // Wrap so we can handle the remove
+        return html`<div @sl-remove=${(e: Event) => this.handleTagRemove(e, option)}>
+          ${typeof tag === 'string' ? unsafeHTML(tag) : tag}
+        </div>`;
+      } else if (index === this.maxOptionsVisible) {
+        // Hit tag limit
+        return html`<sl-tag size=${this.size}>+${this.selectedOptions.length - index}</sl-tag>`;
+      }
+      return html``;
+    });
+  }
+
+  private handleInvalid(event: Event) {
+    this.formControlController.setValidity(false);
+    this.formControlController.emitInvalidEvent(event);
+  }
+
+  /** @internal Shoelace's public `@watch('disabled')` handler: closes the listbox when the control is disabled. */
+  public handleDisabledChange() {
+    // Close the listbox when the control is disabled
+    if (this.disabled) {
+      this.open = false;
+      this.handleOpenChange();
+    }
+  }
+
+  /** @internal Shoelace's public `@watch(['defaultValue', 'value'])` handler: selects the options matching the value. */
+  public handleValueChange() {
+    if (!this.valueHasChanged) {
+      const cachedValueHasChanged = this.valueHasChanged;
+      this.value = this.defaultValue;
+
+      // Set it back to false since this isn't an interaction.
+      this.valueHasChanged = cachedValueHasChanged;
+    }
+
+    const allOptions = this.getAllOptions();
+    const value = Array.isArray(this.value) ? this.value : [this.value];
+
+    // Select only the options that match the new value
+    this.setSelectedOptions(allOptions.filter(el => value.includes(el.value)));
+  }
+
+  /** @internal Shoelace's public `@watch('open')` handler: shows or hides the listbox with its animation. */
+  public async handleOpenChange() {
+    if (this.open && !this.disabled) {
+      // Reset the current option
+      this.setCurrentOption(this.selectedOptions[0] || this.getFirstOption());
+
+      // Show
+      this.emit('sl-show');
+      this.addOpenListeners();
+
+      await stopAnimations(this);
+      this.listbox.hidden = false;
+      this.popup.active = true;
+
+      // Select the appropriate option based on value after the listbox opens
+      requestAnimationFrame(() => {
+        this.setCurrentOption(this.currentOption);
+      });
+
+      const { keyframes, options } = getAnimation(this, 'select.show', { dir: this.animationDirection() });
+      await animateTo(this.popup.popup, keyframes, options);
+
+      // Make sure the current option is scrolled into view (required for Safari)
+      if (this.currentOption) {
+        scrollIntoView(this.currentOption, this.listbox, 'vertical', 'auto');
+      }
+
+      this.emit('sl-after-show');
+    } else {
+      // Hide
+      this.emit('sl-hide');
+      this.removeOpenListeners();
+
+      await stopAnimations(this);
+      const { keyframes, options } = getAnimation(this, 'select.hide', { dir: this.animationDirection() });
+      await animateTo(this.popup.popup, keyframes, options);
+      this.listbox.hidden = true;
+      this.popup.active = false;
+
+      this.emit('sl-after-hide');
+    }
+  }
+
+  /**
+   * The direction the show and hide animations use, as Shoelace's localization controller resolves it: the host's `dir`
+   * property (set directly or through the attribute), else the controller's document-direction snapshot (`<html dir>`
+   * as of the last observer callback or translation registration, not a live read; else `ltr`), lower-cased. Velcro's
+   * shared controller reads the host attribute instead, which misses a direction set only through the property.
+   */
+  private animationDirection(): string {
+    return `${this.velcroDir || documentDir()}`.toLowerCase();
+  }
+
+  /** Shows the listbox. */
+  public async show() {
+    if (this.open || this.disabled) {
+      this.open = false;
+      return undefined;
+    }
+
+    this.open = true;
+    return waitForEvent(this, 'sl-after-show');
+  }
+
+  /** Hides the listbox. */
+  public async hide() {
+    if (!this.open || this.disabled) {
+      this.open = false;
+      return undefined;
+    }
+
+    this.open = false;
+    return waitForEvent(this, 'sl-after-hide');
+  }
+
+  /** Checks for validity but does not show a validation message. Returns `true` when valid and `false` when invalid. */
+  public override checkValidity() {
+    return this.valueInput.checkValidity();
+  }
+
+  /** Gets the associated form, if one exists. */
+  public getForm(): HTMLFormElement | null {
+    return this.formControlController.getForm();
+  }
+
+  /** Checks for validity and shows the browser's validation message if the control is invalid. */
+  public override reportValidity() {
+    return this.valueInput.reportValidity();
+  }
+
+  /** Sets a custom validation message. Pass an empty string to restore validity. */
+  public override setCustomValidity(message: string) {
+    this.valueInput.setCustomValidity(message);
+    this.formControlController.updateValidity();
+  }
+
+  // Core calls this when validity may have changed; the Velcro form control controller owns the validity attributes.
+  protected override updateValidity() {
+    if (!this.valueInput) return;
+    this.formControlController.updateValidity();
+  }
+
+  /** Sets focus on the control. */
+  public override focus(options?: FocusOptions) {
+    this.displayInput.focus(options);
+  }
+
+  /** Removes focus from the control. */
+  public override blur() {
+    this.displayInput.blur();
+  }
+
+  public override render() {
+    const hasLabelSlot = this.hasSlotController.test('label');
+    const hasHelpTextSlot = this.hasSlotController.test('help-text');
+    const hasLabel = this.label ? true : !!hasLabelSlot;
+    const hasHelpText = this.helpText ? true : !!hasHelpTextSlot;
+    const hasClearIcon = this.clearable && !this.disabled && this.value.length > 0;
+    const isPlaceholderVisible = this.placeholder && this.value && this.value.length <= 0;
+
+    return html`
+      <div
+        part="form-control"
+        class=${classMap({
+          'form-control': true,
+          'form-control--small': this.size === 'small',
+          'form-control--medium': this.size === 'medium',
+          'form-control--large': this.size === 'large',
+          'form-control--has-label': hasLabel,
+          'form-control--has-help-text': hasHelpText,
+        })}
+      >
+        <label
+          id="label"
+          part="form-control-label"
+          class=${classMap({ 'form-control__label': true, 'visually-hidden': this.hideLabel })}
+          aria-hidden=${hasLabel ? 'false' : 'true'}
+          @click=${this.handleLabelClick}
+        >
+          <slot name="label">${this.label}</slot>
+        </label>
+
+        <div part="form-control-input" class="form-control-input">
+          <sl-popup
+            class=${classMap({
+              select: true,
+              'select--standard': true,
+              'select--filled': this.filled,
+              'select--pill': this.pill,
+              'select--open': this.open,
+              'select--disabled': this.disabled,
+              'select--multiple': this.multiple,
+              'select--focused': this.hasFocus,
+              'select--placeholder-visible': isPlaceholderVisible,
+              'select--top': this.placement === 'top',
+              'select--bottom': this.placement === 'bottom',
+              'select--small': this.size === 'small',
+              'select--medium': this.size === 'medium',
+              'select--large': this.size === 'large',
+            })}
+            placement=${this.placement}
+            strategy=${this.hoist ? 'fixed' : 'absolute'}
+            flip
+            shift
+            sync="width"
+            auto-size="vertical"
+            auto-size-padding="10"
+          >
+            <div
+              part="combobox"
+              class="select__combobox"
+              slot="anchor"
+              @keydown=${this.handleComboboxKeyDown}
+              @mousedown=${this.handleComboboxMouseDown}
+            >
+              <slot part="prefix" name="prefix" class="select__prefix"></slot>
+
+              <input
+                part="display-input"
+                class="select__display-input"
+                type="text"
+                placeholder=${this.placeholder}
+                .disabled=${this.disabled}
+                .value=${this.displayLabel}
+                autocomplete="off"
+                spellcheck="false"
+                autocapitalize="off"
+                readonly
+                aria-controls="listbox"
+                aria-expanded=${this.open ? 'true' : 'false'}
+                aria-haspopup="listbox"
+                aria-labelledby="label"
+                aria-disabled=${this.disabled ? 'true' : 'false'}
+                aria-describedby="help-text"
+                role="combobox"
+                tabindex="0"
+                @focus=${this.handleFocus}
+                @blur=${this.handleBlur}
+              />
+
+              ${this.multiple ? html`<div part="tags" class="select__tags">${this.tags}</div>` : ''}
+
+              <input
+                class="select__value-input"
+                type="text"
+                ?disabled=${this.disabled}
+                ?required=${this.required}
+                .value=${Array.isArray(this.value) ? this.value.join(', ') : this.value}
+                tabindex="-1"
+                aria-hidden="true"
+                @focus=${() => this.focus()}
+                @invalid=${this.handleInvalid}
+              />
+
+              ${hasClearIcon
+                ? html`
+                    <button
+                      part="clear-button"
+                      class="select__clear"
+                      type="button"
+                      aria-label=${this.localize.term('clearEntry')}
+                      @mousedown=${this.handleClearMouseDown}
+                      @click=${this.handleClearClick}
+                      tabindex="-1"
+                    >
+                      <slot name="clear-icon">
+                        <sl-icon name="x-circle-fill" library="system"></sl-icon>
+                      </slot>
+                    </button>
+                  `
+                : ''}
+
+              <slot name="suffix" part="suffix" class="select__suffix"></slot>
+
+              <slot name="expand-icon" part="expand-icon" class="select__expand-icon">
+                <sl-icon library="system" name="chevron-down"></sl-icon>
+              </slot>
+            </div>
+
+            <div
+              id="listbox"
+              role="listbox"
+              aria-expanded=${this.open ? 'true' : 'false'}
+              aria-multiselectable=${this.multiple ? 'true' : 'false'}
+              aria-labelledby="label"
+              part="listbox"
+              class="select__listbox"
+              tabindex="-1"
+              @mouseup=${this.handleOptionClick}
+              @slotchange=${this.handleDefaultSlotChange}
+            >
+              <slot></slot>
+            </div>
+          </sl-popup>
+        </div>
+
+        <div
+          part="form-control-help-text"
+          id="help-text"
+          class=${classMap({ 'form-control__help-text': true, 'visually-hidden': this.hideLabel })}
+          aria-hidden=${hasHelpText ? 'false' : 'true'}
+        >
+          <slot name="help-text">${this.helpText}</slot>
+        </div>
+      </div>
+    `;
+  }
+}
+
+// The default show and hide animations, registered when the module loads, as Shoelace's module does.
+setDefaultAnimation('select.show', {
+  keyframes: [
+    { opacity: 0, scale: 0.9 },
+    { opacity: 1, scale: 1 },
+  ],
+  options: { duration: 100, easing: 'ease' },
+});
+
+setDefaultAnimation('select.hide', {
+  keyframes: [
+    { opacity: 1, scale: 1 },
+    { opacity: 0, scale: 0.9 },
+  ],
+  options: { duration: 100, easing: 'ease' },
+});
+
+export default VelcroSelect;
