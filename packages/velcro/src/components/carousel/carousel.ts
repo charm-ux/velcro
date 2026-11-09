@@ -25,6 +25,19 @@ import { AutoplayController } from './autoplay-controller.js';
 import styles from './carousel.styles.js';
 
 /**
+ * The `sl-slide-change` event, as Shoelace's `SlSlideChangeEvent` types it (its `slide` is Velcro's carousel item). It is also
+ * the entry for the event in `GlobalEventHandlersEventMap`, so `addEventListener('sl-slide-change', ...)` on any element infers
+ * the detail.
+ */
+export type SlSlideChangeEvent = CustomEvent<{ index: number; slide: VelcroCarouselItem }>;
+
+declare global {
+  interface GlobalEventHandlersEventMap {
+    'sl-slide-change': SlSlideChangeEvent;
+  }
+}
+
+/**
  * Carousels display an arbitrary number of content slides along a horizontal or vertical axis. API modelled on
  * Shoelace's `sl-carousel`. It renders `<sl-icon>` in its navigation buttons, as in Shoelace; like Shoelace's,
  * constructing a carousel defines that dependency (Velcro's) when no element owns its tag yet.
@@ -166,7 +179,7 @@ export class VelcroCarousel extends CharmElement {
 
   private readonly localize = new LocalizeController(this);
 
-  private mutationObserver!: MutationObserver;
+  private mutationObserver?: MutationObserver;
 
   private pendingSlideChange = false;
 
@@ -178,9 +191,9 @@ export class VelcroCarousel extends CharmElement {
 
   public override disconnectedCallback(): void {
     super.disconnectedCallback();
-    // Upstream quirk: the observer is created on the first update, so a carousel that is removed before it has rendered throws
-    // here (reported as an uncaught error on the window; the element is still removed). Matched, not guarded.
-    this.mutationObserver.disconnect();
+    // The observer is created on the first update, so a carousel that is removed before it has rendered has none; as in Shoelace,
+    // the optional call makes that a no-op.
+    this.mutationObserver?.disconnect();
   }
 
   // Shoelace's own `firstUpdated`, then core's: the non-bubbling `ready` event (a Velcro extension that Shoelace lacks).

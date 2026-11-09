@@ -279,16 +279,19 @@ test('upstream quirk: nothing is restored when a reflected property is set to nu
   expect(r).toEqual({ loop: null, pagination: null, attrs: ['aria-label', 'id', 'role'] });
 });
 
-test('navigation without loop: next, previous and goToSlide clamp, the active slide, classes and sl-slide-change follow, and the first render is silent', async ({ page }) => {
+test('navigation without loop: next, previous and goToSlide clamp, the active slide, classes and sl-slide-change follow, and nothing is emitted while a carousel first renders and settles', async ({ page }) => {
   const { frame } = await openPage(page);
+  // The listener is on the document, before any carousel exists, so a first-render emission would be recorded. The event bubbles and
+  // is composed, so the document sees it from every carousel.
   await frame.locator('body').evaluate(() => {
     window.changes = [];
-    window.listen = el => el.addEventListener('sl-slide-change', e => window.changes.push({ index: e.detail.index, text: e.detail.slide.textContent.trim(), same: e.detail.slide === el.children[e.detail.index], bubbles: e.bubbles, composed: e.composed, cancelable: e.cancelable, target: e.target === el }));
+    document.addEventListener('sl-slide-change', e => window.changes.push({ id: e.target.id, index: e.detail.index, text: e.detail.slide.textContent.trim(), same: e.detail.slide === e.target.children[e.detail.index], bubbles: e.bubbles, composed: e.composed, cancelable: e.cancelable }));
   });
-  await mount(frame, '<sl-carousel id="c" navigation pagination>' + SLIDES(4) + '</sl-carousel>');
-  await frame.locator('#c').evaluate(el => window.listen(el));
+  // A looping carousel is mounted too: it scrolls to its first slide and synchronizes the active slide after it renders.
+  await mount(frame, '<sl-carousel id="c" navigation pagination>' + SLIDES(4) + '</sl-carousel><sl-carousel id="looped" loop>' + SLIDES(3) + '</sl-carousel>');
+  await settle(frame, '#looped', 1);
   expect(await state(frame)).toMatchObject({ active: 0, slides: 4, clones: 0, pages: 4, currentPage: 0 });
-  // The first render emitted nothing (the listener was added after it, so also assert the carousel did not wait for one).
+  expect(await state(frame, '#looped')).toMatchObject({ active: 0, slides: 3, clones: 2 });
   expect(await frame.locator('body').evaluate(() => window.changes)).toEqual([]);
   await frame.locator('#c').evaluate(el => el.next('auto'));
   await settle(frame, '#c', 1);
@@ -298,19 +301,19 @@ test('navigation without loop: next, previous and goToSlide clamp, the active sl
   expect(await state(frame)).toMatchObject({ active: 3, currentPage: 3 });
   // Clamped at the end and at the start.
   await frame.locator('#c').evaluate(el => el.next('auto'));
-  await expect.poll(() => frame.locator('#c').evaluate(el => el.scrolling)).toBe(false);
+  await settle(frame, '#c', 3);
   expect(await state(frame)).toMatchObject({ active: 3 });
   await frame.locator('#c').evaluate(el => el.goToSlide(-5, 'auto'));
   await settle(frame, '#c', 0);
   expect(await state(frame)).toMatchObject({ active: 0 });
   await frame.locator('#c').evaluate(el => el.previous('auto'));
-  await expect.poll(() => frame.locator('#c').evaluate(el => el.scrolling)).toBe(false);
+  await settle(frame, '#c', 0);
   expect(await state(frame)).toMatchObject({ active: 0 });
   const changes = await frame.locator('body').evaluate(() => window.changes);
   expect(changes).toEqual([
-    { index: 1, text: 'Slide 2', same: true, bubbles: true, composed: true, cancelable: false, target: true },
-    { index: 3, text: 'Slide 4', same: true, bubbles: true, composed: true, cancelable: false, target: true },
-    { index: 0, text: 'Slide 1', same: true, bubbles: true, composed: true, cancelable: false, target: true },
+    { id: 'c', index: 1, text: 'Slide 2', same: true, bubbles: true, composed: true, cancelable: false },
+    { id: 'c', index: 3, text: 'Slide 4', same: true, bubbles: true, composed: true, cancelable: false },
+    { id: 'c', index: 0, text: 'Slide 1', same: true, bubbles: true, composed: true, cancelable: false },
   ]);
 });
 
@@ -524,88 +527,122 @@ test('vertical orientation: the vertical layout classes, scrolling on the block 
   expect(await state(frame)).toMatchObject({ active: 1, currentPage: 1 });
 });
 
-// In-page helper source for the time-based checks: a positive check waits on observable state (a counter reaching a number) with a
-// generous deadline; only the negative checks (nothing changes while paused, off or disconnected) watch a fixed window, and a slow
-// runner can only make a window see fewer changes, never more.
-const UNTIL = `const until = (predicate, ms = 8000) => new Promise((resolve, reject) => {
-  const end = Date.now() + ms;
-  const t = setInterval(() => { if (predicate()) { clearInterval(t); resolve(); } else if (Date.now() > end) { clearInterval(t); reject(new Error('timed out')); } }, 20);
-});`;
+// A timer witness for the autoplay checks. The autoplay controller starts its timer with `window.setInterval(tick, interval)` and
+// stops it with `clearInterval`. For the three marker intervals (1234, 2345 and the default 3000) the witness records the call
+// instead of starting a real timer, so the test sees exactly which interval was configured, can fire a tick by hand and can see
+// when the timer is cleared: no checks depend on elapsed time. Any other interval goes to the real timer.
+const TIMER_WITNESS = `(markers) => {
+  const real = { setInterval: window.setInterval.bind(window), clearInterval: window.clearInterval.bind(window) };
+  const timers = new Map();
+  let last = 1e9;
+  window.setInterval = (fn, ms, ...args) => {
+    if (!markers.includes(ms)) return real.setInterval(fn, ms, ...args);
+    timers.set(++last, { fn, ms });
+    return last;
+  };
+  window.clearInterval = id => { if (timers.has(id)) timers.delete(id); else real.clearInterval(id); };
+  return timers;
+}`;
 
-test('autoplay advances every autoplay-interval, pauses while the pointer is over it or it holds focus, stops when turned off and does not restart on reconnect or on an interval change (upstream quirks)', async ({ page }) => {
+test('autoplay starts a timer with the configured interval, advances on each tick, pauses while the pointer is over it, it holds focus or it is touched, stops when turned off and does not restart on reconnect or on an interval change (upstream quirks)', async ({ page }) => {
   const { frame } = await openPage(page);
-  await mount(frame, '<sl-carousel id="c" autoplay autoplay-interval="120" loop>' + SLIDES(3) + '</sl-carousel>');
-  const changes = await frame.locator('#c').evaluate(async (el, until) => {
+  const r = await frame.locator('body').evaluate(async (body, { witness, slides }) => {
+    const timers = new Function(`return (${witness})`)()([1234, 2345, 3000]);
+    const intervals = () => [...timers.values()].map(t => t.ms).sort((a, b) => a - b);
+    const idOf = ms => [...timers].find(([, t]) => t.ms === ms)?.[0] ?? null;
+    const host = document.createElement('div');
+    host.innerHTML = `<sl-carousel id="a" autoplay autoplay-interval="1234" loop>${slides}</sl-carousel><sl-carousel id="d" autoplay loop>${slides}</sl-carousel><sl-carousel id="off" loop autoplay-interval="2345">${slides}</sl-carousel>`;
+    body.append(host);
+    const [a, d, off] = [...host.children];
+    await Promise.all([a.updateComplete, d.updateComplete, off.updateComplete]);
+    const out = { started: intervals() };
     const seen = [];
-    el.addEventListener('sl-slide-change', e => seen.push(e.detail.index));
-    await new Function(`${until}; return until;`)()(() => seen.length >= 4);
-    return seen.slice(0, 4);
-  }, UNTIL);
-  expect(changes).toEqual([1, 2, 0, 1]);
-  // Paused while the pointer is over the carousel or while focus is inside it: no change in the window. Two interactions keep it
-  // paused until both have ended; then it resumes (waiting on the changes, not on a time).
-  const paused = await frame.locator('#c').evaluate(async (el, until) => {
-    const wait = new Function(`${until}; return until;`)();
-    const quiet = async (before, after) => {
-      let n = 0;
-      const on = () => n++;
-      el.addEventListener('sl-slide-change', on);
-      before();
-      await new Promise(r => setTimeout(r, 600));
-      after();
-      el.removeEventListener('sl-slide-change', on);
-      return n;
+    a.addEventListener('sl-slide-change', e => seen.push(e.detail.index));
+    // One tick per step: the callback the controller registered runs next(), and the change is emitted from the update.
+    const tick = async ms => { timers.get(idOf(ms)).fn(); await a.updateComplete; return seen.length; };
+    out.sequence = [];
+    for (let i = 0; i < 4; i++) { await tick(1234); out.sequence.push(seen.at(-1)); }
+    // Paused: a tick while the pointer is over the carousel, focus is inside it or it is touched changes nothing; after the end it advances again.
+    const guarded = async (start, end) => {
+      start();
+      const before = seen.length;
+      const during = await tick(1234);
+      end();
+      const after = await tick(1234);
+      return [during - before, after - before];
     };
-    const out = {};
-    out.hover = await quiet(() => el.dispatchEvent(new MouseEvent('mouseenter')), () => el.dispatchEvent(new MouseEvent('mouseleave')));
-    out.focus = await quiet(() => el.dispatchEvent(new FocusEvent('focusin', { bubbles: true })), () => el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
-    out.touch = await quiet(() => el.dispatchEvent(new Event('touchstart')), () => el.dispatchEvent(new Event('touchend')));
-    out.both = await quiet(() => { el.dispatchEvent(new MouseEvent('mouseenter')); el.dispatchEvent(new FocusEvent('focusin', { bubbles: true })); }, () => el.dispatchEvent(new MouseEvent('mouseleave')));
-    el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
-    let resumed = 0;
-    el.addEventListener('sl-slide-change', () => resumed++);
-    await wait(() => resumed >= 3);
-    out.resumed = resumed;
+    out.hover = await guarded(() => a.dispatchEvent(new MouseEvent('mouseenter')), () => a.dispatchEvent(new MouseEvent('mouseleave')));
+    out.focus = await guarded(() => a.dispatchEvent(new FocusEvent('focusin', { bubbles: true })), () => a.dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+    out.touch = await guarded(() => a.dispatchEvent(new Event('touchstart')), () => a.dispatchEvent(new Event('touchend')));
+    // Two interactions: still paused after the first ends, and running after the second.
+    a.dispatchEvent(new MouseEvent('mouseenter'));
+    a.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    a.dispatchEvent(new MouseEvent('mouseleave'));
+    const beforeBoth = seen.length;
+    const stillPaused = (await tick(1234)) - beforeBoth;
+    a.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    out.both = [stillPaused, (await tick(1234)) - beforeBoth];
+    // The other carousels are unaffected: the default interval is 3000 milliseconds.
+    out.defaultInterval = timers.get(idOf(3000)) !== undefined;
+    // Changing the interval does not restart the running timer: the same timer stays, and no new one is started.
+    const id = idOf(1234);
+    a.autoplayInterval = 2345;
+    await a.updateComplete;
+    out.intervalChange = { sameTimer: idOf(1234) === id, started: intervals() };
+    // Turning autoplay off clears the timer; turning it on again starts one with the interval then set.
+    a.autoplay = false;
+    await a.updateComplete;
+    out.turnedOff = intervals();
+    a.autoplay = true;
+    await a.updateComplete;
+    out.turnedOn = intervals();
+    // Moving the element in the document clears the timer and nothing starts it again, although autoplay is still set.
+    host.append(a);
+    await a.updateComplete;
+    out.reconnected = { timers: intervals(), autoplay: a.autoplay };
+    // A carousel without autoplay has no timer; setting it starts one with the interval it has (2345 here).
+    out.beforeEnable = intervals();
+    off.autoplay = true;
+    await off.updateComplete;
+    out.afterEnable = intervals();
+    host.remove();
     return out;
-  }, UNTIL);
-  expect(paused).toMatchObject({ hover: 0, focus: 0, touch: 0, both: 0 });
-  expect(paused.resumed).toBeGreaterThanOrEqual(3);
-  // Changing the interval does not restart the running timer: it keeps advancing at the old interval (a restarted timer would not
-  // fire for 100 seconds).
-  await frame.locator('#c').evaluate(async (el, until) => {
-    el.autoplayInterval = 100000;
-    await el.updateComplete;
-    let n = 0;
-    el.addEventListener('sl-slide-change', () => n++);
-    await new Function(`${until}; return until;`)()(() => n >= 3);
-  }, UNTIL);
-  // Turning autoplay off stops it.
-  const off = await frame.locator('#c').evaluate(async el => {
-    el.autoplayInterval = 120;
-    el.autoplay = false;
-    await el.updateComplete;
-    let n = 0;
-    el.addEventListener('sl-slide-change', () => n++);
-    await new Promise(r => setTimeout(r, 600));
-    return n;
+  }, { witness: TIMER_WITNESS, slides: SLIDES(3) });
+  // The configured interval: 1234 for the carousel that set it and the default 3000 for the one that did not.
+  expect(r.started).toEqual([1234, 3000]);
+  expect(r.sequence).toEqual([1, 2, 0, 1]);
+  expect(r.hover).toEqual([0, 1]);
+  expect(r.focus).toEqual([0, 1]);
+  expect(r.touch).toEqual([0, 1]);
+  expect(r.both).toEqual([0, 1]);
+  expect(r.defaultInterval).toBe(true);
+  expect(r.intervalChange).toEqual({ sameTimer: true, started: [1234, 3000] });
+  expect(r.turnedOff).toEqual([3000]);
+  expect(r.turnedOn).toEqual([2345, 3000]);
+  // Disconnecting stopped the timer; only the other carousel's remains.
+  expect(r.reconnected).toEqual({ timers: [3000], autoplay: true });
+  expect(r.beforeEnable).toEqual([3000]);
+  expect(r.afterEnable).toEqual([2345, 3000]);
+});
+
+// The real timer end to end, with no witness: the carousel advances by itself, each slide in turn. The wait is on the changes
+// themselves, with a generous deadline.
+test('autoplay advances through the slides by itself with the browser\'s own timer', async ({ page }) => {
+  const { frame } = await openPage(page);
+  // The listener is on the document before the carousel exists, so no change is missed.
+  await frame.locator('body').evaluate(() => {
+    window.seen = [];
+    document.addEventListener('sl-slide-change', e => window.seen.push(e.detail.index));
   });
-  expect(off).toBe(0);
-  // Turning it on again starts a timer with the current interval; moving the element in the document stops it for good.
-  const reconnect = await frame.locator('#c').evaluate(async (el, until) => {
-    el.autoplay = true;
-    await el.updateComplete;
-    let n = 0;
-    el.addEventListener('sl-slide-change', () => n++);
-    await new Function(`${until}; return until;`)()(() => n >= 2);
-    const parent = el.parentElement;
-    el.remove();
-    parent.append(el);
-    await el.updateComplete;
-    n = 0;
-    await new Promise(r => setTimeout(r, 600));
-    return { afterReconnect: n, autoplay: el.autoplay };
-  }, UNTIL);
-  expect(reconnect).toEqual({ afterReconnect: 0, autoplay: true });
+  await mount(frame, '<sl-carousel id="c" autoplay autoplay-interval="80" loop>' + SLIDES(3) + '</sl-carousel>');
+  const seen = await frame.locator('body').evaluate(async () => {
+    await new Promise((resolve, reject) => {
+      const end = Date.now() + 8000;
+      const t = setInterval(() => { if (window.seen.length >= 4) { clearInterval(t); resolve(); } else if (Date.now() > end) { clearInterval(t); reject(new Error('timed out')); } }, 20);
+    });
+    return window.seen.slice(0, 4);
+  });
+  expect(seen).toEqual([1, 2, 0, 1]);
 });
 
 test('mouse dragging: with mouse-dragging a drag moves the carousel and snaps to the next slide, the click that ends a long drag is prevented, and without it a drag does nothing', async ({ page }) => {
@@ -801,7 +838,7 @@ test('the active slide gets the --is-active class only once it changes (upstream
   expect(await state(frame)).toMatchObject({ active: 0, activeClasses: [true, false, false] });
 });
 
-test('upstream quirk: removing a carousel before its first update throws from disconnectedCallback (reported on the window); after it has rendered, removal is silent', async ({ page }) => {
+test('a carousel removed before its first update, or after it, reports no error and is gone', async ({ page }) => {
   const { frame } = await openPage(page);
   const r = await frame.locator('body').evaluate(async body => {
     const errors = [];
@@ -811,19 +848,32 @@ test('upstream quirk: removing a carousel before its first update throws from di
     body.append(early);
     early.remove();
     await new Promise(resolve => setTimeout(resolve));
-    const early_ = errors.splice(0);
     const late = document.createElement('sl-carousel');
     body.append(late);
     await late.updateComplete;
     late.remove();
     await new Promise(resolve => setTimeout(resolve));
     window.removeEventListener('error', on);
-    return { early: early_, late: errors, removed: !early.isConnected && !late.isConnected };
+    return { errors, removed: !early.isConnected && !late.isConnected };
   });
-  expect(r.early).toHaveLength(1);
-  expect(r.early[0]).toMatch(/mutationObserver|disconnect/i);
-  expect(r.late).toEqual([]);
-  expect(r.removed).toBe(true);
+  expect(r).toEqual({ errors: [], removed: true });
+});
+
+test('ready is emitted once on the first update and does not bubble (a Velcro extension from core)', async ({ page }) => {
+  const { frame } = await openPage(page);
+  const r = await frame.locator('body').evaluate(async body => {
+    const seen = [];
+    const el = document.createElement('sl-carousel');
+    el.addEventListener('ready', e => seen.push([e.bubbles, e.composed, e.target === el]));
+    document.addEventListener('ready', e => seen.push(['document', e.target.localName]));
+    body.append(el);
+    await el.updateComplete;
+    el.requestUpdate();
+    await el.updateComplete;
+    el.remove();
+    return seen;
+  });
+  expect(r).toEqual([[false, false, true]]);
 });
 
 test('an empty carousel does nothing: no slides, no pages, no errors from the methods', async ({ page }) => {

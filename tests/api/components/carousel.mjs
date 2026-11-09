@@ -44,6 +44,17 @@ export default function (test, { elements, pkgDir }) {
     for (const member of item.members.filter(m => m.kind === 'field')) assert.notEqual(member.reflects, true, member.name);
   });
 
+  test('the carousel event type test pins SlSlideChangeEvent, its event-map entry and the wrapper\'s onSlSlideChange, and the carousel module declares them', () => {
+    const source = readFileSync(path.join(pkgDir, 'type-tests/carousel-event.tsx'), 'utf8');
+    assert.match(source, /carousel\.addEventListener\('sl-slide-change'/);
+    assert.match(source, /document\.addEventListener\('sl-slide-change'/);
+    assert.match(source, /onSlSlideChange:/);
+    assert.equal(source.match(/@ts-expect-error/g)?.length, 2);
+    const component = readFileSync(path.join(pkgDir, 'src/components/carousel/carousel.ts'), 'utf8');
+    assert.match(component, /export type SlSlideChangeEvent = CustomEvent<\{ index: number; slide: VelcroCarouselItem \}>;/);
+    assert.match(component, /'sl-slide-change': SlSlideChangeEvent;/);
+  });
+
   test('the carousel dir type test assigns a string-typed direction to both, as Shoelace declares dir: string', () => {
     const source = readFileSync(path.join(pkgDir, 'type-tests/carousel-dir.tsx'), 'utf8');
     assert.match(source, /declare const direction: string;/);
