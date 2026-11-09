@@ -36,11 +36,25 @@
   const sprite = getBasePath('assets/images/sprite.svg');
   const icons = await (await fetch(getBasePath('assets/icons/icons.json'))).json();
 
+  // As in Shoelace, a button is wrapped in an <sl-tooltip> that shows its name the first time the pointer lands on it, instead
+  // of baking 2,050 tooltips into the page.
+  function wrapWithTooltip(button) {
+    const tooltip = document.createElement('sl-tooltip');
+    tooltip.content = button.dataset.name;
+
+    // Close open tooltips
+    list.querySelectorAll('sl-tooltip[open]').forEach(other => other.hide());
+
+    // Wrap it with a tooltip and trick it into showing up
+    button.parentNode.insertBefore(tooltip, button);
+    tooltip.appendChild(button);
+    requestAnimationFrame(() => tooltip.dispatchEvent(new MouseEvent('mouseover')));
+  }
+
   // Each icon is a button that copies its name; the glyphs come from one sprite sheet instead of one file each.
   for (const icon of icons) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.title = icon.name;
     button.dataset.name = icon.name;
     button.dataset.terms = [icon.name, icon.title, ...icon.tags, ...icon.categories].join(' ').toLowerCase();
     button.setAttribute('aria-label', icon.name);
@@ -50,7 +64,13 @@
     use.setAttribute('href', `${sprite}#${icon.name}`);
     svg.append(use);
     button.append(svg);
+    button.addEventListener('mouseover', () => wrapWithTooltip(button), { once: true });
     button.addEventListener('click', async () => {
+      const tooltip = button.closest('sl-tooltip');
+      if (tooltip) {
+        tooltip.content = 'Copied!';
+        setTimeout(() => (tooltip.content = icon.name), 1000);
+      }
       await navigator.clipboard?.writeText(icon.name).catch(() => {});
       status.textContent = `Copied "${icon.name}"`;
     });
@@ -60,7 +80,7 @@
   function filter() {
     const terms = search.value.toLowerCase().split(/\s+/).filter(Boolean);
     let shown = 0;
-    for (const button of list.children) {
+    for (const button of list.querySelectorAll('button')) {
       const name = button.dataset.name;
       const filled = name.includes('-fill');
       const styleMatch = style.value === 'all' || (style.value === 'fill' ? filled : !filled);

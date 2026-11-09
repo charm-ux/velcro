@@ -13,14 +13,13 @@ export const pageData = definePageData(async () => ({
 }));
 
 // Shoelace's examples, in the order of its page: [id, title, text, example key, React example key]. The first has no heading in
-// Shoelace's page; it is the page's opening example. The tooltip example is source only (it was ported before Velcro had sl-tooltip;
-// see the not-implemented list) and has no React version here; every other example is live and has a React version.
+// Shoelace's page; it is the page's opening example. Every example is live and has a React version.
 const sections = [
   ['basic', 'Default', null, 'icon-button/basic', 'icon-button/react/basic'],
   ['sizes', 'Sizes', html`Icon buttons inherit their parent element's <code>font-size</code>.`, 'icon-button/sizes', 'icon-button/react/sizes'],
   ['colors', 'Colors', html`Icon buttons are designed to have a uniform appearance, so their color is not inherited. However, you can still customize them by styling the <code>base</code> part.`, 'icon-button/colors', 'icon-button/react/colors'],
   ['link-buttons', 'Link Buttons', html`Use the <code>href</code> attribute to convert the button to a link.`, 'icon-button/link-buttons', 'icon-button/react/link-buttons'],
-  ['tooltip', 'Icon Button with Tooltip', html`Wrap a tooltip around an icon button to provide contextual information to the user. This port predates Velcro's <code>sl-tooltip</code>, so this is Shoelace's example as source only, without a live preview.`, 'icon-button/tooltip', null],
+  ['tooltip', 'Icon Button with Tooltip', html`Wrap a tooltip around an icon button to provide contextual information to the user.`, 'icon-button/tooltip', 'icon-button/react/tooltip'],
   ['disabled', 'Disabled', html`Use the <code>disabled</code> attribute to disable the icon button.`, 'icon-button/disabled', 'icon-button/react/disabled'],
 ] as const;
 
@@ -35,7 +34,7 @@ const quirks = [
 ] as const;
 
 const gaps = [
-  'The Icon Button with Tooltip example is shown as source only, with no live preview and no React version, because it was ported before Velcro had sl-tooltip; making it live is a follow-up. Shoelace\'s page has five other examples (the opening one, Sizes, Colors, Link Buttons and Disabled); each is ported with a live preview and a React version, in Shoelace\'s order. The React examples import Velcro\'s generated wrapper (@charm-ux/velcro/react/VelcroIconButton.js) under Shoelace\'s name; nothing else differs.',
+  'All six of Shoelace\'s examples (the opening one, Sizes, Colors, Link Buttons, Icon Button with Tooltip and Disabled) are ported with a live preview and a React version, in Shoelace\'s order. The tooltip example uses Velcro\'s sl-tooltip, which the document of each preview loads with the rest of the library. The React examples import Velcro\'s generated wrappers (@charm-ux/velcro/react/VelcroIconButton.js, and VelcroTooltip.js for the tooltip) under Shoelace\'s names; nothing else differs.',
   'The button property (the rendered native button or link) exists in Shoelace\'s class, with the same type, but has no description there, so Shoelace\'s documentation leaves it out. Velcro describes it, so its generated API table lists button and the parity report counts it as Velcro-only.',
   'Shoelace\'s link example opens https://example.com in a new window when it is clicked, as Shoelace\'s does; nothing is requested until then.',
   'Core has no icon button, so Velcro builds sl-icon-button on the @charm-ux/core base element and takes its markup, styles and behavior from Shoelace. The only core extension that remains is the non-bubbling ready event on first update, which the API tables label as inherited from core.',
@@ -63,16 +62,12 @@ export class IconButtonPage extends LitElement {
         ([id, title, text, key, react]) => html`
           <h3 id=${id}>${title}</h3>
           ${text === null ? '' : html`<p>${text}</p>`}
-          ${react === null
-            ? ''
-            : html`<iframe class="example" title=${`Icon Button example: ${title}`} srcdoc=${exampleDocument(examples[key])}></iframe>`}
+          <iframe class="example" title=${`Icon Button example: ${title}`} srcdoc=${exampleDocument(examples[key])}></iframe>
           <pre><code>${examples[key]}</code></pre>
-          ${react === null
-            ? ''
-            : html`<details class="react-example">
-                <summary>React</summary>
-                <pre><code>${reactExamples[react]}</code></pre>
-              </details>`}
+          <details class="react-example">
+            <summary>React</summary>
+            <pre><code>${reactExamples[react]}</code></pre>
+          </details>
         `
       )}
 

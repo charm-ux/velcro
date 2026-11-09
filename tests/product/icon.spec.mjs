@@ -187,6 +187,39 @@ test('icon search lists every default icon from icons.json and filters by name, 
   expect(await search.locator('.icon-list button:not([hidden])').count()).toBeGreaterThan(1);
 });
 
+test('icon search wraps an icon in a live sl-tooltip the first time the pointer lands on it and shows Copied! in it after a click', async ({ page }) => {
+  await openPage(page);
+  const search = frameOf(page, 'Icon search');
+  await expect(search.locator('.icon-list button')).toHaveCount(2050);
+  const r = await search.locator('body').evaluate(async () => {
+    const button = document.querySelector('.icon-list [data-name="gear"]');
+    const before = [button.parentElement.localName, button.hasAttribute('title')];
+    button.dispatchEvent(new MouseEvent('mouseover'));
+    const tooltip = button.closest('sl-tooltip');
+    await customElements.whenDefined('sl-tooltip');
+    await tooltip.updateComplete;
+    const after = { parent: button.parentElement.localName, content: tooltip.content, defined: Boolean(customElements.get('sl-tooltip')), count: document.querySelectorAll('.icon-list sl-tooltip').length };
+    // Wrapped once: a second mouseover does not wrap again.
+    button.dispatchEvent(new MouseEvent('mouseover'));
+    const again = document.querySelectorAll('.icon-list sl-tooltip').length;
+    button.click();
+    const copied = tooltip.content;
+    // Filtering still reaches wrapped buttons.
+    const input = document.querySelector('.icon-search input');
+    input.value = 'zzzz-no-such-icon';
+    input.dispatchEvent(new Event('input'));
+    const hiddenWrapped = button.hidden;
+    return { before, after, again, copied, hiddenWrapped };
+  });
+  expect(r.before).toEqual(['div', false]);
+  expect(r.after).toEqual({ parent: 'sl-tooltip', content: 'gear', defined: true, count: 1 });
+  expect(r.again).toBe(1);
+  expect(r.copied).toBe('Copied!');
+  expect(r.hiddenWrapped).toBe(true);
+  // A second after the click the tooltip shows the name again.
+  await expect.poll(() => search.locator('.icon-list [data-name="gear"]').evaluate(b => b.closest('sl-tooltip').content), { timeout: 5000 }).toBe('gear');
+});
+
 test('events, ARIA updates, library registration, the url extension and reflected attribute restore', async ({ page }) => {
   await openPage(page);
   const frame = frameOf(page, 'Icon example: Colors');

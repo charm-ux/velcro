@@ -179,7 +179,8 @@ with `defineVelcroComponent` on every construction, as Shoelace's constructor do
 defined, an anonymous subclass when the platform refuses the class itself), so their class-only
 entries need no extra registration. `sl-tag` does the same for its remove button: it renders a literal
 `<sl-icon-button>`, so its constructor defines Velcro's `sl-icon-button` (and that one defines `sl-icon`), and `sl-tooltip` does it for the
-`<sl-popup>` it renders. Alert, checkbox, input, tab, tab group and radio group do the same for theirs. Other
+`<sl-popup>` it renders. `sl-copy-button` renders a literal `<sl-tooltip>` and, for its default icons, `<sl-icon>`, so its constructor defines both
+(and the tooltip defines `<sl-popup>`). Alert, checkbox, input, tab, tab group and radio group do the same for theirs. Other
 class-only entries (button's `sl-spinner`, radio's `sl-icon`) do not do this yet.
 
 Do not treat these as solutions by themselves:

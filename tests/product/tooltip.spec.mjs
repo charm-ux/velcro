@@ -63,6 +63,17 @@ const recordEvents = frame => frame.locator('#t').evaluate(el => {
 const eventTypes = frame => frame.locator('#t').evaluate(el => el.events.map(e => e.type));
 const state = frame => frame.locator('#t').evaluate(el => ({ open: el.open, hidden: el.body.hidden, active: el.popup.active }));
 
+// Reads `open` of #t a fixed time after the next pointer event of type `type` on #b, timed in the page. A delay window
+// (still closed before --show-delay, still open before --hide-delay) must not be timed from the test process: the action,
+// a sleep and a state read are separate protocol round trips, and on a loaded runner (Firefox in CI) they alone can
+// outlast the window. The probe's listener on #b runs before the tooltip's own listener on the host (the event bubbles
+// from #b), so its timer starts first and, being shorter, fires first (HTML timer ordering).
+const probeAfterPointer = (frame, type, delay) => frame.locator('#t').evaluate((el, [type, delay]) => {
+  el.probed ??= {};
+  el.querySelector('#b').addEventListener(type, () => setTimeout(() => { el.probed[type] = el.open; }, delay), { once: true });
+}, [type, delay]);
+const probed = frame => frame.locator('#t').evaluate(el => el.probed);
+
 // Resolves Shoelace theme tokens in the example document to the computed value of a CSS property.
 // The tooltip line height token is unitless, so it is resolved on a probe with the tooltip font size.
 async function lineHeight(frame) {
@@ -199,15 +210,15 @@ test('hover: shows after --show-delay with sl-show then sl-after-show, and hides
   const { frame } = await openExample(page);
   await mount(frame, '<sl-tooltip id="t" content="Tip" style="--show-delay: 300ms; --hide-delay: 200ms"><button id="b">Target</button></sl-tooltip><p id="away">away</p>');
   await recordEvents(frame);
+  await probeAfterPointer(frame, 'mouseover', 150);
   await frame.locator('#b').hover();
-  await frame.locator('body').evaluate(() => new Promise(r => setTimeout(r, 150)));
-  expect((await state(frame)).open).toBe(false);
   await expect.poll(() => eventTypes(frame)).toEqual(['sl-show', 'sl-after-show']);
+  expect(await probed(frame)).toEqual({ mouseover: false });
   expect(await state(frame)).toEqual({ open: true, hidden: false, active: true });
+  await probeAfterPointer(frame, 'mouseout', 80);
   await frame.locator('#away').hover();
-  await frame.locator('body').evaluate(() => new Promise(r => setTimeout(r, 80)));
-  expect((await state(frame)).open).toBe(true);
   await expect.poll(() => eventTypes(frame)).toEqual(['sl-show', 'sl-after-show', 'sl-hide', 'sl-after-hide']);
+  expect(await probed(frame)).toEqual({ mouseover: false, mouseout: true });
   expect(await state(frame)).toEqual({ open: false, hidden: true, active: false });
   const events = await frame.locator('#t').evaluate(el => el.events);
   expect(events.every(e => e.bubbles && e.composed && !e.cancelable)).toBe(true);
@@ -223,8 +234,9 @@ test('focus shows and blur hides by default; trigger="click" toggles on click on
 
   await mount(frame, '<sl-tooltip id="t" content="Tip" trigger="click"><button id="b">Target</button></sl-tooltip><button id="other">Other</button>');
   await frame.locator('#b').focus();
+  await probeAfterPointer(frame, 'mouseover', 300);
   await frame.locator('#b').hover();
-  await frame.locator('body').evaluate(() => new Promise(r => setTimeout(r, 300)));
+  await expect.poll(() => probed(frame)).toEqual({ mouseover: false });
   expect((await state(frame)).open).toBe(false);
   await frame.locator('#b').click();
   await expect.poll(async () => (await state(frame)).hidden).toBe(false);
@@ -535,6 +547,32 @@ test.describe('animation registry', () => {
       ltr: [{ opacity: 0.1 }, { opacity: 1 }], rtl: [{ opacity: 0.9 }, { opacity: 1 }],
       ownLtr: [{ opacity: 0.2 }], ownRtl: [{ opacity: 0.8 }],
     });
+  });
+
+  test('the document direction is the localization controller\'s snapshot, as in Shoelace: a change made in the same task as show() is not seen until the observer runs', async ({ page }) => {
+    await setup(page);
+    const r = await page.evaluate(async () => {
+      const { setDefaultAnimation } = window.registry;
+      setDefaultAnimation('tooltip.show', { keyframes: [{ opacity: 0.1 }, { opacity: 1 }], rtlKeyframes: [{ opacity: 0.9 }, { opacity: 1 }], options: { duration: 10 } });
+      setDefaultAnimation('tooltip.hide', { keyframes: [{ opacity: 0.2 }, { opacity: 0 }], rtlKeyframes: [{ opacity: 0.8 }, { opacity: 0 }], options: { duration: 10 } });
+      document.documentElement.dir = 'ltr';
+      await new Promise(resolve => setTimeout(resolve));
+      const el = document.getElementById('a');
+      // Queued in sl-show, this runs before show()'s continuation reads the direction; the document observer's callback,
+      // which refreshes the snapshot, is queued behind that continuation. A live read of <html dir> would see rtl.
+      el.addEventListener('sl-show', () => queueMicrotask(() => { document.documentElement.dir = 'rtl'; }), { once: true });
+      window.calls = [];
+      await el.show();
+      const shown = window.calls.map(call => call.keyframes[0].opacity);
+      window.calls = [];
+      await el.hide();
+      const hidden = window.calls.map(call => call.keyframes[0].opacity);
+      document.documentElement.dir = 'ltr';
+      await new Promise(resolve => setTimeout(resolve));
+      return { shown, hidden };
+    });
+    // Shown with the stale ltr snapshot; hidden after the observer refreshed it to rtl.
+    expect(r).toEqual({ shown: [0.1], hidden: [0.8] });
   });
 
   test('one registry module: the exports, the built components and the docs bundle share a single copy; internal/animate is not exported', () => {
