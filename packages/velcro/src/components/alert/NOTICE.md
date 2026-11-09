@@ -4,8 +4,7 @@
   bar; the auto-hide timer, the countdown animation, the toast stack, the `sl-show` / `sl-after-show` / `sl-hide` /
   `sl-after-hide` events and the show and hide animations with their registry defaults, adapted from
   `src/components/alert/alert.component.ts`; the restore of reflected properties' initial values adapted from
-  `src/internal/shoelace-element.ts`; the order of the `@watch` handlers from `src/internal/watch.ts`; and
-  `blurActiveElement`, copied from `src/internal/closeActiveElement.ts`),
+  `src/internal/shoelace-element.ts`; and the order of the `@watch` handlers from `src/internal/watch.ts`),
   `packages/velcro/src/components/alert/alert.styles.ts` (styles concatenated from `src/styles/component.styles.ts`
   and `src/components/alert/alert.styles.ts`, rules unchanged), the docs page and examples
   `packages/docs/pages/components/alert.ts` and `packages/docs/examples/alert/*.html` (example markup and wording

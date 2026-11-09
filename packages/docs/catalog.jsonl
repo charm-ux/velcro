@@ -7,6 +7,7 @@
 {"name":"card","title":"Card","tag":"sl-card","example":"#demo-basic"}
 {"name":"checkbox","title":"Checkbox","tag":"sl-checkbox","example":"#demo-default"}
 {"name":"details","title":"Details","tag":"sl-details","example":"#demo-default"}
+{"name":"dialog","title":"Dialog","tag":"sl-dialog","example":"#demo-default"}
 {"name":"divider","title":"Divider","tag":"sl-divider","example":"#demo-horizontal"}
 {"name":"format-bytes","title":"Format Bytes","tag":"sl-format-bytes","example":"#demo-default"}
 {"name":"format-date","title":"Format Date","tag":"sl-format-date","example":"#demo-default"}

@@ -231,6 +231,15 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   and `shimKeyframesHeightAuto`, adapted from `src/internal/animate.ts`) and `packages/velcro/src/internal/event.ts`
   (`waitForEvent`, adapted from `src/internal/event.ts`), behavior unchanged. They are shared by the components with
   show and hide animations, so they have no component folder. No Shoelace runtime is included.
+- Also used in: the modal utilities. `packages/velcro/src/internal/modal.ts` (the `Modal` focus trap and its stack of
+  active modals, adapted from `src/internal/modal.ts`), `packages/velcro/src/internal/tabbable.ts` (`getTabbableBoundary`
+  and `getTabbableElements`, adapted from `src/internal/tabbable.ts`), `packages/velcro/src/internal/active-elements.ts`
+  (`activeElements` and `getDeepestActiveElement`, adapted from `src/internal/active-elements.ts`),
+  `packages/velcro/src/internal/scroll.ts` (`lockBodyScrolling`, `unlockBodyScrolling` and `scrollIntoView`, adapted from
+  `src/internal/scroll.ts`), `packages/velcro/src/internal/offset.ts` (`getOffset`, adapted from `src/internal/offset.ts`)
+  and `packages/velcro/src/internal/close-active-element.ts` (`blurActiveElement`, adapted from
+  `src/internal/closeActiveElement.ts`), behavior unchanged. They are shared by the dialog and the alert (and later
+  modal components), so they have no component folder. No Shoelace runtime is included.
 - Components added later record their Shoelace use in their own `packages/velcro/src/components/<name>/NOTICE.md`
   (one list entry like those above); the package and site copies of this file include those entries here.
 <!-- component notices: packages/velcro/src/components/<name>/NOTICE.md -->
