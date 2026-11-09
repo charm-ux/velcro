@@ -427,10 +427,6 @@ function main() {
   say(`total ${passed + failed}, passed ${passed}, failed ${failed}; scoreboard in ignored .airig/upstream/`);
   const result = evaluate(board, ledger, inventory, components, upstreamSkips(root, components));
   for (const l of resultLines(result)) say(l);
-  // DIAGNOSTIC (throw-away, reverted right after one CI run): the first line of the reason of these two tests only.
-  const diagTitles = ['<sl-menu-item> > should focus on first menuitem of submenu if ArrowRight is pressed on parent menuitem',
-    '<sl-menu-item> > should focus on outer menu if ArrowRight is pressed on nested menuitem'];
-  for (const b of Object.values(board)) for (const f of b.failures) if (diagTitles.includes(f.title)) say(`diag: ${diagTitles.indexOf(f.title) + 1}: ${String(f.reason ?? '').split('\n')[0].slice(0, 200)}`);
   if (!result.ok) return fail(`blocked (results differ from the component records in ${RECORDS}/)`);
   say('passed (every failure is ledgered and every ledgered test still fails)');
 }

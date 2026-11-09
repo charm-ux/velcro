@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSy
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDigest, collect as collectBuild } from './ci/build-output.mjs';
-import { redactLine, summarizeReport } from './product-summary.mjs';
+import { summarizeReport } from './product-summary.mjs';
 import { readCatalog } from './site/catalog.mjs';
 import { readInventory } from './upstream-conformance.mjs';
 import { summarizeUpstream } from './upstream-summary.mjs';
@@ -206,8 +206,6 @@ function main() {
         const log = readFileSync(path.join(scratch, 'upstream-conformance.log'), 'utf8');
         const { lines } = summarizeUpstream(log, { inventory: readInventory(root), catalog: new Set(readCatalog(root).map(c => c.name)) });
         for (const line of lines) process.stdout.write(`verify:product: ${line}\n`);
-        // DIAGNOSTIC (throw-away, reverted right after one CI run): the redacted reason lines printed above for two tests.
-        for (const l of log.split('\n')) if (/^test:upstream: diag: [12]: /.test(l)) process.stdout.write(`verify:product: ${redactLine(l.slice('test:upstream: '.length), root)}\n`);
       } catch { process.stdout.write('verify:product: upstream blocked: internal\n'); }
       return fail('blocked (upstream conformance differs from the component records in tests/upstream/components/)');
     }
