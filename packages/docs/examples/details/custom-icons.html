@@ -1,0 +1,14 @@
+<sl-details summary="Toggle Me" class="custom-icons">
+  <sl-icon name="plus-square" slot="expand-icon"></sl-icon>
+  <sl-icon name="dash-square" slot="collapse-icon"></sl-icon>
+
+  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna
+  aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+</sl-details>
+
+<style>
+  sl-details.custom-icons::part(summary-icon) {
+    /* Disable the expand/collapse animation */
+    rotate: none;
+  }
+</style>
