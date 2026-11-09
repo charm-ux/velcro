@@ -1,4 +1,4 @@
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
@@ -85,7 +85,9 @@ esac
     copyFileSync(path.join(realRoot, 'scripts/site/tested.mjs'), path.join(dir, 'scripts/site/tested.mjs'));
     mkdirSync(path.join(dir, 'scripts/ci'));
     copyFileSync(path.join(realRoot, 'scripts/ci/build-output.mjs'), path.join(dir, 'scripts/ci/build-output.mjs'));
-    copyFileSync(path.join(realRoot, 'scripts/product-summary.mjs'), path.join(dir, 'scripts/product-summary.mjs'));
+    for (const f of ['product-summary.mjs', 'upstream-summary.mjs', 'upstream-conformance.mjs', 'site/catalog.mjs']) {
+      copyFileSync(path.join(realRoot, 'scripts', f), path.join(dir, 'scripts', f));
+    }
     mkdirSync(path.join(dir, 'scripts/security'));
     copyFileSync(path.join(realRoot, 'scripts/security/privacy.mjs'), path.join(dir, 'scripts/security/privacy.mjs'));
     mkdirSync(path.join(dir, 'security'));
@@ -181,6 +183,44 @@ esac
       assert.match(out, /upstream-conformance failed/);
       assert.doesNotMatch(out, /verify:product: passed/);
       assert.throws(() => readFileSync(path.join(dir, EVIDENCE)), /ENOENT/);
+    } finally { cleanup(dir); }
+  });
+
+  // The public summary of a failed upstream gate: the fake runner log carries one inventoried title, one that is not, and a
+  // message, a path and a token that must never reach the output. Names are checked against the real catalog and records.
+  test('CLI prints a bounded, closed-vocabulary summary when the upstream conformance gate fails', async () => {
+    const secret = ['gh', 'p_'].join('') + 'a'.repeat(36);
+    const where = ['', 'Users', 'someone', 'privdir'].join('/');
+    const real = JSON.parse(readFileSync(path.join(realRoot, 'tests/upstream/components/tab.json'), 'utf8')).tests[0];
+    const log = [
+      `test:upstream: unexpected failure: tab: ${real}`,
+      `test:upstream: problem: missing outcome for tab: ${where}/${secret}`,
+      `test:upstream: problem: infrastructure failure in tab: ${secret} at ${where}`,
+      `test:upstream: problem: outcome not in inventory for no-such-component: ${real}`,
+      'test:upstream: total 10, passed 7, failed 3; scoreboard in ignored .airig/upstream/',
+      `test:upstream: vendored upstream files changed (modified: ${where}/a.test.ts)`,
+      `test:upstream: a message nobody wrote ${secret} ${where}`,
+    ].join('\n');
+    const shim = orderShim.replace('echo upstream >> calls.log; [ -z "$UPSTREAM_FAIL" ] || exit 1',
+      `echo upstream >> calls.log; printf '%s\\n' "$UPSTREAM_LOG"; exit 1`);
+    const dir = await fixture({
+      prepare: async d => {
+        stubPlaywright(d); await gitInit(d);
+        cpSync(path.join(realRoot, 'tests/upstream/components'), path.join(d, 'tests/upstream/components'), { recursive: true });
+        mkdirSync(path.join(d, 'packages/docs'), { recursive: true });
+        copyFileSync(path.join(realRoot, 'packages/docs/catalog.jsonl'), path.join(d, 'packages/docs/catalog.jsonl'));
+      },
+      shim,
+    });
+    try {
+      const out = await runCli(dir, true, { UPSTREAM_LOG: log });
+      assert.match(out, /verify:product: upstream-conformance failed/);
+      assert.match(out, /verify:product: upstream blocked: vendor-changed\nverify:product: upstream blocked: internal\nverify:product: upstream problem infrastructure: tab\n/);
+      assert.doesNotMatch(out, /total 10|passed 7|nobody/);
+      assert.ok(out.includes(`verify:product: upstream failed: tab: ${real}\n`));
+      assert.ok(out.includes('verify:product: upstream missing: tab: unlisted title\n'));
+      assert.ok(out.includes('verify:product: upstream unexpected: unlisted component: unlisted title\n'));
+      assert.doesNotMatch(out, new RegExp(`${secret}|someone|privdir|a\\.test\\.ts`));
     } finally { cleanup(dir); }
   });
 

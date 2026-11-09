@@ -27,6 +27,17 @@ passes, so the known failures can only shrink. `pnpm test:upstream -- --write-in
 the records of the components that reported results; `--write-inventory` refuses to remove a title from a record
 unless `--allow-inventory-removal` is given (for a re-vendored test file).
 
+When the gate fails in CI, the raw runner output stays private and the log shows a bounded summary instead
+(`scripts/upstream-summary.mjs`): at most 20 lines, then a `+N more` count. Each finding is an outcome from a fixed list
+(`failed`, `unexpected`, `missing`, `skipped-mismatch`), a component and a test title, plus fixed-word lines for a
+component-level problem (`infrastructure`, `no-results`, `records`) or for why the run was blocked (`vendor-changed`,
+`records-drift`, `results-differ` and the like). Every word comes from a constant table and is chosen by which row
+matched, never copied from the output; a result line that matches no row is `blocked: internal`. A component is named
+only if it is in the catalog and a title only if it is exactly a title pinned in that component's record, survives the
+same redaction as the browser summary and is not shaped like a path (a backslash, a slash that starts a path, or two
+slashes); otherwise the line says `unlisted component` or `unlisted title`. Counts, messages, values, stack traces and
+paths are never printed.
+
 Many upstream titles are generated (template literals, loops, the shared form-control helper), so the literal-title
 scan cannot see all of them. The records are therefore also held to their baseline, the merge base with `origin/main`
 (`checkBaseline`, in the source tests and in `test:upstream`): while a component's pinned files and the shared pins
