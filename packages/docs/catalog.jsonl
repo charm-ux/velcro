@@ -8,6 +8,7 @@
 {"name":"button-group","title":"Button Group","tag":"sl-button-group","example":"#demo-default"}
 {"name":"card","title":"Card","tag":"sl-card","example":"#demo-basic"}
 {"name":"checkbox","title":"Checkbox","tag":"sl-checkbox","example":"#demo-default"}
+{"name":"color-picker","title":"Color Picker","tag":"sl-color-picker","example":"sl-color-picker"}
 {"name":"copy-button","title":"Copy Button","tag":"sl-copy-button","example":"#demo-default"}
 {"name":"details","title":"Details","tag":"sl-details","example":"#demo-default"}
 {"name":"dialog","title":"Dialog","tag":"sl-dialog","example":"#demo-default"}

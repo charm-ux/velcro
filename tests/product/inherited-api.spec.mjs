@@ -22,7 +22,9 @@ const coreDecls = new Map(core.modules.flatMap(m => m.declarations ?? []).map(d 
 const elements = customElements(readJson(velcroManifestPath));
 
 // What each component's probe host gets: tests/product/<name>.probe.json when the component has one ({ "content":
-// "<html>", "attrs": { name: value }, "note": "why" }), else content that fills every slot its manifest declares. One
+// "<html>", "attrs": { name: value }, "fixed": [boolean attribute names], "note": "why" }), else content that fills every
+// slot its manifest declares. `fixed` lists boolean attributes the probe keeps as `attrs` sets them instead of toggling
+// them (for an attribute whose change the component cannot take after its first render); it needs a note saying why. One
 // file per component, so adding a component never edits this spec.
 const probeFile = name => path.join(root, 'tests/product', `${name}.probe.json`);
 const fillSlots = decl => (decl.slots ?? []).map(s => (s.name ? `<div slot="${s.name}">${s.name}</div>` : 'Content')).join('');
@@ -37,8 +39,12 @@ test('probe files belong to catalog components and hold only content, attributes
   for (const f of readdirSync(path.join(root, 'tests/product')).filter(f => f.endsWith('.probe.json'))) {
     expect(names, f).toContain(f.replace(/\.probe\.json$/, ''));
     const probe = JSON.parse(readFileSync(path.join(root, 'tests/product', f), 'utf8'));
-    expect(Object.keys(probe).every(k => ['content', 'attrs', 'note'].includes(k)), f).toBe(true);
+    expect(Object.keys(probe).every(k => ['content', 'attrs', 'fixed', 'note'].includes(k)), f).toBe(true);
     expect(typeof probe.content, f).toBe('string');
+    if ('fixed' in probe) {
+      expect(Array.isArray(probe.fixed) && probe.fixed.every(a => typeof a === 'string'), f).toBe(true);
+      expect(typeof probe.note, f).toBe('string');
+    }
   }
 });
 
@@ -59,7 +65,9 @@ for (const [tag, decl] of elements) {
     // about 20 s in WebKit on a fast machine. The margin covers slower CI runners.
     test.setTimeout(300000);
     expect(parent, `${tag} superclass in core's manifest`).toBeTruthy();
-    const booleans = (decl.attributes ?? []).filter(a => a.type?.text?.replace(/ \| undefined/, '') === 'boolean').map(a => a.name);
+    const fixed = PROBES[tag]?.fixed ?? [];
+    const booleans = (decl.attributes ?? []).filter(a => a.type?.text?.replace(/ \| undefined/, '') === 'boolean').map(a => a.name)
+      .filter(name => !fixed.includes(name));
 
     await openDocs(page, '/components/button');
     await page.evaluate(t => customElements.whenDefined(t), tag);

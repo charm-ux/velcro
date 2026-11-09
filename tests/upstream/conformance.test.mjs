@@ -263,11 +263,12 @@ test('a skip passes only when the vendored upstream file itself marks that exact
   // A scan with a dynamic title binds a skip only through the per-skip identity checks (next test).
   assert.equal(run('suite > x', { a: { skipped: ['suite > x'], declared: ['suite > x', 'other > x', 'y', null] } }).ok, true,
     'a dynamic title elsewhere does not block an unambiguous literal skip');
-  // The real vendored files: icon's, radio-group's and tab-group's own it.skip are the only upstream skips. Icon's and
-  // tab-group's are bound by the exact comparison; radio-group's file has dynamic titles (template-literal describes), so
-  // its skip is bound alone.
+  // The real vendored files: color-picker's, icon's, radio-group's and tab-group's own it.skip are the only upstream skips.
+  // Color-picker's, icon's and tab-group's are bound by the exact comparison; radio-group's file has dynamic titles
+  // (template-literal describes), so its skip is bound alone.
   const real = upstreamSkips(root, components);
-  assert.deepEqual(Object.keys(real), ['icon', 'radio-group', 'tab-group']);
+  assert.deepEqual(Object.keys(real), ['color-picker', 'icon', 'radio-group', 'tab-group']);
+  assert.deepEqual(real['color-picker'].skipped, ['<sl-color-picker> > should emit sl-focus when rendered as a dropdown and focused']);
   assert.deepEqual(real['tab-group'].skipped, [
     '<sl-tab-group> > scrolling behavior > does not show scroll buttons if placement is start',
     '<sl-tab-group> > scrolling behavior > does not show scroll buttons if placement is end',
