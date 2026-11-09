@@ -1,0 +1,19 @@
+{
+  "files": {
+    "src/components/details/details.test.ts": "ce21007eb5d51d9a628970a501a0fc571893ddc51ed504e274bff2ec93928ad8"
+  },
+  "tests": [
+    "<sl-details> > should be visible with the open attribute",
+    "<sl-details> > should not be visible without the open attribute",
+    "<sl-details> > should emit sl-show and sl-after-show when calling show()",
+    "<sl-details> > should emit sl-hide and sl-after-hide when calling hide()",
+    "<sl-details> > should emit sl-show and sl-after-show when setting open = true",
+    "<sl-details> > should emit sl-hide and sl-after-hide when setting open = false",
+    "<sl-details> > should not open when preventing sl-show",
+    "<sl-details> > should not close when preventing sl-hide",
+    "<sl-details> > should be the correct size after opening more than one instance",
+    "<sl-details> > accessibility > should be accessible when closed",
+    "<sl-details> > accessibility > should be accessible when open"
+  ],
+  "knownFailures": []
+}
