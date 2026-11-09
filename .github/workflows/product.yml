@@ -88,26 +88,21 @@ jobs:
           include-hidden-files: true
           retention-days: 1
 
+  # EXPERIMENT (temporary): WebKit only, the pinned image with three option sets, against the old host setup below.
   browser:
-    name: browser (${{ matrix.engine }}, shard ${{ matrix.shard }} of 4)
+    name: browser (webkit ${{ matrix.variant }}, shard ${{ matrix.shard }} of 4)
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    # The official Playwright image for the lockfile's Playwright version, pinned by digest: the engine builds and their system
-    # libraries are in the image, so nothing is installed with apt or downloaded at run time. The tag names the version (the
-    # bootstrap tests require it to be the lockfile's) and the digest fixes the bytes; the check step below confirms the
-    # image records that version and holds the builds it expects. A non-root user (the hosted runner's uid, which owns the mounted
-    # workspace and home; Firefox refuses to run as root there), an init process to reap engine child processes, and a
-    # larger shared-memory size than Docker's 64 MB default instead of sharing the host's IPC namespace.
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
-      options: --init --user 1001 --shm-size=2g
+      options: --init --user 1001 ${{ matrix.variant == 'core0' && '--shm-size=2g --ulimit core=0' || matrix.variant == 'ipchost' && '--ipc=host' || '--shm-size=2g' }}
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     strategy:
       fail-fast: false
       matrix:
-        engine: [chromium, firefox, webkit]
+        variant: [base, core0, ipchost]
         shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -137,24 +132,159 @@ jobs:
           pnpm install --frozen-lockfile --prefer-offline --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
           echo 'install: passed'
       - name: Check the image against the lockfile's Playwright
-        env:
-          ENGINE: ${{ matrix.engine }}
-        run: node scripts/ci/playwright-image.mjs "$ENGINE"
+        run: node scripts/ci/playwright-image.mjs webkit
       - name: Download the build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: product-build
           path: packages
+      - name: Experiment diagnostics (environment)
+        if: always()
+        run: |
+          echo "kernel: $(uname -r)"
+          echo "core limit soft/hard: $(ulimit -c) / $(ulimit -Hc)"
+          echo "core pattern: $(sysctl -n kernel.core_pattern 2>&1)"
+          echo "nproc: $(nproc); nofile: $(ulimit -n)"
+          df -k --output=target,size | grep -i shm || true
+          echo "fonts: $(fc-list | wc -l)"
+          dpkg-query -W -f='${Package} ${Version}\n' libegl-mesa0 libgbm1 libglib2.0-0t64 libgstreamer1.0-0 libicu74 libharfbuzz0b libfontconfig1 libwpe-1.0-1 libepoxy0 || true
+          dir=$(ls -d "$PLAYWRIGHT_BROWSERS_PATH"/webkit-* | head -1)
+          if [ -n "$dir" ]; then
+            echo "webkit dir: $(basename "$dir"), files $(find "$dir" -type f | wc -l)"
+            echo "webkit build hash: $(cd "$dir" && find . -type f ! -name INSTALLATION_COMPLETE ! -name DEPENDENCIES_VALIDATED -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -c1-64)"
+          fi
       - name: Product verification (one engine, one shard)
         timeout-minutes: 35
         env:
-          ENGINE: ${{ matrix.engine }}
+          ENGINE: webkit
           SHARD: ${{ matrix.shard }}/4
           DIGEST: ${{ needs.build.outputs.digest }}
         run: |
           mkdir -p .airig/ci
           pnpm verify:product --stage browser --engine "$ENGINE" --shard "$SHARD" --expect-digest "$DIGEST" > .airig/ci/product.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/product.log; echo 'product: blocked; private evidence retained'; exit 1; }
           echo 'product: passed'
+      - name: Experiment diagnostics (after the tests)
+        if: always()
+        run: |
+          echo "core files: $(find . "$RUNNER_TEMP" -xdev -type f \( -name core -o -name 'core.[0-9]*' \) -size +100k | wc -l)"
+          echo "host coredumps: $(coredumpctl list --no-pager --no-legend | wc -l)"
+          node -e '
+            const fs = require("fs");
+            for (const d of fs.readdirSync(".airig/product").filter(d => d.startsWith("run-"))) {
+              const f = ".airig/product/" + d + "/report.json";
+              if (!fs.existsSync(f)) continue;
+              const r = JSON.parse(fs.readFileSync(f, "utf8"));
+              const durs = [], byFile = {};
+              const walk = s => { for (const sp of s.specs || []) for (const t of sp.tests || []) for (const x of t.results || []) { durs.push(x.duration); byFile[sp.file] = (byFile[sp.file] || 0) + x.duration; } for (const c of s.suites || []) walk(c); };
+              r.suites.forEach(walk);
+              durs.sort((a, b) => a - b);
+              const q = p => durs[Math.floor(p * (durs.length - 1))];
+              console.log("tests", durs.length, "wall ms", Math.round(r.stats.duration), "sum ms", durs.reduce((a, b) => a + b, 0), "p10", q(0.1), "p50", q(0.5), "p90", q(0.9), "max", durs.at(-1));
+              for (const [k, v] of Object.entries(byFile).sort((a, b) => b[1] - a[1]).slice(0, 15)) console.log("file", k, v);
+            }'
+
+  browser-host:
+    name: browser (webkit host, shard ${{ matrix.shard }} of 4)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.airig/ms-playwright
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
+        with:
+          version: 9.15.9
+          run_install: false
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+      - name: Public frozen dependency install
+        run: |
+          mkdir -p .airig/ci
+          pnpm install --frozen-lockfile --prefer-offline --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
+          echo 'install: passed'
+      - name: Install system dependencies for the engine (disposable runner)
+        timeout-minutes: 12
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          NEEDRESTART_MODE: a
+        run: |
+          mkdir -p .airig/ci
+          timeout -k 10 330 pnpm exec playwright install-deps webkit > .airig/ci/browser-deps.log 2>&1 || { echo 'browser system dependencies: blocked'; exit 1; }
+          echo 'browser system dependencies: passed'
+      - name: Install the engine (disposable runner)
+        timeout-minutes: 12
+        run: |
+          mkdir -p .airig/ci
+          timeout -k 10 480 pnpm exec playwright install webkit > .airig/ci/browser.log 2>&1 || { echo 'browser setup: blocked'; exit 1; }
+          echo 'browser setup: passed'
+      - name: Download the build output
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: product-build
+          path: packages
+      - name: Experiment diagnostics (environment)
+        if: always()
+        run: |
+          echo "kernel: $(uname -r)"
+          echo "core limit soft/hard: $(ulimit -c) / $(ulimit -Hc)"
+          echo "core pattern: $(sysctl -n kernel.core_pattern 2>&1)"
+          echo "nproc: $(nproc); nofile: $(ulimit -n)"
+          df -k --output=target,size | grep -i shm || true
+          echo "fonts: $(fc-list | wc -l)"
+          dpkg-query -W -f='${Package} ${Version}\n' libegl-mesa0 libgbm1 libglib2.0-0t64 libgstreamer1.0-0 libicu74 libharfbuzz0b libfontconfig1 libwpe-1.0-1 libepoxy0 || true
+          dir=$(ls -d "$PLAYWRIGHT_BROWSERS_PATH"/webkit-* | head -1)
+          if [ -n "$dir" ]; then
+            echo "webkit dir: $(basename "$dir"), files $(find "$dir" -type f | wc -l)"
+            echo "webkit build hash: $(cd "$dir" && find . -type f ! -name INSTALLATION_COMPLETE ! -name DEPENDENCIES_VALIDATED -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -c1-64)"
+          fi
+      - name: Product verification (one engine, one shard)
+        timeout-minutes: 35
+        env:
+          ENGINE: webkit
+          SHARD: ${{ matrix.shard }}/4
+          DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          mkdir -p .airig/ci
+          pnpm verify:product --stage browser --engine "$ENGINE" --shard "$SHARD" --expect-digest "$DIGEST" > .airig/ci/product.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/product.log; echo 'product: blocked; private evidence retained'; exit 1; }
+          echo 'product: passed'
+      - name: Experiment diagnostics (after the tests)
+        if: always()
+        run: |
+          echo "core files: $(find . "$RUNNER_TEMP" -xdev -type f \( -name core -o -name 'core.[0-9]*' \) -size +100k | wc -l)"
+          echo "host coredumps: $(coredumpctl list --no-pager --no-legend | wc -l)"
+          node -e '
+            const fs = require("fs");
+            for (const d of fs.readdirSync(".airig/product").filter(d => d.startsWith("run-"))) {
+              const f = ".airig/product/" + d + "/report.json";
+              if (!fs.existsSync(f)) continue;
+              const r = JSON.parse(fs.readFileSync(f, "utf8"));
+              const durs = [], byFile = {};
+              const walk = s => { for (const sp of s.specs || []) for (const t of sp.tests || []) for (const x of t.results || []) { durs.push(x.duration); byFile[sp.file] = (byFile[sp.file] || 0) + x.duration; } for (const c of s.suites || []) walk(c); };
+              r.suites.forEach(walk);
+              durs.sort((a, b) => a - b);
+              const q = p => durs[Math.floor(p * (durs.length - 1))];
+              console.log("tests", durs.length, "wall ms", Math.round(r.stats.duration), "sum ms", durs.reduce((a, b) => a + b, 0), "p10", q(0.1), "p50", q(0.5), "p90", q(0.9), "max", durs.at(-1));
+              for (const [k, v] of Object.entries(byFile).sort((a, b) => b[1] - a[1]).slice(0, 15)) console.log("file", k, v);
+            }'
 
   upstream:
     needs: build
