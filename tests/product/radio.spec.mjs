@@ -76,6 +76,9 @@ test('sl-radio registers as the exported class with no core marker attribute or 
 
 test('structure: base, control (control--checked), the system radio icon and the label slot, as Shoelace renders them', async ({ page }) => {
   const { frame } = await openExample(page);
+  // The checked radio's icon fetches and draws its SVG after its first update (sl-icon's setIcon), so the draw is awaited first.
+  await expect.poll(() => frame.locator('body').evaluate(() => Boolean(document.querySelector('sl-radio')?.shadowRoot
+    ?.querySelector('.radio__control sl-icon')?.shadowRoot?.querySelector('svg circle')))).toBe(true);
   const structure = await frame.locator('body').evaluate(() => [...document.querySelectorAll('sl-radio')].slice(0, 2).map(el => {
     const root = el.shadowRoot;
     const base = root.querySelector('[part="base"]');

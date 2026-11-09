@@ -107,6 +107,8 @@ test('sl-icon-button registers inside the example document as the exported class
 
 test('default: a base part that is a native button around the aria-hidden gear sl-icon', async ({ page }) => {
   const { frame } = await openPage(page);
+  // The icon fetches and draws its SVG after its first update (sl-icon's setIcon), so the draw is awaited before the snapshot.
+  await expect.poll(() => frame.locator('#demo-default').evaluate(el => Boolean(el.shadowRoot.querySelector('sl-icon')?.shadowRoot?.querySelector('svg')))).toBe(true);
   const r = await frame.locator('#demo-default').evaluate(async el => {
     const icon = el.shadowRoot.querySelector('sl-icon');
     await icon.updateComplete;
@@ -501,12 +503,14 @@ test('icon attributes: name, library and src go to the inner sl-icon, which draw
     <sl-icon-button id="s" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M0 0h16v16H0z'/%3E%3C/svg%3E" label="s"></sl-icon-button>
     <sl-icon-button id="lib" library="system" name="chevron-down" label="lib"></sl-icon-button>
   </div>`);
+  // Each icon fetches and draws its SVG after its first update (sl-icon's setIcon); the draws are awaited before the read.
+  await expect.poll(() => frame.locator('#ia sl-icon-button').evaluateAll(els => els.map(el => Boolean(el.shadowRoot.querySelector('sl-icon')?.shadowRoot?.querySelector('svg')))))
+    .toEqual([true, true, true]);
   const r = await frame.locator('#ia').evaluate(async wrap => {
     const out = {};
     for (const el of wrap.querySelectorAll('sl-icon-button')) {
       const icon = el.shadowRoot.querySelector('sl-icon');
       await icon.updateComplete;
-      for (let i = 0; i < 50 && !icon.shadowRoot.querySelector('svg'); i++) await new Promise(resolve => setTimeout(resolve, 20));
       out[el.id] = { attrs: icon.getAttributeNames().sort(), drawn: Boolean(icon.shadowRoot.querySelector('svg')), props: [icon.name, icon.library, icon.src?.slice(0, 15)] };
     }
     // A later change reaches the icon.

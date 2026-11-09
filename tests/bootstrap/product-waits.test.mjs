@@ -47,12 +47,13 @@ test('only specs that record the requests a page made wait for the network to go
 // A spec helper (a top-level function) that waits for the network to go quiet makes every test that opens a page through
 // it wait, although only the tests that read the requests need it; its bound adds to the page's own waits and can use up a
 // test's time on a loaded runner (tab-panel.spec.mjs:203 timed out that way). The tests that read the requests call
-// documentsLoaded in their own body.
+// documentsLoaded in their own body. A top-level hook (test.beforeEach and the like) runs for every test, so it counts as
+// a helper.
 function networkWaitsInHelpers(text) {
   let context = 'top';
   const found = [];
   for (const line of text.split('\n')) {
-    if (/^(?:async\s+)?function\b|^(?:const|let)\s/.test(line)) context = 'helper';
+    if (/^(?:async\s+)?function\b|^(?:const|let)\s|^test\.(?:before|after)(?:Each|All)\b/.test(line)) context = 'helper';
     else if (/^(?:test|for)\b/.test(line)) context = 'test';
     if (context === 'helper' && /\bdocumentsLoaded\s*\(/.test(line) && !/^import\b/.test(line)) found.push(line.trim());
   }
@@ -71,6 +72,8 @@ test('the helper network-wait check recognizes the patterns it guards', () => {
     "async function openExample(page) {\n  await openDocs(page, PAGE);\n  await documentsLoaded(page);\n  return {};\n}",
     "const open = async page => {\n  await openDocs(page, PAGE);\n  await documentsLoaded(page);\n};",
     "function openPage(page) {\n  return openDocs(page, PAGE).then(() => documentsLoaded(page));\n}",
+    "test.beforeEach(async ({ page }) => {\n  await openDocs(page, PAGE);\n  await documentsLoaded(page);\n});",
+    "test.beforeAll(async ({ browser }) => {\n  await documentsLoaded(await browser.newPage());\n});",
   ];
   const allowed = [
     "import { documentsLoaded } from './support/loaded.mjs';\nasync function openExample(page) {\n  await openDocs(page, PAGE);\n}\ntest('requests', async ({ page }) => {\n  await openExample(page);\n  await documentsLoaded(page);\n});",

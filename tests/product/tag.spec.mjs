@@ -222,6 +222,8 @@ test('pill: the radius is the pill token on every size, and nothing else changes
 test('removable example: a remove button that is an sl-icon-button, with the x-lg system icon, the localized Remove label, tabindex -1 and the exported base part', async ({ page }) => {
   const { example } = await openPage(page);
   const frame = example('Removable');
+  // The icon fetches and draws its SVG after its first update (sl-icon's setIcon), so the draw is awaited before the snapshot.
+  await expect.poll(() => frame.locator('sl-tag').first().evaluate(el => Boolean(el.shadowRoot.querySelector('sl-icon-button')?.shadowRoot?.querySelector('sl-icon')?.shadowRoot?.querySelector('svg')))).toBe(true);
   const r = await frame.locator('sl-tag').first().evaluate(async el => {
     const button = el.shadowRoot.querySelector('sl-icon-button');
     await button.updateComplete;

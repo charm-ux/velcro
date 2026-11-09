@@ -90,6 +90,8 @@ test('sl-avatar registers inside the example document as the exported class, wit
 test('default: a base part with role="img" and the label, around the icon part with the system person-fill sl-icon in the icon slot', async ({ page }) => {
   const { frame } = await openPage(page);
   const el = frame.locator('#demo-default');
+  // The icon fetches and draws its SVG after its first update (sl-icon's setIcon), so the draw is awaited before the snapshot.
+  await expect.poll(() => el.evaluate(el => Boolean(el.shadowRoot.querySelector('slot[name="icon"] sl-icon')?.shadowRoot?.querySelector('svg')))).toBe(true);
   const r = await el.evaluate(async el => {
     const icon = el.shadowRoot.querySelector('slot[name="icon"] sl-icon');
     await icon.updateComplete;
