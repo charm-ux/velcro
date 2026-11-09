@@ -1,16 +1,71 @@
-// Adapted from Shoelace v2.20.1 (`scrollIntoView` from src/internal/scroll.ts and `getOffset` from src/internal/offset.ts),
-// Copyright (c) 2020 A Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md. Only the two helpers the tab group
-// and the select use are taken; the logic is unchanged. Internal: not part of the package exports.
+// Adapted from Shoelace v2.20.1 (src/internal/scroll.ts), Copyright (c) 2020 A Beautiful Site, LLC, MIT License.
+// See THIRD_PARTY_NOTICES.md. No change to the behavior: the body scroll lock (the `sl-scroll-lock` class on <html>, whose
+// rules come from Shoelace's _utility.css in Velcro's themes) is counted per locking element. Internal; not a package export.
+
+import { getOffset } from './offset.js';
+
+const locks = new Set();
+
+/** Returns the width of the document's scrollbar */
+function getScrollbarWidth() {
+  const documentWidth = document.documentElement.clientWidth;
+  return Math.abs(window.innerWidth - documentWidth);
+}
 
 /**
- * Returns an element's offset relative to its parent. Similar to element.offsetTop and element.offsetLeft, except the
- * parent doesn't have to be positioned relative or absolute.
+ * Used in conjunction with `scrollbarWidth` to set proper body padding in case the user has padding already on the `<body>` element.
  */
-export function getOffset(element: HTMLElement, parent: HTMLElement) {
-  return {
-    top: Math.round(element.getBoundingClientRect().top - parent.getBoundingClientRect().top),
-    left: Math.round(element.getBoundingClientRect().left - parent.getBoundingClientRect().left),
-  };
+function getExistingBodyPadding() {
+  const padding = Number(getComputedStyle(document.body).paddingRight.replace(/px/, ''));
+
+  if (isNaN(padding) || !padding) {
+    return 0;
+  }
+
+  return padding;
+}
+
+/**
+ * Prevents body scrolling. Keeps track of which elements requested a lock so multiple levels of locking are possible
+ * without premature unlocking.
+ */
+export function lockBodyScrolling(lockingEl: HTMLElement) {
+  locks.add(lockingEl);
+
+  // When the first lock is created, set the scroll lock size to match the scrollbar's width to prevent content from
+  // shifting. We only do this on the first lock because the scrollbar width will measure zero after overflow is hidden.
+  if (!document.documentElement.classList.contains('sl-scroll-lock')) {
+    /** Scrollbar width + body padding calculation can go away once Safari has scrollbar-gutter support. */
+    const scrollbarWidth = getScrollbarWidth() + getExistingBodyPadding(); // must be measured before the `sl-scroll-lock` class is applied
+
+    let scrollbarGutterProperty = getComputedStyle(document.documentElement).scrollbarGutter;
+
+    // default is auto, unsupported browsers is "undefined"
+    if (!scrollbarGutterProperty || scrollbarGutterProperty === 'auto') {
+      scrollbarGutterProperty = 'stable';
+    }
+
+    /** Sometimes the scrollbar width is 1px, even then, we assume nothing is overflowing. */
+    if (scrollbarWidth < 2) {
+      // if there's no scrollbar, just set it to an empty string so whatever the user has set gets used. This is useful if the page is not overflowing and showing a scrollbar, or if the user has overflow: hidden, or any other reason a scrollbar may not be showing.
+      scrollbarGutterProperty = '';
+    }
+    document.documentElement.style.setProperty('--sl-scroll-lock-gutter', scrollbarGutterProperty);
+    document.documentElement.classList.add('sl-scroll-lock');
+    document.documentElement.style.setProperty('--sl-scroll-lock-size', `${scrollbarWidth}px`);
+  }
+}
+
+/**
+ * Unlocks body scrolling. Scrolling will only be unlocked once all elements that requested a lock call this method.
+ */
+export function unlockBodyScrolling(lockingEl: HTMLElement) {
+  locks.delete(lockingEl);
+
+  if (locks.size === 0) {
+    document.documentElement.classList.remove('sl-scroll-lock');
+    document.documentElement.style.removeProperty('--sl-scroll-lock-size');
+  }
 }
 
 /** Scrolls an element into view of its container. If the element is already in view, nothing will happen. */
