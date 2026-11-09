@@ -223,20 +223,20 @@ test('keyboard: Tab focuses with Shoelace\'s focus ring, Space toggles, Enter do
   });
   await frame.locator('#start').focus();
   await page.keyboard.press('Tab');
-  expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-small');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-small');
   const ring = await small.evaluate(el => {
     const control = getComputedStyle(el.shadowRoot.querySelector('[part~="control"]'));
     return { style: control.outlineStyle, width: control.outlineWidth, offset: control.outlineOffset };
   });
   expect(ring).toEqual({ style: 'solid', width: '3px', offset: '1px' });
   await page.keyboard.press('Space');
-  expect(await small.evaluate(el => el.checked)).toBe(true);
+  await expect.poll(() => small.evaluate(el => el.checked)).toBe(true);
   // Checked + focus keeps the ring.
   expect(await small.evaluate(el => getComputedStyle(el.shadowRoot.querySelector('[part~="control"]')).outlineStyle)).toBe('solid');
   await page.keyboard.press('Enter');
-  expect(await small.evaluate(el => el.checked)).toBe(true);
+  await expect.poll(() => small.evaluate(el => el.checked)).toBe(true);
   await page.keyboard.press('Tab');
-  expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-medium');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-medium');
   expect(await small.evaluate(() => window.__events)).toEqual(['sl-focus', 'sl-change', 'sl-input', 'sl-blur']);
 });
 
@@ -257,6 +257,8 @@ test('disabled: clicks do not toggle, Tab skips it, and the inner checkbox is di
   });
   await frame.locator('#start').focus();
   await page.keyboard.press('Tab');
+  // Tab moves the focus off the start button, and not to the disabled control.
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).not.toBe('start');
   expect(await frame.locator('body').evaluate(() => document.activeElement?.localName)).not.toBe('sl-checkbox');
 });
 
@@ -397,7 +399,7 @@ test('core extensions kept: readonly, label fallback, hide-label and error-messa
   await ro.locator('[part~="control"]').click();
   await ro.locator('input').focus();
   await page.keyboard.press('Space');
-  expect(await ro.evaluate(el => ({ checked: el.checked, inner: el.shadowRoot.querySelector('input').checked, events: window.__roEvents }))).toEqual({ checked: false, inner: false, events: [] });
+  await expect.poll(() => ro.evaluate(el => ({ checked: el.checked, inner: el.shadowRoot.querySelector('input').checked, events: window.__roEvents }))).toEqual({ checked: false, inner: false, events: [] });
   await expect(frame.getByRole('checkbox', { name: 'From attribute' })).toHaveCount(1);
   const hidden = await frame.locator('#hidden').evaluate(el => ({
     label: el.shadowRoot.querySelector('[part~="label"]').getBoundingClientRect().width,

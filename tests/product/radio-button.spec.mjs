@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
@@ -148,12 +149,13 @@ test('upstream quirk: on its own a radio button is checked by a click or Space (
   await frame.locator('#solo').click();
   expect(await state()).toEqual([true, false]);
   await frame.locator('#solo').evaluate(el => el.focus());
-  for (const key of ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp']) await page.keyboard.press(key);
+  await recordKeys(frame.locator('body'));
+  for (const key of ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp']) await pressReceived(page, frame.locator('body'), key);
   expect(await state()).toEqual([true, false]);
   await frame.locator('#solo-2').evaluate(el => el.focus());
   await page.keyboard.press('Space');
   // Space activates the native button, whose click checks it (the first stays checked: nothing unchecks it).
-  expect(await state()).toEqual([true, true]);
+  await expect.poll(() => state()).toEqual([true, true]);
 });
 
 test('upstream quirk: aria-disabled is written on the host only when disabled changes after the first render', async ({ page }) => {

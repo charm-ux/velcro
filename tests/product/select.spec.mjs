@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 
@@ -674,15 +675,17 @@ test('upstream quirk: the keyboard highlights disabled options, and Enter on one
   await mount(page, `<button id="before">before</button><sl-select label="Choose"><sl-option value="a">Alpha</sl-option><sl-option value="b" disabled>Beta</sl-option><sl-option value="c">Gamma</sl-option></sl-select>`);
   await page.locator('#before').focus();
   await page.keyboard.press('Tab');
-  await page.keyboard.press('ArrowDown');
-  await expect.poll(() => page.locator('sl-select').evaluate(el => el.open)).toBe(true);
-  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => page.evaluate(() => document.activeElement?.localName)).toBe('sl-select');
   const state = () => page.locator('sl-select').evaluate(el => [el.open, el.value, [...el.querySelectorAll('sl-option')].map(o => o.current)]);
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(state).toEqual([true, '', [true, false, false]]);
+  await page.keyboard.press('ArrowDown');
   await expect.poll(state).toEqual([true, '', [false, true, false]]);
-  await page.keyboard.press('Enter');
-  await expect.poll(state).toEqual([true, '', [false, true, false]]);
-  await page.keyboard.type('b');
-  await expect.poll(state).toEqual([true, '', [false, true, false]]);
+  await recordKeys(page);
+  await pressReceived(page, page, 'Enter');
+  expect(await state()).toEqual([true, '', [false, true, false]]);
+  await pressReceived(page, page, 'b');
+  expect(await state()).toEqual([true, '', [false, true, false]]);
   // Forced: Playwright waits for an aria-disabled element to be enabled before it clicks.
   await page.getByRole('option', { name: 'Beta' }).click({ force: true });
   expect(await state()).toEqual([true, '', [false, true, false]]);

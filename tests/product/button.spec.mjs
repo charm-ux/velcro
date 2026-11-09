@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, exampleFits, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
@@ -70,8 +71,7 @@ test('disabled: a native button swallows clicks and is not keyboard focusable', 
   await expect(frame.locator('#demo-disabled-count')).toHaveText('0');
   await frame.locator('#demo-default').focus();
   await page.keyboard.press('Tab');
-  const active = await frame.locator('body').evaluate(() => document.activeElement?.getAttribute('variant'));
-  expect(active).toBe('success');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.getAttribute('variant'))).toBe('success');
 });
 
 test('keyboard focus: Tab reaches the button, shows a focus ring, Enter/Space activate, sl-focus/sl-blur fire', async ({ page }) => {
@@ -82,18 +82,22 @@ test('keyboard focus: Tab reaches the button, shows a focus ring, Enter/Space ac
     el.addEventListener('sl-focus', () => window.__events.push('sl-focus'));
     el.addEventListener('sl-blur', () => window.__events.push('sl-blur'));
   });
-  const activeId = () => frame.locator('body').evaluate(() => document.activeElement?.id);
+  // The focused button's id, else its variant.
+  const activeKey = () => frame.locator('body').evaluate(() => document.activeElement?.id || document.activeElement?.getAttribute('variant'));
   await frame.locator('#demo-count').click();
-  for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+Tab');
-  expect(await activeId()).toBe('demo-primary');
+  // Shift+Tab walks back over the two buttons without an id and the disabled one to the primary button.
+  for (const expected of ['danger', 'success', 'demo-default', 'demo-primary']) {
+    await page.keyboard.press('Shift+Tab');
+    await expect.poll(activeKey).toBe(expected);
+  }
   const outline = await primary.evaluate(el => getComputedStyle(el.shadowRoot.querySelector('[part~="base"]')).outlineStyle);
   expect(outline).not.toBe('none');
   await page.keyboard.press('Enter');
+  await expect(frame.locator('#demo-count')).toHaveText('1');
   await page.keyboard.press('Space');
   await expect(frame.locator('#demo-count')).toHaveText('2');
   await page.keyboard.press('Tab');
-  const events = await primary.evaluate(() => window.__events);
-  expect(events).toEqual(['sl-focus', 'sl-blur']);
+  await expect.poll(() => primary.evaluate(() => window.__events)).toEqual(['sl-focus', 'sl-blur']);
 });
 
 test('no upstream Shoelace runtime is requested or defined', async ({ page }) => {
@@ -451,8 +455,9 @@ test('forms: keyboard Enter and Space on a focused submit button submit the form
   });
   await frame.locator('#kbd-submit').focus();
   await page.keyboard.press('Enter');
+  await expect.poll(() => frame.locator('body').evaluate(() => window.__kbdSubmits)).toBe(1);
   await page.keyboard.press('Space');
-  expect(await frame.locator('body').evaluate(() => window.__kbdSubmits)).toBe(2);
+  await expect.poll(() => frame.locator('body').evaluate(() => window.__kbdSubmits)).toBe(2);
 });
 
 test('validation API: setCustomValidity on a submit button blocks submit and emits a cancelable sl-invalid', async ({ page }) => {
@@ -562,7 +567,8 @@ test('forms (Shoelace parity): a disabled fieldset does not disable the button, 
     await host.querySelector('sl-button').updateComplete;
   });
   await frame.locator('#implicit-a').focus();
-  await page.keyboard.press('Enter');
+  await recordKeys(frame.locator('body'));
+  await pressReceived(page, frame.locator('body'), 'Enter');
   expect(await frame.locator('body').evaluate(() => window.__implicitSubmits)).toBe(0);
 });
 

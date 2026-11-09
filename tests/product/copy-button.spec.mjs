@@ -729,11 +729,11 @@ test.describe('top-level documents', () => {
     expect(ring).toEqual([want['outline-style'], want['outline-width'], want['outline-color'], want['outline-offset']]);
     expect(ring[0]).toBe('solid');
     await page.keyboard.press('Enter');
+    await expect.poll(async () => (await copiedAndEvents(page)).copied).toEqual(['v']);
     await settled(page);
-    expect((await copiedAndEvents(page)).copied).toEqual(['v']);
     await page.keyboard.press('Space');
+    await expect.poll(() => copiedAndEvents(page)).toEqual({ copied: ['v', 'v'], events: ['sl-copy', 'sl-copy'] });
     await settled(page);
-    expect(await copiedAndEvents(page)).toEqual({ copied: ['v', 'v'], events: ['sl-copy', 'sl-copy'] });
     await page.keyboard.press('Tab');
     await expect.poll(active).toBe('after');
     await page.keyboard.press('Shift+Tab');

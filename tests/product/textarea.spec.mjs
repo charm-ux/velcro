@@ -67,12 +67,19 @@ const addStartButton = frame => frame.locator('body').evaluate(body => {
 });
 
 // Types `count` lines ("line 0", "line 1", ...) into a textarea with the keyboard, the way a user does: a key press per
-// character and Enter between lines, so every engine delivers one input event per edit.
+// character and Enter between lines, so every engine delivers one input event per edit. Each step waits for its text.
 async function typeLines(page, textarea, count) {
   await textarea.focus();
+  let value = '';
   for (let i = 0; i < count; i++) {
     await page.keyboard.type(`line ${i}`);
-    if (i < count - 1) await page.keyboard.press('Enter');
+    value += `line ${i}`;
+    await expect(textarea).toHaveValue(value);
+    if (i < count - 1) {
+      await page.keyboard.press('Enter');
+      value += '\n';
+      await expect(textarea).toHaveValue(value);
+    }
   }
 }
 
@@ -300,6 +307,8 @@ test('placeholder, filled and disabled render as in Shoelace', async ({ page, br
   await addStartButton(disabled.frame);
   await disabled.frame.locator('#start').focus();
   await page.keyboard.press('Tab');
+  // Tab moves the focus off the start button, and not to the disabled control.
+  await expect.poll(() => disabled.frame.locator('body').evaluate(() => document.activeElement?.id)).not.toBe('start');
   expect(await disabled.frame.locator('body').evaluate(() => document.activeElement?.localName)).not.toBe('sl-textarea');
 });
 
@@ -418,7 +427,9 @@ test('events: sl-input per edit and sl-change on commit bubble and are composed;
     document.body.addEventListener('change', () => window.__events.push('body change'));
   });
   await el.locator('textarea').pressSequentially('ab');
+  await expect.poll(() => el.evaluate(el => el.value)).toBe('ab');
   await page.keyboard.press('Tab');
+  await expect.poll(() => el.evaluate(() => window.__events.filter(e => e.startsWith('sl-blur')).length)).toBe(1);
   const events = await el.evaluate(() => window.__events);
   // Shoelace's events bubble, are composed and not cancelable. The platform's composed input event also reaches the host;
   // the native change event does not leave the inner textarea.
@@ -448,19 +459,21 @@ test('keyboard: Tab focuses the textarea, Enter adds a line, the focus state fol
   await addStartButton(frame);
   await frame.locator('#start').focus();
   await page.keyboard.press('Tab');
-  expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-default');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-default');
   await page.keyboard.press('Tab');
-  expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('kb');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('kb');
   expect(await frame.locator('#kb').evaluate(el => [el.shadowRoot.activeElement?.localName, el.shadowRoot.querySelector('[part="base"]').classList.contains('textarea--focused')])).toEqual(['textarea', true]);
   await page.keyboard.type('a');
+  await expect.poll(() => frame.locator('#kb').evaluate(el => el.value)).toBe('a');
   await page.keyboard.press('Enter');
+  await expect.poll(() => frame.locator('#kb').evaluate(el => el.value)).toBe('a\n');
   await page.keyboard.type('b');
-  expect(await frame.locator('#kb').evaluate(el => el.value)).toBe('a\nb');
+  await expect.poll(() => frame.locator('#kb').evaluate(el => el.value)).toBe('a\nb');
   await page.keyboard.press('Shift+Tab');
-  expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-default');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-default');
   expect(await frame.locator('#kb').evaluate(el => el.shadowRoot.querySelector('[part="base"]').classList.contains('textarea--focused'))).toBe(false);
   await frame.locator('#max textarea').pressSequentially('abcdef');
-  expect(await frame.locator('#max').evaluate(el => [el.value, el.maxlength, el.shadowRoot.querySelector('textarea').getAttribute('maxlength')])).toEqual(['abc', 3, '3']);
+  await expect.poll(() => frame.locator('#max').evaluate(el => [el.value, el.maxlength, el.shadowRoot.querySelector('textarea').getAttribute('maxlength')])).toEqual(['abc', 3, '3']);
 });
 
 test('forms: name and value are submitted, a required empty textarea blocks submit, and reset restores the default value', async ({ page }) => {
@@ -532,13 +545,12 @@ test('validation: required, minlength, maxlength and setCustomValidity use the i
     <sl-textarea id="cust"></sl-textarea>
     <sl-textarea id="dis" required disabled></sl-textarea>`);
   await frame.locator('#min textarea').pressSequentially('abc');
-  const short = await frame.locator('#min').evaluate(async el => {
+  await expect.poll(() => frame.locator('#min').evaluate(async el => {
     await el.updateComplete;
     return { valid: el.checkValidity(), tooShort: el.validity.tooShort, message: typeof el.validationMessage, attr: [el.hasAttribute('data-invalid'), el.hasAttribute('data-valid')], min: [el.minlength, el.shadowRoot.querySelector('textarea').getAttribute('minlength')] };
-  });
-  expect(short).toEqual({ valid: false, tooShort: true, message: 'string', attr: [true, false], min: [5, '5'] });
+  })).toEqual({ valid: false, tooShort: true, message: 'string', attr: [true, false], min: [5, '5'] });
   await frame.locator('#min textarea').pressSequentially('de');
-  expect(await frame.locator('#min').evaluate(async el => { await el.updateComplete; return [el.checkValidity(), el.hasAttribute('data-valid')]; })).toEqual([true, true]);
+  await expect.poll(() => frame.locator('#min').evaluate(async el => { await el.updateComplete; return [el.checkValidity(), el.hasAttribute('data-valid')]; })).toEqual([true, true]);
 
   const cust = await frame.locator('#cust').evaluate(async el => {
     const seen = [];
@@ -766,7 +778,7 @@ test('core extensions kept: hide-label and error-message; invalid and label-posi
   await mount(frame, '<sl-textarea id="ro" readonly value="fixed"></sl-textarea>');
   await frame.locator('#ro textarea').click();
   await page.keyboard.type('x');
-  expect(await frame.locator('#ro').evaluate(el => [el.value, el.shadowRoot.querySelector('textarea').readOnly])).toEqual(['fixed', true]);
+  await expect.poll(() => frame.locator('#ro').evaluate(el => [el.value, el.shadowRoot.querySelector('textarea').readOnly])).toEqual(['fixed', true]);
 });
 
 test('dir and lang are reactive, not reflected and undefined by default, as Shoelace\'s base element declares them', async ({ page }) => {
@@ -1069,6 +1081,7 @@ test.describe('React examples', () => {
     });
     expect(await read()).toEqual({ ctor: true, label: 'Notes', help: 'Be brief', rows: [3, 3], value: ['', ''], name: 'notes', resize: 'auto', size: 'large' });
     await page.locator('sl-textarea textarea').pressSequentially('ab');
+    await expect(page.locator('sl-textarea textarea')).toHaveValue('ab');
     // Leave the textarea through the blur() that Playwright calls on the inner element: a Tab out of the only focusable
     // element does not blur it in every engine.
     await page.locator('sl-textarea textarea').blur();

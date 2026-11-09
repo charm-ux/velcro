@@ -652,14 +652,14 @@ test('Velcro extension toolbar: role toolbar, a roving tab index and arrow keys 
   expect(first.tabindex).toEqual(['0', '-1', '-1', null, null]);
   await frame.locator('#t1 .button').focus();
   await frame.locator('#t1').press('ArrowRight');
-  expect((await read()).focusedInside).toBe('t2');
+  await expect.poll(async () => (await read()).focusedInside).toBe('t2');
   expect((await read()).tabindex).toEqual(['-1', '0', '-1', null, null]);
   await frame.locator('#t2').press('ArrowDown');
-  expect((await read()).focusedInside).toBe('t3');
+  await expect.poll(async () => (await read()).focusedInside).toBe('t3');
   await frame.locator('#t3').press('ArrowRight');
-  expect((await read()).focusedInside).toBe('t1');
+  await expect.poll(async () => (await read()).focusedInside).toBe('t1');
   await frame.locator('#t1').press('ArrowLeft');
-  expect((await read()).focusedInside).toBe('t3');
+  await expect.poll(async () => (await read()).focusedInside).toBe('t3');
   // A group without toolbar leaves the arrow keys alone.
   const prevented = await frame.locator('#p1').evaluate(el => {
     el.focus();
@@ -705,7 +705,7 @@ test('removing the toolbar extension releases it: the role, the arrow keys, the 
   // The arrow keys move focus while it is a toolbar.
   await frame.locator('#t1 .button').focus();
   await page.keyboard.press('ArrowRight');
-  expect((await read()).active).toBe('t2');
+  await expect.poll(async () => (await read()).active).toBe('t2');
   await frame.locator('#t1 .button').focus();
 
   await frame.locator('body').evaluate(async () => {
@@ -717,7 +717,7 @@ test('removing the toolbar extension releases it: the role, the arrow keys, the 
   // `child` only had toolbar because `parent` gave it; `kept` had its own toolbar attribute and keeps it.
   expect(await read()).toMatchObject({ role: ['group', 'group', 'group', 'group', 'toolbar'], tabindex: [null, null, '3'], toolbar: [false, false, false, false, true], property: false });
   await page.keyboard.press('ArrowRight');
-  expect((await read()).active).toBe('t1');
+  await expect.poll(async () => (await read()).active).toBe('t1');
   const prevented = await frame.locator('#t1').evaluate(el => {
     const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, composed: true, cancelable: true });
     el.shadowRoot.querySelector('.button').dispatchEvent(event);

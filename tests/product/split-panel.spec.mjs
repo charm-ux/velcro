@@ -165,9 +165,9 @@ test('the divider is a named separator with value semantics and is the split pan
   await host.locator('.divider').focus();
   expect(await host.evaluate(el => el.shadowRoot.activeElement?.className)).toBe('divider');
   await page.keyboard.press('Tab');
-  expect(await host.evaluate(el => el.shadowRoot.activeElement)).toBeNull();
+  await expect.poll(() => host.evaluate(el => el.shadowRoot.activeElement)).toBeNull();
   await page.keyboard.press('Shift+Tab');
-  expect(await host.evaluate(el => el.shadowRoot.activeElement?.className)).toBe('divider');
+  await expect.poll(() => host.evaluate(el => el.shadowRoot.activeElement?.className)).toBe('divider');
 });
 
 test('properties: defaults, attribute reflection, types, and restore of the initial value when a reflected attribute is removed', async ({ page }) => {
@@ -301,50 +301,54 @@ test('keyboard: arrows move 1%, shift moves 10%, Home/End jump, Enter collapses 
   const host = await mount(frame);
   const divider = host.locator('.divider');
   await divider.focus();
-  const press = async key => { await page.keyboard.press(key); await host.evaluate(el => el.updateComplete); return position(host); };
-  expect(await press('ArrowRight')).toBe(51);
-  expect(await press('ArrowLeft')).toBe(50);
-  expect(await press('Shift+ArrowLeft')).toBe(40);
-  expect(await press('Shift+ArrowRight')).toBe(50);
+  // Presses a key and waits for the position it should produce.
+  const press = async (key, expected) => { await page.keyboard.press(key); await expect.poll(() => position(host), key).toBe(expected); };
+  await press('ArrowRight', 51);
+  await press('ArrowLeft', 50);
+  await press('Shift+ArrowLeft', 40);
+  await press('Shift+ArrowRight', 50);
   // Up and down do not move a horizontal panel, but (as upstream) every accepted key is prevented first, so the page
   // cannot be scrolled with them while the divider has focus.
   await host.evaluate(() => { window.keydownDefaultPrevented = []; document.addEventListener('keydown', event => window.keydownDefaultPrevented.push([event.key, event.defaultPrevented])); });
-  expect(await press('ArrowUp')).toBe(50);
-  expect(await press('ArrowDown')).toBe(50);
-  expect(await host.evaluate(() => window.keydownDefaultPrevented)).toEqual([['ArrowUp', true], ['ArrowDown', true]]);
-  expect(await press('Home')).toBe(0);
-  expect(await press('ArrowLeft')).toBe(0);
-  expect(await press('End')).toBe(100);
-  expect(await press('ArrowRight')).toBe(100);
+  await press('ArrowUp', 50);
+  await press('ArrowDown', 50);
+  await expect.poll(() => host.evaluate(() => window.keydownDefaultPrevented)).toEqual([['ArrowUp', true], ['ArrowDown', true]]);
+  await press('Home', 0);
+  await press('ArrowLeft', 0);
+  await press('End', 100);
+  await press('ArrowRight', 100);
   await host.evaluate(async el => { el.position = 35; await el.updateComplete; });
   // Enter collapses the start panel; Enter again restores the earlier position.
-  expect(await press('Enter')).toBe(0);
-  await page.waitForTimeout(100);
-  expect(await press('Enter')).toBe(35);
-  expect(await press('Enter')).toBe(0);
-  await page.waitForTimeout(100);
+  // Enter marks the panel collapsed in the next animation frame (as upstream), so each collapse waits for that state.
+  const collapsed = () => expect.poll(() => host.evaluate(el => el.isCollapsed), 'collapsed').toBe(true);
+  await press('Enter', 0);
+  await collapsed();
+  await press('Enter', 35);
+  await press('Enter', 0);
+  await collapsed();
   // Any other position change forgets the collapsed state: the next Enter collapses again instead of restoring.
-  expect(await press('ArrowRight')).toBe(1);
-  expect(await press('Enter')).toBe(0);
+  await press('ArrowRight', 1);
+  await press('Enter', 0);
 });
 
 test('keyboard: arrows are inverted for an end primary panel, and vertical panels use up and down', async ({ page }) => {
   const { frame } = await openExample(page);
   const end = await mount(frame, { primary: 'end' });
   await end.locator('.divider').focus();
-  const press = async (host, key) => { await page.keyboard.press(key); await host.evaluate(el => el.updateComplete); return position(host); };
-  expect(await press(end, 'ArrowRight')).toBe(49);
-  expect(await press(end, 'ArrowLeft')).toBe(50);
-  expect(await press(end, 'Shift+ArrowLeft')).toBe(60);
-  expect(await press(end, 'Home')).toBe(100);
-  expect(await press(end, 'End')).toBe(0);
+  // Presses a key and waits for the position it should produce.
+  const press = async (host, key, expected) => { await page.keyboard.press(key); await expect.poll(() => position(host), key).toBe(expected); };
+  await press(end, 'ArrowRight', 49);
+  await press(end, 'ArrowLeft', 50);
+  await press(end, 'Shift+ArrowLeft', 60);
+  await press(end, 'Home', 100);
+  await press(end, 'End', 0);
   const vertical = await mount(frame, { vertical: '' }, { style: 'width: 300px; height: 300px;' });
   await vertical.locator('.divider').focus();
-  expect(await press(vertical, 'ArrowDown')).toBe(51);
-  expect(await press(vertical, 'ArrowUp')).toBe(50);
-  expect(await press(vertical, 'ArrowRight')).toBe(50);
-  expect(await press(vertical, 'ArrowLeft')).toBe(50);
-  expect(await press(vertical, 'Shift+ArrowDown')).toBe(60);
+  await press(vertical, 'ArrowDown', 51);
+  await press(vertical, 'ArrowUp', 50);
+  await press(vertical, 'ArrowRight', 50);
+  await press(vertical, 'ArrowLeft', 50);
+  await press(vertical, 'Shift+ArrowDown', 60);
 });
 
 test('disabled: not focusable, ignores keys and dragging, shows the not-allowed cursor, and keeps the position changeable from code', async ({ page }) => {
@@ -359,7 +363,7 @@ test('disabled: not focusable, ignores keys and dragging, shows the not-allowed 
   // Calling focus() on the divider does nothing without a tabindex.
   expect(await host.evaluate(el => { el.shadowRoot.querySelector('.divider').focus(); return el.shadowRoot.activeElement; })).toBeNull();
   await page.keyboard.press('ArrowRight');
-  expect(await position(host)).toBe(50);
+  await expect.poll(() => position(host)).toBe(50);
   // A key event sent straight to the divider is ignored and not prevented.
   const prevented = await host.evaluate(el => {
     const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
@@ -510,8 +514,7 @@ test('dir="rtl": the columns mirror (the start panel is on the right), the posit
   await rtl.locator('.divider').focus();
   const beforeKey = await position(rtl);
   await page.keyboard.press('ArrowRight');
-  await rtl.evaluate(el => el.updateComplete);
-  expect(await position(rtl)).toBe(beforeKey + 1);
+  await expect.poll(() => position(rtl)).toBe(beforeKey + 1);
   // A dir attribute on an ancestor is not seen by the component (Shoelace reads the host's dir and then the document's, nothing in between).
   const inherited = await frame.locator('body').evaluate(async body => {
     const wrap = document.createElement('div');
@@ -645,7 +648,7 @@ test('slots: a custom divider handle is slotted and nested split panels work ind
   await page.keyboard.press('Tab');
   if (!(await host.evaluate(el => el.shadowRoot.activeElement !== null))) await host.locator('.divider').focus();
   await page.keyboard.press('ArrowRight');
-  expect(await host.evaluate(el => [document.hasFocus(), el.shadowRoot.activeElement?.classList.contains('divider')])).toEqual([true, true]);
+  await expect.poll(() => host.evaluate(el => [document.hasFocus(), el.shadowRoot.activeElement?.classList.contains('divider')])).toEqual([true, true]);
   expect(await color()).toBe('rgb(2, 132, 199)');
   const nested = await openExample(page, 'Nested Split Panels');
   const panels = nested.frame.locator('sl-split-panel');
@@ -678,10 +681,9 @@ test('keyboard focus shows the divider in the primary colour; a mouse press does
   // Keyboard: Tab (or, when the page started elsewhere, script focus after a key press) matches :focus-visible.
   const host = await mount(frame);
   await page.keyboard.press('Tab');
-  const focused = await host.evaluate(el => el.matches(':focus-within') || el.shadowRoot.activeElement !== null);
-  if (!focused) await host.locator('.divider').focus();
+  if (!(await host.evaluate(el => el.matches(':focus-within') || el.shadowRoot.activeElement !== null))) await host.locator('.divider').focus();
   await page.keyboard.press('ArrowRight');
-  expect(await background(host)).toBe('rgb(2, 132, 199)');
+  await expect.poll(() => background(host)).toBe('rgb(2, 132, 199)');
   const outline = await host.evaluate(el => getComputedStyle(el.shadowRoot.querySelector('.divider')).outlineStyle);
   expect(outline).toBe('none');
 });
@@ -764,15 +766,13 @@ test('core base styles do not leak into the divider part: no focus outline offse
   // Core's `*:focus-visible { outline-offset: var(--focus-outline-offset) }` would reach the divider with this token set.
   const host = await mount(frame, {}, { style: 'width: 400px; height: 120px; --focus-outline-offset: 8px;' });
   await page.keyboard.press('Tab');
-  const focused = await host.evaluate(el => el.shadowRoot.activeElement !== null);
-  if (!focused) await host.locator('.divider').focus();
+  if (!(await host.evaluate(el => el.shadowRoot.activeElement !== null))) await host.locator('.divider').focus();
   await page.keyboard.press('ArrowRight');
-  const focus = await host.evaluate(el => {
+  // Shoelace does not read the token: the offset stays at its initial value.
+  await expect.poll(() => host.evaluate(el => {
     const cs = getComputedStyle(el.shadowRoot.querySelector('.divider'));
     return [cs.outlineStyle, cs.outlineWidth, cs.outlineOffset];
-  });
-  // Shoelace does not read the token: the offset stays at its initial value.
-  expect(focus).toEqual(['solid', '3px', '0px']);
+  })).toEqual(['solid', '3px', '0px']);
   const width = async style => {
     const box = await mount(frame, {}, { id: 'box', style });
     return box.evaluate(el => el.shadowRoot.querySelector('.divider').getBoundingClientRect().width);

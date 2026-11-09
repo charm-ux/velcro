@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
@@ -137,7 +138,7 @@ test('keyboard: Tab focuses with a visible ring, Space toggles, ArrowRight/Arrow
   });
   await frame.locator('#start').focus();
   await page.keyboard.press('Tab');
-  expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-small');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-small');
   // As in Shoelace, the focus ring is drawn on the thumb and the track darkens.
   const ring = await small.evaluate(el => {
     const thumb = getComputedStyle(el.shadowRoot.querySelector('[part~="thumb"]'));
@@ -145,13 +146,13 @@ test('keyboard: Tab focuses with a visible ring, Space toggles, ArrowRight/Arrow
   });
   expect(ring).toEqual({ style: 'solid', width: '3px', track: 'rgb(161, 161, 170)' });
   await page.keyboard.press('Space');
-  expect(await small.evaluate(el => el.checked)).toBe(true);
+  await expect.poll(() => small.evaluate(el => el.checked)).toBe(true);
   await page.keyboard.press('ArrowLeft');
-  expect(await small.evaluate(el => el.checked)).toBe(false);
+  await expect.poll(() => small.evaluate(el => el.checked)).toBe(false);
   await page.keyboard.press('ArrowRight');
-  expect(await small.evaluate(el => el.checked)).toBe(true);
+  await expect.poll(() => small.evaluate(el => el.checked)).toBe(true);
   await page.keyboard.press('Tab');
-  expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-medium');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-medium');
   expect(await small.evaluate(() => window.__events)).toEqual([
     'sl-focus', 'sl-change', 'sl-input', 'sl-change', 'sl-input', 'sl-change', 'sl-input', 'sl-blur',
   ]);
@@ -174,6 +175,8 @@ test('disabled: clicks do not toggle, Tab skips it, and its styles are dimmed', 
   });
   await frame.locator('#start').focus();
   await page.keyboard.press('Tab');
+  // Tab moves the focus off the start button, and not to the disabled control.
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).not.toBe('start');
   expect(await frame.locator('body').evaluate(() => document.activeElement?.localName)).not.toBe('sl-switch');
 });
 
@@ -267,8 +270,9 @@ test('core extensions kept: readonly, label fallback, hide-label and error-messa
   await ro.locator('[part~="control"]').click();
   await ro.evaluate(el => el.focus());
   expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('ro');
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('Space');
+  await recordKeys(frame.locator('body'));
+  await pressReceived(page, frame.locator('body'), 'ArrowRight');
+  await pressReceived(page, frame.locator('body'), 'Space');
   expect(await ro.evaluate(el => el.checked)).toBe(false);
   await expect(frame.getByRole('switch', { name: 'From attribute' })).toHaveCount(1);
   const hidden = await frame.locator('#hidden').evaluate(el => ({
@@ -361,7 +365,7 @@ test('upstream quirks matched: hidden does not hide it, ArrowLeft on an off swit
   await off.locator('input').focus();
   expect(await off.evaluate(el => [document.hasFocus(), document.activeElement === el, el.shadowRoot.activeElement?.localName])).toEqual([true, true, 'input']);
   await page.keyboard.press('ArrowLeft');
-  expect(await off.evaluate(el => ({ checked: el.checked, events: window.__offEvents }))).toEqual({ checked: false, events: ['sl-change', 'sl-input'] });
+  await expect.poll(() => off.evaluate(el => ({ checked: el.checked, events: window.__offEvents }))).toEqual({ checked: false, events: ['sl-change', 'sl-input'] });
   // Without help text the inner checkbox still points aria-describedby at the (empty) help text, and form="" is reflected.
   expect(await off.evaluate(el => [el.shadowRoot.querySelector('input').getAttribute('aria-describedby'), el.getAttribute('form')])).toEqual(['help-text', '']);
 });

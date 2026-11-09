@@ -640,9 +640,9 @@ test('keyboard: the close button is a tab stop and Enter closes the alert; Escap
   await mount(frame, '<button id="before">before</button><sl-alert id="a" open closable>Message</sl-alert>');
   await frame.locator('#before').focus();
   await page.keyboard.press('Tab');
-  expect(await frame.locator('#a').evaluate(el => el.shadowRoot.activeElement?.localName ?? null)).toBe('sl-icon-button');
+  await expect.poll(() => frame.locator('#a').evaluate(el => el.shadowRoot.activeElement?.localName ?? null)).toBe('sl-icon-button');
   await page.keyboard.press('Escape');
-  expect(await frame.locator('#a').evaluate(el => el.open)).toBe(true);
+  await expect.poll(() => frame.locator('#a').evaluate(el => el.open)).toBe(true);
   await page.keyboard.press('Enter');
   await expect.poll(() => frame.locator('#a').evaluate(el => [el.open, el.base.hidden])).toEqual([false, true]);
 });
