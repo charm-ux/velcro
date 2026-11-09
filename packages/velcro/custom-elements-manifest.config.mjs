@@ -127,9 +127,18 @@ export function velcroInheritance() {
  * manifest keeps, while its separately declared event types use the primitives (`CustomEvent<{ name: string }>`). The
  * manifest keeps Shoelace's text; the wrapper and JSX generators see the primitives, so the generated callback types match
  * Shoelace's event types.
+ *
+ * Likewise an event detail that names another Shoelace component's class (sl-menu's `{ item: SlMenuItem }`) keeps that text
+ * in the manifest, while the generators see a type import of Velcro's class of that name (`SlMenuItem` is
+ * `VelcroMenuItem` in `components/menu-item/menu-item.ts`), because the generated declaration files import only the
+ * element they describe.
  */
 const nativeEvents = new Set(['focus', 'blur']);
 const hidden = new Map();
+const kebab = name => name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+const generatorEventType = text => text
+  .replace(/\b(String|Number|Boolean)\b/g, name => name.toLowerCase())
+  .replace(/\bSl([A-Z]\w*)\b/g, (_, name) => `import('../components/${kebab(name)}/${kebab(name)}.js').Velcro${name}`);
 function hideNativeEvents() {
   return {
     name: 'velcro-hide-native-events',
@@ -137,9 +146,10 @@ function hideNativeEvents() {
       for (const decl of customElementsManifest.modules.flatMap(m => m.declarations ?? [])) {
         if (!decl.events) continue;
         hidden.set(decl, decl.events);
-        decl.events = decl.events.filter(e => !nativeEvents.has(e.name)).map(e => (e.type?.text && /\b(String|Number|Boolean)\b/.test(e.type.text)
-          ? { ...e, type: { ...e.type, text: e.type.text.replace(/\b(String|Number|Boolean)\b/g, name => name.toLowerCase()) } }
-          : e));
+        decl.events = decl.events.filter(e => !nativeEvents.has(e.name)).map(e => {
+          const text = e.type?.text && generatorEventType(e.type.text);
+          return text && text !== e.type.text ? { ...e, type: { ...e.type, text } } : e;
+        });
       }
     },
   };

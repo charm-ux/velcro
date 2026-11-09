@@ -12,7 +12,7 @@ export const pageData = definePageData(async () => ({
 }));
 
 const sections = [
-  ['basic', 'Menu labels in a menu', 'menu-label/basic', 'Shoelace\'s example puts the labels in an sl-menu next to sl-menu-item elements and an sl-divider. Velcro has no menu or menu item yet, so the menu and its items here are plain styled elements; the labels and the divider are the real components.', 'menu-label/react/basic'],
+  ['basic', 'Menu labels in a menu', 'menu-label/basic', 'Shoelace\'s example puts the labels in an sl-menu next to sl-menu-item elements and an sl-divider; here the menu and its items are Velcro\'s own.', 'menu-label/react/basic'],
 ] as const;
 
 // Shoelace 2.20.1 behaviors that look like bugs but are matched exactly (candidates for a later opt-in fix). One line each.
@@ -22,11 +22,11 @@ const quirks = [
 ] as const;
 
 const gaps = [
-  'The Shoelace example uses sl-menu and sl-menu-item, which Velcro does not implement yet. The ported example uses plain styled elements for them, so there is no menu role, no keyboard navigation and no selection, and the Shoelace menu\'s own padding, border and item styling are only approximated. The React example is ported the same way: SlMenu and SlMenuItem are two small stand-in components defined at its top, and the imports of SlDivider and SlMenuLabel point at Velcro\'s generated wrappers (@charm-ux/velcro/react/VelcroDivider.js and VelcroMenuLabel.js, imported under Shoelace\'s names).',
+  'The example is Shoelace\'s, with live sl-menu and sl-menu-item elements. The React example imports Velcro\'s generated wrappers (@charm-ux/velcro/react/VelcroDivider.js, VelcroMenu.js, VelcroMenuLabel.js and VelcroMenuItem.js, imported under Shoelace\'s names); nothing else differs.',
   'Velcro builds on the @charm-ux/core base element (there is no core menu label). The only core extension that remains is the non-bubbling ready event on first update, which the API tables label as inherited from core. Core\'s base styles are replaced by Shoelace\'s (see the first quirk).',
   'dir and lang are declared as Shoelace\'s base element declares them: reactive, not reflected and undefined until set. Core\'s computed dir is not used.',
   'TypeScript types for dir are narrower than Shoelace\'s dir: string. At runtime dir is stored and returned as set, and the setter accepts any string, so element.dir = someString compiles (type-tests/menu-label-dir.tsx checks it). The read type stays core\'s \'ltr\' | \'rtl\' | \'auto\', because a subclass cannot widen an inherited getter\'s type, and everything generated from it follows: the manifest and the API table below, the React wrapper\'s dir prop, and the JSX dir and prop:dir types. Fixing this needs a change in @charm-ux/core and is deferred.',
-  'The product test suite is configured for Chromium, Firefox and WebKit; this component\'s spec was run locally in Chromium and WebKit only, and Firefox is covered only by the project\'s CI run. Shoelace\'s own menu label test, including its axe accessibility check, runs in Chromium only and passes. The accessibility-tree check is Playwright\'s ARIA snapshot, which Playwright computes from the DOM; no screen reader and no browser accessibility API was tried, and there is no RTL check, no check inside a real menu and no pixel comparison with Shoelace.',
+  'The product test suite is configured for Chromium, Firefox and WebKit; this component\'s spec was run locally in Chromium and WebKit only, and Firefox is covered only by the project\'s CI run. Shoelace\'s own menu label test, including its axe accessibility check, runs in Chromium only and passes. The accessibility-tree check is Playwright\'s ARIA snapshot, which Playwright computes from the DOM; no screen reader and no browser accessibility API was tried, there is no RTL check, and there is no pixel comparison with Shoelace. In the live menu the label is checked for its position among the items, its start alignment and its plain-text accessibility-tree entry between the menu items.',
   'Registration is browser-only and uses the native custom element registry for Velcro\'s own class, without changing the shared core prefix. Server-side rendering is not supported.',
   'The label reads eight theme tokens (--sl-font-sans, --sl-font-size-small, --sl-font-weight-semibold, --sl-line-height-normal, --sl-letter-spacing-normal, --sl-color-neutral-500, --sl-spacing-2x-small and --sl-spacing-x-large); both Velcro themes define them. Without a theme the label has no font, color or padding of its own. Rendering under the dark theme has not been checked.',
 ];
@@ -42,7 +42,7 @@ export class MenuLabelPage extends LitElement {
       <p>Menu labels are used to describe a group of menu items.</p>
 
       <h2 id="examples">Examples</h2>
-      <p>Each preview runs in its own document. The React version of the example is Shoelace's, ported to Velcro's generated React wrappers; only its import lines and the two stand-in components differ. It is shown as source.</p>
+      <p>Each preview runs in its own document. The React version of the example is Shoelace's, ported to Velcro's generated React wrappers; only its import lines differ. It is shown as source.</p>
       ${sections.map(
         ([id, title, key, text, react]) => html`
           <h3 id=${id}>${title}</h3>

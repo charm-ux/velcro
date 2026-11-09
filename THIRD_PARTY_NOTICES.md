@@ -29,8 +29,8 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   `src/internal/shoelace-element.ts`), `packages/velcro/src/components/button/button.styles.ts` (styles adapted from
   `src/components/button/button.styles.ts`, with sl-icon sizing rules from `src/components/icon/icon.styles.ts` added
   for the inline caret), `packages/velcro/src/internal/form.ts` (the form control controller adapted from
-  `src/internal/form.ts`), `packages/velcro/src/internal/slot.ts` (the slot controller adapted from
-  `src/internal/slot.ts`, used by the radio button),
+  `src/internal/form.ts`), `packages/velcro/src/internal/slot.ts` (the slot controller and
+  `getTextContent` adapted from `src/internal/slot.ts`, used by the radio button and the menu item),
   `packages/velcro/src/components/spinner/spinner.ts` (API documentation wording, and the rendered structure: an svg
   `base` part with `role="progressbar"` and a track and an indicator circle, adapted from
   `src/components/spinner/spinner.component.ts`), `packages/velcro/src/components/spinner/spinner.styles.ts`

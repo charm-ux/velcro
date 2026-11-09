@@ -1,29 +1,11 @@
-<style>
-  /* Stand-ins for sl-menu and sl-menu-item, which Velcro does not implement yet. */
-  .menu-label-menu {
-    box-sizing: border-box;
-    padding: var(--sl-spacing-x-small) 0;
-    background: var(--sl-panel-background-color);
-    border: solid var(--sl-panel-border-width) var(--sl-panel-border-color);
-    border-radius: var(--sl-border-radius-medium);
-  }
-
-  .menu-label-item {
-    padding: var(--sl-spacing-2x-small) var(--sl-spacing-x-large);
-    font-family: var(--sl-font-sans);
-    line-height: var(--sl-line-height-normal);
-    color: var(--sl-color-neutral-700);
-  }
-</style>
-
-<div class="menu-label-menu" style="max-width: 200px;">
+<sl-menu style="max-width: 200px;">
   <sl-menu-label>Fruits</sl-menu-label>
-  <div class="menu-label-item" data-value="apple">Apple</div>
-  <div class="menu-label-item" data-value="banana">Banana</div>
-  <div class="menu-label-item" data-value="orange">Orange</div>
+  <sl-menu-item value="apple">Apple</sl-menu-item>
+  <sl-menu-item value="banana">Banana</sl-menu-item>
+  <sl-menu-item value="orange">Orange</sl-menu-item>
   <sl-divider></sl-divider>
   <sl-menu-label>Vegetables</sl-menu-label>
-  <div class="menu-label-item" data-value="broccoli">Broccoli</div>
-  <div class="menu-label-item" data-value="carrot">Carrot</div>
-  <div class="menu-label-item" data-value="zucchini">Zucchini</div>
-</div>
+  <sl-menu-item value="broccoli">Broccoli</sl-menu-item>
+  <sl-menu-item value="carrot">Carrot</sl-menu-item>
+  <sl-menu-item value="zucchini">Zucchini</sl-menu-item>
+</sl-menu>

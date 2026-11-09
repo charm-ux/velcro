@@ -1,0 +1,20 @@
+{
+  "files": {
+    "src/components/menu-item/menu-item.test.ts": "4a1577d9798489ab56979bec06368b8ebefb95aeef1fd7df8287e7ba25d76fec"
+  },
+  "tests": [
+    "<sl-menu-item> > should pass accessibility tests",
+    "<sl-menu-item> > should pass accessibility tests when using a submenu",
+    "<sl-menu-item> > should have the correct default properties",
+    "<sl-menu-item> > should render the correct aria attributes when disabled",
+    "<sl-menu-item> > should return a text label when calling getTextLabel()",
+    "<sl-menu-item> > should emit the slotchange event when the label changes",
+    "<sl-menu-item> > should render a hidden menu item when the inert attribute is used",
+    "<sl-menu-item> > should not render a sl-popup if the slot=\"submenu\" attribute is missing, but the slot should exist in the component and be hidden.",
+    "<sl-menu-item> > should render an sl-popup if the slot=\"submenu\" attribute is present",
+    "<sl-menu-item> > should focus on first menuitem of submenu if ArrowRight is pressed on parent menuitem",
+    "<sl-menu-item> > should focus on outer menu if ArrowRight is pressed on nested menuitem",
+    "<sl-menu-item> > when loading > should have a spinner present"
+  ],
+  "knownFailures": []
+}
