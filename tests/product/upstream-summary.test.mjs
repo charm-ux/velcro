@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 import { evaluate, readInventory, resultLines, vendoredComponents } from '../../scripts/upstream-conformance.mjs';
-import { BLOCKED, MAX_FINDINGS, MAX_TITLE, OUTCOMES, PROBLEMS, summarizeUpstream } from '../../scripts/upstream-summary.mjs';
+import { BLOCKED, MAX_FINDINGS, MAX_TITLE, OUTCOMES, PROBLEMS, PUBLIC_LINE, PUBLIC_PREFIX, summarizeUpstream } from '../../scripts/upstream-summary.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const inventory = { alpha: ['<sl-alpha> > one', '<sl-alpha> > two', '<sl-alpha> > three'], beta: ['<sl-beta> > only'] };
@@ -138,15 +138,30 @@ test('upstream summary: ordinary slash text in a title is still printed', () => 
   }
 });
 
-test('upstream summary: a pinned title up to MAX_TITLE characters is printed whole; a longer one is unlisted, never cut', () => {
+test('upstream summary: a pinned title is printed whole only when its whole public line fits the CI cut; otherwise it is unlisted, never cut', () => {
   const title = length => `<sl-alpha> > ${'when nested '.repeat(30)}`.slice(0, length - 1) + 'x';
-  for (const length of [201, MAX_TITLE]) {
+  const publicLine = line => `${PUBLIC_PREFIX}${line}`;
+  const fits = PUBLIC_LINE - PUBLIC_PREFIX.length - 'upstream failed: alpha: '.length;
+  // Longer than the browser summary's 200 and exactly filling the public line: printed whole.
+  for (const length of [201, fits]) {
     const t = title(length);
-    assert.equal(t.length, length);
-    assert.deepEqual(summarize([`unexpected failure: alpha: ${t}`], { inventory: { alpha: [t] } }).lines, [`upstream failed: alpha: ${t}`]);
+    const { lines } = summarize([`unexpected failure: alpha: ${t}`], { inventory: { alpha: [t] } });
+    assert.deepEqual(lines, [`upstream failed: alpha: ${t}`]);
+    assert.ok(publicLine(lines[0]).length <= PUBLIC_LINE);
   }
-  const long = title(MAX_TITLE + 1);
-  assert.deepEqual(summarize([`unexpected failure: alpha: ${long}`], { inventory: { alpha: [long] } }).lines, ['upstream failed: alpha: unlisted title']);
+  assert.equal(publicLine(`upstream failed: alpha: ${title(fits)}`).length, PUBLIC_LINE);
+  // One more character fits MAX_TITLE as a title but not the public line; the same title under a longer outcome word does
+  // not fit either; a title over MAX_TITLE never does.
+  assert.ok(fits + 1 <= MAX_TITLE);
+  for (const [t, message, word] of [
+    [title(fits + 1), 'unexpected failure: alpha: ', 'failed'],
+    [title(fits), 'problem: skipped test in alpha: ', 'skipped-mismatch'],
+    [title(MAX_TITLE + 1), 'unexpected failure: alpha: ', 'failed'],
+  ]) {
+    const { lines } = summarize([`${message}${t}`], { inventory: { alpha: [t] } });
+    assert.deepEqual(lines, [`upstream ${word}: alpha: unlisted title`]);
+    assert.ok(publicLine(lines[0]).length <= PUBLIC_LINE);
+  }
 });
 
 test('upstream summary: a result line no table row matches is "blocked: internal" and nothing of it is echoed', () => {
@@ -195,8 +210,13 @@ test('upstream summary: every real inventory title is printable, so a real failu
   for (const [component, titles] of Object.entries(real)) {
     for (const title of titles) {
       n++;
-      const { lines } = summarizeUpstream(log([`unexpected failure: ${component}: ${title}`]), { inventory: real, catalog: names });
-      if (!lines[0].endsWith(`: ${title.replace(/\s+/g, ' ').trim()}`)) withheld.push(`${component}: ${title}`);
+      // Under the shortest and the longest outcome word, so the whole public line fits the CI cut for every outcome.
+      for (const message of [`unexpected failure: ${component}: ${title}`, `problem: skipped test in ${component}: ${title}`]) {
+        const { lines } = summarizeUpstream(log([message]), { inventory: real, catalog: names });
+        if (!lines[0].endsWith(`: ${title.replace(/\s+/g, ' ').trim()}`) || PUBLIC_PREFIX.length + lines[0].length > PUBLIC_LINE) {
+          withheld.push(`${component}: ${title}`);
+        }
+      }
     }
   }
   assert.ok(n > 600);
