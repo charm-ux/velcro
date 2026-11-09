@@ -24,7 +24,7 @@ async function openPage(page) {
   const frame = page.frameLocator(`iframe.example[title="${title('Default')}"]`);
   await expect(frame.locator('sl-avatar').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-avatar'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests, example: section => page.frameLocator(`iframe.example[title="${title(section)}"]`) };
 }
 
@@ -69,6 +69,7 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
 
 test('sl-avatar registers inside the example document as the exported class, with sl-icon, no core marker and no ch-* definitions', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   expect(await page.evaluate(() => customElements.whenDefined('sl-avatar').then(ctor => typeof ctor))).toBe('function');
   const info = await frame.locator('body').evaluate(() => {
     const ctor = customElements.get('sl-avatar');
@@ -640,6 +641,7 @@ test.describe('React wrapper', () => {
 
 test('no upstream Shoelace runtime is requested or defined; no request leaves the local origin', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace|unsplash/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

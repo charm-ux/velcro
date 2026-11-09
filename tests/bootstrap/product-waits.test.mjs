@@ -44,6 +44,43 @@ test('only specs that record the requests a page made wait for the network to go
   assert.deepEqual(offending, []);
 });
 
+// A spec helper (a top-level function) that waits for the network to go quiet makes every test that opens a page through
+// it wait, although only the tests that read the requests need it; its bound adds to the page's own waits and can use up a
+// test's time on a loaded runner (tab-panel.spec.mjs:203 timed out that way). The tests that read the requests call
+// documentsLoaded in their own body.
+function networkWaitsInHelpers(text) {
+  let context = 'top';
+  const found = [];
+  for (const line of text.split('\n')) {
+    if (/^(?:async\s+)?function\b|^(?:const|let)\s/.test(line)) context = 'helper';
+    else if (/^(?:test|for)\b/.test(line)) context = 'test';
+    if (context === 'helper' && /\bdocumentsLoaded\s*\(/.test(line) && !/^import\b/.test(line)) found.push(line.trim());
+  }
+  return found;
+}
+
+test('only a test body waits for the network to go quiet, not a spec helper that every test calls', () => {
+  const offending = specs
+    .filter(({ name }) => !HELPER_CONTROLS.has(name))
+    .flatMap(({ name, text }) => networkWaitsInHelpers(text).map(found => `${name}: ${found}`));
+  assert.deepEqual(offending, []);
+});
+
+test('the helper network-wait check recognizes the patterns it guards', () => {
+  const flagged = [
+    "async function openExample(page) {\n  await openDocs(page, PAGE);\n  await documentsLoaded(page);\n  return {};\n}",
+    "const open = async page => {\n  await openDocs(page, PAGE);\n  await documentsLoaded(page);\n};",
+    "function openPage(page) {\n  return openDocs(page, PAGE).then(() => documentsLoaded(page));\n}",
+  ];
+  const allowed = [
+    "import { documentsLoaded } from './support/loaded.mjs';\nasync function openExample(page) {\n  await openDocs(page, PAGE);\n}\ntest('requests', async ({ page }) => {\n  await openExample(page);\n  await documentsLoaded(page);\n});",
+    "test.describe('pages', () => {\n  test('x', async ({ page }) => {\n    await documentsLoaded(page);\n  });\n});",
+    "for (const route of routes) {\n  test(route, async ({ page }) => {\n    await documentsLoaded(page);\n  });\n}",
+  ];
+  assert.deepEqual(flagged.map(text => networkWaitsInHelpers(text).length > 0), flagged.map(() => true));
+  assert.deepEqual(allowed.map(text => networkWaitsInHelpers(text).length), allowed.map(() => 0));
+});
+
 test('no product spec times a hover window with a sleep from the test process', () => {
   const offending = specs.filter(({ text }) => POINTER_THEN_SLEEP.test(text)).map(({ name }) => name);
   assert.deepEqual(offending, []);

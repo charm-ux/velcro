@@ -17,10 +17,7 @@ async function openExample(page, name = 'Overview') {
   await openDocs(page, PAGE);
   const frame = page.frameLocator(`iframe.example[title="Include example: ${name}"]`);
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-include'));
-  // The specs check the requests the page made, so this also waits for the network to go quiet (an example can fetch
-  // after its document has loaded). documentsLoaded, not Playwright's networkidle: WebKit can leave the latter pending
-  // for good after the router's remount.
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -47,6 +44,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the quirk
 
 test('sl-include registers as the exported class with no core marker attribute, one slot and no ch-* definition', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
   const r = await frame.locator('#demo-default').evaluate(async el => {
     await el.updateComplete;
@@ -74,6 +72,7 @@ test('sl-include registers as the exported class with no core marker attribute, 
 
 test('overview: the fixture is requested once from the site, inserted into the light DOM, and its script stays inert', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   const include = frame.locator('#demo-default');
   await expect(include).toContainText('comes from another HTML document');
   // The fixture is requested from the site itself (a router remount reloads the iframe, so it may be requested again).

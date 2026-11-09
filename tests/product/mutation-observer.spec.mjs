@@ -13,7 +13,7 @@ async function openExample(page, which = 'overview') {
   const frame = page.frameLocator(`iframe[title="${TITLES[which]}"]`);
   await expect(frame.locator('#demo-observer')).toBeAttached();
   await frame.locator('#demo-observer').evaluate(() => customElements.whenDefined('sl-mutation-observer'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -70,6 +70,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
 
 test('sl-mutation-observer registers inside the example document (the docs page registers its own copy separately), as the exported class', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   // The docs page loads the same runtime through its client entry (app-main.ts) into its own, separate registry.
   expect(await page.evaluate(() => customElements.whenDefined('sl-mutation-observer').then(ctor => typeof ctor))).toBe('function');
   const info = await frame.locator('body').evaluate(() => {
@@ -815,6 +816,7 @@ test('the child list example reports buttons being added and removed', async ({ 
 
 test('no Shoelace code or asset is loaded', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   expect(await frame.locator('body').evaluate(() => Boolean(window.Shoelace || document.querySelector('script[src*="shoelace"]')))).toBe(false);
 });

@@ -17,10 +17,7 @@ async function openPage(page) {
   page.on('request', request => requests.push(request.url()));
   const failures = collectRequestFailures(page);
   await openDocs(page, PAGE);
-  // The specs check the requests the page made, so this also waits for the network to go quiet (an example can fetch
-  // after its document has loaded). documentsLoaded, not Playwright's networkidle: WebKit can leave the latter pending
-  // for good after the router's remount.
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { cdn, requests, failures };
 }
 
@@ -73,6 +70,7 @@ test('the site serves the package icon assets byte for byte, with an SVG content
 
 test('default library: icons load from the site, inherit color, size with font-size and are presentational', async ({ page }) => {
   const { requests, failures } = await openPage(page);
+  await documentsLoaded(page);
   const colors = frameOf(page, 'Icon example: Colors');
   const icon = colors.locator('sl-icon[name="exclamation-triangle"]');
   await expect.poll(() => drawn(icon)).toMatchObject({ part: 'svg' });
@@ -102,6 +100,7 @@ test('default library: icons load from the site, inherit color, size with font-s
 
 test('custom src and sprite sheet examples draw from this site', async ({ page }) => {
   const { requests, failures } = await openPage(page);
+  await documentsLoaded(page);
   const custom = frameOf(page, 'Icon example: Custom icons').locator('#custom-icon');
   await expect.poll(() => drawn(custom)).toMatchObject({ part: 'svg', width: 128 });
   // getBasePath() is '' on the root build, so the example sets a root-relative src.
@@ -122,6 +121,7 @@ test('custom src and sprite sheet examples draw from this site', async ({ page }
 
 test('CDN icon library examples load only on request, then resolve the documented URLs and apply their mutators (CDN answered locally)', async ({ page }) => {
   const { cdn, failures } = await openPage(page);
+  await documentsLoaded(page);
   // Nothing contacts the CDN until the reader asks: no CDN frame exists and no CDN request was made.
   const buttons = page.locator('button.load-cdn-example');
   await expect(buttons).toHaveCount(11);

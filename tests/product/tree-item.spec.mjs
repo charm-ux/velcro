@@ -31,7 +31,7 @@ async function openExample(page, name = 'Overview') {
   const frame = frameFor(page, name);
   await expect(frame.locator('sl-tree-item').first()).toBeAttached();
   await frame.locator('body').evaluate(() => Promise.all([customElements.whenDefined('sl-tree'), customElements.whenDefined('sl-tree-item')]));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -99,6 +99,7 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
 
 test('sl-tree-item registers inside the example document as the exported class, with its checkbox, icon and spinner, no core marker and no ch-* definitions', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   const info = await frame.locator('body').evaluate(() => {
     const ctor = customElements.get('sl-tree-item');
     const el = document.querySelector('sl-tree-item');
@@ -630,6 +631,7 @@ test('every docs example renders in its own document', async ({ page }) => {
 
 test('no upstream Shoelace runtime is requested or defined; all requests stay on the local origin', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

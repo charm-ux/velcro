@@ -26,7 +26,7 @@ async function openExample(page, section = 'Default') {
     await Promise.all(['sl-dropdown', 'sl-button', 'sl-menu', 'sl-menu-item', 'sl-popup'].map(t => customElements.whenDefined(t)));
     await Promise.all([...document.querySelectorAll('sl-dropdown, sl-button, sl-menu, sl-menu-item')].map(el => el.updateComplete));
   });
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -121,6 +121,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the keybo
 
 test('examples: Shoelace\'s order, live in their own documents with room for the panel, a React version each; no Shoelace runtime is requested', async ({ page }) => {
   const { requests } = await openExample(page);
+  await documentsLoaded(page);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual(ORDER.map(([, section]) => title(section)));
   const counts = [];

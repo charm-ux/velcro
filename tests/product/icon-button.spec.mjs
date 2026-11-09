@@ -24,7 +24,7 @@ async function openPage(page) {
   const frame = page.frameLocator(`iframe.example[title="${title('Default')}"]`);
   await expect(frame.locator('sl-icon-button').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-icon-button'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests, example: section => page.frameLocator(`iframe.example[title="${title(section)}"]`) };
 }
 
@@ -88,6 +88,7 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
 
 test('sl-icon-button registers inside the example document as the exported class, with sl-icon, no core marker and no ch-* definitions', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   const info = await frame.locator('body').evaluate(() => {
     const ctor = customElements.get('sl-icon-button');
     const el = document.querySelector('sl-icon-button');
@@ -291,6 +292,7 @@ test('click(), focus(options) and blur() act on the inner native button, passing
 
 test('link buttons example: an anchor with the href, target, noreferrer noopener rel and label; no request until it is clicked', async ({ page }) => {
   const { example, requests } = await openPage(page);
+  await documentsLoaded(page);
   const frame = example('Link Buttons');
   await expect(frame.locator('sl-icon-button')).toBeVisible();
   const r = await frame.locator('sl-icon-button').evaluate(el => {
@@ -620,6 +622,7 @@ test('properties: Shoelace\'s defaults, only disabled reflects, and the inherite
 
 test('the examples render in their own documents in Shoelace\'s order', async ({ page }) => {
   const { requests } = await openPage(page);
+  await documentsLoaded(page);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual(SECTIONS.map(title));
   const counts = [];
@@ -774,6 +777,7 @@ test.describe('React wrapper', () => {
 
 test('no upstream Shoelace runtime is requested or defined; no request leaves the local origin', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

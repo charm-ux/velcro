@@ -12,7 +12,7 @@ async function openExample(page) {
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-horizontal')).toBeVisible();
   await frame.locator('#demo-horizontal').evaluate(() => customElements.whenDefined('sl-divider'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -51,6 +51,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
 
 test('sl-divider registers inside the example document (the docs page registers its own copy separately), as the exported class, and no core ch-divider element is defined', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   // The docs page loads the same runtime through its client entry (app-main.ts) into its own, separate registry.
   expect(await page.evaluate(() => customElements.whenDefined('sl-divider').then(ctor => typeof ctor))).toBe('function');
   const info = await frame.locator('body').evaluate(() => {
@@ -220,6 +221,7 @@ test('a role set by the author is replaced by separator on connect (Shoelace beh
 
 test('no upstream Shoelace runtime is requested or defined; all requests stay on the local origin', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

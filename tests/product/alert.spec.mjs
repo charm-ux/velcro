@@ -39,7 +39,7 @@ async function openExample(page, name = 'Default') {
   const frame = frameFor(page, name);
   await expect(frame.locator('sl-alert').first()).toBeAttached();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-alert'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -737,6 +737,7 @@ test('Duration and Countdown examples: the button shows the alert; Toast example
 
 test('no upstream Shoelace runtime is requested or defined; all requests stay on the local origin', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

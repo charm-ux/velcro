@@ -29,7 +29,6 @@ async function openPage(page) {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
   await openDocs(page, PAGE);
-  await documentsLoaded(page);
   for (const [title] of EXAMPLES) {
     const frame = frameFor(page, title);
     await expect(frame.locator('sl-button-group').first()).toBeAttached();
@@ -42,6 +41,7 @@ async function openPage(page) {
       .poll(() => frame.locator('body').evaluate(() => [...document.querySelectorAll('sl-button')].every(b => b.hasAttribute('data-sl-button-group__button'))))
       .toBe(true);
   }
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame: frameFor(page, 'Overview'), requests };
 }
 
@@ -99,6 +99,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the quirk
 
 test('sl-button-group registers as the exported class with no core marker and no ch-* definitions; only Shoelace\'s attribute, dir and lang plus the core extras are observed', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
   const r = await frame.locator('#demo-default').evaluate(el => ({
     ctor: customElements.get('sl-button-group') === el.constructor,
@@ -893,6 +894,7 @@ test('core\'s vertical and split are accepted but change nothing; core\'s positi
 
 test('no upstream Shoelace runtime is requested or defined; all requests stay on the local origin', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

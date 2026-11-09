@@ -12,7 +12,7 @@ async function openExample(page) {
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-basic')).toBeVisible();
   await frame.locator('#demo-basic').evaluate(() => customElements.whenDefined('sl-card'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -85,6 +85,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the ready
 
 test('sl-card registers inside the example document (the docs page registers its own copy separately), as the exported class, and no core ch-card is defined', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   // The docs page loads the same runtime through its client entry (app-main.ts) into its own, separate registry.
   expect(await page.evaluate(() => customElements.whenDefined('sl-card').then(ctor => typeof ctor))).toBe('function');
   const info = await frame.locator('body').evaluate(() => {
@@ -421,6 +422,7 @@ test('the core base reset keeps shadow elements border-box when the host sets an
 
 test('an sl-button inside the footer slot is assigned to the footer, and no upstream Shoelace runtime is requested', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   const info = await frame.locator('#demo-footer').evaluate(el => {
     const slot = el.shadowRoot.querySelector('slot[name="footer"]');
     return slot.assignedElements().map(n => n.querySelector('sl-button')?.localName);

@@ -49,10 +49,10 @@ async function openExample(page, which = 'overview') {
   const frame = page.frameLocator(`iframe[title="${TITLES[which]}"]`);
   await expect(frame.locator(IDS[which])).toBeAttached();
   await frame.locator(IDS[which]).evaluate(() => customElements.whenDefined('sl-popup'));
-  await documentsLoaded(page);
   await expect(iframe).toHaveCount(1);
   // WebKit runs no animation frames in an iframe outside the viewport, and the helpers below wait for frames.
   await iframe.scrollIntoViewIfNeeded();
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -138,6 +138,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
 
 test('sl-popup registers inside the example document (the docs page registers its own copy separately), as the exported class', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(await page.evaluate(() => customElements.whenDefined('sl-popup').then(ctor => typeof ctor))).toBe('function');
   const info = await frame.locator('body').evaluate(() => {
     const ctor = customElements.get('sl-popup');

@@ -14,7 +14,7 @@ async function openExample(page) {
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-default')).toBeVisible();
   await frame.locator('#demo-default').evaluate(() => customElements.whenDefined('sl-format-date'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -58,6 +58,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
 
 test('sl-format-date registers inside the example document (the docs page registers its own copy separately), as its own class', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   // The docs page loads the same runtime through its client entry (app-main.ts) into its own, separate registry.
   expect(await page.evaluate(() => customElements.whenDefined('sl-format-date').then(ctor => typeof ctor))).toBe('function');
   expect(await frame.locator('body').evaluate(() => customElements.get('sl-format-date') !== undefined)).toBe(true);
@@ -287,6 +288,7 @@ test('events: only the inherited non-bubbling ready event is emitted, once, afte
 
 test('no public methods beyond the Lit and core base, no upstream Shoelace runtime, all requests local', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   const own = await frame.locator('#demo-default').evaluate(el => {
     const proto = Object.getPrototypeOf(el);
     return Object.getOwnPropertyNames(proto).filter(n => n !== 'constructor').sort();
