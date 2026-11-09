@@ -139,6 +139,9 @@ test('the examples render in their own documents in Shoelace\'s order, with thei
 
 test('sl-carousel and sl-carousel-item register as the exported classes, with sl-icon, no core marker and no ch-* definitions', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  // The opening example loops, so it scrolls to its first slide (the second child, after the leading clone) when it starts; the
+  // slides' ARIA state (inert, aria-hidden) is only final once it has stopped scrolling.
+  await settle(frame, '#demo-default', 1);
   const info = await frame.locator('#demo-default').evaluate(el => {
     const ctor = customElements.get('sl-carousel');
     const item = customElements.get('sl-carousel-item');
@@ -164,6 +167,8 @@ test('sl-carousel and sl-carousel-item register as the exported classes, with sl
 
 test('default example: Shoelace\'s structure and parts, the host\'s role and label, the slides\' roles, ids and ARIA, two clones, the pagination dots', async ({ page }) => {
   const { frame } = await openPage(page);
+  // The carousel is busy (aria-busy) and its dots and slide states are provisional until the initial scroll has ended.
+  await settle(frame, '#demo-default', 1);
   const r = await frame.locator('#demo-default').evaluate(el => {
     const root = el.shadowRoot;
     const outline = node => [node.localName, node.getAttribute('part')?.trim() ?? null, node.getAttribute('role'), [...node.children].map(c => outline(c))];
@@ -334,8 +339,9 @@ test('the navigation buttons and pagination dots move the carousel; an unavailab
   await frame.locator('#c').evaluate(el => el.shadowRoot.querySelector('[part~="navigation-button--next"]').click());
   expect(await state(frame)).toMatchObject({ active: 2 });
   // Focus: the disabled-looking button can still hold it.
-  const focused = await frame.locator('#c').evaluate(el => { const b = el.shadowRoot.querySelector('[part~="navigation-button--next"]'); b.focus(); return el.shadowRoot.activeElement === b; });
-  expect(focused).toBe(true);
+  await frame.locator('#c [part~="navigation-button--next"]').focus();
+  await expect(frame.locator('#c [part~="navigation-button--next"]')).toBeFocused();
+  expect(await frame.locator('#c').evaluate(el => el.shadowRoot.querySelector('[part~="navigation-button--next"]').getAttribute('aria-disabled'))).toBe('true');
   await frame.locator('#c').evaluate(el => el.shadowRoot.querySelectorAll('[part~="pagination-item"]')[0].click());
   await settle(frame, '#c', 0);
   expect(await state(frame)).toMatchObject({ active: 0, currentPage: 0 });
@@ -412,7 +418,9 @@ test('keyboard: arrows, Home and End move the carousel, keys are prevented, righ
 test('keyboard from a real key press: arrow keys on the focused scroll container change the slide', async ({ page }) => {
   const { frame } = await openPage(page);
   await mount(frame, CAROUSEL('', 3));
-  await frame.locator('#c').evaluate(el => el.scrollContainer.focus());
+  // A real click on the scroll container focuses it (it has tabindex 0) and makes its frame the one that receives the key presses.
+  await frame.locator('#c #scroll-container').click({ position: { x: 10, y: 10 } });
+  await expect(frame.locator('#c #scroll-container')).toBeFocused();
   await page.keyboard.press('ArrowRight');
   await settle(frame, '#c', 1);
   await page.keyboard.press('End');
