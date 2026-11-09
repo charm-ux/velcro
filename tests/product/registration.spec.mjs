@@ -183,54 +183,70 @@ test('repeated and mixed imports define each tag exactly once with one construct
   expect(r.sameButton).toBe(true);
 });
 
-test('a foreign sl-* definition is a clear error from every registering entry and is never replaced', async ({ page }) => {
-  const r = await page.evaluate(async () => {
-    class Foreign extends HTMLElement {}
-    customElements.define('sl-button', Foreign);
-    const errors = {};
-    for (const n of ['button', 'root']) {
+// A tag clash never makes a registering entry throw: entries register as Shoelace 2.20.1's `define` does (the helper's
+// cases, including the version warning, are in registration-helper.spec.mjs; entries with dependencies in
+// registration-clash.spec.mjs).
+const LEAF_ENTRIES = [['sl-button', 'button'], ['sl-badge', 'badge'], ['sl-card', 'card'], ['sl-divider', 'divider'], ['sl-switch', 'switch']];
+
+test('a foreign sl-* definition is left in place by its entry and the root, without an error or a warning', async ({ page }) => {
+  const logs = [];
+  page.on('console', m => { if (m.type() === 'warning' || m.type() === 'error') logs.push(m.text()); });
+  const r = await page.evaluate(async entries => {
+    const foreign = {};
+    for (const [tag] of entries) {
+      foreign[tag] = class extends HTMLElement {};
+      customElements.define(tag, foreign[tag]);
+    }
+    const errors = [];
+    for (const n of [...entries.map(([, entry]) => entry), 'root']) {
       try {
         await import(`/${n}.js`);
-        errors[n] = 'no error';
       } catch (e) {
-        errors[n] = e.message;
+        errors.push(`${n}: ${e.message}`);
       }
     }
     // Class-only still works: it never touches the registry, and its class is not the foreign one.
     const cls = await import('/buttonClass.js');
-    return { errors, kept: customElements.get('sl-button') === Foreign, classIsForeign: cls.VelcroButton === Foreign };
-  });
-  for (const message of Object.values(r.errors)) {
-    expect(message).toContain('<sl-button>');
-    expect(message).toContain('already defined by a different constructor');
-  }
-  expect(r.kept).toBe(true);
-  expect(r.classIsForeign).toBe(false);
+    const spinner = await import('/spinnerClass.js');
+    return {
+      errors,
+      kept: entries.filter(([tag]) => customElements.get(tag) === foreign[tag]).map(([tag]) => tag),
+      classIsForeign: cls.VelcroButton === foreign['sl-button'],
+      othersRegistered: customElements.get('sl-spinner') === spinner.VelcroSpinner,
+    };
+  }, LEAF_ENTRIES);
+  expect(r).toEqual({ errors: [], kept: LEAF_ENTRIES.map(([tag]) => tag), classIsForeign: false, othersRegistered: true });
+  expect(logs).toEqual([]);
 });
 
-for (const [tag, entry] of [['sl-badge', 'badge'], ['sl-card', 'card'], ['sl-divider', 'divider'], ['sl-switch', 'switch']]) {
-  test(`a foreign ${tag} definition is a clear error from its entry and the root and is never replaced`, async ({ page }) => {
-    const r = await page.evaluate(async ([tagName, entryName]) => {
-      class Foreign extends HTMLElement {}
-      customElements.define(tagName, Foreign);
-      const errors = {};
-      for (const n of [entryName, 'root']) {
-        try {
-          await import(`/${n}.js`);
-          errors[n] = 'no error';
-        } catch (e) {
-          errors[n] = e.message;
-        }
+test('a class already registered under another tag is registered by its entry and the root as an anonymous subclass', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const classes = {
+      'sl-button': (await import('/buttonClass.js')).VelcroButton,
+      'sl-card': (await import('/cardClass.js')).VelcroCard,
+      'sl-switch': (await import('/switchClass.js')).VelcroSwitch,
+    };
+    for (const [tag, cls] of Object.entries(classes)) customElements.define(`other-${tag}`, cls);
+    const errors = [];
+    for (const n of ['button', 'card', 'switch', 'root']) {
+      try {
+        await import(`/${n}.js`);
+      } catch (e) {
+        errors.push(`${n}: ${e.message}`);
       }
-      return { errors, kept: customElements.get(tagName) === Foreign };
-    }, [tag, entry]);
-    for (const message of Object.values(r.errors)) {
-      expect(message).toContain(`<${tag}>`);
-      expect(message).toContain('already defined by a different constructor');
     }
-    expect(r.kept).toBe(true);
+    return {
+      errors,
+      subclasses: Object.entries(classes)
+        .filter(([tag, cls]) => {
+          const defined = customElements.get(tag);
+          return defined !== cls && Object.getPrototypeOf(defined) === cls && document.createElement(tag) instanceof cls;
+        })
+        .map(([tag]) => tag),
+    };
   });
-}
+  expect(r).toEqual({ errors: [], subclasses: ['sl-button', 'sl-card', 'sl-switch'] });
+});
 
 for (const order of ['velcro first', 'core first']) {
   test(`core's own button coexists, ${order}: both tags are distinct and core keeps its prefix`, async ({ page }) => {

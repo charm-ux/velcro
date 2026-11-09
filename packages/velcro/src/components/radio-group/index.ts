@@ -6,8 +6,10 @@ export * from './class.js';
 
 // Registers the exported class itself as <sl-radio-group> through the native registry. Core's shared prefix and scope
 // are not touched: the class resolves core's scope lookups through Velcro's local scope resolver. A group of radio
-// buttons renders an <sl-button-group>, so Velcro's button group is registered too (Shoelace's radio group lists it as a
-// dependency in the same way). The radios are registered by their own entries, as in Shoelace. Both calls are
-// idempotent and fail loudly if a different constructor owns the tag.
+// buttons renders an <sl-button-group>, so Velcro's button group is registered too (Shoelace's radio group lists it as
+// a dependency in the same way). The radios are registered by their own entries, as in Shoelace. Every tag is
+// registered as Shoelace's `define` registers it: a tag that is already defined is left alone (with Shoelace's console
+// warning when the versions differ), and if the platform refuses the class itself, an anonymous subclass is defined
+// instead.
 defineVelcroComponent(VelcroRadioGroup);
 defineVelcroComponent(VelcroButtonGroup);

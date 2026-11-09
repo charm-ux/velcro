@@ -87,13 +87,13 @@ export class VelcroInput extends CoreInputTyping {
     return [];
   }
 
-  // Shoelace's `static dependencies` for the input: the elements its template renders. Shoelace keys them by tag; here the
-  // tag is derived from each class's `baseName` (`sl-icon` for `VelcroIcon`), the same tag `defineVelcroComponent`
-  // defines and the template renders. As in Shoelace's base element, each one that is not defined yet is defined when an
-  // input is constructed, and a tag that another constructor already owns is left alone. If the platform refuses the
-  // class itself (for example because it is already registered under another tag), an anonymous subclass is defined
-  // instead, as Shoelace does. Not part of the documented API (Shoelace's manifest lists `dependencies` without a
-  // description).
+  // Shoelace's `static dependencies` for the input: the elements its template renders. Shoelace keys them by tag; here
+  // the tag is derived from each class's `baseName` (`sl-icon` for `VelcroIcon`), the same tag `defineVelcroComponent`
+  // defines and the template renders. As in Shoelace's base element, each one that is not defined yet is defined when
+  // an input is constructed, and a tag that another constructor already owns is left alone (with Shoelace's warning
+  // when the versions differ). If the platform refuses the class itself (for example because it is already registered
+  // under another tag), an anonymous subclass is defined instead, as Shoelace does. Not part of the documented API
+  // (Shoelace's manifest lists `dependencies` without a description).
   private static readonly shoelaceDependencies: readonly VelcroComponentConstructor[] = [VelcroIcon];
 
   private readonly formControlController = new FormControlController(this, {
@@ -371,14 +371,7 @@ export class VelcroInput extends CoreInputTyping {
   public constructor() {
     super();
     this.clearCoreDefaults();
-    for (const component of VelcroInput.shoelaceDependencies) {
-      if (customElements.get(`sl-${component.baseName}`)) continue;
-      try {
-        defineVelcroComponent(component);
-      } catch {
-        defineVelcroComponent(class extends component {});
-      }
-    }
+    for (const component of VelcroInput.shoelaceDependencies) defineVelcroComponent(component);
   }
 
   // Core's constructors give two properties values that Shoelace's input does not have: Shoelace leaves

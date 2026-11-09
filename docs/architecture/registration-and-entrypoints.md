@@ -1,7 +1,7 @@
 # Registration, shared project state, and barrel entry points
 
-Status: native registration implemented for the current four leaf components;
-scope-dependent components remain a documented design concern.
+Status: native registration implemented for every component, with Shoelace's `define`
+semantics; scope-dependent components remain a documented design concern.
 Related: [Velcro architecture and registration gate](../specs/velcro.md#53-registration-is-an-early-gate).
 
 ## Why this note exists
@@ -27,7 +27,7 @@ published bundle or application dependency graph.
 | Core | `packages/core/src/utilities/project.ts` exports a project instance. `updateProject()` sets configuration, updates icons and updates the scope. `packages/core/src/components/button/index.ts` calls `project.scope.registerComponent(button)`. |
 | FUI | `src/project-config.ts` imports `project` from `@charm-ux/core`, calls `updateProject({ prefix: 'fui', icons: ... })`, and re-exports it. `src/components/button/index.ts` imports that module and registers the class. |
 | CUI | `src/project-config.ts` imports `project` from `@charm-ux/fui`, calls `updateProject({ prefix: 'cui', icons: ... })`, and re-exports it. `src/components/button/index.ts` imports that module and registers the class. |
-| Velcro current leaf components | Button, spinner, badge, card and divider entries call `defineVelcroComponent` from `packages/velcro/src/utilities/registration.ts`. It derives `sl-` names from `baseName` and defines the supplied constructor without updating core's project configuration. The earlier prototype instead changed core's prefix in each entry. |
+| Velcro components | Every component entry calls `defineVelcroComponent` from `packages/velcro/src/utilities/registration.ts` for its own class and for each element it renders. It derives `sl-` names from `baseName` and defines the supplied constructor (Shoelace's `define` rules) without updating core's project configuration. The earlier prototype instead changed core's prefix in each entry. |
 
 FUI and CUI therefore centralize the prefix assignment; they do not have a
 separate project merely because the configuration lives in a separate file.
@@ -108,15 +108,47 @@ Keep three contracts explicit:
 - **Class-only entry:** exports the actual implementation, without defining tags
   or reconfiguring another project's prefix. Server compatibility is a separate promise.
 - **Per-component registering entry:** deliberately registers that component and
-  its required dependency closure, with defined repeat-import/collision behavior.
+  its required dependency closure, with defined repeat-import/collision behavior
+  (Shoelace's `define`; see below).
 - **Aggregate registering entry:** a clearly documented convenience that registers
   the supported set. Do not silently change the current root's registering contract.
 
 The Velcro-owned `defineVelcroComponent` helper centralizes `sl-` name construction
-from `baseName`, defines the supplied constructor, accepts an identical repeat
-registration and rejects a conflicting constructor. It does not update core's
-project configuration or scope maps. Browser regressions cover the current five
-leaf components, whole-root map/prefix isolation and constructor identity.
+from `baseName` and registers a tag exactly as Shoelace 2.20.1's `ShoelaceElement.define`
+does. Shoelace uses that one function for a component's own tag (each registering file,
+for example `SlButton.define('sl-button')`) and for every entry of a component's
+`static dependencies` (in its constructor), and so does Velcro:
+
+- A tag that is not defined yet gets the constructor itself. If the platform refuses it
+  (it is already defined under another tag), an anonymous subclass of it is defined under
+  the tag instead. An error from that second definition propagates unchanged.
+- A tag that is already defined, by the same constructor or by any other one (another
+  library, a second copy of Velcro, an earlier anonymous subclass), is left alone and
+  nothing throws. Shoelace's console warning, with its text
+  (`Attempted to register <sl-x> v1, but <sl-x> v2 has already been registered.`), is
+  logged when the two constructors' static `version` values differ; a missing or empty
+  `version` reads as ` (unknown version)`. Velcro's classes declare no `version`, so the
+  warning appears only when the existing constructor declares one, such as Shoelace's own.
+
+Importing a registering entry therefore never throws on a tag clash, for the component's
+own tag or a dependency's. There is no strict variant. The helper does not update core's
+project configuration or scope maps.
+
+One difference from Shoelace remains: Shoelace's registering file defines only the
+component's own tag, and its constructor defines the dependencies when the first element
+is created; a Velcro registering entry defines the dependencies up front, when it is
+imported (the end state after construction is the same). For the same reason, Shoelace's
+version warning about a dependency can appear when the entry is imported, where Shoelace
+logs it only when an element is constructed. A class-only entry defines
+dependencies on construction only for the components listed below.
+
+`tests/api/registration-guard.test.mjs` fails if an entry registers a tag in any other
+way (a direct `customElements.define`, core's `registerComponent`) or if the helper module
+exports anything else. `tests/product/registration-helper.spec.mjs` covers each case of the
+helper, and `tests/product/registration-clash.spec.mjs` covers both clash cases for every
+registering entry that has dependencies, and both clash cases and the version warning for
+class-only construction of a representative set of components. `registration.spec.mjs`
+covers the leaf entries, whole-root map/prefix isolation and constructor identity.
 Button, card and spinner also expose class-only entries and `Sl*` aliases; badge and
 divider do not yet expose equivalent class-only subpaths. The root remains a
 registering aggregate. These checks run in Chromium, Firefox and WebKit; they are not a general FUI/CUI,
@@ -141,13 +173,14 @@ counterpart registered first, and core logic that finds elements by marker attri
 as `[accordion-item]` or `closest('[menu]')`) has to be replaced in the Velcro subclass. Any actual
 core change still needs a failing reproduction and separate approval.
 
-`sl-avatar`, `sl-details` and `sl-icon-button` do not use the scope resolver: their templates render a literal `<sl-icon>`, and, like
-Shoelace's base element with `static dependencies`, their constructors define Velcro's `sl-icon` when that tag is not
-defined yet (falling back to an anonymous subclass when the platform refuses the class itself), so their class-only
+`sl-avatar`, `sl-details` and `sl-icon-button` do not use the scope resolver: their templates render a literal
+`<sl-icon>`, and, like Shoelace's base element with `static dependencies`, their constructors define Velcro's `sl-icon`
+with `defineVelcroComponent` on every construction, as Shoelace's constructor does (left alone when that tag is already
+defined, an anonymous subclass when the platform refuses the class itself), so their class-only
 entries need no extra registration. `sl-tag` does the same for its remove button: it renders a literal
 `<sl-icon-button>`, so its constructor defines Velcro's `sl-icon-button` (and that one defines `sl-icon`), and `sl-tooltip` does it for the
-`<sl-popup>` it renders. Other
-class-only entries (for example button's `sl-spinner`) do not do this yet.
+`<sl-popup>` it renders. Alert, checkbox, input, tab, tab group and radio group do the same for theirs. Other
+class-only entries (button's `sl-spinner`, radio's `sl-icon`) do not do this yet.
 
 Do not treat these as solutions by themselves:
 
