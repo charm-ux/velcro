@@ -1,0 +1,16 @@
+<sl-dialog label="Dialog" class="dialog-focus">
+  <sl-input autofocus placeholder="I will have focus when the dialog is opened"></sl-input>
+  <sl-button slot="footer" variant="primary">Close</sl-button>
+</sl-dialog>
+
+<sl-button>Open Dialog</sl-button>
+
+<script>
+  const dialog = document.querySelector('.dialog-focus');
+  const input = dialog.querySelector('sl-input');
+  const openButton = dialog.nextElementSibling;
+  const closeButton = dialog.querySelector('sl-button[slot="footer"]');
+
+  openButton.addEventListener('click', () => dialog.show());
+  closeButton.addEventListener('click', () => dialog.hide());
+</script>

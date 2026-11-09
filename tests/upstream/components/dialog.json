@@ -1,0 +1,18 @@
+{
+  "files": {
+    "src/components/dialog/dialog.test.ts": "b426ac1d3468c5acfb5382f99715e71241da5a4368848618efd461b7955fbb8a"
+  },
+  "tests": [
+    "<sl-dialog> > should be visible with the open attribute",
+    "<sl-dialog> > should not be visible without the open attribute",
+    "<sl-dialog> > should emit sl-show and sl-after-show when calling show()",
+    "<sl-dialog> > should emit sl-hide and sl-after-hide when calling hide()",
+    "<sl-dialog> > should emit sl-show and sl-after-show when setting open = true",
+    "<sl-dialog> > should emit sl-hide and sl-after-hide when setting open = false",
+    "<sl-dialog> > should not close when sl-request-close is prevented",
+    "<sl-dialog> > should allow initial focus to be set",
+    "<sl-dialog> > should close when pressing Escape",
+    "<sl-dialog> > should properly cycle through tabbable elements when sl-dialog is used in a shadowRoot"
+  ],
+  "knownFailures": []
+}

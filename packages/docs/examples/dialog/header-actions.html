@@ -1,0 +1,18 @@
+<sl-dialog label="Dialog" class="dialog-header-actions">
+  <sl-icon-button class="new-window" slot="header-actions" name="box-arrow-up-right"></sl-icon-button>
+  Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+  <sl-button slot="footer" variant="primary">Close</sl-button>
+</sl-dialog>
+
+<sl-button>Open Dialog</sl-button>
+
+<script>
+  const dialog = document.querySelector('.dialog-header-actions');
+  const openButton = dialog.nextElementSibling;
+  const closeButton = dialog.querySelector('sl-button[slot="footer"]');
+  const newWindowButton = dialog.querySelector('.new-window');
+
+  openButton.addEventListener('click', () => dialog.show());
+  closeButton.addEventListener('click', () => dialog.hide());
+  newWindowButton.addEventListener('click', () => window.open(location.href));
+</script>

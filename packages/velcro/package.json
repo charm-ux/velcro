@@ -31,6 +31,8 @@
     "./copy-button/class": { "types": "./dist/components/copy-button/class.d.ts", "import": "./dist/components/copy-button/class.js" },
     "./details": { "types": "./dist/components/details/index.d.ts", "import": "./dist/components/details/index.js" },
     "./details/class": { "types": "./dist/components/details/class.d.ts", "import": "./dist/components/details/class.js" },
+    "./dialog": { "types": "./dist/components/dialog/index.d.ts", "import": "./dist/components/dialog/index.js" },
+    "./dialog/class": { "types": "./dist/components/dialog/class.d.ts", "import": "./dist/components/dialog/class.js" },
     "./divider": { "types": "./dist/components/divider/index.d.ts", "import": "./dist/components/divider/index.js" },
     "./dropdown": { "types": "./dist/components/dropdown/index.d.ts", "import": "./dist/components/dropdown/index.js" },
     "./dropdown/class": { "types": "./dist/components/dropdown/class.d.ts", "import": "./dist/components/dropdown/class.js" },
