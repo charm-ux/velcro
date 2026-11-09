@@ -444,24 +444,28 @@ test('keyboard: the arrows swap in right-to-left text, and the keys leave a nest
 
 test('keyboard: Enter with focus on an element inside the tree that is not an item throws a TypeError after preventing the key (quirk); the arrows still work', async ({ page }) => {
   const { frame } = await openExample(page);
-  await mount(frame, '<sl-tree id="t"><sl-tree-item id="x">X <button id="btn" type="button">Button</button></sl-tree-item><sl-tree-item id="y">Y</sl-tree-item></sl-tree>');
-  // The error is recorded in the example document itself: its `error` event carries the thrown object, so the check is of the
-  // type (in that document's realm), not of an engine's message wording or of how an engine reports an error from a frame.
-  await frame.locator('#btn').evaluate(el => {
+  // A focusable span, not a button: a button's own reaction to Enter (and to focus) differs between engines.
+  await mount(frame, '<sl-tree id="t"><sl-tree-item id="x">X <span id="inner" tabindex="0">Inner</span></sl-tree-item><sl-tree-item id="y">Y</sl-tree-item></sl-tree>');
+  // The error and the key's state are recorded in the example document itself, by listeners on its own window and document
+  // (the code that throws runs in that realm): its `error` event carries the thrown object, so the check is of the type (the
+  // document's own TypeError, by class and by name), not of an engine's message wording or of how the test runner reports an
+  // error from a frame; and a listener on the document sees whether the tree's handler had prevented the key.
+  await frame.locator('#inner').evaluate(el => {
     window.uncaught = [];
-    window.addEventListener('error', event => window.uncaught.push({ typeError: event.error instanceof TypeError }));
-    window.clicks = 0;
-    el.addEventListener('click', () => window.clicks++);
+    window.keys = [];
+    window.addEventListener('error', event => window.uncaught.push({ typeError: event.error instanceof TypeError && event.error.name === 'TypeError' }));
+    document.addEventListener('keydown', event => window.keys.push([event.key, event.defaultPrevented]));
     el.focus();
   });
-  expect(await focusedId(frame)).toBe('btn');
+  expect(await focusedId(frame)).toBe('inner');
   await page.keyboard.press('Enter');
   await expect.poll(() => frame.locator('body').evaluate(() => window.uncaught)).toEqual([{ typeError: true }]);
-  // The key's default action was prevented before the throw: the button was not activated.
-  expect(await frame.locator('body').evaluate(() => window.clicks)).toBe(0);
+  // The key's default action was prevented before the throw.
+  expect(await frame.locator('body').evaluate(() => window.keys)).toEqual([['Enter', true]]);
   // From there the arrows move to an item: no item has focus, so ArrowDown goes to the first one.
   await page.keyboard.press('ArrowDown');
-  expect(await focusedId(frame)).toBe('x');
+  await expect.poll(() => focusedId(frame)).toBe('x');
+  expect(await frame.locator('body').evaluate(() => window.keys)).toEqual([['Enter', true], ['ArrowDown', true]]);
   expect(await frame.locator('body').evaluate(() => window.uncaught)).toEqual([{ typeError: true }]);
 });
 
