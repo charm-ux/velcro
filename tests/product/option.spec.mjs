@@ -139,6 +139,9 @@ test('registration: the option entry defines sl-option and sl-icon only, with no
   const pageErrors = await loadBundle(page);
   const r = await page.evaluate(() => ['sl-option', 'sl-icon', 'sl-select', 'ch-option'].map(t => customElements.get(t)?.name ?? null));
   expect(r).toEqual(['VelcroOption', 'VelcroIcon', null, null]);
+  // The host carries only Shoelace's own attributes: no core marker (an option is not one of core's focusable elements).
+  await mount(page, '<sl-option value="a">Alpha</sl-option>');
+  expect(await page.locator('sl-option').evaluate(el => el.getAttributeNames().sort())).toEqual(['aria-disabled', 'aria-selected', 'role', 'value']);
   expect(pageErrors).toEqual([]);
 });
 

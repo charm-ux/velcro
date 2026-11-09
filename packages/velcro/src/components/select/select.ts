@@ -18,6 +18,7 @@ import { animateTo, stopAnimations } from '../../internal/animate.js';
 import { waitForEvent } from '../../internal/event.js';
 import { FormControlController } from '../../internal/form.js';
 import { documentDir } from '../../internal/localize.js';
+import { scrollIntoView } from '../../internal/scroll.js';
 import { HasSlotController } from '../../internal/slot.js';
 import { getAnimation, setDefaultAnimation } from '../../utilities/animation-registry.js';
 import { LocalizeController } from '../../utilities/localize.js';
@@ -25,7 +26,6 @@ import { defineVelcroComponent, type VelcroComponentConstructor } from '../../ut
 import { VelcroIcon } from '../icon/class.js';
 import type { VelcroOption } from '../option/class.js';
 import { VelcroPopup } from '../popup/class.js';
-import { scrollIntoView } from '../tab-group/scroll.js';
 import { VelcroTag } from '../tag/class.js';
 import { CoreSelectTyping } from './core-typing.js';
 import styles from './select.styles.js';

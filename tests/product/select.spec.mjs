@@ -108,7 +108,7 @@ async function mount(page, markup) {
 
 const OPTIONS = '<sl-option value="option-1">Option 1</sl-option><sl-option value="option-2">Option 2</sl-option><sl-option value="option-3">Option 3</sl-option>';
 
-// Records the select's events (type, bubbles, composed, cancelable, value at dispatch) in window.log.
+// Records the types of the select's events, in dispatch order, in window.log (their flags are checked in their own test).
 const record = (page, selector = 'sl-select') => page.evaluate(selector => {
   window.log = [];
   const el = document.querySelector(selector);
@@ -331,7 +331,7 @@ test('multiple: the value is an array, tags show the selection up to max-options
   expect(pageErrors).toEqual([]);
 });
 
-test('forms: the name and value are added to the form data (one entry per selected option), required blocks submit, and reset restores the value attribute', async ({ page }) => {
+test('forms: the name and value are added to the form data (one entry per selected option), required blocks submit (requestSubmit dispatches no submit event to later listeners), and reset restores the value attribute', async ({ page }) => {
   const pageErrors = await loadBundle(page);
   await mount(page, `
     <form id="f">
@@ -349,20 +349,30 @@ test('forms: the name and value are added to the form data (one entry per select
     let invalidEvents = 0;
     needed.addEventListener('sl-invalid', () => invalidEvents++);
     form.reportValidity();
+    // The form control controller's own submit listener (added first) stops an invalid form's submit event.
+    const submits = [];
+    form.addEventListener('submit', e => { submits.push(invalidEvents); e.preventDefault(); });
+    form.requestSubmit();
+    const blocked = [submits.length, invalidEvents];
     needed.value = 'option-3';
     one.value = 'option-1';
     many.value = ['option-2'];
     await Promise.all([one, many, needed].map(el => el.updateComplete));
     await new Promise(r => setTimeout(r));
     const second = [data(), needed.checkValidity(), needed.hasAttribute('data-valid'), one.getAttribute('value')];
+    form.requestSubmit();
+    const submitted = submits.length;
     form.reset();
     await Promise.all([one, many, needed].map(el => el.updateComplete));
-    return { first, valid, invalidEvents, second, reset: [one.value, many.value, needed.value], inElements: [...form.elements].some(e => e.localName === 'sl-select') };
+    return { first, valid, blocked, submitted, second, reset: [one.value, many.value, needed.value], inElements: [...form.elements].some(e => e.localName === 'sl-select') };
   });
   // An empty select is submitted with an empty value, as in Shoelace.
   expect(r.first).toEqual([['one', 'option-2'], ['many', 'option-1'], ['many', 'option-3'], ['needed', ''], ['outside', 'option-1']]);
   expect(r.valid).toEqual([false, false, true, true, false]);
-  expect(r.invalidEvents).toBe(1);
+  // reportValidity() emitted sl-invalid once; the blocked requestSubmit() reported again (a second sl-invalid) and no submit
+  // event reached the later listener. Once valid, requestSubmit() dispatches it.
+  expect(r.blocked).toEqual([0, 2]);
+  expect(r.submitted).toBe(1);
   expect(r.second).toEqual([[['one', 'option-1'], ['many', 'option-2'], ['needed', 'option-3'], ['outside', 'option-1']], true, true, 'option-2']);
   expect(r.reset).toEqual(['option-2', ['option-1', 'option-3'], '']);
   expect(r.inElements).toBe(false);
@@ -406,6 +416,78 @@ test('properties: Shoelace\'s defaults and reflection; the value attribute sets 
   expect(r.missing).toEqual(['', '']);
   // No input or change event for any of these. Upstream quirk: disabling the closed select ran the close sequence anyway.
   await expect.poll(() => log(page)).toEqual(['sl-hide', 'sl-after-hide']);
+  expect(pageErrors).toEqual([]);
+});
+
+test('removing a reflected attribute restores the value the property held at the first attribute change (Shoelace\'s base element): the defaults for markup; a removed Boolean attribute gives false', async ({ page }) => {
+  const pageErrors = await loadBundle(page);
+  await mount(page, `<sl-select size="large" placement="top" form="f" disabled required multiple filled pill hide-label label-position="start">${OPTIONS}</sl-select>`);
+  const r = await page.locator('sl-select').evaluate(async el => {
+    const popup = () => el.shadowRoot.querySelector('sl-popup').className.trim().split(/\s+/).sort();
+    const before = [el.size, el.placement, el.form, el.disabled, el.required, el.multiple, el.filled, el.pill, el.hideLabel, el.labelPosition];
+    for (const name of ['size', 'placement', 'form', 'disabled', 'required', 'multiple', 'filled', 'pill', 'hide-label', 'label-position']) el.removeAttribute(name);
+    await el.updateComplete;
+    return {
+      before,
+      after: [el.size, el.placement, el.form, el.disabled, el.required, el.multiple, el.filled, el.pill, el.hideLabel, el.labelPosition],
+      attributes: ['size', 'placement', 'form', 'disabled', 'required', 'multiple', 'filled', 'pill', 'hide-label', 'label-position'].map(a => el.getAttribute(a)),
+      popup: popup(),
+      inputDisabled: el.shadowRoot.querySelector('[part="display-input"]').disabled,
+    };
+  });
+  expect(r.before).toEqual(['large', 'top', 'f', true, true, true, true, true, true, 'start']);
+  // label-position has no initial value (core declares none), so removing it leaves null.
+  expect(r.after).toEqual(['medium', 'bottom', '', false, false, false, false, false, false, null]);
+  // The restored values are reflected again; the Boolean ones are absent.
+  expect(r.attributes).toEqual(['medium', 'bottom', '', null, null, null, null, null, null, null]);
+  expect(r.popup).toEqual(['select', 'select--bottom', 'select--medium', 'select--standard']);
+  expect(r.inputDisabled).toBe(false);
+  expect(pageErrors).toEqual([]);
+});
+
+test('removing a reflected attribute of a select created from script restores the values assigned before its first attribute change, not the declared defaults', async ({ page }) => {
+  const pageErrors = await loadBundle(page);
+  const r = await page.evaluate(async () => {
+    const el = document.createElement('sl-select');
+    el.size = 'small';
+    el.placement = 'top';
+    document.body.append(el);
+    await el.updateComplete;
+    el.setAttribute('size', 'large');
+    el.setAttribute('placement', 'bottom');
+    await el.updateComplete;
+    const set = [el.size, el.placement];
+    el.removeAttribute('size');
+    el.removeAttribute('placement');
+    await el.updateComplete;
+    return { set, removed: [el.size, el.placement, el.getAttribute('size'), el.getAttribute('placement')] };
+  });
+  expect(r).toEqual({ set: ['large', 'bottom'], removed: ['small', 'top', 'small', 'top'] });
+  expect(pageErrors).toEqual([]);
+});
+
+test('event flags: every event bubbles and is composed and is not cancelable, except sl-invalid, which does not bubble and is cancelable', async ({ page }) => {
+  const pageErrors = await loadBundle(page);
+  await mount(page, `<form><sl-select required clearable>${OPTIONS}</sl-select></form>`);
+  await page.locator('sl-select').evaluate(el => {
+    window.flags = {};
+    for (const type of ['sl-change', 'sl-input', 'sl-clear', 'sl-focus', 'sl-blur', 'sl-show', 'sl-after-show', 'sl-hide', 'sl-after-hide', 'sl-invalid']) {
+      el.addEventListener(type, e => (window.flags[type] ??= [e.bubbles, e.composed, e.cancelable, e.target === el]));
+    }
+  });
+  await page.locator('sl-select [part="combobox"]').click();
+  await expect.poll(() => page.evaluate(() => Boolean(window.flags['sl-after-show']))).toBe(true);
+  await page.getByRole('option', { name: 'Option 2' }).click();
+  await expect.poll(() => page.evaluate(() => Boolean(window.flags['sl-after-hide']))).toBe(true);
+  await page.locator('sl-select [part="clear-button"]').click();
+  await expect.poll(() => page.evaluate(() => Boolean(window.flags['sl-clear']))).toBe(true);
+  await page.locator('sl-select').evaluate(el => { el.blur(); el.closest('form').reportValidity(); });
+  const flags = await page.evaluate(() => window.flags);
+  const regular = [true, true, false, true];
+  expect(flags).toEqual({
+    'sl-focus': regular, 'sl-show': regular, 'sl-blur': regular, 'sl-after-show': regular, 'sl-hide': regular, 'sl-input': regular,
+    'sl-change': regular, 'sl-after-hide': regular, 'sl-clear': regular, 'sl-invalid': [false, false, true, true],
+  });
   expect(pageErrors).toEqual([]);
 });
 
@@ -642,7 +724,7 @@ test('focus is not delegated, as in Shoelace: clicking the help text neither foc
 // The class-only entry (@charm-ux/velcro/select/class), bundled alone. Shoelace's select declares sl-icon, sl-popup and sl-tag
 // in `static dependencies`, and its base element defines each missing dependency when a select is constructed.
 test.describe('class-only entry', () => {
-  test('importing defines nothing; constructing a select defines Velcro\'s sl-icon, sl-popup and sl-tag (and the tag its icon button), not sl-option', async ({ page }) => {
+  test('importing defines nothing; constructing a select defines Velcro\'s sl-icon, sl-popup and sl-tag, not sl-icon-button (the tag defines it when one is constructed) or sl-option', async ({ page }) => {
     const pageErrors = await loadBundle(page, CLASS_ENTRY);
     const r = await page.evaluate(async () => {
       const { SlSelect, VelcroSelect } = window.selectClass;

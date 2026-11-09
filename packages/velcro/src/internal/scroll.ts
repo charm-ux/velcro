@@ -1,6 +1,6 @@
 // Adapted from Shoelace v2.20.1 (`scrollIntoView` from src/internal/scroll.ts and `getOffset` from src/internal/offset.ts),
 // Copyright (c) 2020 A Beautiful Site, LLC, MIT License. See THIRD_PARTY_NOTICES.md. Only the two helpers the tab group
-// uses are taken; the logic is unchanged. Internal: not part of the package exports.
+// and the select use are taken; the logic is unchanged. Internal: not part of the package exports.
 
 /**
  * Returns an element's offset relative to its parent. Similar to element.offsetTop and element.offsetLeft, except the
