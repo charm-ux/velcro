@@ -32,6 +32,7 @@
 {"name":"radio","title":"Radio","tag":"sl-radio","example":"#demo-default"}
 {"name":"radio-button","title":"Radio Button","tag":"sl-radio-button","example":"#demo-default"}
 {"name":"radio-group","title":"Radio Group","tag":"sl-radio-group","example":"#demo-default"}
+{"name":"range","title":"Range","tag":"sl-range","example":"sl-range"}
 {"name":"rating","title":"Rating","tag":"sl-rating","example":"sl-rating"}
 {"name":"relative-time","title":"Relative Time","tag":"sl-relative-time","example":"#demo-default"}
 {"name":"resize-observer","title":"Resize Observer","tag":"sl-resize-observer","example":"#demo-observer"}
