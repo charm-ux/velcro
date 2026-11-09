@@ -576,4 +576,30 @@ esac
     assert.equal(summary([first, pending(['', 'runner', 'work', 'support', 'helper.mjs'].join('/'))]), 'webkit button.spec.mjs:37 renders | test timeout');
     assert.equal(summary([first]), 'webkit button.spec.mjs:37 renders | test timeout');
   });
+
+  test('summary: a test timeout pending in a spec helper adds a line with only its path under tests/product/support and its line', async () => {
+    const root = ['', 'runner', 'work', 'velcro'].join('/');
+    const inRoot = (...parts) => [root, ...parts].join('/');
+    const timedOut = (errors, message = 'Test timeout of 45000ms exceeded.') => ({ title: 'renders', file: 'tab-panel.spec.mjs', line: 203,
+      tests: [{ projectName: 'chromium', status: 'unexpected', results: [{ status: 'timedOut', error: { message }, errors: [{ message }, ...errors] }] }] });
+    const pending = (file, line = 183) => ({ message: 'Error: expect.poll: Test timeout of 45000ms exceeded.\nCall log:\n  - secret value', location: { file, line, column: 5 } });
+    const lines = (spec, options = { root }) => summarizeReport(rep([spec]), options).lines.slice(3);
+    const head = 'chromium tab-panel.spec.mjs:203 renders | test timeout';
+    assert.deepEqual(lines(timedOut([pending(inRoot('tests', 'product', 'support', 'loaded.mjs'))])),
+      [head, 'chromium tests/product/support/loaded.mjs:183 | pending call of the test timeout above']);
+    // Never a path outside tests/product/support (or nested below it, or outside the checkout), never without the root,
+    // never a bad line, and never for another kind of failure.
+    for (const file of [
+      inRoot('scripts', 'verify-product.mjs'), inRoot('node_modules', 'playwright', 'lib', 'x.mjs'), inRoot('tests', 'product', 'loaded.mjs'),
+      inRoot('tests', 'product', 'support', 'nested', 'x.mjs'), inRoot('tests', 'product', 'support', 'Loaded.mjs'), inRoot('tests', 'product', 'support', 'x.js'),
+      ['', 'runner', 'work', 'other', 'tests', 'product', 'support', 'loaded.mjs'].join('/'), inRoot('tests', 'product', 'support', '..', '..', '..', 'secret.mjs'),
+      'tests/product/support/loaded.mjs',
+    ]) assert.deepEqual(lines(timedOut([pending(file)])), [head], file);
+    for (const line of [0, -1, 1.5, '183', null]) assert.deepEqual(lines(timedOut([pending(inRoot('tests', 'product', 'support', 'loaded.mjs'), line)])), [head]);
+    assert.deepEqual(lines(timedOut([pending(inRoot('tests', 'product', 'support', 'loaded.mjs'))]), {}), [head]);
+    assert.deepEqual(lines(timedOut([pending(inRoot('tests', 'product', 'support', 'loaded.mjs'))], 'Error: boom')), ['chromium tab-panel.spec.mjs:203 renders | error Error']);
+    // A pending call in the spec itself keeps its line on the test's own line and adds nothing.
+    const spec = timedOut([pending(inRoot('tests', 'product', 'tab-panel.spec.mjs'), 210)]);
+    assert.deepEqual(lines(spec), ['chromium tab-panel.spec.mjs:203 renders | test timeout, line 210']);
+  });
 });

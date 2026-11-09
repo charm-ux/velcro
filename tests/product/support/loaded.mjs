@@ -84,12 +84,11 @@ async function frameState(frame) {
 export async function pendingLoad(page) {
   const network = watched.get(page);
   if (!network) throw new Error('documentsLoaded: call watchNetwork(page) before the page loads');
-  const pending = [];
-  for (const frame of page.frames()) {
-    if (frame.isDetached()) continue;
-    const state = await frameState(frame);
-    if (state !== 'complete') pending.push(`${frame === page.mainFrame() ? 'page' : 'frame'} ${state}`);
-  }
+  // The frames are read together, so one read of the page takes at most FRAME_READ_MS and the poll in documentsLoaded keeps
+  // to its bound however many frames do not answer.
+  const frames = page.frames().filter(frame => !frame.isDetached());
+  const states = await Promise.all(frames.map(frameState));
+  const pending = frames.flatMap((frame, i) => (states[i] === 'complete' ? [] : [`${frame === page.mainFrame() ? 'page' : 'frame'} ${states[i]}`]));
   const { open, quietFor } = network();
   if (open > 0) pending.push(`${open} request(s) open`);
   else if (quietFor < QUIET_MS) pending.push('network active');
