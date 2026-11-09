@@ -155,7 +155,7 @@ export class VelcroTooltip extends ShoelaceCompat(CoreTooltipTyping, { lang: tru
    * shared controller reads the host attribute instead, which misses a direction set only through the property.
    */
   private animationDirection(): string {
-    return `${this.dir || documentDir()}`.toLowerCase();
+    return `${super.dir || documentDir()}`.toLowerCase();
   }
 
   @query('slot:not([name])')

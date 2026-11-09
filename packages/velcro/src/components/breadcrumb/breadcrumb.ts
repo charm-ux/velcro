@@ -109,7 +109,7 @@ export class VelcroBreadcrumb extends ShoelaceCompat(CharmElement, { lang: true,
   // direction set only through the property; this component's `dir` returns what was set, by attribute or property, so it
   // resolves the direction the way Shoelace does.
   private direction() {
-    return `${this.dir || documentDir()}`.toLowerCase();
+    return `${super.dir || documentDir()}`.toLowerCase();
   }
 
   // Generates a clone of the separator element to use for each breadcrumb item

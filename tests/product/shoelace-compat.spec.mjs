@@ -8,6 +8,7 @@ test.beforeAll(async () => {
       export * from 'velcro-internal:internal/shoelace-compat';
       export { CharmElement } from 'core-internal:base/charm-element/charm-element';
     `,
+    components: `import 'velcro-internal:index';`,
   });
 });
 test.beforeEach(async ({ page }) => gotoBlank(page, outDir));
@@ -107,4 +108,21 @@ test('language-only compatibility retains computed core direction and does not r
     return { initial, language, value: element.value };
   });
   expect(result).toEqual({ initial: [undefined, 'ltr'], language: ['fr', null], value: null });
+});
+
+test('direction resolution keeps reading stored direction when a consumer overrides the public getter', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    await import('/components.js');
+    const breadcrumb = document.createElement('sl-breadcrumb');
+    const tooltip = document.createElement('sl-tooltip');
+    for (const element of [breadcrumb, tooltip]) {
+      element.dir = 'ltr';
+      Object.defineProperty(element, 'dir', { get: () => 'rtl' });
+    }
+    return {
+      public: [breadcrumb.dir, tooltip.dir],
+      resolved: [breadcrumb.direction(), tooltip.animationDirection()],
+    };
+  });
+  expect(result).toEqual({ public: ['rtl', 'rtl'], resolved: ['ltr', 'ltr'] });
 });
