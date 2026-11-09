@@ -79,7 +79,15 @@ const recordEvents = (page, cancel = []) => page.evaluate(cancel => {
     });
   }
 }, cancel);
-const eventTypes = page => page.evaluate(() => window.events.map(e => e.type));
+// sl-initial-focus is emitted in the animation frame after the show starts and sl-after-show when the 250 ms show
+// animation ends; on a loaded machine the frame can come later than the animation, so the two may arrive in either order
+// (in Shoelace too). The checks put sl-initial-focus right after the sl-show that precedes it.
+const showOrder = (list, initial = 'sl-initial-focus', show = 'sl-show', key = e => (typeof e === 'string' ? e : e.type)) => {
+  const out = list.filter(e => key(e) !== initial);
+  for (const e of list.filter(e => key(e) === initial)) out.splice(out.findIndex(x => key(x) === show) + 1, 0, e);
+  return out;
+};
+const eventTypes = page => page.evaluate(() => window.events.map(e => e.type)).then(showOrder);
 const isOpen = page => page.evaluate(() => document.getElementById('d').open);
 const panel = page => page.locator('#d .dialog__panel');
 const settled = page => page.evaluate(() => new Promise(resolve => setTimeout(resolve, 400)));
@@ -120,6 +128,8 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
   expect(html).toContain('The hidden attribute does not hide the dialog');
   expect(html).toContain('Removing an open dialog from the document releases its focus trap');
   expect(html).toContain('a single zero-width no-break space (U+FEFF)');
+  expect(html).toContain('a watcher that is spent by the first Escape');
+  expect(html).toContain('Observed, not compared');
   expect(html).toContain('The focus trap counts an &lt;a&gt; without href as tabbable');
   expect(html).toContain('Shoelace&#39;s own dialog tests (10, including the focus cycling inside a shadow root');
   expect(html).toContain('there is no axe check');
@@ -198,7 +208,8 @@ test('show(): sl-show, sl-initial-focus, sl-after-show; the panel takes focus, i
   await page.locator('#trigger').focus();
   const resolved = await page.evaluate(() => document.getElementById('d').show());
   expect(resolved).toBeUndefined();
-  const events = await page.evaluate(() => window.events);
+  await expect.poll(() => page.evaluate(() => window.events.length)).toBe(3);
+  const events = showOrder(await page.evaluate(() => window.events));
   expect(events).toEqual([
     { type: 'sl-show', bubbles: true, composed: true, cancelable: false, detail: '{}' },
     { type: 'sl-initial-focus', bubbles: true, composed: true, cancelable: true, detail: '{}' },
@@ -250,7 +261,7 @@ test('the close button, Escape and the overlay emit sl-request-close with their 
   ]) {
     await page.evaluate(() => { window.events = []; return document.getElementById('d').show(); });
     await act();
-    await expect.poll(() => eventTypes(page), source).toEqual(['sl-show', 'sl-initial-focus', 'sl-after-show', 'sl-request-close', 'sl-hide', 'sl-after-hide'].slice(0, 6));
+    await expect.poll(() => eventTypes(page), source).toEqual(['sl-show', 'sl-initial-focus', 'sl-after-show', 'sl-request-close', 'sl-hide', 'sl-after-hide']);
     expect(await requests()).toEqual([[source, true, true, true]]);
     expect(await isOpen(page)).toBe(false);
   }
@@ -421,22 +432,55 @@ test('the body scroll lock is counted per dialog: it stays while any dialog is o
   expect(r).toEqual({ both: [true, false, true], one: [true, true], none: false });
 });
 
-test('upstream quirk: a dialog rendered open emits no show events, does not move focus, but traps focus and locks scrolling', async ({ page }) => {
+test('upstream quirk: a dialog rendered open emits no show events, plays no animation, does not move focus or record a trigger, but traps focus and locks scrolling', async ({ page }) => {
   await gotoBlank(page, outDir);
   await page.addStyleTag({ content: theme });
   const r = await page.evaluate(async () => {
     await import('/dialog.js');
     const events = [];
     for (const type of ['sl-show', 'sl-after-show', 'sl-initial-focus']) document.addEventListener(type, () => events.push(type));
-    document.body.innerHTML = '<sl-dialog id="d" label="Title" open>Content</sl-dialog>';
+    window.animations = 0;
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) { window.animations++; return animate.apply(this, args); };
+    document.body.innerHTML = '<button id="t">Trigger</button><sl-dialog id="d" label="Title" open>Content</sl-dialog>';
     const el = document.getElementById('d');
     await el.updateComplete;
     await new Promise(resolve => setTimeout(resolve, 400));
-    return { events, open: el.open, hidden: el.dialog.hidden, active: el.modal.isActive(), lock: document.documentElement.classList.contains('sl-scroll-lock'), focus: document.activeElement === el };
+    const result = { events, animations: window.animations, open: el.open, hidden: el.dialog.hidden, active: el.modal.isActive(), lock: document.documentElement.classList.contains('sl-scroll-lock'), focus: document.activeElement === el };
+    Element.prototype.animate = animate;
+    return result;
   });
-  expect(r).toEqual({ events: [], open: true, hidden: false, active: true, lock: true, focus: false });
+  expect(r).toEqual({ events: [], animations: 0, open: true, hidden: false, active: true, lock: true, focus: false });
+  // Focusing an element outside moves focus into the dialog (the trap is active); no trigger was recorded, so closing
+  // returns focus nowhere: the outside button stays unfocused.
+  await page.evaluate(() => document.getElementById('t').focus());
+  await expect.poll(() => page.evaluate(() => document.activeElement?.id)).not.toBe('t');
   await page.keyboard.press('Escape');
   await expect.poll(() => isOpen(page)).toBe(false);
+  await expect.poll(() => page.evaluate(() => document.getElementById('d').dialog.hidden)).toBe(true);
+  await page.evaluate(() => new Promise(resolve => setTimeout(resolve, 50)));
+  expect(await page.evaluate(() => document.activeElement === document.getElementById('t'))).toBe(false);
+});
+
+test('upstream quirk: with CloseWatcher a canceled Escape spends the watcher; the keydown fallback keeps requesting; hide and show re-arm it', async ({ page }) => {
+  await blank(page, '<sl-dialog id="d" label="Title">Content</sl-dialog>');
+  await recordEvents(page, ['sl-request-close']);
+  const hasWatcher = await page.evaluate(() => 'CloseWatcher' in window);
+  const keyboardRequests = () => page.evaluate(() => window.events.filter(e => e.type === 'sl-request-close' && JSON.parse(e.detail).source === 'keyboard').length);
+  await page.evaluate(() => document.getElementById('d').show());
+  await page.keyboard.press('Escape');
+  await expect.poll(keyboardRequests).toBe(1);
+  await settled(page);
+  await page.keyboard.press('Escape');
+  await settled(page);
+  expect(await isOpen(page)).toBe(true);
+  // CloseWatcher (Chromium): the second Escape requests nothing. Keydown fallback (Firefox, WebKit): it requests again.
+  expect(await keyboardRequests()).toBe(hasWatcher ? 1 : 2);
+  // Hiding and showing again installs a new watcher (or listener): Escape requests a close again.
+  await page.evaluate(async () => { const el = document.getElementById('d'); await el.hide(); await el.show(); });
+  const before = await keyboardRequests();
+  await page.keyboard.press('Escape');
+  await expect.poll(keyboardRequests).toBe(before + 1);
 });
 
 test('upstream quirk: the hidden attribute does not hide an open dialog', async ({ page }) => {
@@ -445,7 +489,7 @@ test('upstream quirk: the hidden attribute does not hide an open dialog', async 
   await expect(panel(page)).toBeVisible();
 });
 
-test('upstream quirk: removing an open dialog releases the trap and lock but leaves open true; adding it back does not restore them', async ({ page }) => {
+test('upstream quirk: removing an open dialog releases the trap, lock and Escape handling but leaves open true; adding it back does not restore them', async ({ page }) => {
   await blank(page, '<sl-dialog id="d" label="Title">Content</sl-dialog>');
   const r = await page.evaluate(async () => {
     const el = document.getElementById('d');
@@ -456,9 +500,15 @@ test('upstream quirk: removing an open dialog releases the trap and lock but lea
     const removed = [el.open, lock(), el.modal.isActive()];
     document.body.append(el);
     await el.updateComplete;
+    window.requests = 0;
+    el.addEventListener('sl-request-close', () => window.requests++);
     return { shown, removed, back: [el.open, lock(), el.modal.isActive(), el.dialog.hidden] };
   });
   expect(r).toEqual({ shown: [true, true], removed: [true, false, false], back: [true, false, false, false] });
+  // The Escape handling is released too: Escape requests nothing and the dialog stays open.
+  await page.keyboard.press('Escape');
+  await settled(page);
+  expect(await page.evaluate(() => [window.requests, document.getElementById('d').open])).toEqual([0, true]);
 });
 
 test('upstream quirk: an empty label renders a U+FEFF title, so the panel has no usable accessible name', async ({ page }) => {
@@ -468,13 +518,13 @@ test('upstream quirk: an empty label renders a U+FEFF title, so the panel has no
   await expect(panel(page)).toHaveAccessibleName(/^\s*\uFEFF?\s*$/);
 });
 
-test('inherited core ready event: dispatched once on the element after the first update, not bubbling or composed', async ({ page }) => {
+test('inherited core ready event: dispatched once on the element after the first update (the base already hidden), not bubbling or composed', async ({ page }) => {
   await blank(page);
   const r = await page.evaluate(async () => {
     const el = document.createElement('sl-dialog');
     const seen = [];
     let bubbled = 0;
-    el.addEventListener('ready', event => seen.push({ bubbles: event.bubbles, composed: event.composed }));
+    el.addEventListener('ready', event => seen.push({ bubbles: event.bubbles, composed: event.composed, baseHidden: el.dialog.hidden }));
     document.body.addEventListener('ready', () => bubbled++);
     document.body.append(el);
     await el.updateComplete;
@@ -483,7 +533,7 @@ test('inherited core ready event: dispatched once on the element after the first
     el.remove();
     return { seen, bubbled };
   });
-  expect(r).toEqual({ seen: [{ bubbles: false, composed: false }], bubbled: 0 });
+  expect(r).toEqual({ seen: [{ bubbles: false, composed: false, baseHidden: true }], bubbled: 0 });
 });
 
 test('animation registry: Shoelace\'s five defaults; setAnimation changes one dialog only', async ({ page }) => {
@@ -633,9 +683,11 @@ test('every docs example renders in its own document and opens and closes with i
     await dialog.evaluate(el => new Promise(resolve => el.open ? setTimeout(resolve, 350) : resolve()));
     await frame.locator('sl-dialog > sl-button[slot="footer"]').click();
     await expect.poll(() => dialog.evaluate(el => el.open), title).toBe(false);
-    // The hide ends by focusing the trigger again (in a timeout after sl-after-hide), which scrolls the page to this
-    // frame; wait for it before moving on.
-    await expect.poll(() => frame.locator('body > sl-button').evaluate(el => document.activeElement === el), title).toBe(true);
+    // The hide ends by focusing the trigger again (in a timeout queued just before sl-after-hide), which scrolls the page
+    // to this frame; wait for the hide to finish and that timeout to run before moving on. Whether the click made the
+    // button the trigger is the engine's choice, so focus itself is not asserted here.
+    await expect.poll(() => dialog.evaluate(el => el.dialog.hidden), title).toBe(true);
+    await dialog.evaluate(() => new Promise(resolve => setTimeout(resolve, 50)));
   }
 });
 
@@ -682,7 +734,7 @@ test.describe('React', () => {
     await page.evaluate(() => document.getElementById('wrapped').updateComplete);
     await page.evaluate(() => window.renderWrapper('VelcroDialog', window.props(true), 'Content'));
     const el = page.locator('#wrapped');
-    await expect.poll(() => page.evaluate(() => window.reactEvents.map(e => e[0]))).toEqual(['show', 'initial-focus', 'after-show']);
+    await expect.poll(() => page.evaluate(() => window.reactEvents.map(e => e[0])).then(list => showOrder(list, 'initial-focus', 'show'))).toEqual(['show', 'initial-focus', 'after-show']);
     expect(await el.evaluate(e => [e.localName, e.label, e.open])).toEqual(['sl-dialog', 'React', true]);
     await el.locator('[part="close-button"]').click();
     await expect.poll(() => page.evaluate(() => window.reactEvents.slice(3))).toEqual([['request-close', 'close-button'], ['hide', null], ['after-hide', null]]);

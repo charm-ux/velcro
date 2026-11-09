@@ -244,10 +244,11 @@ export class VelcroDialog extends CharmElement {
   }
 
   public override firstUpdated() {
-    // Velcro extension (core): the base element's non-bubbling `ready` event.
-    super.firstUpdated();
-
     this.dialog.hidden = !this.open;
+
+    // Velcro extension (core): the base element's non-bubbling `ready` event, dispatched once the base's hidden state is
+    // set, so a listener sees the settled state.
+    super.firstUpdated();
 
     // Upstream quirk: a dialog that is open when it first renders emits no `sl-show` or `sl-after-show`, does not play
     // the show animation, does not move focus into the panel and records no trigger to return focus to.
@@ -282,6 +283,9 @@ export class VelcroDialog extends CharmElement {
     void this.hide();
   }
 
+  // Upstream quirk: where the browser has CloseWatcher, Escape goes through a watcher that closes (and is spent) on the
+  // first Escape. When that request is canceled the dialog stays open without a new watcher, so a later Escape requests
+  // nothing until the dialog is hidden and shown again. The keydown fallback has no such limit.
   private addOpenListeners() {
     if ('CloseWatcher' in window) {
       this.closeWatcher?.destroy();
