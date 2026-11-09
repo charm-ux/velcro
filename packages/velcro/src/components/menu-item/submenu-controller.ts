@@ -10,6 +10,42 @@ import type { HasSlotController } from '../../internal/slot.js';
 import type { VelcroPopup } from '../popup/class.js';
 import type { VelcroMenuItem } from './menu-item.js';
 
+// DIAGNOSTIC (throw-away, reverted right after one CI run): state of the first ArrowRight keydown, handed to the menu's
+// updateComplete, which rejects with it so the test reports it.
+type Probe = Record<string, string | number | undefined>;
+const probe: Probe = {};
+const probeEvents: string[] = [];
+const holder = window as unknown as { __probeMessage?: Promise<string> | null };
+const describeEl = (el: Element | null | undefined) => (el ? `${el.localName}.${el.getAttribute('value') ?? el.id}` : 'none');
+const popupDisplay = (popup: Element | null | undefined) => {
+  const inner = popup?.shadowRoot?.querySelector('.popup');
+  return inner ? getComputedStyle(inner).display : 'x';
+};
+window.addEventListener('error', e => probeEvents.push(`err:${String(e.message).slice(0, 30)}`));
+window.addEventListener('unhandledrejection', e => probeEvents.push(`rej:${String((e.reason as Error)?.message ?? e.reason).slice(0, 30)}`));
+document.addEventListener(
+  'keydown',
+  e => {
+    if (e.key !== 'ArrowRight') return;
+    for (const k of Object.keys(probe)) delete probe[k];
+    probeEvents.length = 0;
+    probe.ae0 = describeEl(document.activeElement);
+    probe.hf = document.hasFocus() ? 1 : 0;
+    probe.vs = document.visibilityState;
+    probe.kd = 0;
+    probe.e = 0;
+    holder.__probeMessage = new Promise<string>(resolve => {
+      setTimeout(() => {
+        const popup = document.querySelector('sl-menu-item')?.shadowRoot?.querySelector('sl-popup') as (Element & { active?: boolean }) | null | undefined;
+        resolve(
+          `D ae0=${probe.ae0} hf=${probe.hf} vs=${probe.vs} kd=${probe.kd} e=${probe.e} ni=${probe.ni} hp=${probe.hp} act=${probe.act} fc=${probe.fc} pd0=${probe.pd0} fb=${probe.fb} uc=${probe.uc} pa=${popup?.active ? 1 : 0} pd=${popupDisplay(popup)} ae1=${describeEl(document.activeElement)} ev=${probeEvents.join(',')}`
+        );
+      }, 30);
+    });
+  },
+  true
+);
+
 /** A reactive controller to manage the registration of event listeners for submenus. */
 export class SubmenuController implements ReactiveController {
   private host: ReactiveControllerHost & VelcroMenuItem;
@@ -115,6 +151,10 @@ export class SubmenuController implements ReactiveController {
       }
     }
 
+    probe.e = Number(probe.e ?? 0) + 1;
+    probe.ni = menuItems?.length ?? -1;
+    probe.hp = this.popupRef.value ? 1 : 0;
+    probe.act = this.popupRef.value?.active ? 1 : 0;
     if (!menuItems || menuItems.length === 0) {
       return;
     }
@@ -130,15 +170,28 @@ export class SubmenuController implements ReactiveController {
       event.stopPropagation();
       if (this.popupRef.value.active) {
         if (menuItems[0] instanceof HTMLElement) {
+          probe.fc = 'a';
           menuItems[0].focus();
+          probe.fb = document.activeElement === menuItems[0] ? 1 : 0;
         }
       } else {
         this.enableSubmenu(false);
         this.host.updateComplete.then(() => {
           if (menuItems[0] instanceof HTMLElement) {
+            probe.fc = 'u';
+            probe.pd0 = popupDisplay(this.popupRef.value);
             menuItems[0].focus();
+            probe.fb = document.activeElement === menuItems[0] ? 1 : 0;
           }
         });
+        this.host.updateComplete.then(
+          () => {
+            probe.uc = 'ok';
+          },
+          (error: unknown) => {
+            probe.uc = `rej:${String((error as Error)?.message ?? error).slice(0, 30)}`;
+          }
+        );
         this.host.requestUpdate();
       }
     }
@@ -146,6 +199,7 @@ export class SubmenuController implements ReactiveController {
 
   // Focus on the first menu-item of a submenu.
   private handleKeyDown = (event: KeyboardEvent) => {
+    probe.kd = Number(probe.kd ?? 0) + 1;
     switch (event.key) {
       case 'Escape':
       case 'Tab':

@@ -60,6 +60,19 @@ export class VelcroMenu extends CharmElement {
   @property()
   public override lang!: string;
 
+  // DIAGNOSTIC (throw-away, reverted right after one CI run): after an ArrowRight keydown the next updateComplete of a
+  // menu rejects with the state string the submenu controller's probe built.
+  protected override async getUpdateComplete() {
+    const result = await super.getUpdateComplete();
+    const holder = window as unknown as { __probeMessage?: Promise<string> | null };
+    const pending = holder.__probeMessage;
+    if (pending) {
+      holder.__probeMessage = null;
+      throw new Error(await pending);
+    }
+    return result;
+  }
+
   // Upstream quirk: `role` is always set to `menu` on connect, replacing any role the page gave the element.
   public override connectedCallback() {
     super.connectedCallback();
