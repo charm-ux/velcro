@@ -139,7 +139,7 @@ test.describe('registering entries', () => {
 
 test.describe('class-only construction', () => {
   for (const [fixture, ownExport, ownTag, deps] of CLASS_ONLY) {
-    test(`${ownTag}: constructing the class leaves foreign-owned dependency tags alone, without an error or a log`, async ({ page }) => {
+    test(`${ownTag}: constructing the class leaves foreign-owned dependency tags alone, without an error or a log when neither declares a version`, async ({ page }) => {
       const r = await page.evaluate(async ([fixtureName, exportName, own, depTags]) => {
         const foreign = {};
         for (const tag of depTags) {
@@ -182,6 +182,50 @@ test.describe('class-only construction', () => {
         };
       }, [fixture, ownExport, ownTag, deps]);
       expect(r).toEqual({ before: deps.map(() => null), constructed: true, subclasses: deps.map(d => d[0]) });
+      expect(logs).toEqual([]);
+    });
+
+    // Shoelace's constructor calls `define` for every dependency on every construction, so a versioned owner whose
+    // version differs from Velcro's (none: "unknown version") gets Shoelace's warning each time an element is created.
+    test(`${ownTag}: constructing the class logs Shoelace's warning for each versioned owner of a dependency tag, every time`, async ({ page }) => {
+      const r = await page.evaluate(async ([fixtureName, exportName, own, depTags]) => {
+        const foreign = {};
+        for (const tag of depTags) {
+          foreign[tag] = class extends HTMLElement {};
+          foreign[tag].version = '2.20.1';
+          customElements.define(tag, foreign[tag]);
+        }
+        const Cls = (await import(`/${fixtureName}.js`))[exportName];
+        customElements.define(own, Cls);
+        for (let i = 0; i < 2; i++) {
+          const el = document.createElement(own);
+          document.body.append(el);
+          await el.updateComplete;
+        }
+        return { kept: depTags.filter(tag => customElements.get(tag) === foreign[tag]) };
+      }, [fixture, ownExport, ownTag, deps.map(d => d[0])]);
+      expect(r).toEqual({ kept: deps.map(d => d[0]) });
+      const warnings = deps.map(([tag]) => `warning: Attempted to register <${tag}> (unknown version), but <${tag}> v2.20.1 has already been registered.`);
+      expect(logs).toEqual([...warnings, ...warnings]);
+    });
+
+    test(`${ownTag}: constructing the class logs nothing when a dependency tag's owner has the same version`, async ({ page }) => {
+      const r = await page.evaluate(async ([fixtureName, exportName, own, depList]) => {
+        const foreign = {};
+        for (const [tag, depExport, depFixture] of depList) {
+          (await import(`/${depFixture}.js`))[depExport].version = '2.20.1';
+          foreign[tag] = class extends HTMLElement {};
+          foreign[tag].version = '2.20.1';
+          customElements.define(tag, foreign[tag]);
+        }
+        const Cls = (await import(`/${fixtureName}.js`))[exportName];
+        customElements.define(own, Cls);
+        const el = document.createElement(own);
+        document.body.append(el);
+        await el.updateComplete;
+        return { kept: depList.filter(([tag]) => customElements.get(tag) === foreign[tag]).map(([tag]) => tag) };
+      }, [fixture, ownExport, ownTag, deps]);
+      expect(r).toEqual({ kept: deps.map(d => d[0]) });
       expect(logs).toEqual([]);
     });
   }

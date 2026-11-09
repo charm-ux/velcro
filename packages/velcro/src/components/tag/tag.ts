@@ -42,14 +42,15 @@ export class VelcroTag extends CharmElement {
   // none !important }` rule, focus outlines and form-control resets that Shoelace's tag does not have.
   public static override styles = [styles];
 
-  // Shoelace's `static dependencies` for the tag: the elements its template renders. Shoelace keys them by tag; here the
-  // tag is derived from each class's `baseName` (`sl-icon-button` for `VelcroIconButton`), the same tag
-  // `defineVelcroComponent` defines and the template renders. As in Shoelace's base element, each one that is not defined
-  // yet is defined when a tag is constructed, and a tag that another constructor already owns is left alone. If the
-  // platform refuses the class itself (for example because it is already registered under another tag), an anonymous
-  // subclass is defined instead, as Shoelace does. The icon button in turn defines `<sl-icon>` when it is constructed.
-  // Core's own array-typed `dependencies` (registration in core's scope) stays empty. Not part of the documented API
-  // (Shoelace's manifest lists `dependencies` without a description).
+  // Shoelace's `static dependencies` for the tag: the elements its template renders. Shoelace keys them by tag; here
+  // the tag is derived from each class's `baseName` (`sl-icon-button` for `VelcroIconButton`), the same tag
+  // `defineVelcroComponent` defines and the template renders. As in Shoelace's base element, each one that is not
+  // defined yet is defined when a tag is constructed, and a tag that another constructor already owns is left alone
+  // (with Shoelace's warning when the versions differ). If the platform refuses the class itself (for example because
+  // it is already registered under another tag), an anonymous subclass is defined instead, as Shoelace does. The icon
+  // button in turn defines `<sl-icon>` when it is constructed. Core's own array-typed `dependencies` (registration in
+  // core's scope) stays empty. Not part of the documented API (Shoelace's manifest lists `dependencies` without a
+  // description).
   private static readonly shoelaceDependencies: readonly VelcroComponentConstructor[] = [VelcroIconButton];
 
   public constructor() {

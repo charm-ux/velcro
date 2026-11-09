@@ -137,16 +137,18 @@ project configuration or scope maps.
 One difference from Shoelace remains: Shoelace's registering file defines only the
 component's own tag, and its constructor defines the dependencies when the first element
 is created; a Velcro registering entry defines the dependencies up front, when it is
-imported (the end state after construction is the same). A class-only entry defines
+imported (the end state after construction is the same). For the same reason, Shoelace's
+version warning about a dependency can appear when the entry is imported, where Shoelace
+logs it only when an element is constructed. A class-only entry defines
 dependencies on construction only for the components listed below.
 
 `tests/api/registration-guard.test.mjs` fails if an entry registers a tag in any other
 way (a direct `customElements.define`, core's `registerComponent`) or if the helper module
 exports anything else. `tests/product/registration-helper.spec.mjs` covers each case of the
 helper, and `tests/product/registration-clash.spec.mjs` covers both clash cases for every
-registering entry that has dependencies and class-only construction of a representative
-set of components. Browser regressions cover the current five
-leaf components, whole-root map/prefix isolation and constructor identity.
+registering entry that has dependencies, and both clash cases and the version warning for
+class-only construction of a representative set of components. `registration.spec.mjs`
+covers the leaf entries, whole-root map/prefix isolation and constructor identity.
 Button, card and spinner also expose class-only entries and `Sl*` aliases; badge and
 divider do not yet expose equivalent class-only subpaths. The root remains a
 registering aggregate. These checks run in Chromium, Firefox and WebKit; they are not a general FUI/CUI,
