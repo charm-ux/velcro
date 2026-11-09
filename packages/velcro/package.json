@@ -34,6 +34,8 @@
     "./dialog": { "types": "./dist/components/dialog/index.d.ts", "import": "./dist/components/dialog/index.js" },
     "./dialog/class": { "types": "./dist/components/dialog/class.d.ts", "import": "./dist/components/dialog/class.js" },
     "./divider": { "types": "./dist/components/divider/index.d.ts", "import": "./dist/components/divider/index.js" },
+    "./drawer": { "types": "./dist/components/drawer/index.d.ts", "import": "./dist/components/drawer/index.js" },
+    "./drawer/class": { "types": "./dist/components/drawer/class.d.ts", "import": "./dist/components/drawer/class.js" },
     "./dropdown": { "types": "./dist/components/dropdown/index.d.ts", "import": "./dist/components/dropdown/index.js" },
     "./dropdown/class": { "types": "./dist/components/dropdown/class.d.ts", "import": "./dist/components/dropdown/class.js" },
     "./format-bytes": { "types": "./dist/components/format-bytes/index.d.ts", "import": "./dist/components/format-bytes/index.js" },

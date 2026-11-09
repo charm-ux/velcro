@@ -1,0 +1,17 @@
+<sl-drawer label="Drawer" class="drawer-scrolling">
+  <div style="height: 150vh; border: dashed 2px var(--sl-color-neutral-200); padding: 0 1rem;">
+    <p>Scroll down and give it a try! 👇</p>
+  </div>
+  <sl-button slot="footer" variant="primary">Close</sl-button>
+</sl-drawer>
+
+<sl-button>Open Drawer</sl-button>
+
+<script>
+  const drawer = document.querySelector('.drawer-scrolling');
+  const openButton = drawer.nextElementSibling;
+  const closeButton = drawer.querySelector('sl-button[variant="primary"]');
+
+  openButton.addEventListener('click', () => drawer.show());
+  closeButton.addEventListener('click', () => drawer.hide());
+</script>
