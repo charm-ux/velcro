@@ -53,6 +53,11 @@ Harness notes: the runner page loads Velcro's light theme where upstream loads S
 mocha settings (3 s timeout, one retry), and adds two guards so one failure cannot discard a whole file's
 results: real form submission and navigation by `form.submit()` are suppressed, and an assertion that carries a
 sinon spy is reported instead of crashing the runner. Neither guard can turn a failing assertion into a pass.
+A third guard parks the pointer in the bottom-right corner before the first test starts: a page's pointer rests at
+(0,0), which is a vertex of the clip-path triangle that `sl-menu-item` (Shoelace's and Velcro's alike) draws over the
+viewport while a submenu is open, so Chrome's delayed hover update would send a `mouseover` to the item, and the item's
+handler would take the focus back from a submenu that a key press had just opened. It moves no element and changes no
+assertion.
 Upstream's icon sprite sheet tests load `/docs/assets/images/sprite.svg`, which Shoelace's docs build generates
 from Bootstrap Icons; the runner serves that one path from the same Bootstrap Icons sprite that Velcro's docs
 site ships (`packages/docs/public/assets/images/sprite.svg`).

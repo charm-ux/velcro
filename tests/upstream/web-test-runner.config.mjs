@@ -126,7 +126,23 @@ export default {
             try { return nativeClone(value, options); } catch { return nativeClone(plain(value), options); }
           };
         </script>
-        <script type="module" src="${testFramework}"></script>
+        <script type="module">
+          // Harness guard (not upstream): park the pointer in the bottom-right corner before the first test runs. A page's
+          // pointer rests at (0,0) until something moves it, and (0,0) is a vertex of the clip-path triangle that
+          // sl-menu-item draws over the viewport while a submenu is open (its cursor variables default to 0), so Chrome's
+          // delayed hover update then sends a mouseover to the item, whose handler takes the focus back from the submenu
+          // that a key press just opened. Shoelace's own build does the same. No test moves or reads the pointer except
+          // through its own commands, and the tests start only after the move, so no assertion is touched.
+          import { sendMouse } from '@web/test-runner-commands';
+          (async () => {
+            try { await sendMouse({ type: 'move', position: [799, 599] }); } finally {
+              const framework = document.createElement('script');
+              framework.type = 'module';
+              framework.src = '${testFramework}';
+              document.body.append(framework);
+            }
+          })();
+        </script>
       </body>
     </html>
   `,
