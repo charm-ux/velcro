@@ -66,6 +66,8 @@ const SURFACE = {
   'sl-format-number': { text: '0' },
   // An icon without a name or src draws nothing; its public surface is then the presentational host.
   'sl-icon': { icon: true },
+  // An animated image without a src renders its (hidden) image; the slots of its control box only exist once an image has loaded.
+  'sl-animated-image': { selector: 'img.animated-image__animated' },
   'sl-split-panel': { selector: '[part~="divider"]' },
   'sl-include': { selector: 'slot' },
 };
