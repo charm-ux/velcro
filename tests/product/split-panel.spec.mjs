@@ -174,9 +174,11 @@ async function keyboardFocus(page, frame, host) {
     const inner = el.shadowRoot.activeElement;
     return { frameFocused: document.hasFocus(), active: document.activeElement?.id || document.activeElement?.localName, divider: Boolean(inner?.classList.contains('divider')), focusVisible: Boolean(inner?.matches(':focus-visible')) };
   });
-  await expect.poll(focus).toEqual({ frameFocused: true, active: 'keyboard-start', divider: false, focusVisible: false });
-  await page.keyboard.press('Tab');
   // One poll per part, on its own line, so a failure's line names the part (CI summaries report the line, not the diff).
+  await expect.poll(async () => (await focus()).frameFocused, 'the click gives the frame the page focus').toBe(true);
+  await expect.poll(async () => (await focus()).active, 'the click focuses the sentinel').toBe('keyboard-start');
+  await expect.poll(async () => (await focus()).divider, 'the divider does not have the focus yet').toBe(false);
+  await page.keyboard.press('Tab');
   await expect.poll(async () => (await focus()).frameFocused, 'the frame keeps the page focus').toBe(true);
   await expect.poll(async () => (await focus()).active, 'the split panel is the active element').toBe(await host.evaluate(el => el.id || el.localName));
   await expect.poll(async () => (await focus()).divider, 'the divider has the focus').toBe(true);
