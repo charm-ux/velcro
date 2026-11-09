@@ -240,8 +240,9 @@ shipped with it. This file alone never certifies an artifact: where a built arti
   `packages/velcro/src/internal/scroll.ts` (`lockBodyScrolling`, `unlockBodyScrolling` and `scrollIntoView`, adapted from
   `src/internal/scroll.ts`), `packages/velcro/src/internal/offset.ts` (`getOffset`, adapted from `src/internal/offset.ts`)
   and `packages/velcro/src/internal/close-active-element.ts` (`blurActiveElement`, adapted from
-  `src/internal/closeActiveElement.ts`), behavior unchanged. They are shared by the dialog and the alert (and later
-  modal components), so they have no component folder. No Shoelace runtime is included.
+  `src/internal/closeActiveElement.ts`), behavior unchanged. They are shared by the dialog, the alert and the dropdown (the
+  last uses only the tabbable and active-element helpers) and later modal components, so they have no component folder.
+  No Shoelace runtime is included.
 - Components added later record their Shoelace use in their own `packages/velcro/src/components/<name>/NOTICE.md`
   (one list entry like those above); the package and site copies of this file include those entries here.
 <!-- component notices: packages/velcro/src/components/<name>/NOTICE.md -->

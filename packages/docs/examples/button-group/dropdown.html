@@ -1,8 +1,12 @@
-<!-- <span> stands in for <sl-dropdown>, which Velcro does not implement yet. There is no menu. -->
 <sl-button-group id="demo-dropdown" label="Example Button Group">
   <sl-button>Button</sl-button>
   <sl-button>Button</sl-button>
-  <span>
-    <sl-button caret>Dropdown</sl-button>
-  </span>
+  <sl-dropdown>
+    <sl-button slot="trigger" caret>Dropdown</sl-button>
+    <sl-menu>
+      <sl-menu-item>Item 1</sl-menu-item>
+      <sl-menu-item>Item 2</sl-menu-item>
+      <sl-menu-item>Item 3</sl-menu-item>
+    </sl-menu>
+  </sl-dropdown>
 </sl-button-group>

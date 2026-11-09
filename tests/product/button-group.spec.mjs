@@ -90,7 +90,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the quirk
   // The API table says the two core attributes that do nothing are inert, and does not repeat core's wording for them.
   expect(html.match(/Velcro extension \(core\), inert/g)?.length).toBe(2);
   expect(html).not.toMatch(/Vertically stacks the buttons|removing gap and border radius/);
-  // The React note names the two ports that differ from Shoelace's snippets beyond imports and stand-ins.
+  // The React note names the two ports that differ from Shoelace's snippets beyond imports.
   expect(html).toMatch(/two ports add what Shoelace(?:'|&#39;)s HTML example has[^<]*<code>SlVisuallyHidden<\/code>/);
   expect(html).not.toMatch(/<(script|link)[^>]*shoelace/i);
   expect(html).not.toMatch(/(src|href)="[^"]*shoelace/i);
@@ -210,17 +210,17 @@ test('data attributes: every example\'s buttons get data-sl-button-group__button
   expect(summaries['theme-buttons'].map(g => g.slotted[0].buttons[0].variant)).toEqual(['primary', 'success', 'neutral', 'warning', 'danger']);
   expect(summaries.pill.every(g => g.slotted.every(s => s.buttons[0].pill))).toBe(true);
 
-  // Through a wrapper (a span stands in for the dropdown, sl-tooltip wraps the tooltip buttons): the wrapper gets nothing, the button inside it gets the attributes of the wrapper's position.
+  // Through a wrapper (sl-dropdown holds the trigger button, sl-tooltip wraps the tooltip buttons): the wrapper gets nothing, the button inside it gets the attributes of the wrapper's position.
   const dropdown = summaries.dropdown[0];
   expect(dropdown.label).toBe('Example Button Group');
-  expect(dropdown.slotted.map(s => s.tag)).toEqual(['sl-button', 'sl-button', 'span']);
+  expect(dropdown.slotted.map(s => s.tag)).toEqual(['sl-button', 'sl-button', 'sl-dropdown']);
   expect(dropdown.slotted.map(s => s.data)).toEqual([first, inner, []]);
   expect(dropdown.slotted[2].buttons).toHaveLength(1);
   expect(dropdown.slotted[2].buttons[0]).toMatchObject({ text: 'Dropdown', caret: true, data: last });
   expect(dropdown.slotted.slice(0, 2).map(s => s.data)).toEqual([first, inner]);
 
   const split = summaries.split[0];
-  expect(split.slotted.map(s => s.tag)).toEqual(['sl-button', 'span']);
+  expect(split.slotted.map(s => s.tag)).toEqual(['sl-button', 'sl-dropdown']);
   expect(split.slotted[0].buttons[0]).toMatchObject({ text: 'Save', variant: 'primary', data: first });
   expect(split.slotted[1].buttons[0]).toMatchObject({ text: 'More options', variant: 'primary', caret: true, data: last });
   expect(split.slotted[1].data).toEqual([]);

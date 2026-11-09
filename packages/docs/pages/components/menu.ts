@@ -6,6 +6,7 @@ import { themeHead } from '../../src/theme.js';
 import { withBase } from '../../src/base.js';
 import { apiReference } from '../../src/api.js';
 import { examples, exampleDocument, reactExamples } from '../../src/example.js';
+import { withRoomForPanel } from '../../src/example-room.js';
 
 export const pageData = definePageData(async () => ({
   seoTitle: 'Menu - Velcro',
@@ -13,9 +14,10 @@ export const pageData = definePageData(async () => ({
 }));
 
 // Shoelace's examples, in the order of its page: [id, title, text, example key, React example key]. The first has no heading in
-// Shoelace's page; it is the page's opening example. Shoelace's "In Dropdowns" example is not ported (see the gaps below).
+// Shoelace's page; it is the page's opening example.
 const sections = [
   ['basic', 'Default', null, 'menu/basic', 'menu/react/basic'],
+  ['dropdowns', 'In Dropdowns', html`Menus work really well when used inside <a href=${withBase('/components/dropdown')}>dropdowns</a>.`, 'menu/dropdowns', 'menu/react/dropdowns'],
   ['submenus', 'Submenus', html`To create a submenu, nest an <code>&lt;sl-menu slot="submenu"&gt;</code> in any <a href=${withBase('/components/menu-item')}>menu item</a>.`, 'menu/submenus', 'menu/react/submenus'],
 ] as const;
 
@@ -31,7 +33,7 @@ const quirks = [
 ] as const;
 
 const gaps = [
-  'Shoelace\'s "In Dropdowns" example (an sl-dropdown holding a menu) is not ported, because Velcro does not implement sl-dropdown yet; neither a live preview nor a React version exists for it, and a menu inside a dropdown has not been exercised. The other examples (the opening one and Submenus) are ported with a live preview and a React version, in Shoelace\'s order. The React examples import Velcro\'s generated wrappers (@charm-ux/velcro/react/VelcroMenu.js, VelcroMenuItem.js and VelcroDivider.js) under Shoelace\'s names; nothing else differs.',
+  'All of Shoelace\'s examples (the opening one, In Dropdowns and Submenus) are ported with a live preview and a React version, in Shoelace\'s order. In Dropdowns uses Velcro\'s sl-dropdown and sl-button, which have their own page; the preview gets a page-local style, outside the source shown here, that leaves room for the open panel. The React examples import Velcro\'s generated wrappers (@charm-ux/velcro/react/VelcroMenu.js, VelcroMenuItem.js, VelcroDivider.js and, for In Dropdowns, VelcroButton.js and VelcroDropdown.js) under Shoelace\'s names; nothing else differs. The menu inside a dropdown is checked by the dropdown\'s own tests (arrow keys from the trigger, selection closing the panel).',
   'Velcro builds sl-menu on the @charm-ux/core base element, not on core\'s menu component: core\'s menu is a dropdown (a trigger, a popup, placement attributes and menu-show, menu-hide and menu-request-close events) that manages its items through marker attributes, which is a different model from Shoelace\'s always visible inline list with role="menu" and sl-select. The only core extension that remains is the non-bubbling ready event on first update, which the API tables label as inherited from core. Core\'s base styles are replaced by Shoelace\'s.',
   'As in Shoelace, sl-menu-item, sl-menu-label and sl-divider are separate components: the menu entry (@charm-ux/velcro/menu) registers only sl-menu. Import @charm-ux/velcro/menu-item (or the package root) for the items.',
   'The public defaultSlot field and the getAllItems(), getCurrentItem() and setCurrentItem() methods exist as in Shoelace, where the methods are marked internal; the API tables below list the ones the manifest includes, without a description.',
@@ -59,7 +61,7 @@ export class MenuPage extends LitElement {
         ([id, title, text, key, react]) => html`
           <h3 id=${id}>${title}</h3>
           ${text === null ? '' : html`<p>${text}</p>`}
-          <iframe class="example" title=${`Menu example: ${title}`} srcdoc=${exampleDocument(examples[key])}></iframe>
+          <iframe class="example" title=${`Menu example: ${title}`} srcdoc=${id === 'dropdowns' ? withRoomForPanel(exampleDocument(examples[key])) : exampleDocument(examples[key])}></iframe>
           <pre><code>${examples[key]}</code></pre>
           <details class="react-example">
             <summary>React</summary>

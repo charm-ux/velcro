@@ -1,0 +1,20 @@
+<div class="dropdown-selection">
+  <sl-dropdown>
+    <sl-button slot="trigger" caret>Edit</sl-button>
+    <sl-menu>
+      <sl-menu-item value="cut">Cut</sl-menu-item>
+      <sl-menu-item value="copy">Copy</sl-menu-item>
+      <sl-menu-item value="paste">Paste</sl-menu-item>
+    </sl-menu>
+  </sl-dropdown>
+</div>
+
+<script>
+  const container = document.querySelector('.dropdown-selection');
+  const dropdown = container.querySelector('sl-dropdown');
+
+  dropdown.addEventListener('sl-select', event => {
+    const selectedItem = event.detail.item;
+    console.log(selectedItem.value);
+  });
+</script>
