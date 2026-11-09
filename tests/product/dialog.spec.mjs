@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 import { reactWrapperPage } from './support/react.mjs';
@@ -90,6 +91,8 @@ const showOrder = (list, initial = 'sl-initial-focus', show = 'sl-show', key = e
 const eventTypes = page => page.evaluate(() => window.events.map(e => e.type)).then(showOrder);
 const isOpen = page => page.evaluate(() => document.getElementById('d').open);
 const panel = page => page.locator('#d .dialog__panel');
+// The number of animations running on the panel (the show, hide and deny-close animations play there).
+const panelAnimations = page => page.evaluate(() => document.getElementById('d').shadowRoot.querySelector('.dialog__panel').getAnimations().length);
 const settled = page => page.evaluate(() => new Promise(resolve => setTimeout(resolve, 400)));
 
 test('docs page is prerendered with Velcro branding, prototype status, every Shoelace section, the quirks and explicit limits', async ({ request }) => {
@@ -279,9 +282,10 @@ test('canceling sl-request-close keeps the dialog open and plays the deny-close 
       return animate.call(this, keyframes, options);
     };
   });
-  for (const act of [() => page.locator('#d [part="close-button"]').click(), () => page.keyboard.press('Escape'), () => page.mouse.click(5, 5)]) {
+  for (const [i, act] of [() => page.locator('#d [part="close-button"]').click(), () => page.keyboard.press('Escape'), () => page.mouse.click(5, 5)].entries()) {
     await act();
-    await settled(page);
+    // Each canceled request plays the deny-close animation; the next one waits until it has ended.
+    await expect.poll(async () => [await page.evaluate(() => window.calls.length), await panelAnimations(page)]).toEqual([i + 1, 0]);
   }
   expect(await isOpen(page)).toBe(true);
   expect(await page.evaluate(() => window.events.filter(e => e.type === 'sl-request-close').map(e => JSON.parse(e.detail).source))).toEqual(['close-button', 'keyboard', 'overlay']);
@@ -297,14 +301,12 @@ test('focus is trapped: Tab and Shift+Tab cycle through the dialog\'s tabbable e
     while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
     return el.id || el.getAttribute('part') || el.localName;
   });
-  const seen = [];
-  for (let i = 0; i < 5; i++) {
+  for (const expected of ['base', 'a', 'b', 'c', 'base']) {
     await page.keyboard.press('Tab');
-    seen.push(await active());
+    await expect.poll(active).toBe(expected);
   }
-  expect(seen).toEqual(['base', 'a', 'b', 'c', 'base']);
   await page.keyboard.press('Shift+Tab');
-  expect(await active()).toBe('c');
+  await expect.poll(() => active()).toBe('c');
   // Focusing an element outside the dialog moves focus back in.
   await page.evaluate(() => document.getElementById('outside').focus());
   await expect.poll(active).not.toBe('outside');
@@ -470,8 +472,10 @@ test('upstream quirk: with CloseWatcher a canceled Escape spends the watcher; th
   await page.evaluate(() => document.getElementById('d').show());
   await page.keyboard.press('Escape');
   await expect.poll(keyboardRequests).toBe(1);
-  await settled(page);
-  await page.keyboard.press('Escape');
+  await expect.poll(() => panelAnimations(page), 'the deny-close animation has ended').toBe(0);
+  await recordKeys(page);
+  await pressReceived(page, page, 'Escape');
+  // The window in which a wrong request could still arrive.
   await settled(page);
   expect(await isOpen(page)).toBe(true);
   // CloseWatcher (Chromium): the second Escape requests nothing. Keydown fallback (Firefox, WebKit): it requests again.
@@ -506,7 +510,8 @@ test('upstream quirk: removing an open dialog releases the trap, lock and Escape
   });
   expect(r).toEqual({ shown: [true, true], removed: [true, false, false], back: [true, false, false, false] });
   // The Escape handling is released too: Escape requests nothing and the dialog stays open.
-  await page.keyboard.press('Escape');
+  await recordKeys(page);
+  await pressReceived(page, page, 'Escape');
   await settled(page);
   expect(await page.evaluate(() => [window.requests, document.getElementById('d').open])).toEqual([0, true]);
 });
@@ -633,20 +638,20 @@ test.describe('internal modal modules', () => {
     });
     const active = () => page.evaluate(() => document.activeElement.id);
     await page.keyboard.press('Tab');
-    expect(await active()).toBe('b');
+    await expect.poll(() => active()).toBe('b');
     await page.keyboard.press('Tab');
-    expect(await active()).toBe('a');
+    await expect.poll(() => active()).toBe('a');
     await page.keyboard.press('Shift+Tab');
-    expect(await active()).toBe('b');
+    await expect.poll(() => active()).toBe('b');
     expect(await page.evaluate(() => { window.m2.activate(); return [window.m1.isActive(), window.m2.isActive()]; })).toEqual([false, true]);
     await page.evaluate(() => document.getElementById('c').focus());
     await page.keyboard.press('Tab');
-    expect(await active()).toBe('c');
+    await expect.poll(() => active()).toBe('c');
     await page.evaluate(() => { window.m2.deactivate(); window.m1.activateExternal(); document.getElementById('out').focus(); });
     expect(await active()).toBe('out');
     await page.evaluate(() => { window.m1.deactivateExternal(); document.getElementById('b').focus(); });
     await page.keyboard.press('Tab');
-    expect(await active()).toBe('a');
+    await expect.poll(() => active()).toBe('a');
     await page.evaluate(() => window.m1.deactivate());
   });
 

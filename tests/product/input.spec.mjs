@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 
@@ -277,6 +278,9 @@ test('placeholder, filled and disabled render as in Shoelace', async ({ page, br
   await addStartButton(disabled.frame);
   await disabled.frame.locator('#start').focus();
   await page.keyboard.press('Tab');
+  // Tab moves the focus off the start button (to the next control, or out of the example's frame, whose activeElement
+  // Firefox then leaves on the button), and not to the disabled control.
+  await expect.poll(() => disabled.frame.locator('body').evaluate(() => (document.hasFocus() ? document.activeElement?.id : 'left the frame'))).not.toBe('start');
   expect(await disabled.frame.locator('body').evaluate(() => document.activeElement?.localName)).not.toBe('sl-input');
 });
 
@@ -345,7 +349,7 @@ test('clearable: the clear button shows only for a non-empty, enabled, editable 
   })).toEqual(['clear-icon', 'custom-clear', true]);
   // Typing makes it appear, and a disabled or read-only control hides it again.
   await frame.locator('#demo-clearable input').pressSequentially('ab');
-  expect(await hasButton('#demo-clearable')).toBe(true);
+  await expect.poll(() => hasButton('#demo-clearable')).toBe(true);
   expect(await el.evaluate(async el => { el.readonly = true; await el.updateComplete; return Boolean(el.shadowRoot.querySelector('[part="clear-button"]')); })).toBe(false);
 });
 
@@ -493,7 +497,9 @@ test('events: sl-input per edit and sl-change on commit bubble and are composed;
     document.body.addEventListener('change', () => window.__events.push('body change'));
   });
   await el.locator('input').pressSequentially('ab');
+  await expect.poll(() => el.evaluate(el => el.value)).toBe('ab');
   await page.keyboard.press('Tab');
+  await expect.poll(() => el.evaluate(() => window.__events.filter(e => e.startsWith('sl-blur')).length)).toBe(1);
   const events = await el.evaluate(() => window.__events);
   // Shoelace's events bubble, are composed and not cancelable. The platform's composed input event also reaches the host;
   // the native change event does not leave the inner input.
@@ -529,18 +535,19 @@ test('keyboard: Tab focuses the input, typing and Backspace edit it, the focus s
   await addStartButton(frame);
   await frame.locator('#start').focus();
   await page.keyboard.press('Tab');
-  expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-default');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-default');
   await page.keyboard.press('Tab');
-  expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('kb');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('kb');
   expect(await frame.locator('#kb').evaluate(el => [el.shadowRoot.activeElement?.localName, el.shadowRoot.querySelector('[part="base"]').classList.contains('input--focused')])).toEqual(['input', true]);
   await page.keyboard.type('abc');
+  await expect.poll(() => frame.locator('#kb').evaluate(el => el.value)).toBe('abc');
   await page.keyboard.press('Backspace');
-  expect(await frame.locator('#kb').evaluate(el => el.value)).toBe('ab');
+  await expect.poll(() => frame.locator('#kb').evaluate(el => el.value)).toBe('ab');
   await page.keyboard.press('Shift+Tab');
-  expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-default');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('demo-default');
   expect(await frame.locator('#kb').evaluate(el => el.shadowRoot.querySelector('[part="base"]').classList.contains('input--focused'))).toBe(false);
   await frame.locator('#max input').pressSequentially('abcdef');
-  expect(await frame.locator('#max').evaluate(el => [el.value, el.maxlength, el.shadowRoot.querySelector('input').getAttribute('maxlength')])).toEqual(['abc', 3, '3']);
+  await expect.poll(() => frame.locator('#max').evaluate(el => [el.value, el.maxlength, el.shadowRoot.querySelector('input').getAttribute('maxlength')])).toEqual(['abc', 3, '3']);
 });
 
 test('keyboard: the clear and password toggle buttons are not tab stops', async ({ page }) => {
@@ -551,9 +558,9 @@ test('keyboard: the clear and password toggle buttons are not tab stops', async 
     <button id="last">last</button>`);
   await frame.locator('#first').focus();
   await page.keyboard.press('Tab');
-  expect(await frame.locator('#both').evaluate(el => el.shadowRoot.activeElement?.localName)).toBe('input');
+  await expect.poll(() => frame.locator('#both').evaluate(el => el.shadowRoot.activeElement?.localName)).toBe('input');
   await page.keyboard.press('Tab');
-  expect(await frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('last');
+  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).toBe('last');
 });
 
 test('forms: name and value are submitted, a required empty input blocks submit, Enter submits, and reset restores the default value', async ({ page }) => {
@@ -595,7 +602,10 @@ test('forms: name and value are submitted, a required empty input blocks submit,
   await frame.locator('#def input').press('Enter');
   await expect.poll(() => frame.locator('body').evaluate(() => window.__submitted.length)).toBe(2);
   expect(await frame.locator('body').evaluate(() => window.__submitted[1])).toBe('comments=hello&notes=changed');
-  await frame.locator('#def input').press('Shift+Enter');
+  await frame.locator('#def input').focus();
+  await recordKeys(frame.locator('body'));
+  await pressReceived(page, frame.locator('body'), 'Shift+Enter');
+  // The window in which a wrong submit (which would come after a tick) could still arrive.
   await frame.locator('#def').evaluate(() => new Promise(resolve => setTimeout(resolve, 100)));
   expect(await frame.locator('body').evaluate(() => window.__submitted.length)).toBe(2);
   await frame.locator('#reset').click();
@@ -662,13 +672,12 @@ test('validation: required, pattern, minlength, maxlength and setCustomValidity 
     <sl-input id="cust"></sl-input>
     <sl-input id="dis" required disabled></sl-input>`);
   await frame.locator('#min input').pressSequentially('abc');
-  const short = await frame.locator('#min').evaluate(async el => {
+  await expect.poll(() => frame.locator('#min').evaluate(async el => {
     await el.updateComplete;
     return { valid: el.checkValidity(), tooShort: el.validity.tooShort, message: typeof el.validationMessage, attr: [el.hasAttribute('data-invalid'), el.hasAttribute('data-valid')], min: [el.minlength, el.shadowRoot.querySelector('input').getAttribute('minlength')] };
-  });
-  expect(short).toEqual({ valid: false, tooShort: true, message: 'string', attr: [true, false], min: [5, '5'] });
+  })).toEqual({ valid: false, tooShort: true, message: 'string', attr: [true, false], min: [5, '5'] });
   await frame.locator('#min input').pressSequentially('de');
-  expect(await frame.locator('#min').evaluate(async el => { await el.updateComplete; return [el.checkValidity(), el.hasAttribute('data-valid')]; })).toEqual([true, true]);
+  await expect.poll(() => frame.locator('#min').evaluate(async el => { await el.updateComplete; return [el.checkValidity(), el.hasAttribute('data-valid')]; })).toEqual([true, true]);
 
   const pattern = await frame.locator('#pat').evaluate(async el => {
     const before = [el.validity.patternMismatch, el.hasAttribute('data-invalid'), el.shadowRoot.querySelector('input').getAttribute('pattern')];
@@ -916,7 +925,8 @@ test('core extensions kept: hide-label and error-message; invalid and label-posi
   // readonly is Shoelace's own attribute: the value cannot be edited.
   await mount(frame, '<sl-input id="ro" readonly value="fixed"></sl-input>');
   await frame.locator('#ro input').click();
-  await page.keyboard.type('x');
+  await recordKeys(frame.locator('body'));
+  await pressReceived(page, frame.locator('body'), 'x');
   expect(await frame.locator('#ro').evaluate(el => [el.value, el.shadowRoot.querySelector('input').readOnly])).toEqual(['fixed', true]);
 });
 
@@ -1385,6 +1395,7 @@ test.describe('React wrapper', () => {
     });
     expect(await read()).toEqual({ ctor: true, label: 'Count', help: 'Be brief', type: ['number', 'number'], bounds: [1, 9, 2, '1', '9', '2'], value: ['', ''], name: 'count', size: 'large' });
     await page.locator('sl-input input').pressSequentially('37');
+    await expect(page.locator('sl-input input')).toHaveValue('37');
     await page.locator('sl-input input').blur();
     expect(await page.evaluate(() => window.calls)).toEqual(['input:3', 'input:37', 'change:37']);
     await page.locator('sl-input [part="clear-button"]').click();
