@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 
@@ -378,39 +379,41 @@ test('keyboard: arrows, Home and End move focus through the focusable items; Rig
   // Focusing the tree moves focus to its first item.
   await frame.locator('#t').focus();
   expect(await focusedId(frame)).toBe('a');
-  const press = async key => { await page.keyboard.press(key); return focusedId(frame); };
-  expect(await press('ArrowDown')).toBe('b');
-  expect(await press('ArrowDown')).toBe('c');
-  expect(await press('ArrowDown')).toBe('c');
-  expect(await press('ArrowUp')).toBe('b');
-  expect(await press('Home')).toBe('a');
-  expect(await press('ArrowUp')).toBe('a');
-  expect(await press('End')).toBe('c');
-  expect(await press('Home')).toBe('a');
+  // Presses a key, waits until the whole press was received (some keys move nothing), then for the item it focuses.
+  await recordKeys(frame.locator('body'));
+  const press = async (key, expected) => { await pressReceived(page, frame.locator('body'), key); await expect.poll(() => focusedId(frame), key).toBe(expected); };
+  await press('ArrowDown', 'b');
+  await press('ArrowDown', 'c');
+  await press('ArrowDown', 'c');
+  await press('ArrowUp', 'b');
+  await press('Home', 'a');
+  await press('ArrowUp', 'a');
+  await press('End', 'c');
+  await press('Home', 'a');
   // No type-ahead in Shoelace's tree.
-  expect(await press('KeyB')).toBe('a');
+  await press('KeyB', 'a');
   // Right expands a collapsed branch and keeps focus; on an expanded one it moves to the next focusable item.
-  expect(await press('ArrowRight')).toBe('a');
+  await press('ArrowRight', 'a');
   expect(await frame.locator('#a').evaluate(el => el.expanded)).toBe(true);
-  expect(await press('ArrowRight')).toBe('a1');
+  await press('ArrowRight', 'a1');
   // Quirk: on a leaf Right moves to the next item (it does not stop at an end node), and Left to the previous one (not the parent).
-  expect(await press('ArrowRight')).toBe('a2');
-  expect(await press('ArrowLeft')).toBe('a1');
-  expect(await press('ArrowRight')).toBe('a2');
+  await press('ArrowRight', 'a2');
+  await press('ArrowLeft', 'a1');
+  await press('ArrowRight', 'a2');
   // The disabled child is skipped in both directions.
-  expect(await press('ArrowDown')).toBe('b');
-  expect(await press('ArrowUp')).toBe('a2');
-  expect(await press('ArrowDown')).toBe('b');
+  await press('ArrowDown', 'b');
+  await press('ArrowUp', 'a2');
+  await press('ArrowDown', 'b');
   // Left on an expanded branch collapses it.
-  expect(await press('ArrowUp')).toBe('a2');
-  expect(await press('Home')).toBe('a');
-  expect(await press('ArrowLeft')).toBe('a');
+  await press('ArrowUp', 'a2');
+  await press('Home', 'a');
+  await press('ArrowLeft', 'a');
   expect(await frame.locator('#a').evaluate(el => el.expanded)).toBe(false);
   // Enter and Space select the focused item.
-  expect(await press('ArrowDown')).toBe('b');
+  await press('ArrowDown', 'b');
   await page.keyboard.press('Enter');
   await expect.poll(() => selectedIds(frame)).toEqual(['b']);
-  expect(await press('End')).toBe('c');
+  await press('End', 'c');
   await page.keyboard.press('Space');
   await expect.poll(() => selectedIds(frame)).toEqual(['c']);
   expect((await selectionEvents(frame)).map(e => e.ids)).toEqual([['b'], ['c']]);
@@ -424,22 +427,26 @@ test('keyboard: the arrows swap in right-to-left text, and the keys leave a nest
   await setTree(frame, { dir: 'rtl' });
   await frame.locator('#t').focus();
   expect(await focusedId(frame)).toBe('a');
-  await page.keyboard.press('ArrowRight');
-  expect(await frame.locator('#a').evaluate(el => el.expanded)).toBe(false);
+  const expanded = () => frame.locator('#a').evaluate(el => el.expanded);
+  await recordKeys(frame.locator('body'));
+  await pressReceived(page, frame.locator('body'), 'ArrowRight');
+  expect(await expanded()).toBe(false);
   await page.keyboard.press('ArrowLeft');
-  expect(await frame.locator('#a').evaluate(el => el.expanded)).toBe(true);
+  await expect.poll(expanded).toBe(true);
   await page.keyboard.press('ArrowRight');
-  expect(await frame.locator('#a').evaluate(el => el.expanded)).toBe(false);
+  await expect.poll(expanded).toBe(false);
   // A key pressed in a text field inside an item is not handled (not even prevented), so the caret keeps working.
   await frame.locator('#field').evaluate(el => {
     window.keys = [];
     document.addEventListener('keydown', e => window.keys.push([e.key, e.defaultPrevented]));
     el.focus();
   });
+  const keys = () => frame.locator('body').evaluate(() => window.keys);
   await page.keyboard.press('ArrowDown');
+  await expect.poll(keys).toEqual([['ArrowDown', false]]);
   await page.keyboard.press('Home');
+  await expect.poll(keys).toEqual([['ArrowDown', false], ['Home', false]]);
   expect(await focusedId(frame)).toBe('field');
-  expect(await frame.locator('body').evaluate(() => window.keys)).toEqual([['ArrowDown', false], ['Home', false]]);
 });
 
 // Enter with focus on an element inside the tree that is not an item (a focusable span, not a button: a button's own reaction
@@ -507,7 +514,7 @@ test('roving tabindex: focus moves the tab stop to the item, and leaving the tre
   expect(await stops()).toEqual([0, -1, -1, -1, -1, -1, -1, -1, -1]);
   await frame.locator('#t').focus();
   await page.keyboard.press('ArrowDown');
-  expect(await focusedId(frame)).toBe('b');
+  await expect.poll(() => focusedId(frame)).toBe('b');
   expect(await stops()).toEqual([-1, -1, -1, -1, -1, 0, -1, -1, -1]);
   await frame.locator('#out').focus();
   expect(await stops()).toEqual([0, -1, -1, -1, -1, 0, -1, -1, -1]);

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
@@ -156,6 +157,38 @@ test('shadow structure, parts, slots, divider semantics and default state', asyn
   expect(s.start[3]).toBe(120);
 });
 
+// Gives the divider keyboard focus, so it matches :focus-visible: a real click on a focusable sentinel placed right before
+// the split panel gives the example's frame the page focus (Firefox does not move focus into an unfocused frame from
+// script), the sentinel gets the focus, then Tab moves the focus from the sentinel to the divider, inside the frame. The sentinel is an element with a
+// tabindex, not a button, because WebKit on macOS does not focus a clicked button. It is removed afterwards.
+async function keyboardFocus(page, frame, host) {
+  await host.evaluate(el => {
+    const sentinel = document.createElement('div');
+    sentinel.tabIndex = 0;
+    sentinel.id = 'keyboard-start';
+    sentinel.textContent = 'start';
+    el.before(sentinel);
+  });
+  // The click gives the frame the page focus; Firefox does not always move the focus to the clicked sentinel itself, so it
+  // is focused from script too (which works once the frame has the page focus).
+  await frame.locator('#keyboard-start').click();
+  await frame.locator('#keyboard-start').focus();
+  const focus = () => host.evaluate(el => {
+    const inner = el.shadowRoot.activeElement;
+    return { frameFocused: document.hasFocus(), active: document.activeElement?.id || document.activeElement?.localName, divider: Boolean(inner?.classList.contains('divider')), focusVisible: Boolean(inner?.matches(':focus-visible')) };
+  });
+  // One poll per part, on its own line, so a failure's line names the part (CI summaries report the line, not the diff).
+  await expect.poll(async () => (await focus()).frameFocused, 'the click gives the frame the page focus').toBe(true);
+  await expect.poll(async () => (await focus()).active, 'the click focuses the sentinel').toBe('keyboard-start');
+  await expect.poll(async () => (await focus()).divider, 'the divider does not have the focus yet').toBe(false);
+  await page.keyboard.press('Tab');
+  await expect.poll(async () => (await focus()).frameFocused, 'the frame keeps the page focus').toBe(true);
+  await expect.poll(async () => (await focus()).active, 'the split panel is the active element').toBe(await host.evaluate(el => el.id || el.localName));
+  await expect.poll(async () => (await focus()).divider, 'the divider has the focus').toBe(true);
+  await expect.poll(async () => (await focus()).focusVisible, 'the divider matches :focus-visible').toBe(true);
+  await frame.locator('#keyboard-start').evaluate(el => el.remove());
+}
+
 test('the divider is a named separator with value semantics and is the split panel\'s only tab stop', async ({ page }) => {
   const { frame } = await openExample(page);
   const host = await mount(frame);
@@ -165,9 +198,9 @@ test('the divider is a named separator with value semantics and is the split pan
   await host.locator('.divider').focus();
   expect(await host.evaluate(el => el.shadowRoot.activeElement?.className)).toBe('divider');
   await page.keyboard.press('Tab');
-  expect(await host.evaluate(el => el.shadowRoot.activeElement)).toBeNull();
+  await expect.poll(() => host.evaluate(el => el.shadowRoot.activeElement)).toBeNull();
   await page.keyboard.press('Shift+Tab');
-  expect(await host.evaluate(el => el.shadowRoot.activeElement?.className)).toBe('divider');
+  await expect.poll(() => host.evaluate(el => el.shadowRoot.activeElement?.className)).toBe('divider');
 });
 
 test('properties: defaults, attribute reflection, types, and restore of the initial value when a reflected attribute is removed', async ({ page }) => {
@@ -301,50 +334,56 @@ test('keyboard: arrows move 1%, shift moves 10%, Home/End jump, Enter collapses 
   const host = await mount(frame);
   const divider = host.locator('.divider');
   await divider.focus();
-  const press = async key => { await page.keyboard.press(key); await host.evaluate(el => el.updateComplete); return position(host); };
-  expect(await press('ArrowRight')).toBe(51);
-  expect(await press('ArrowLeft')).toBe(50);
-  expect(await press('Shift+ArrowLeft')).toBe(40);
-  expect(await press('Shift+ArrowRight')).toBe(50);
+  // Presses a key, waits until the whole press was received (some keys leave the position as it is), then for the position.
+  await recordKeys(host);
+  const press = async (key, expected) => { await pressReceived(page, host, key); await expect.poll(() => position(host), key).toBe(expected); };
+  await press('ArrowRight', 51);
+  await press('ArrowLeft', 50);
+  await press('Shift+ArrowLeft', 40);
+  await press('Shift+ArrowRight', 50);
   // Up and down do not move a horizontal panel, but (as upstream) every accepted key is prevented first, so the page
   // cannot be scrolled with them while the divider has focus.
   await host.evaluate(() => { window.keydownDefaultPrevented = []; document.addEventListener('keydown', event => window.keydownDefaultPrevented.push([event.key, event.defaultPrevented])); });
-  expect(await press('ArrowUp')).toBe(50);
-  expect(await press('ArrowDown')).toBe(50);
-  expect(await host.evaluate(() => window.keydownDefaultPrevented)).toEqual([['ArrowUp', true], ['ArrowDown', true]]);
-  expect(await press('Home')).toBe(0);
-  expect(await press('ArrowLeft')).toBe(0);
-  expect(await press('End')).toBe(100);
-  expect(await press('ArrowRight')).toBe(100);
+  await press('ArrowUp', 50);
+  await press('ArrowDown', 50);
+  await expect.poll(() => host.evaluate(() => window.keydownDefaultPrevented)).toEqual([['ArrowUp', true], ['ArrowDown', true]]);
+  await press('Home', 0);
+  await press('ArrowLeft', 0);
+  await press('End', 100);
+  await press('ArrowRight', 100);
   await host.evaluate(async el => { el.position = 35; await el.updateComplete; });
   // Enter collapses the start panel; Enter again restores the earlier position.
-  expect(await press('Enter')).toBe(0);
-  await page.waitForTimeout(100);
-  expect(await press('Enter')).toBe(35);
-  expect(await press('Enter')).toBe(0);
-  await page.waitForTimeout(100);
+  // Enter marks the panel collapsed in the next animation frame (as upstream), so each collapse waits for that state.
+  const collapsed = () => expect.poll(() => host.evaluate(el => el.isCollapsed), 'collapsed').toBe(true);
+  await press('Enter', 0);
+  await collapsed();
+  await press('Enter', 35);
+  await press('Enter', 0);
+  await collapsed();
   // Any other position change forgets the collapsed state: the next Enter collapses again instead of restoring.
-  expect(await press('ArrowRight')).toBe(1);
-  expect(await press('Enter')).toBe(0);
+  await press('ArrowRight', 1);
+  await press('Enter', 0);
 });
 
 test('keyboard: arrows are inverted for an end primary panel, and vertical panels use up and down', async ({ page }) => {
   const { frame } = await openExample(page);
   const end = await mount(frame, { primary: 'end' });
   await end.locator('.divider').focus();
-  const press = async (host, key) => { await page.keyboard.press(key); await host.evaluate(el => el.updateComplete); return position(host); };
-  expect(await press(end, 'ArrowRight')).toBe(49);
-  expect(await press(end, 'ArrowLeft')).toBe(50);
-  expect(await press(end, 'Shift+ArrowLeft')).toBe(60);
-  expect(await press(end, 'Home')).toBe(100);
-  expect(await press(end, 'End')).toBe(0);
+  // Presses a key, waits until the whole press was received (some keys leave the position as it is), then for the position.
+  await recordKeys(end);
+  const press = async (host, key, expected) => { await pressReceived(page, host, key); await expect.poll(() => position(host), key).toBe(expected); };
+  await press(end, 'ArrowRight', 49);
+  await press(end, 'ArrowLeft', 50);
+  await press(end, 'Shift+ArrowLeft', 60);
+  await press(end, 'Home', 100);
+  await press(end, 'End', 0);
   const vertical = await mount(frame, { vertical: '' }, { style: 'width: 300px; height: 300px;' });
   await vertical.locator('.divider').focus();
-  expect(await press(vertical, 'ArrowDown')).toBe(51);
-  expect(await press(vertical, 'ArrowUp')).toBe(50);
-  expect(await press(vertical, 'ArrowRight')).toBe(50);
-  expect(await press(vertical, 'ArrowLeft')).toBe(50);
-  expect(await press(vertical, 'Shift+ArrowDown')).toBe(60);
+  await press(vertical, 'ArrowDown', 51);
+  await press(vertical, 'ArrowUp', 50);
+  await press(vertical, 'ArrowRight', 50);
+  await press(vertical, 'ArrowLeft', 50);
+  await press(vertical, 'Shift+ArrowDown', 60);
 });
 
 test('disabled: not focusable, ignores keys and dragging, shows the not-allowed cursor, and keeps the position changeable from code', async ({ page }) => {
@@ -358,7 +397,9 @@ test('disabled: not focusable, ignores keys and dragging, shows the not-allowed 
   expect(info).toEqual({ tabindex: false, ariaDisabled: false, cursor: 'not-allowed' });
   // Calling focus() on the divider does nothing without a tabindex.
   expect(await host.evaluate(el => { el.shadowRoot.querySelector('.divider').focus(); return el.shadowRoot.activeElement; })).toBeNull();
-  await page.keyboard.press('ArrowRight');
+  // The key goes to whichever document has the focus, the page or the example's frame.
+  await recordKeys([page, host]);
+  await pressReceived(page, [page, host], 'ArrowRight');
   expect(await position(host)).toBe(50);
   // A key event sent straight to the divider is ignored and not prevented.
   const prevented = await host.evaluate(el => {
@@ -510,8 +551,7 @@ test('dir="rtl": the columns mirror (the start panel is on the right), the posit
   await rtl.locator('.divider').focus();
   const beforeKey = await position(rtl);
   await page.keyboard.press('ArrowRight');
-  await rtl.evaluate(el => el.updateComplete);
-  expect(await position(rtl)).toBe(beforeKey + 1);
+  await expect.poll(() => position(rtl)).toBe(beforeKey + 1);
   // A dir attribute on an ancestor is not seen by the component (Shoelace reads the host's dir and then the document's, nothing in between).
   const inherited = await frame.locator('body').evaluate(async body => {
     const wrap = document.createElement('div');
@@ -640,12 +680,9 @@ test('slots: a custom divider handle is slotted and nested split panels work ind
   // ::part(divider) styles apply, and keyboard focus recolors the divider through the shadow styles.
   const color = () => host.evaluate(el => getComputedStyle(el.shadowRoot.querySelector('.divider')).backgroundColor);
   expect(await color()).toBe('rgb(219, 39, 119)');
-  // Keyboard focus, as in the focus test below: Tab first, so the last interaction is a keyboard one (Firefox does not
-  // always treat script focus as :focus-visible otherwise), then script focus if Tab landed elsewhere.
-  await page.keyboard.press('Tab');
-  if (!(await host.evaluate(el => el.shadowRoot.activeElement !== null))) await host.locator('.divider').focus();
+  await keyboardFocus(page, frame, host);
   await page.keyboard.press('ArrowRight');
-  expect(await host.evaluate(el => [document.hasFocus(), el.shadowRoot.activeElement?.classList.contains('divider')])).toEqual([true, true]);
+  await expect.poll(() => host.evaluate(el => [document.hasFocus(), el.shadowRoot.activeElement?.classList.contains('divider')])).toEqual([true, true]);
   expect(await color()).toBe('rgb(2, 132, 199)');
   const nested = await openExample(page, 'Nested Split Panels');
   const panels = nested.frame.locator('sl-split-panel');
@@ -675,13 +712,11 @@ test('keyboard focus shows the divider in the primary colour; a mouse press does
   await clicked.locator('.divider').click();
   expect(await clicked.evaluate(el => el.shadowRoot.activeElement)).toBeNull();
   expect(await background(clicked)).toBe('rgb(228, 228, 231)');
-  // Keyboard: Tab (or, when the page started elsewhere, script focus after a key press) matches :focus-visible.
+  // Keyboard focus matches :focus-visible.
   const host = await mount(frame);
-  await page.keyboard.press('Tab');
-  const focused = await host.evaluate(el => el.matches(':focus-within') || el.shadowRoot.activeElement !== null);
-  if (!focused) await host.locator('.divider').focus();
+  await keyboardFocus(page, frame, host);
   await page.keyboard.press('ArrowRight');
-  expect(await background(host)).toBe('rgb(2, 132, 199)');
+  await expect.poll(() => background(host)).toBe('rgb(2, 132, 199)');
   const outline = await host.evaluate(el => getComputedStyle(el.shadowRoot.querySelector('.divider')).outlineStyle);
   expect(outline).toBe('none');
 });
@@ -763,16 +798,13 @@ test('core base styles do not leak into the divider part: no focus outline offse
   });
   // Core's `*:focus-visible { outline-offset: var(--focus-outline-offset) }` would reach the divider with this token set.
   const host = await mount(frame, {}, { style: 'width: 400px; height: 120px; --focus-outline-offset: 8px;' });
-  await page.keyboard.press('Tab');
-  const focused = await host.evaluate(el => el.shadowRoot.activeElement !== null);
-  if (!focused) await host.locator('.divider').focus();
+  await keyboardFocus(page, frame, host);
   await page.keyboard.press('ArrowRight');
-  const focus = await host.evaluate(el => {
+  // Shoelace does not read the token: the offset stays at its initial value.
+  await expect.poll(() => host.evaluate(el => {
     const cs = getComputedStyle(el.shadowRoot.querySelector('.divider'));
     return [cs.outlineStyle, cs.outlineWidth, cs.outlineOffset];
-  });
-  // Shoelace does not read the token: the offset stays at its initial value.
-  expect(focus).toEqual(['solid', '3px', '0px']);
+  })).toEqual(['solid', '3px', '0px']);
   const width = async style => {
     const box = await mount(frame, {}, { id: 'box', style });
     return box.evaluate(el => el.shadowRoot.querySelector('.divider').getBoundingClientRect().width);

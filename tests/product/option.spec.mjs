@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 
@@ -258,13 +259,15 @@ test('upstream quirks: hidden does not hide an option, which can still be select
   await expect.poll(() => page.locator('sl-select').evaluate(el => [el.value, el.open])).toEqual(['a', false]);
   await page.locator('#before').focus();
   await page.keyboard.press('Tab');
-  await page.keyboard.press('ArrowDown');
-  await expect.poll(() => page.locator('sl-select').evaluate(el => el.open)).toBe(true);
-  await page.keyboard.press('ArrowDown');
+  await expect.poll(() => page.evaluate(() => document.activeElement?.localName)).toBe('sl-select');
   const state = () => page.locator('sl-select').evaluate(el => [el.value, el.open, [...el.querySelectorAll('sl-option')].map(o => o.current)]);
+  await page.keyboard.press('ArrowDown');
+  await expect.poll(state).toEqual(['a', true, [true, false, false]]);
+  await page.keyboard.press('ArrowDown');
   await expect.poll(state).toEqual(['a', true, [false, true, false]]);
-  await page.keyboard.press('Enter');
-  await expect.poll(state).toEqual(['a', true, [false, true, false]]);
+  await recordKeys(page);
+  await pressReceived(page, page, 'Enter');
+  expect(await state()).toEqual(['a', true, [false, true, false]]);
   expect(pageErrors).toEqual([]);
 });
 
