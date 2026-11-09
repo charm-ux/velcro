@@ -157,18 +157,28 @@ test('shadow structure, parts, slots, divider semantics and default state', asyn
   expect(s.start[3]).toBe(120);
 });
 
-// Gives the divider focus after a keyboard interaction, so it matches :focus-visible (Firefox does not always treat script
-// focus as :focus-visible otherwise): script focus, Tab away, then script focus again, each step awaited. Tab may leave the
-// example's frame (Shift+Tab then does not come back in every engine), and Firefox leaves the frame's activeElement in
-// place when it does, so the focus is read with the frame's focus.
-async function keyboardFocus(page, host) {
-  const focused = () => host.evaluate(el => document.hasFocus() && Boolean(el.shadowRoot.activeElement?.classList.contains('divider')));
-  await host.locator('.divider').focus();
-  await expect.poll(focused).toBe(true);
+// Gives the divider keyboard focus, so it matches :focus-visible: a real click on a focusable sentinel placed right before
+// the split panel gives the example's frame the page focus (Firefox does not move focus into an unfocused frame from
+// script), then Tab moves the focus from the sentinel to the divider, inside the frame. The sentinel is an element with a
+// tabindex, not a button, because WebKit on macOS does not focus a clicked button. It is removed afterwards. The focus
+// state is compared as a whole, so a failure names the part that differs.
+async function keyboardFocus(page, frame, host) {
+  await host.evaluate(el => {
+    const sentinel = document.createElement('div');
+    sentinel.tabIndex = 0;
+    sentinel.id = 'keyboard-start';
+    sentinel.textContent = 'start';
+    el.before(sentinel);
+  });
+  await frame.locator('#keyboard-start').click();
+  const focus = () => host.evaluate(el => {
+    const inner = el.shadowRoot.activeElement;
+    return { frameFocused: document.hasFocus(), active: document.activeElement?.id || document.activeElement?.localName, divider: Boolean(inner?.classList.contains('divider')), focusVisible: Boolean(inner?.matches(':focus-visible')) };
+  });
+  await expect.poll(focus).toEqual({ frameFocused: true, active: 'keyboard-start', divider: false, focusVisible: false });
   await page.keyboard.press('Tab');
-  await expect.poll(focused).toBe(false);
-  await host.locator('.divider').focus();
-  await expect.poll(focused).toBe(true);
+  await expect.poll(focus).toEqual({ frameFocused: true, active: await host.evaluate(el => el.id || el.localName), divider: true, focusVisible: true });
+  await frame.locator('#keyboard-start').evaluate(el => el.remove());
 }
 
 test('the divider is a named separator with value semantics and is the split panel\'s only tab stop', async ({ page }) => {
@@ -662,7 +672,7 @@ test('slots: a custom divider handle is slotted and nested split panels work ind
   // ::part(divider) styles apply, and keyboard focus recolors the divider through the shadow styles.
   const color = () => host.evaluate(el => getComputedStyle(el.shadowRoot.querySelector('.divider')).backgroundColor);
   expect(await color()).toBe('rgb(219, 39, 119)');
-  await keyboardFocus(page, host);
+  await keyboardFocus(page, frame, host);
   await page.keyboard.press('ArrowRight');
   await expect.poll(() => host.evaluate(el => [document.hasFocus(), el.shadowRoot.activeElement?.classList.contains('divider')])).toEqual([true, true]);
   expect(await color()).toBe('rgb(2, 132, 199)');
@@ -696,7 +706,7 @@ test('keyboard focus shows the divider in the primary colour; a mouse press does
   expect(await background(clicked)).toBe('rgb(228, 228, 231)');
   // Keyboard focus matches :focus-visible.
   const host = await mount(frame);
-  await keyboardFocus(page, host);
+  await keyboardFocus(page, frame, host);
   await page.keyboard.press('ArrowRight');
   await expect.poll(() => background(host)).toBe('rgb(2, 132, 199)');
   const outline = await host.evaluate(el => getComputedStyle(el.shadowRoot.querySelector('.divider')).outlineStyle);
@@ -780,7 +790,7 @@ test('core base styles do not leak into the divider part: no focus outline offse
   });
   // Core's `*:focus-visible { outline-offset: var(--focus-outline-offset) }` would reach the divider with this token set.
   const host = await mount(frame, {}, { style: 'width: 400px; height: 120px; --focus-outline-offset: 8px;' });
-  await keyboardFocus(page, host);
+  await keyboardFocus(page, frame, host);
   await page.keyboard.press('ArrowRight');
   // Shoelace does not read the token: the offset stays at its initial value.
   await expect.poll(() => host.evaluate(el => {
