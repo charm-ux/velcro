@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
@@ -62,10 +62,20 @@ export default {
   },
 };
 `);
-    const run = spawnSync('pnpm', ['exec', 'web-test-runner', '--config', path.join(dir, 'config.mjs')], {
-      cwd: root, encoding: 'utf8', timeout: 150000, env: { ...process.env, CI: 'true' },
+    // Asynchronous, so the project's own timeout and reporting stay live while the runner works.
+    return await new Promise(resolve => {
+      const child = spawn('pnpm', ['exec', 'web-test-runner', '--config', path.join(dir, 'config.mjs')], {
+        cwd: root, env: { ...process.env, CI: 'true' }, stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      let output = '';
+      child.stdout.on('data', chunk => { output += chunk; });
+      child.stderr.on('data', chunk => { output += chunk; });
+      const timer = setTimeout(() => child.kill('SIGKILL'), 150000);
+      child.on('close', status => {
+        clearTimeout(timer);
+        resolve({ status, output });
+      });
     });
-    return { status: run.status, output: `${run.stdout ?? ''}${run.stderr ?? ''}` };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -42,18 +42,16 @@ export async function build(entries, extra = {}) {
 
 /**
  * Loads a bundle of `source` (which sets `window.loaded = true`) into a fresh top-level document with the light theme; returns the
- * page errors. Options: `files` adds modules next to the entry (`import './pre.js'` resolves them, so one can run first), and
- * `beforeScript` is a function run in the page after the document exists and before the bundle's script is added.
+ * page errors. The option `beforeScript` is a function run in the page after the document exists and before the bundle's script is added.
  */
-export async function loadBundle(page, source, { files = {}, beforeScript } = {}) {
-  const key = `${source}\0${JSON.stringify(files)}`;
-  if (!bundles.has(key)) bundles.set(key, await build({ 'entry.js': source, ...files }));
+export async function loadBundle(page, source, { beforeScript } = {}) {
+  if (!bundles.has(source)) bundles.set(source, await build({ 'entry.js': source }));
   const pageErrors = [];
   page.on('pageerror', e => pageErrors.push(e.message));
   await page.setContent('<!DOCTYPE html><html class="sl-theme-light" lang="en"><body></body></html>');
   await page.addStyleTag({ content: readFileSync(path.join(velcroDir, 'themes/light.css'), 'utf8') });
   if (beforeScript) await page.evaluate(beforeScript);
-  await page.addScriptTag({ type: 'module', content: bundles.get(key) });
+  await page.addScriptTag({ type: 'module', content: bundles.get(source) });
   await page.waitForFunction(() => window.loaded === true);
   return pageErrors;
 }
