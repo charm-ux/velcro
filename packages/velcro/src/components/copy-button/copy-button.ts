@@ -37,7 +37,7 @@ import styles from './copy-button.styles.js';
  * @dependency sl-icon
  * @dependency sl-tooltip
  *
- * @event sl-copy - Emitted when the data has been copied.
+ * @event {{ value: string }} sl-copy - Emitted when the data has been copied. `detail.value` is the text that was copied.
  * @event sl-error - Emitted when the data could not be copied.
  *
  * @slot copy-icon - The icon to show in the default copy state. Works best with `<sl-icon>`.

@@ -391,7 +391,7 @@ test.describe('top-level documents', () => {
 
   test('a click copies value through navigator.clipboard.writeText, emits sl-copy from the host, shows the success feedback and then restores the rest state', async ({ page }) => {
     const pageErrors = await openTop(page);
-    await mount(page, '<sl-copy-button id="c" value="Velcro rocks!" feedback-duration="400"></sl-copy-button>');
+    await mount(page, '<sl-copy-button id="c" value="Velcro rocks!" feedback-duration="1500"></sl-copy-button>');
     expect(await stateOf(page)).toEqual({ ...REST, tip: 'Copy' });
     await page.locator('#c button').click();
     await expect.poll(() => stateOf(page)).toEqual({ status: 'success', copying: true, hidden: [true, false, true], tip: 'Copied' });
@@ -406,7 +406,7 @@ test.describe('top-level documents', () => {
 
   test('the success icon slot and the error icon slot show the slotted custom icons while their state lasts', async ({ page }) => {
     await openTop(page);
-    await mount(page, `<sl-copy-button id="c" value="v" feedback-duration="400">
+    await mount(page, `<sl-copy-button id="c" value="v" feedback-duration="1500">
       <sl-icon slot="copy-icon" name="clipboard"></sl-icon><sl-icon slot="success-icon" name="clipboard-check"></sl-icon><sl-icon slot="error-icon" name="clipboard-x"></sl-icon>
     </sl-copy-button>`);
     const assigned = () => page.locator('#c').evaluate(el => [el.copyIcon, el.successIcon, el.errorIcon].map(s => [s.hidden, s.assignedElements().map(n => n.getAttribute('name'))]));
@@ -425,7 +425,7 @@ test.describe('top-level documents', () => {
   test('errors: an empty value, a rejected write and a missing clipboard each emit sl-error from the host and show the error feedback; nothing is copied for an empty value', async ({ page }) => {
     for (const [mode, value, copied] of [['ok', '', []], ['reject', 'x', ['x']], ['missing', 'x', []]]) {
       const pageErrors = await openTop(page, mode);
-      await mount(page, `<sl-copy-button id="c" value="${value}" feedback-duration="400"></sl-copy-button>`);
+      await mount(page, `<sl-copy-button id="c" value="${value}" feedback-duration="1500"></sl-copy-button>`);
       await page.locator('#c button').click();
       await expect.poll(() => stateOf(page), { message: mode }).toEqual({ status: 'error', copying: true, hidden: [true, true, false], tip: 'Error' });
       expect(await page.evaluate(() => window.copied), mode).toEqual(copied);
@@ -438,7 +438,7 @@ test.describe('top-level documents', () => {
 
   test('clicks are ignored while the feedback shows, and work again after it', async ({ page }) => {
     await openTop(page);
-    await mount(page, '<sl-copy-button id="c" value="v" feedback-duration="400"></sl-copy-button>');
+    await mount(page, '<sl-copy-button id="c" value="v" feedback-duration="1500"></sl-copy-button>');
     await page.locator('#c button').click();
     await expect.poll(() => stateOf(page)).toMatchObject({ status: 'success', copying: true });
     await page.locator('#c button').click();
@@ -476,7 +476,7 @@ test.describe('top-level documents', () => {
 
   test('labels: copy-label, success-label and error-label are the tooltip text for each state', async ({ page }) => {
     await openTop(page);
-    await mount(page, '<sl-copy-button id="c" value="v" feedback-duration="400" copy-label="Click to copy" success-label="You did it!" error-label="Whoops"></sl-copy-button>');
+    await mount(page, '<sl-copy-button id="c" value="v" feedback-duration="1500" copy-label="Click to copy" success-label="You did it!" error-label="Whoops"></sl-copy-button>');
     expect((await stateOf(page)).tip).toBe('Click to copy');
     await page.locator('#c button').click();
     await expect.poll(() => stateOf(page)).toMatchObject({ status: 'success', tip: 'You did it!' });
@@ -491,7 +491,7 @@ test.describe('top-level documents', () => {
 
   test('quirk: the tooltip text is written onto the tooltip, so a copy-label changed during the feedback replaces the success label and the old label comes back afterwards', async ({ page }) => {
     await openTop(page);
-    await mount(page, '<sl-copy-button id="c" value="v" feedback-duration="400" copy-label="First"></sl-copy-button>');
+    await mount(page, '<sl-copy-button id="c" value="v" feedback-duration="1500" copy-label="First"></sl-copy-button>');
     await page.locator('#c button').click();
     await expect.poll(() => stateOf(page)).toMatchObject({ status: 'success', tip: 'Copied' });
     await page.locator('#c').evaluate(async el => { el.copyLabel = 'Second'; await el.updateComplete; });
@@ -505,7 +505,7 @@ test.describe('top-level documents', () => {
 
   test('default labels are the localization module\'s copy, copied and error terms, in the element\'s language and the document\'s', async ({ page }) => {
     await openTop(page);
-    await mount(page, '<sl-copy-button id="c" value="v" lang="es" feedback-duration="400"></sl-copy-button><sl-copy-button id="d" value="v"></sl-copy-button>');
+    await mount(page, '<sl-copy-button id="c" value="v" lang="es" feedback-duration="1500"></sl-copy-button><sl-copy-button id="d" value="v"></sl-copy-button>');
     expect((await stateOf(page)).tip).toBe('Copiar');
     await page.locator('#c button').click();
     await expect.poll(() => stateOf(page)).toMatchObject({ status: 'success', tip: 'Copiado' });
@@ -559,7 +559,7 @@ test.describe('top-level documents', () => {
     expect(await run(page, 'from="a.nope"', '<a id="a" href="#">x</a>')).toEqual({ copied: [], events: ['sl-error'] });
   });
 
-  test('quirk: from is two string tests: a dot makes it a property lookup that uses only the first two parts, and the attribute form is only seen without a dot', async ({ page }) => {
+  test('quirk: from is two string tests: a dot splits at every dot and only the first two parts are used, and brackets anywhere make the field an attribute read, also after a dot split', async ({ page }) => {
     await openTop(page);
     const props = () => { const el = document.querySelector('#x'); el.b = 'bee'; el.c = 'cee'; el.zero = 0; el.five = 5; el.no = false; };
     expect(await run(page, 'from="x.b.c"', '<div id="x" data-q="attr"></div>', props)).toEqual({ copied: ['bee'], events: ['sl-copy'] });
@@ -567,9 +567,16 @@ test.describe('top-level documents', () => {
     expect(await run(page, 'from="x.zero"', '<div id="x"></div>', props)).toEqual({ copied: [], events: ['sl-error'] });
     expect(await run(page, 'from="x.no"', '<div id="x"></div>', props)).toEqual({ copied: [], events: ['sl-error'] });
     expect(await run(page, 'from="x.five"', '<div id="x"></div>', props)).toEqual({ copied: [5], events: ['sl-copy'] });
-    // Bracket form without a dot reads the attribute; with a dot inside the brackets it is a property lookup of "x]" on "x[data".
+    // Bracket form without a dot splits at "[" and reads the attribute.
     expect(await run(page, 'from="x[data-q]"', '<div id="x" data-q="attr"></div>')).toEqual({ copied: ['attr'], events: ['sl-copy'] });
+    // With a dot and brackets the dot split gives the id and the field ("x" and "b[]"), and the brackets make the field an attribute read:
+    // the element has a property b ("bee") and an attribute "b[]", and the attribute is what is copied.
+    expect(await run(page, 'from="x.b[]"', '<div id="x" b[]="attr-value"></div>', props)).toEqual({ copied: ['attr-value'], events: ['sl-copy'] });
+    // With the property only, the attribute read finds nothing: an error, although the property has a value.
+    expect(await run(page, 'from="x.b[]"', '<div id="x"></div>', props)).toEqual({ copied: [], events: ['sl-error'] });
+    // from="x[data.q]" has a dot: it looks for the id "x[data" (an element with another id is not found) and reads its attribute "q]".
     expect(await run(page, 'from="x[data.q]"', '<div id="x" data.q="dotted"></div>')).toEqual({ copied: [], events: ['sl-error', 'sl-error'] });
+    expect(await run(page, 'from="x[data.q]"', '<div id="x[data" q]="bracket attr"></div>')).toEqual({ copied: ['bracket attr'], events: ['sl-copy'] });
     // Whitespace is trimmed only in the property and attribute forms: a plain id with a space does not match.
     expect(await run(page, 'from=" x.b "', '<div id="x"></div>', props)).toEqual({ copied: ['bee'], events: ['sl-copy'] });
     expect(await run(page, 'from=" x[data-q] "', '<div id="x" data-q="attr"></div>')).toEqual({ copied: ['attr'], events: ['sl-copy'] });
@@ -649,7 +656,7 @@ test.describe('top-level documents', () => {
     return out;
   }, { declarations, properties });
 
-  test('styles: the host is an inline-block, the button is a borderless flex item with the theme\'s radius, padding, color and transition, and the focus ring is the theme\'s', async ({ page }) => {
+  test('styles: the host is an inline-block, the button is a borderless flex item with the theme\'s radius, padding, color and transition', async ({ page }) => {
     await openTop(page);
     await mount(page, '<div style="font-size: 20px; color: rgb(10, 20, 30)"><sl-copy-button id="c" value="v"></sl-copy-button></div>');
     const r = await page.locator('#c').evaluate(el => {
@@ -680,7 +687,7 @@ test.describe('top-level documents', () => {
 
   test('styles: success and error colors are --success-color and --error-color (the theme\'s success and danger 600), and a custom property overrides them', async ({ page }) => {
     await openTop(page);
-    await mount(page, '<sl-copy-button id="c" value="v" feedback-duration="600"></sl-copy-button><sl-copy-button id="d" value="v" feedback-duration="600" style="--success-color: rgb(1, 2, 3); --error-color: rgb(4, 5, 6)"></sl-copy-button>');
+    await mount(page, '<sl-copy-button id="c" value="v" feedback-duration="1500"></sl-copy-button><sl-copy-button id="d" value="v" feedback-duration="1500" style="--success-color: rgb(1, 2, 3); --error-color: rgb(4, 5, 6)"></sl-copy-button>');
     const color = selector => page.locator(selector).evaluate(el => getComputedStyle(el.shadowRoot.querySelector('button')).color);
     const success = await probe(page, 'color: var(--sl-color-success-600)', ['color']);
     const danger = await probe(page, 'color: var(--sl-color-danger-600)', ['color']);

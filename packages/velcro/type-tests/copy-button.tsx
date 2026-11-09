@@ -1,6 +1,6 @@
 // Type-level check of <sl-copy-button>'s Shoelace 2.20.1 property types (`value`, `from`, `disabled`, the three labels,
 // `feedbackDuration` as a number, `tooltipPlacement` with its four values and `hoist`), that `dir` accepts any string as Shoelace
-// declares it (`dir: string`), and that the React wrapper takes the same props and the `onSlCopy` and `onSlError` handlers.
+// declares it (`dir: string`), and that the React wrapper takes the same props and the `onSlCopy` (with its `{ value: string }` detail) and `onSlError` handlers.
 // Compiled (never run) by `tsc -p tsconfig.react.json` as the last step of the library build.
 import { createElement, createRef } from 'react';
 import type { VelcroCopyButton as VelcroCopyButtonClass } from '../dist/components/copy-button/copy-button.js';
@@ -34,6 +34,18 @@ element.disabled = 'yes';
 element.dir = direction;
 const read: string = element.dir;
 void read;
+
+// The generated React callbacks get the `sl-copy` payload as Shoelace types it: `CustomEvent<{ value: string }>`.
+const copyProps: VelcroCopyButtonProps = {
+  onSlCopy: event => {
+    const copied: string = event.detail.value;
+    void copied;
+    // @ts-expect-error the copied value is a string, not a number
+    const wrong: number = event.detail.value;
+    void wrong;
+  },
+};
+void copyProps;
 
 const ref = createRef<VelcroCopyButtonElement>();
 const props: VelcroCopyButtonProps = { value: 'text', from: 'source', disabled: false, copyLabel: 'Copy', feedbackDuration: 250, tooltipPlacement: 'bottom', hoist: true };

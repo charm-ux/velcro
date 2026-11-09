@@ -11,5 +11,7 @@
   `docs/pages/components/copy-button.md`) and the React examples `packages/docs/examples/copy-button/react/*.jsx`
   (copied from the same page's React examples; the import lines are changed to Velcro's React wrappers, the
   hyphenated attribute names are the wrapper's property names, and the `sl-input` example has the value its HTML
-  example has). The copy button is built on the `@charm-ux/core` base element, which has no copy button of its own;
+  example has). In both the HTML and the React examples the opening and feedback-duration examples say "Velcro
+  rocks!" where Shoelace's say "Shoelace rocks!", and the "from" example's link points at example.com with the text
+  "Example Website" instead of Shoelace's website; the opening HTML example also has an id (`demo-default`). The copy button is built on the `@charm-ux/core` base element, which has no copy button of its own;
   no Shoelace runtime or source files are included.
