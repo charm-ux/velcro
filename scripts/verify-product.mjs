@@ -9,7 +9,7 @@ import { buildDigest, collect as collectBuild } from './ci/build-output.mjs';
 import { summarizeReport } from './product-summary.mjs';
 import { readCatalog } from './site/catalog.mjs';
 import { readInventory } from './upstream-conformance.mjs';
-import { summarizeUpstream } from './upstream-summary.mjs';
+import { PUBLIC_PREFIX, summarizeUpstream } from './upstream-summary.mjs';
 import { clearTestedEvidence, sameSnapshot, snapshotTested, writeTestedEvidence } from './site/tested.mjs';
 
 export const MIN_TESTS = 8;
@@ -205,7 +205,7 @@ function main() {
       try {
         const log = readFileSync(path.join(scratch, 'upstream-conformance.log'), 'utf8');
         const { lines } = summarizeUpstream(log, { inventory: readInventory(root), catalog: new Set(readCatalog(root).map(c => c.name)) });
-        for (const line of lines) process.stdout.write(`verify:product: ${line}\n`);
+        for (const line of lines) process.stdout.write(`${PUBLIC_PREFIX}${line}\n`);
       } catch { process.stdout.write('verify:product: upstream blocked: internal\n'); }
       return fail('blocked (upstream conformance differs from the component records in tests/upstream/components/)');
     }
