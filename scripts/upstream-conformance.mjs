@@ -286,8 +286,9 @@ export function upstreamSkips(root, components) {
 }
 
 // A vendored file whose scan has dynamic titles (a describe or it with a template-literal or computed title, which the
-// scan records as null) cannot declare exactly the inventory, so its upstream skips are bound one by one
-// instead, and only when nothing is ambiguous: every literal title the scan found is inventoried, and every skipped
+// scan records as null), or whose scan sees only part of the inventory (tests a shared helper outside the file
+// generates, such as Shoelace's runFormControlBaseTests), cannot declare exactly the inventory, so its upstream skips are
+// bound one by one instead, and only when nothing is ambiguous: every literal title the scan found is inventoried, and every skipped
 // title is literal, declared once by the scan, inventoried exactly once and never repeated (no `[#n]` occurrence, which
 // a generated test of the same name would add). The run must then report exactly those tests as skipped. Anything else
 // fails closed. Files without dynamic titles keep the exact comparison in evaluate().
@@ -330,7 +331,8 @@ export function evaluate(board, ledger, inventory, components, skips = {}) {
     const bound = skips[component];
     const exact = bound && bound.declared.length === expected.length && !bound.declared.includes(null)
       && [...bound.declared].sort().every((t, n) => t === [...expected].sort()[n]);
-    const boundOk = exact || (bound && bound.declared.includes(null) && dynamicSkipsBound(bound, expected));
+    const partial = bound && (bound.declared.includes(null) || bound.declared.length < expected.length);
+    const boundOk = exact || (partial && dynamicSkipsBound(bound, expected));
     if (bound && !boundOk) problems.push(`upstream skips in ${component} cannot be bound to the inventory`);
     const allowed = new Set(boundOk ? bound.skipped : []);
     for (const t of result.skips ?? []) {

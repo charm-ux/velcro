@@ -311,7 +311,7 @@ test('pointer: dragging the grid emits sl-input while moving and one sl-change a
   expect(await picker(page, el => el.getFormattedValue('hsl'))).toMatch(/^hsl\(180, (99|100)%, 50%\)$/);
 });
 
-test('the input: a parsable color (any format or a CSS name) is applied in the picker\'s format on Enter; an unparsable one is reverted', async ({ page }) => {
+test('the input: a parsable color (any format, a wrapping hue or a CSS name) is applied in the picker\'s format on Enter; an unparsable one is reverted', async ({ page }) => {
   await loadBundle(page, ENTRY);
   await mount(page, 'label="Select a color" inline format="rgb" uppercase value="#000"');
   await events(page);
@@ -325,9 +325,13 @@ test('the input: a parsable color (any format or a CSS name) is applied in the p
   };
   expect(await type('rebeccapurple')).toEqual(['RGB(102, 51, 153)', 'RGB(102, 51, 153)']);
   expect(await type('hsl(120, 100%, 25%)')).toEqual(['RGB(0, 128, 0)', 'RGB(0, 128, 0)']);
+  // A hue outside 0 to 360 wraps around, as TinyColor reads it.
+  expect(await type('hsl(400, 100%, 50%)')).toEqual(['RGB(255, 170, 0)', 'RGB(255, 170, 0)']);
+  expect(await type('hsl(-30, 100%, 50%)')).toEqual(['RGB(255, 0, 128)', 'RGB(255, 0, 128)']);
   expect(await type('#abc')).toEqual(['RGB(170, 187, 204)', 'RGB(170, 187, 204)']);
   const changes = (await events(page)).filter(e => e[0] === 'sl-change');
-  expect(changes).toEqual([['sl-change', 'RGB(102, 51, 153)'], ['sl-change', 'RGB(0, 128, 0)'], ['sl-change', 'RGB(170, 187, 204)']]);
+  expect(changes).toEqual([['sl-change', 'RGB(102, 51, 153)'], ['sl-change', 'RGB(0, 128, 0)'], ['sl-change', 'RGB(255, 170, 0)'],
+    ['sl-change', 'RGB(255, 0, 128)'], ['sl-change', 'RGB(170, 187, 204)']]);
   // An unparsable entry: the commit (on blur) leaves the value and puts it back in the input.
   await picker(page, (el, root) => root.querySelector('[part="input"]').focus());
   await page.keyboard.press('ControlOrMeta+a');

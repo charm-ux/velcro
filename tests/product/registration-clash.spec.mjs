@@ -52,9 +52,10 @@ const CLASS_ONLY = [
   ['avatarClass', 'VelcroAvatar', 'sl-avatar', [ICON]],
   ['breadcrumbClass', 'VelcroBreadcrumb', 'sl-breadcrumb', [ICON]],
   // Without its sl-input and sl-icon: as in Shoelace, the color picker's first update reads the inner input's
-  // `updateComplete` and validity, so a foreign-owned sl-input breaks its rendering, and the real sl-input it renders
-  // defines sl-icon on its own construction (with its own warnings). Constructing the picker defines both
-  // (color-picker.spec.mjs).
+  // `updateComplete` and validity, so a foreign-owned sl-input breaks its rendering; and the real sl-input it renders
+  // defines sl-icon on its own construction, so a versioned foreign sl-icon would add that input's warnings to the
+  // exact list the "logs Shoelace's warning for each versioned owner" test expects. Constructing the picker defines both
+  // (color-picker.spec.mjs, "class-only entry").
   ['colorPickerClass', 'VelcroColorPicker', 'sl-color-picker', [BUTTON_GROUP, BUTTON, DROPDOWN, VISUALLY_HIDDEN]],
   ['detailsClass', 'VelcroDetails', 'sl-details', [ICON]],
   ['dropdownClass', 'VelcroDropdown', 'sl-dropdown', [POPUP]],

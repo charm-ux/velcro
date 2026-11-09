@@ -119,12 +119,13 @@ function parseString(input: string): ParsedInput | null {
   return null;
 }
 
-// Maps a value in [0, max] (or a percentage of max) to [0, 1]; "1.0" counts as 100%.
+// Maps a value in [0, max] (or a percentage of max) to [0, 1]; "1.0" counts as 100%. A hue (max 360) is not clamped
+// but wrapped (400 is 40, -30 is 330), and a percentage hue is not a number, as in TinyColor.
 function unit(value: Unit, max: number) {
   let input: Unit = value;
   if (typeof input === 'string' && input.includes('.') && parseFloat(input) === 1) input = '100%';
   const percent = typeof input === 'string' && input.includes('%');
-  let n = Math.min(max, Math.max(0, parseFloat(String(input))));
+  let n = max === 360 ? Number(input) : Math.min(max, Math.max(0, parseFloat(String(input))));
   if (percent) n = parseInt(String(n * max), 10) / 100;
   if (Math.abs(n - max) < 0.000001) return 1;
   if (max === 360) {
