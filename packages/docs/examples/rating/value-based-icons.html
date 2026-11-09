@@ -1,0 +1,10 @@
+<sl-rating label="Rating" class="rating-emojis"></sl-rating>
+
+<script>
+  const rating = document.querySelector('.rating-emojis');
+
+  rating.getSymbol = value => {
+    const icons = ['emoji-angry', 'emoji-frown', 'emoji-expressionless', 'emoji-smile', 'emoji-laughing'];
+    return `<sl-icon name="${icons[value - 1]}"></sl-icon>`;
+  };
+</script>
