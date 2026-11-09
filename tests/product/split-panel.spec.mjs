@@ -159,7 +159,7 @@ test('shadow structure, parts, slots, divider semantics and default state', asyn
 
 // Gives the divider keyboard focus, so it matches :focus-visible: a real click on a focusable sentinel placed right before
 // the split panel gives the example's frame the page focus (Firefox does not move focus into an unfocused frame from
-// script), then Tab moves the focus from the sentinel to the divider, inside the frame. The sentinel is an element with a
+// script), the sentinel gets the focus, then Tab moves the focus from the sentinel to the divider, inside the frame. The sentinel is an element with a
 // tabindex, not a button, because WebKit on macOS does not focus a clicked button. It is removed afterwards.
 async function keyboardFocus(page, frame, host) {
   await host.evaluate(el => {
@@ -169,7 +169,10 @@ async function keyboardFocus(page, frame, host) {
     sentinel.textContent = 'start';
     el.before(sentinel);
   });
+  // The click gives the frame the page focus; Firefox does not always move the focus to the clicked sentinel itself, so it
+  // is focused from script too (which works once the frame has the page focus).
   await frame.locator('#keyboard-start').click();
+  await frame.locator('#keyboard-start').focus();
   const focus = () => host.evaluate(el => {
     const inner = el.shadowRoot.activeElement;
     return { frameFocused: document.hasFocus(), active: document.activeElement?.id || document.activeElement?.localName, divider: Boolean(inner?.classList.contains('divider')), focusVisible: Boolean(inner?.matches(':focus-visible')) };
