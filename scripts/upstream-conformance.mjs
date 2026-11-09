@@ -291,7 +291,7 @@ export function upstreamSkips(root, components) {
 // bound one by one instead, and only when nothing is ambiguous: every literal title the scan found is inventoried, and every skipped
 // title is literal, declared once by the scan, inventoried exactly once and never repeated (no `[#n]` occurrence, which
 // a generated test of the same name would add). The run must then report exactly those tests as skipped. Anything else
-// fails closed. Files without dynamic titles keep the exact comparison in evaluate().
+// fails closed. A scan that declares exactly the inventory keeps the exact comparison (skipBinding).
 function dynamicSkipsBound(bound, expected) {
   const literal = bound.declared.filter(t => t !== null);
   if (!literal.every(t => expected.includes(t))) return false;
@@ -302,6 +302,20 @@ function dynamicSkipsBound(bound, expected) {
     && !expected.some(e => e.startsWith(`${t} [#`)));
 }
 
+// How a vendored file's upstream skips are bound to the inventory: 'none' (the file has no it.skip), 'exact' (its scan
+// declares exactly the inventoried tests), 'per-skip' (the scan has dynamic titles, or is partial: it sees fewer tests
+// than the inventory holds and every literal title it found is inventoried, the rest being tests a shared helper outside
+// the file generates; each skip then passes the identity checks of dynamicSkipsBound), or 'unbound' (anything else; any
+// skipped outcome then fails). Only titles the scan itself saw marked it.skip are ever bound, never a helper's test.
+export function skipBinding(bound, expected) {
+  if (!bound) return 'none';
+  const sorted = [...expected].sort();
+  if (bound.declared.length === expected.length && !bound.declared.includes(null)
+    && [...bound.declared].sort().every((t, n) => t === sorted[n])) return 'exact';
+  const partial = bound.declared.length < expected.length && bound.declared.every(t => t !== null && expected.includes(t));
+  return (bound.declared.includes(null) || partial) && dynamicSkipsBound(bound, expected) ? 'per-skip' : 'unbound';
+}
+
 const malformedList = (value, ok) => !value || typeof value !== 'object' || Array.isArray(value)
   || Object.values(value).some(v => !Array.isArray(v) || !v.every(ok));
 
@@ -309,8 +323,8 @@ const malformedList = (value, ok) => !value || typeof value !== 'object' || Arra
 // The inventory lists every expected test title per component (repeated titles carry their [#n] suffix): any missing or
 // extra outcome fails, infrastructure (load/session) failures always fail and can never be ledgered, and only assertion
 // failures of inventoried tests may be ledgered. A skipped outcome fails unless upstream itself skips that exact test
-// (`skips`, from upstreamSkips: full identity, suite path and occurrence included), and only when the scan of that
-// vendored file declares exactly the inventoried tests, so the skip is bound to the right one.
+// (`skips`, from upstreamSkips: full identity, suite path and occurrence included), and only when skipBinding binds that
+// vendored file's skips to the inventory, so the skip is bound to the right one.
 export function evaluate(board, ledger, inventory, components, skips = {}) {
   const problems = [];
   const unexpected = [];
@@ -329,11 +343,10 @@ export function evaluate(board, ledger, inventory, components, skips = {}) {
     if (!result) { problems.push(`no results for ${component}`); continue; }
     for (const reason of result.infrastructure) problems.push(`infrastructure failure in ${component}: ${reason}`);
     const bound = skips[component];
-    const exact = bound && bound.declared.length === expected.length && !bound.declared.includes(null)
-      && [...bound.declared].sort().every((t, n) => t === [...expected].sort()[n]);
-    const partial = bound && (bound.declared.includes(null) || bound.declared.length < expected.length);
-    const boundOk = exact || (partial && dynamicSkipsBound(bound, expected));
-    if (bound && !boundOk) problems.push(`upstream skips in ${component} cannot be bound to the inventory`);
+    const binding = skipBinding(bound, expected);
+    const exact = binding === 'exact';
+    const boundOk = exact || binding === 'per-skip';
+    if (binding === 'unbound') problems.push(`upstream skips in ${component} cannot be bound to the inventory`);
     const allowed = new Set(boundOk ? bound.skipped : []);
     for (const t of result.skips ?? []) {
       if (!allowed.has(t)) problems.push(`skipped test in ${component}: ${t}`);

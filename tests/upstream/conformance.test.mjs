@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { DOCS, PIN, RECORDS, VENDOR, checkBaseline, checkVendor, declaredTests, evaluate, keyResults, readBaseline, readInventory,
-  readLedger, readRecords, readSharedPins, scoreboard, updateRecords, upstreamSkips, vendoredComponents }
+  readLedger, readRecords, readSharedPins, scoreboard, skipBinding, updateRecords, upstreamSkips, vendoredComponents }
   from '../../scripts/upstream-conformance.mjs';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 
@@ -340,8 +340,52 @@ test('with dynamic titles in the scan, or a scan that sees only part of the inve
   assert.deepEqual(run('suite > x', dyn(['suite > x'], ['suite > x', 'suite > extra'])).problems, unbound('suite > x'));
   assert.deepEqual(run('generated > g1', dyn(['suite > x'], ['suite > x', 'suite > y'])).problems,
     ['skipped test in a: generated > g1', 'upstream skip not reported skipped in a: suite > x']);
+  // Partial means every literal title of the scan is inventoried: a shorter scan with a literal outside the inventory
+  // does not bind.
+  assert.deepEqual(run('suite > x', dyn(['suite > x'], ['suite > x', 'suite > extra'])).problems, unbound('suite > x'));
+  assert.equal(skipBinding({ skipped: ['suite > x'], declared: ['suite > x', 'suite > extra'] }, inventory.a), 'unbound');
+  assert.equal(skipBinding({ skipped: ['suite > x'], declared: ['suite > x', 'suite > y'] }, inventory.a), 'per-skip');
+
+  // (6) A skip binds only to a title the scan itself saw marked it.skip, never to a test reachable only through a shared
+  // helper (here 'generated > g1', which a helper such as Shoelace's runFormControlBaseTests would add): the scan does not
+  // declare it, so naming it as a skip does not bind, and a helper test reported skipped fails even beside a bound skip.
+  const partialScan = ['suite > x', 'suite > y'];
+  assert.equal(skipBinding({ skipped: ['generated > g1'], declared: partialScan }, inventory.a), 'unbound');
+  assert.deepEqual(run('generated > g1', dyn(['generated > g1'], partialScan)).problems, unbound('generated > g1'));
+  assert.deepEqual(run('generated > g1', dyn(['suite > x', 'generated > g1'], partialScan)).problems, unbound('generated > g1'));
+  assert.deepEqual(run(['suite > x', 'generated > g2'], dyn(['suite > x'], partialScan)).problems, ['skipped test in a: generated > g2']);
+  // A helper test with the same title as the scan's skip is reported as its [#2] occurrence, which makes the skip ambiguous.
+  const helperTwin = { ...inventory, a: [...inventory.a, 'suite > x [#2]'] };
+  assert.deepEqual(run('suite > x', dyn(['suite > x'], partialScan), helperTwin).problems, unbound('suite > x'));
   assert.equal(run([], dyn(['suite > x'], inventory.a)).ok, true);
   assert.equal(run('suite > x', dyn(['suite > x'], inventory.a)).ok, true);
+});
+
+// Before this change a scan without dynamic titles that saw only part of the inventory never bound its skips; the
+// partial-scan rule must change that outcome for color-picker only. Carousel is listed because it is a candidate for the
+// same helper pattern; it binds nothing while it has no vendored file or no it.skip.
+test('the partial-scan rule changes no binding outcome except color-picker\'s', () => {
+  const real = upstreamSkips(root, components);
+  const before = (bound, expected) => {
+    const now = skipBinding(bound, expected);
+    return now === 'per-skip' && !bound.declared.includes(null) ? 'unbound' : now;
+  };
+  const table = when => Object.fromEntries(components.filter(c => inventory[c]).map(c => [c, when(real[c], inventory[c])]));
+  const was = table(before);
+  const is = table(skipBinding);
+  assert.deepEqual(Object.keys(is).filter(c => is[c] !== was[c]), ['color-picker']);
+  assert.deepEqual([was['color-picker'], is['color-picker']], ['unbound', 'per-skip']);
+  const named = ['icon', 'radio-group', 'tab-group', 'carousel'];
+  assert.deepEqual(Object.fromEntries(named.map(c => [c, [was[c] ?? 'none', is[c] ?? 'none']])), {
+    icon: ['exact', 'exact'],
+    'radio-group': ['per-skip', 'per-skip'],
+    'tab-group': ['exact', 'exact'],
+    carousel: [was.carousel ?? 'none', was.carousel ?? 'none'],
+  });
+  assert.equal(is.carousel ?? 'none', 'none');
+  for (const c of Object.keys(is).filter(c => !['color-picker', 'icon', 'radio-group', 'tab-group'].includes(c))) {
+    assert.equal(is[c], 'none', `${c} has no upstream skip`);
+  }
 });
 
 test('the declaration scan follows describe nesting and ignores comments, strings and dynamic titles', () => {
