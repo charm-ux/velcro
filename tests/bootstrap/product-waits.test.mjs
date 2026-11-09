@@ -21,20 +21,21 @@ const NETWORK_IDLE = /['"`]networkidle['"`]/;
 const SETTLED_WAIT = /toHaveAttribute\(\s*['"`]data-litro-settled['"`]|waitForSelector\([^)]*data-litro-settled/;
 const NETWORK_WAIT = /\b(watchNetwork|documentsLoaded)\s*\(/;
 const RECORDS_REQUESTS = /\.on\(\s*['"`]request(finished|failed)?['"`]/;
-// A pointer move (hover, mouse.move/down/up) whose next statements sleep a fixed time from the test process. That sleep
-// is not a window measured from the pointer event: the action, the sleep and the state read are separate protocol round
-// trips, which on a loaded runner can outlast a hover delay by themselves (Firefox in CI saw an sl-tooltip close before
-// its 200 ms --hide-delay, read about 80 ms after the pointer left). Time the window in the page from the pointer event
-// instead (tooltip.spec.mjs: probeAfterPointer), or poll for the outcome.
 // A key action (page.keyboard.press/type/down/up/insertText, or a locator's press/pressSequentially) is followed by the
 // next key, or by a one-shot read of the state, before the state the key produces has been awaited. Most key handlers
 // change the state while the key event is dispatched, but some only start the change (a Lit update, an animation frame,
 // an animation, a timer), and a loaded runner can deliver the next key or read before it lands: the select's keyboard spec
 // failed in WebKit that way. After each key, await the state it produces (expect.poll, or a locator assertion such as
-// toBeFocused or toHaveValue); for a key whose effect is that nothing changes, await its arrival (support/keys.mjs:
-// pressReceived) and then read.
+// toBeFocused or toHaveValue); for a key whose effect is that nothing changes, await the whole press (support/keys.mjs:
+// pressReceived) and then read. A fixed sleep between the key and the read is not a wait, so the check looks past it.
+// It reads one statement per line: a key in a braced loop body, in a helper or on a line with other statements is not
+// checked, and neither is whether a poll waits for every effect of the key (an ordering race, as in that select spec).
 const KEY_ACTION = /\.(?:keyboard\.(?:press|type|down|up|insertText)|press|pressSequentially)\(/;
-const ONE_SHOT_READ = /^expect\(.*\bawait\b|^(?:const|let)\s+[^=]+=\s*await\b|\.push\(\s*await\b/;
+// A read whose value is used once: an expect, a declaration, a push into a collector, a condition or a return of an awaited
+// value. expect.poll and locator assertions take no awaited argument, so they do not match.
+const ONE_SHOT_READ = /^expect\(.*\bawait\b|^await expect\(.*\bawait\b|^(?:const|let)\s+[^=]+=\s*await\b|\.push\(.*\bawait\b|^(?:if|while|return)\b.*\bawait\b|^assert[.(].*\bawait\b/;
+// A sleep from the test process or in the page.
+const SLEEP = /^await\s.*(?:waitForTimeout\(|setTimeout\()/;
 function keyThenUnawaited(text) {
   const statements = text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('//'));
   const found = [];
@@ -42,11 +43,18 @@ function keyThenUnawaited(text) {
     // A loop whose whole body is one key action presses the next key straight after the previous one.
     if (/^for\s*\(.*\)\s*await\s/.test(line) && KEY_ACTION.test(line.replace(/^for\s*\(.*?\)\s*await/, '.'))) found.push(line);
     if (!line.startsWith('await ') || !KEY_ACTION.test(line)) return;
-    const next = statements[i + 1] ?? '';
+    let k = i + 1;
+    while (SLEEP.test(statements[k] ?? '')) k++;
+    const next = statements[k] ?? '';
     if ((next.startsWith('await ') && KEY_ACTION.test(next)) || ONE_SHOT_READ.test(next)) found.push(`${line} -> ${next}`);
   });
   return found;
 }
+// A pointer move (hover, mouse.move/down/up) whose next statements sleep a fixed time from the test process. That sleep
+// is not a window measured from the pointer event: the action, the sleep and the state read are separate protocol round
+// trips, which on a loaded runner can outlast a hover delay by themselves (Firefox in CI saw an sl-tooltip close before
+// its 200 ms --hide-delay, read about 80 ms after the pointer left). Time the window in the page from the pointer event
+// instead (tooltip.spec.mjs: probeAfterPointer), or poll for the outcome.
 const POINTER_THEN_SLEEP = /(?:\.hover\(|\.mouse\.(?:move|down|up)\()[^;]*\);(?:\s*\/\/[^\n]*)*\s*await [^;]*(?:waitForTimeout\(|setTimeout\(\s*\w+\s*,)/;
 
 test('the product specs are found', () => {
@@ -99,6 +107,12 @@ test('the key-wait check recognizes the patterns it guards', () => {
     "await page.keyboard.press('Tab');\n  seen.push(await active());",
     "for (const key of ['ArrowUp', 'ArrowDown']) await page.keyboard.press(key);",
     "await page.keyboard.down('Shift');\n  await page.keyboard.up('Shift');",
+    "for (const key of ['ArrowRight', 'ArrowLeft']) {\n    await page.keyboard.press(key);\n    steps.push([key, await focusedTab(page), await activeTab(page)]);\n  }",
+    "await page.keyboard.press('Tab');\n  if (!(await host.evaluate(el => el.shadowRoot.activeElement !== null))) await host.locator('.divider').focus();",
+    "await page.keyboard.press('Tab');\n  await page.waitForTimeout(150);\n  expect((await state(page)).open).toBe(true);",
+    "await page.keyboard.press('Escape');\n  await frame.locator('body').evaluate(() => new Promise(r => setTimeout(r, 300)));\n  expect(await state(frame)).toEqual({ open: true });",
+    "await page.keyboard.press('Enter');\n  await expect(await page.locator('#d').getAttribute('open')).toBe('');",
+    "await page.keyboard.press('Enter');\n  return await state(page);",
   ];
   const allowed = [
     "await page.keyboard.press('ArrowDown');\n  await expect.poll(state).toEqual([true]);\n  await page.keyboard.press('ArrowDown');",
@@ -107,6 +121,8 @@ test('the key-wait check recognizes the patterns it guards', () => {
     "for (const key of ['ArrowUp', 'ArrowDown']) await pressReceived(page, page, key);",
     "const press = async key => { await page.keyboard.press(key); await expect.poll(position).toBe(1); };\n  await press('Home');",
     "await page.locator('#b').click();\n  expect(await state()).toEqual([true]);",
+    "await pressReceived(page, page, 'Tab');\n  await page.waitForTimeout(150);\n  expect(await state()).toEqual([true]);",
+    "await page.keyboard.press('Tab');\n  await expect.poll(() => active(page)).toBe('content');\n  await page.waitForTimeout(150);\n  expect((await state(page)).open).toBe(true);",
   ];
   assert.deepEqual(flagged.map(text => keyThenUnawaited(text).length > 0), flagged.map(() => true));
   assert.deepEqual(allowed.map(text => keyThenUnawaited(text).length), allowed.map(() => 0));

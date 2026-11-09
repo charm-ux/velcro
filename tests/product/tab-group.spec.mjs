@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
@@ -509,12 +510,14 @@ test.describe('keyboard (top-level documents)', () => {
     await expect.poll(() => focusedTab(page)).toBe('after');
     await page.keyboard.press('Shift+Tab');
     await expect.poll(() => focusedTab(page)).toBe('a');
-    // Each step: the key, then the focused and the active tab it leads to.
+    // Each step: the key, then the focused and the active tab it leads to (some keys change nothing, so each press is
+    // awaited to its end first).
+    await recordKeys(page);
     for (const [key, ...expected] of [
       ['ArrowRight', 'b', 'b'], ['ArrowRight', 'd', 'd'], ['ArrowRight', 'a', 'a'], ['ArrowLeft', 'd', 'd'], ['ArrowLeft', 'b', 'b'],
       ['End', 'd', 'd'], ['Home', 'a', 'a'], ['ArrowDown', 'a', 'a'],
     ]) {
-      await page.keyboard.press(key);
+      await pressReceived(page, page, key);
       await expect.poll(async () => [await focusedTab(page), await activeTab(page)], key).toEqual(expected);
     }
     expect(await page.evaluate(() => [...document.querySelectorAll('#g sl-tab')].map(t => t.getAttribute('tabindex')))).toEqual(['0', '-1', '-1', '-1']);
@@ -554,8 +557,9 @@ test.describe('keyboard (top-level documents)', () => {
     const pageErrors = await loadBundle(page, ENTRY);
     await mountGroup(page, 'placement="start"');
     await page.locator('#g sl-tab[panel="a"]').focus();
+    await recordKeys(page);
     for (const [key, ...expected] of [['ArrowDown', 'b', 'b'], ['ArrowRight', 'b', 'b'], ['ArrowUp', 'a', 'a'], ['ArrowLeft', 'a', 'a']]) {
-      await page.keyboard.press(key);
+      await pressReceived(page, page, key);
       await expect.poll(async () => [await focusedTab(page), await activeTab(page)], key).toEqual(expected);
     }
     expect(pageErrors).toEqual([]);

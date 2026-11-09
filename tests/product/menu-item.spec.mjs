@@ -2,6 +2,7 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { bundleExamples, docsDir, loadBundle, loadExamples } from './support/bundle.mjs';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 
@@ -606,8 +607,9 @@ test('a click on the parent item does nothing; focus leaving the item and its su
   // Disabling the parent removes the submenu listeners: the keyboard does not open it, and the click is suppressed.
   await page.evaluate(async () => { document.getElementById('parent').disabled = true; await document.getElementById('parent').updateComplete; });
   await page.locator('#parent').focus();
-  await page.keyboard.press('ArrowRight');
-  await expect.poll(() => open(page)).toBe(false);
+  await recordKeys(page);
+  await pressReceived(page, page, 'ArrowRight');
+  expect(await open(page)).toBe(false);
   await page.locator('#parent').click({ force: true });
   expect(await page.evaluate(() => window.selects)).toEqual([]);
   expect(pageErrors).toEqual([]);

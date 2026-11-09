@@ -731,9 +731,11 @@ test.describe('top-level documents', () => {
     await page.keyboard.press('Enter');
     await expect.poll(async () => (await copiedAndEvents(page)).copied).toEqual(['v']);
     await settled(page);
+    expect((await copiedAndEvents(page)).copied).toEqual(['v']);
     await page.keyboard.press('Space');
     await expect.poll(() => copiedAndEvents(page)).toEqual({ copied: ['v', 'v'], events: ['sl-copy', 'sl-copy'] });
     await settled(page);
+    expect(await copiedAndEvents(page)).toEqual({ copied: ['v', 'v'], events: ['sl-copy', 'sl-copy'] });
     await page.keyboard.press('Tab');
     await expect.poll(active).toBe('after');
     await page.keyboard.press('Shift+Tab');

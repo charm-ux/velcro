@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
@@ -307,8 +308,9 @@ test('placeholder, filled and disabled render as in Shoelace', async ({ page, br
   await addStartButton(disabled.frame);
   await disabled.frame.locator('#start').focus();
   await page.keyboard.press('Tab');
-  // Tab moves the focus off the start button, and not to the disabled control.
-  await expect.poll(() => disabled.frame.locator('body').evaluate(() => document.activeElement?.id)).not.toBe('start');
+  // Tab moves the focus off the start button (to the next control, or out of the example's frame, whose activeElement
+  // Firefox then leaves on the button), and not to the disabled control.
+  await expect.poll(() => disabled.frame.locator('body').evaluate(() => (document.hasFocus() ? document.activeElement?.id : 'left the frame'))).not.toBe('start');
   expect(await disabled.frame.locator('body').evaluate(() => document.activeElement?.localName)).not.toBe('sl-textarea');
 });
 
@@ -777,8 +779,9 @@ test('core extensions kept: hide-label and error-message; invalid and label-posi
   // readonly is Shoelace's own attribute: the value cannot be edited.
   await mount(frame, '<sl-textarea id="ro" readonly value="fixed"></sl-textarea>');
   await frame.locator('#ro textarea').click();
-  await page.keyboard.type('x');
-  await expect.poll(() => frame.locator('#ro').evaluate(el => [el.value, el.shadowRoot.querySelector('textarea').readOnly])).toEqual(['fixed', true]);
+  await recordKeys(frame.locator('body'));
+  await pressReceived(page, frame.locator('body'), 'x');
+  expect(await frame.locator('#ro').evaluate(el => [el.value, el.shadowRoot.querySelector('textarea').readOnly])).toEqual(['fixed', true]);
 });
 
 test('dir and lang are reactive, not reflected and undefined by default, as Shoelace\'s base element declares them', async ({ page }) => {

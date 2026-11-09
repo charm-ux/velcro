@@ -175,8 +175,9 @@ test('disabled: clicks do not toggle, Tab skips it, and its styles are dimmed', 
   });
   await frame.locator('#start').focus();
   await page.keyboard.press('Tab');
-  // Tab moves the focus off the start button, and not to the disabled control.
-  await expect.poll(() => frame.locator('body').evaluate(() => document.activeElement?.id)).not.toBe('start');
+  // Tab moves the focus off the start button (to the next control, or out of the example's frame, whose activeElement
+  // Firefox then leaves on the button), and not to the disabled control.
+  await expect.poll(() => frame.locator('body').evaluate(() => (document.hasFocus() ? document.activeElement?.id : 'left the frame'))).not.toBe('start');
   expect(await frame.locator('body').evaluate(() => document.activeElement?.localName)).not.toBe('sl-switch');
 });
 

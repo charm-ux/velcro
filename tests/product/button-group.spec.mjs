@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
@@ -716,8 +717,9 @@ test('removing the toolbar extension releases it: the role, the arrow keys, the 
   // Neutral Shoelace group again: role group, the buttons' tabindex as before (none, and the author's own 3), arrow keys left alone.
   // `child` only had toolbar because `parent` gave it; `kept` had its own toolbar attribute and keeps it.
   expect(await read()).toMatchObject({ role: ['group', 'group', 'group', 'group', 'toolbar'], tabindex: [null, null, '3'], toolbar: [false, false, false, false, true], property: false });
-  await page.keyboard.press('ArrowRight');
-  await expect.poll(async () => (await read()).active).toBe('t1');
+  await recordKeys(frame.locator('body'));
+  await pressReceived(page, frame.locator('body'), 'ArrowRight');
+  expect((await read()).active).toBe('t1');
   const prevented = await frame.locator('#t1').evaluate(el => {
     const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, composed: true, cancelable: true });
     el.shadowRoot.querySelector('.button').dispatchEvent(event);
