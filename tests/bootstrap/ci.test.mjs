@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { IMAGE_BROWSERS_PATH, ImageError, checkImage, imageName, installedPlaywright, lockedPlaywright } from '../../scripts/ci/playwright-image.mjs';
 
 const gate = new URL('../../scripts/ci-gate.mjs', import.meta.url);
 const workflow = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
@@ -203,18 +205,169 @@ test('product workflow: one build, every engine in N shards (1..N), the upstream
   assert.doesNotMatch(browser, /include:|exclude:/);
   assert.match(browser, /pnpm verify:product --stage browser --engine "\$ENGINE" --shard "\$SHARD" --expect-digest "\$DIGEST"/);
   assert.match(browser, /ENGINE: \$\{\{ matrix\.engine \}\}/);
-  assert.match(browser, /key: playwright-\$\{\{ runner\.os \}\}-\$\{\{ matrix\.engine \}\}-\$\{\{ hashFiles\('pnpm-lock\.yaml'\) \}\}/);
   assert.match(upstream, /pnpm verify:product --stage upstream --expect-digest "\$DIGEST"/);
-  assert.match(upstream, /key: playwright-\$\{\{ runner\.os \}\}-chromium-\$\{\{ hashFiles\('pnpm-lock\.yaml'\) \}\}/);
-  for (const body of [browser, upstream]) {
-    assert.match(body, /^ {4}env:\n {6}PLAYWRIGHT_BROWSERS_PATH: \$\{\{ github\.workspace \}\}\/\.airig\/ms-playwright\n/m);
-    assert.match(body, /uses: actions\/cache@[a-f0-9]{40}\n\s+with:\n\s+path: \.airig\/ms-playwright\n/);
-    assert.match(body, /DEBIAN_FRONTEND: noninteractive/);
-    assert.equal([...body.matchAll(/timeout-minutes: 12/g)].length, 2, 'each browser install step is bounded');
-    assert.match(body, /Acquire::Retries "5"[\s\S]*Acquire::http::Timeout "30"[\s\S]*Acquire::https::Timeout "30"/);
-    assert.match(body, /80-velcro-ci/);
-    assert.match(body, /for attempt in 1 2; do\n\s+code=0\n\s+timeout -k 10 330 pnpm exec playwright install-deps "\$ENGINE"/);
-    assert.equal([...body.matchAll(/timeout -k 10 480 pnpm exec playwright install "\$ENGINE"/g)].length, 1);
+});
+
+// The browser and upstream jobs run in the official Playwright image, pinned by digest and tagged with the lockfile's
+// Playwright version: no apt, no engine download, no engine cache. Each checks the image against the lockfile in the job.
+test('product browser jobs run in the official Playwright image for the lockfile version, pinned by digest', () => {
+  const locked = lockedPlaywright(readFileSync(new URL('../../pnpm-lock.yaml', import.meta.url), 'utf8'));
+  const pinned = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).devDependencies['@playwright/test'];
+  assert.equal(locked, pinned, 'the lockfile resolves the pinned @playwright/test');
+  const image = `${imageName(locked).replaceAll('.', '\\.')}@sha256:[0-9a-f]{64}`;
+  const container = new RegExp(`^ {4}container:\\n {6}image: (${image})\\n {6}options: --init --user 1001 --shm-size=2g\\n {4}env:\\n {6}PLAYWRIGHT_BROWSERS_PATH: /ms-playwright\\n`, 'm');
+  const images = [];
+  for (const [name, engine] of [['browser', '${{ matrix.engine }}'], ['upstream', 'chromium']]) {
+    const body = jobOf(product, name);
+    const match = container.exec(body);
+    assert.ok(match, `${name}: the pinned image for Playwright ${locked}, a non-root user and the image's browsers path`);
+    images.push(match[1]);
+    assert.equal([...body.matchAll(/^ {4}container:/gm)].length, 1);
+    // The image is checked against the lockfile's Playwright after the install and before any browser runs.
+    const check = `- name: Check the image against the lockfile's Playwright\n        env:\n          ENGINE: ${engine}\n        run: node scripts/ci/playwright-image.mjs "$ENGINE"\n`;
+    assert.ok(body.includes(check), `${name}: image check step`);
+    assert.ok(body.indexOf('Public frozen dependency install') < body.indexOf(check));
+    assert.ok(body.indexOf(check) < body.indexOf('pnpm verify:product --stage'));
+  }
+  assert.equal(images[0], images[1], 'one image for every browser job');
+  assert.equal([...product.matchAll(/^ {4}container:/gm)].length, 2, 'only the browser and upstream jobs use the image');
+  assert.equal([...product.matchAll(/mcr\.microsoft\.com\//g)].length, 2);
+  assert.doesNotMatch(jobOf(product, 'build'), /container:|PLAYWRIGHT_BROWSERS_PATH/, 'the build and its scans run on the runner, as before');
+  // Nothing installs system packages or engines at run time, and no engine cache can shadow the image's builds.
+  const code = product.replace(/^\s*#.*\n/gm, '');
+  assert.doesNotMatch(code, /\bapt(?:-get|-config)?\b|\bsudo\b|install-deps|--with-deps|playwright install|ms-playwright[^\n]*airig|\.airig\/ms-playwright|key: playwright-/);
+  assert.doesNotMatch(product, /options:[^\n]*(?:--privileged|--ipc|--cap-add|--network|--pid|-v |--volume|--user (?:0|root)\b)/);
+});
+
+// The in-job image check, against a stand-in install (packages, lockfile and the installer's dry run) and image directory.
+test('image check: installed Playwright and the image\'s recorded version equal the lockfile, and every expected build is complete', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'velcro-image-'));
+  try {
+    const root = path.join(dir, 'repo');
+    const image = path.join(dir, 'ms-playwright');
+    const lock = v => `lockfileVersion: '9.0'\n\nimporters:\n\n  .:\n    devDependencies:\n      '@changesets/cli':\n        specifier: 2.29.8\n        version: 2.29.8\n      '@playwright/test':\n        specifier: ${v}\n        version: ${v}\n\npackages:\n`;
+    const pkg = (name, version, exports) => {
+      mkdirSync(path.join(root, 'node_modules', name), { recursive: true });
+      writeFileSync(path.join(root, 'node_modules', name, 'package.json'), JSON.stringify({ name, version, ...(exports ? { exports } : {}) }));
+    };
+    const setup = ({ locked = '1.64.1', test = '1.64.1', runner = '1.64.1', core = '1.64.1' } = {}) => {
+      rmSync(root, { recursive: true, force: true });
+      mkdirSync(root, { recursive: true });
+      writeFileSync(path.join(root, 'package.json'), '{"name":"stand-in","private":true}');
+      writeFileSync(path.join(root, 'pnpm-lock.yaml'), lock(locked));
+      pkg('@playwright/test', test, { './package.json': './package.json', './cli': './cli.js' });
+      writeFileSync(path.join(root, 'node_modules/@playwright/test/cli.js'), '');
+      pkg('playwright', runner);
+      pkg('playwright-core', core);
+    };
+    const build = (name, complete = true) => {
+      mkdirSync(path.join(image, name), { recursive: true });
+      if (complete) writeFileSync(path.join(image, name, 'INSTALLATION_COMPLETE'), '');
+    };
+    // The installer's dry run, as Playwright prints it: one block per build, the location under PLAYWRIGHT_BROWSERS_PATH.
+    const dryRun = (names, status = 0) => (cmd, args, options) => {
+      assert.equal(cmd, process.execPath);
+      assert.deepEqual(args.slice(1), ['install', '--dry-run', args[3]]);
+      assert.ok(args[0].endsWith(path.join('@playwright', 'test', 'cli.js')));
+      const at = options.env.PLAYWRIGHT_BROWSERS_PATH;
+      return { status, stdout: names.map(n => `Build ${n}\n  Install location:    ${n.startsWith('/') ? n : path.join(at, n)}\n  Download url:        https://example.invalid/${n}.zip\n`).join('\n') };
+    };
+    const check = (engine, run, browsersPath = image) => {
+      try { return checkImage({ root, engine, browsersPath, run }); } catch (e) { assert.ok(e instanceof ImageError, e.stack); return e.code; }
+    };
+    const record = (value, raw) => {
+      rmSync(path.join(image, '.docker-info'), { recursive: true, force: true });
+      mkdirSync(image, { recursive: true });
+      if (value !== undefined) writeFileSync(path.join(image, '.docker-info'), raw ? value : JSON.stringify(value, null, 2));
+    };
+    const recorded = v => ({ driverVersion: v, dockerImageName: `mcr.microsoft.com/playwright:v${v}-noble` });
+    setup();
+    record(recorded('1.64.1'));
+    build('chromium-1248'); build('chromium_headless_shell-1248'); build('ffmpeg-1013'); build('webkit-2370');
+    const chromium = ['chromium-1248', 'ffmpeg-1013', 'chromium_headless_shell-1248'];
+    assert.deepEqual(check('chromium', dryRun(chromium)), { version: '1.64.1', builds: chromium });
+    assert.deepEqual(check('webkit', dryRun(['webkit-2370', 'ffmpeg-1013'])), { version: '1.64.1', builds: ['webkit-2370', 'ffmpeg-1013'] });
+    // An image built for another Playwright version names other revisions: nothing is downloaded, the job stops.
+    assert.equal(check('chromium', dryRun(['chromium-1249', 'ffmpeg-1013', 'chromium_headless_shell-1249'])), 'engine-missing');
+    assert.equal(check('firefox', dryRun(['firefox-1555', 'ffmpeg-1013'])), 'engine-missing');
+    build('firefox-1555', false);
+    assert.equal(check('firefox', dryRun(['firefox-1555', 'ffmpeg-1013'])), 'engine-missing', 'an incomplete build is missing');
+    assert.equal(check('chromium', dryRun(['/elsewhere/chromium-1248'])), 'engine-outside-image');
+    assert.equal(check('chromium', dryRun(['ffmpeg-1013'])), 'no-engine-builds', 'the engine itself must be among the builds');
+    assert.equal(check('chromium', dryRun([])), 'no-engine-builds');
+    assert.equal(check('chromium', dryRun(chromium, 1)), 'dry-run-failed');
+    assert.equal(check('edge', dryRun(chromium)), 'engine');
+    assert.equal(check('chromium', dryRun(chromium), 'relative/path'), 'browsers-path');
+    // The image's own version record must name exactly the lockfile's version and its official image, even when every
+    // expected build is present (a patch release can keep the same browser revisions).
+    for (const [value, code, raw] of [
+      [recorded('1.64.0'), 'image-version-mismatch'], [recorded('1.64.10'), 'image-version-mismatch'],
+      [{ ...recorded('1.64.1'), dockerImageName: 'mcr.microsoft.com/playwright:v1.64.1-jammy' }, 'image-version-mismatch'],
+      [{ ...recorded('1.64.1'), dockerImageName: 'mcr.microsoft.com/playwright:v1.64.0-noble' }, 'image-version-mismatch'],
+      [{ ...recorded('1.64.1'), driverVersion: '1.64.1-next' }, 'image-version-mismatch'],
+      [undefined, 'image-version-missing'],
+      ['{"driverVersion": "1.64.1"', 'image-version-malformed', true], ['', 'image-version-malformed', true],
+      [['1.64.1'], 'image-version-malformed'], [null, 'image-version-malformed'], ['1.64.1', 'image-version-malformed'],
+      [{ driverVersion: '1.64.1' }, 'image-version-malformed'], [{ ...recorded('1.64.1'), driverVersion: 1.641 }, 'image-version-malformed'],
+      [JSON.stringify({ ...recorded('1.64.1'), pad: 'x'.repeat(5000) }), 'image-version-malformed', true],
+    ]) {
+      record(value, raw);
+      assert.equal(check('chromium', dryRun(chromium)), code, JSON.stringify(value)?.slice(0, 80));
+    }
+    record(undefined);
+    mkdirSync(path.join(image, '.docker-info'));
+    assert.equal(check('chromium', dryRun(chromium)), 'image-version-malformed', 'a directory is not a record');
+    record(undefined);
+    writeFileSync(path.join(dir, 'elsewhere.json'), JSON.stringify(recorded('1.64.1')));
+    symlinkSync(path.join(dir, 'elsewhere.json'), path.join(image, '.docker-info'));
+    assert.equal(check('chromium', dryRun(chromium)), 'image-version-malformed', 'a symlink is not followed');
+    record(recorded('1.64.1'));
+    assert.deepEqual(check('chromium', dryRun(chromium)), { version: '1.64.1', builds: chromium });
+    // The installed packages must all be exactly the lockfile's version, and the lockfile must pin it exactly.
+    for (const [versions, code] of [[{ core: '1.64.0' }, 'version-mismatch'], [{ runner: '1.65.0' }, 'version-mismatch'],
+      [{ test: '1.64.0' }, 'version-mismatch'], [{ locked: '1.64.0' }, 'version-mismatch'], [{ locked: '^1.64.1' }, 'lockfile']]) {
+      setup(versions);
+      assert.equal(check('chromium', dryRun(chromium)), code, JSON.stringify(versions));
+    }
+    setup();
+    rmSync(path.join(root, 'node_modules/playwright-core'), { recursive: true });
+    assert.equal(check('chromium', dryRun(chromium)), 'not-installed');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('image check: the real installer and lockfile, against an image directory built from its own dry run', () => {
+  const root = fileURLToPath(new URL('../../', import.meta.url));
+  const dir = mkdtempSync(path.join(tmpdir(), 'velcro-image-'));
+  try {
+    const { cli } = installedPlaywright(root);
+    const dry = spawnSync(process.execPath, [cli, 'install', '--dry-run', 'firefox'], { cwd: root, encoding: 'utf8',
+      env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: dir } });
+    assert.equal(dry.status, 0);
+    const names = [...dry.stdout.matchAll(/Install location: +(\S+)/g)].map(m => path.basename(m[1]));
+    assert.ok(names.some(n => /^firefox-\d+$/.test(n)), 'the dry run names the firefox build');
+    const version = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).devDependencies['@playwright/test'];
+    assert.throws(() => checkImage({ root, engine: 'firefox', browsersPath: dir }), { code: 'image-version-missing' });
+    writeFileSync(path.join(dir, '.docker-info'), JSON.stringify({ driverVersion: version, dockerImageName: imageName(version) }));
+    assert.throws(() => checkImage({ root, engine: 'firefox', browsersPath: dir }), { code: 'engine-missing' });
+    for (const n of names) {
+      mkdirSync(path.join(dir, n));
+      writeFileSync(path.join(dir, n, 'INSTALLATION_COMPLETE'), '');
+    }
+    assert.deepEqual(checkImage({ root, engine: 'firefox', browsersPath: dir }), { version, builds: names });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('image check prints only fixed status lines and requires the image\'s browsers path', () => {
+  const script = fileURLToPath(new URL('../../scripts/ci/playwright-image.mjs', import.meta.url));
+  for (const [env, args, out] of [
+    [{ PLAYWRIGHT_BROWSERS_PATH: path.join(tmpdir(), 'elsewhere') }, ['chromium'], 'playwright image: blocked (browsers-path)'],
+    [{ PLAYWRIGHT_BROWSERS_PATH: '' }, ['chromium'], 'playwright image: blocked (browsers-path)'],
+    [{ PLAYWRIGHT_BROWSERS_PATH: IMAGE_BROWSERS_PATH }, [], 'playwright image: blocked (usage)'],
+    [{ PLAYWRIGHT_BROWSERS_PATH: IMAGE_BROWSERS_PATH }, ['edge'], 'playwright image: blocked (engine)'],
+  ]) {
+    const r = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', env: { ...process.env, ...env } });
+    assert.equal(r.status, 1);
+    assert.equal(`${r.stdout}${r.stderr}`.trim(), out);
   }
 });
 
@@ -287,51 +440,6 @@ test('build step publishes only the digest, keeps all command output private and
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }
 });
-
-// The install steps of the product jobs, run for real against stand-in commands. Raw installer output (which can carry
-// runner paths, URLs and package-manager stacks) must stay in the private log; only fixed status lines may be printed.
-for (const file of ['browser', 'upstream']) {
-  const body = jobOf(product, file);
-  const stepScript = name => {
-    const script = stepRun(body, name);
-    assert.ok(script, `${file}: ${name}`);
-    return script;
-  };
-  const deps = stepScript('Install system dependencies for the engine (disposable runner)');
-  const browsers = stepScript('Install the engine (disposable runner; a no-op on a cache hit)');
-  // Stand-ins: sudo swallows its input, apt-config names a directory, timeout passes the command through, and pnpm prints
-  // runtime-generated sensitive-looking text to both streams, then behaves as scripted (exit codes per call in $PNPM_CODES).
-  const run = (script, codes) => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'velcro-install-'));
-    try {
-      mkdirSync(path.join(dir, 'bin'));
-      const secret = ['', 'home', 'u' + 'ser', 'work'].join('/') + '/' + ['tok', Math.random().toString(36).slice(2, 10)].join('-');
-      const put = (name, body) => writeFileSync(path.join(dir, 'bin', name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
-      put('sudo', 'cat > sink');
-      put('apt-config', `echo "d='${dir}/apt/'"`);
-      put('timeout', 'if [ "$1" = "-k" ]; then shift 2; fi; shift; "$@"');
-      writeFileSync(path.join(dir, 'codes'), codes.join('\n') + '\n');
-      put('pnpm', ['n=$([ -f count ] && cat count || echo 0); n=$((n+1)); echo $n > count', `echo "raw ${secret}"`, `echo "stack ${secret}" >&2`, 'code=$(sed -n "${n}p" codes)', 'exit ${code:-0}'].join('\n'));
-      const r = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', script], { cwd: dir, encoding: 'utf8',
-        env: { ...process.env, ENGINE: 'webkit', PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}` } });
-      const out = `${r.stdout}${r.stderr}`;
-      assert.doesNotMatch(out, new RegExp(secret.replaceAll(/[.*+?^${}()|[\]\\/]/g, '\\$&')), 'raw installer output leaked');
-      assert.doesNotMatch(out, /\braw\b|\bstack\b/);
-      return { status: r.status, out: out.trim() };
-    } finally { rmSync(dir, { recursive: true, force: true }); }
-  };
-  test(`${file}: dependency install prints only fixed status lines (success, retry, exit code, timeout)`, () => {
-    assert.deepEqual(run(deps, [0]), { status: 0, out: 'browser system dependencies: passed' });
-    assert.deepEqual(run(deps, [1, 0]), { status: 0, out: 'browser system dependencies: attempt 1 failed (exit code 1)\nbrowser system dependencies: passed' });
-    assert.deepEqual(run(deps, [1, 100]), { status: 1, out: 'browser system dependencies: attempt 1 failed (exit code 1)\nbrowser system dependencies: attempt 2 failed (exit code 100)\nbrowser system dependencies: blocked; private evidence retained' });
-    assert.deepEqual(run(deps, [124, 137]), { status: 1, out: 'browser system dependencies: attempt 1 timed out\nbrowser system dependencies: attempt 2 timed out\nbrowser system dependencies: blocked; private evidence retained' });
-  });
-  test(`${file}: browser install prints only fixed status lines (success, exit code, timeout)`, () => {
-    assert.deepEqual(run(browsers, [0]), { status: 0, out: 'browser setup: passed' });
-    assert.deepEqual(run(browsers, [2]), { status: 1, out: 'browser setup: failed (exit code 2)\nbrowser setup: blocked; private evidence retained' });
-    assert.deepEqual(run(browsers, [124]), { status: 1, out: 'browser setup: timed out\nbrowser setup: blocked; private evidence retained' });
-  });
-}
 
 // Budget order for the browser run: Playwright's global timeout < the wrapper's kill of the browser step < the CI step bound < the job.
 test('product timeouts are ordered: global timeout < wrapper bound < step bound < job bound', () => {
