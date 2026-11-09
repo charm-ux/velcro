@@ -10,6 +10,7 @@ import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 // Needs the built library: `pnpm --filter @charm-ux/velcro run build` (verify:product does this first).
 
 // Registering entries with dependencies: [entry, own tag, own class export, [[dependency tag, class export, class fixture]]].
+const CHECKBOX = ['sl-checkbox', 'VelcroCheckbox', 'checkboxClass'];
 const ICON = ['sl-icon', 'VelcroIcon', 'iconClass'];
 const ICON_BUTTON = ['sl-icon-button', 'VelcroIconButton', 'iconButtonClass'];
 const POPUP = ['sl-popup', 'VelcroPopup', 'popupClass'];
@@ -32,6 +33,7 @@ const ENTRIES = [
   ['tab-group', 'sl-tab-group', 'VelcroTabGroup', [ICON_BUTTON, ICON, ['sl-resize-observer', 'VelcroResizeObserver', 'resizeObserverClass']]],
   ['tag', 'sl-tag', 'VelcroTag', [ICON_BUTTON, ICON]],
   ['tooltip', 'sl-tooltip', 'VelcroTooltip', [['sl-popup', 'VelcroPopup', 'popupClass']]],
+  ['tree-item', 'sl-tree-item', 'VelcroTreeItem', [CHECKBOX, ICON, SPINNER]],
 ];
 // Class-only construction (a class whose constructor registers its dependencies, as Shoelace's base element does):
 // [class fixture, class export, own tag, [[dependency tag, class export, class fixture]]]. Only direct dependencies are
@@ -47,6 +49,7 @@ const CLASS_ONLY = [
   ['tabGroupClass', 'VelcroTabGroup', 'sl-tab-group', [ICON_BUTTON, ['sl-resize-observer', 'VelcroResizeObserver', 'resizeObserverClass']]],
   ['tagClass', 'VelcroTag', 'sl-tag', [ICON_BUTTON]],
   ['tooltipClass', 'VelcroTooltip', 'sl-tooltip', [['sl-popup', 'VelcroPopup', 'popupClass']]],
+  ['treeItemClass', 'VelcroTreeItem', 'sl-tree-item', [CHECKBOX, ICON, SPINNER]],
 ];
 
 const camel = name => name.replace(/-(\w)/g, (_, c) => c.toUpperCase());

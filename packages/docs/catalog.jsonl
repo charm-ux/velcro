@@ -41,4 +41,6 @@
 {"name":"tag","title":"Tag","tag":"sl-tag","example":"#demo-default"}
 {"name":"textarea","title":"Textarea","tag":"sl-textarea","example":"#demo-default"}
 {"name":"tooltip","title":"Tooltip","tag":"sl-tooltip","example":"#demo-default"}
+{"name":"tree","title":"Tree","tag":"sl-tree","example":"#demo-default"}
+{"name":"tree-item","title":"Tree Item","tag":"sl-tree-item","example":"#demo-default"}
 {"name":"visually-hidden","title":"Visually Hidden","tag":"sl-visually-hidden","example":"#demo-skip"}

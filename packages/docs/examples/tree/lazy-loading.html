@@ -1,0 +1,23 @@
+<sl-tree>
+  <sl-tree-item lazy>Available Trees</sl-tree-item>
+</sl-tree>
+
+<script type="module">
+  const lazyItem = document.querySelector('sl-tree-item[lazy]');
+
+  lazyItem.addEventListener('sl-lazy-load', () => {
+    // Simulate asynchronous loading
+    setTimeout(() => {
+      const subItems = ['Birch', 'Cedar', 'Maple', 'Pine'];
+
+      for (const item of subItems) {
+        const treeItem = document.createElement('sl-tree-item');
+        treeItem.innerText = item;
+        lazyItem.append(treeItem);
+      }
+
+      // Disable lazy mode once the content has been loaded
+      lazyItem.lazy = false;
+    }, 1000);
+  });
+</script>
