@@ -449,9 +449,11 @@ test('keyboard: the arrows swap in right-to-left text, and the keys leave a nest
 // of the type (the document's own TypeError, by class and by name), not of an engine's message wording or of how the test
 // runner reports an error from a frame; and a listener on the document sees whether the tree's handler had prevented the key.
 // Focus enters the example's frame through the tree first (as in the other keyboard checks), then moves to the span.
+const SPAN_FIXTURE = '<sl-tree id="t"><sl-tree-item id="x">X <span id="inner" tabindex="0">Inner</span></sl-tree-item><sl-tree-item id="y">Y</sl-tree-item></sl-tree>';
+
 async function focusSpanInItem(page) {
   const { frame } = await openExample(page);
-  await mount(frame, '<sl-tree id="t"><sl-tree-item id="x">X <span id="inner" tabindex="0">Inner</span></sl-tree-item><sl-tree-item id="y">Y</sl-tree-item></sl-tree>');
+  await mount(frame, SPAN_FIXTURE);
   await frame.locator('body').evaluate(() => {
     window.uncaught = [];
     window.keys = [];
@@ -465,7 +467,7 @@ async function focusSpanInItem(page) {
 
 test('non-item focus: the tree hands focus to its first item', async ({ page }) => {
   const { frame } = await openExample(page);
-  await mount(frame, '<sl-tree id="t"><sl-tree-item id="x">X <span id="inner" tabindex="0">Inner</span></sl-tree-item><sl-tree-item id="y">Y</sl-tree-item></sl-tree>');
+  await mount(frame, SPAN_FIXTURE);
   await frame.locator('#t').focus();
   expect(await focusedId(frame)).toBe('x');
 });
@@ -487,12 +489,15 @@ test('Enter on a non-item: a TypeError is thrown (quirk)', async ({ page }) => {
   await expect.poll(() => frame.locator('body').evaluate(() => window.uncaught)).toEqual([{ typeError: true }]);
 });
 
-test('Enter on a non-item: ArrowDown still moves focus to the first item', async ({ page }) => {
+test('Enter on a non-item: after the throw, ArrowDown still moves focus to the first item', async ({ page }) => {
   const frame = await focusSpanInItem(page);
+  await page.keyboard.press('Enter');
+  await expect.poll(() => frame.locator('body').evaluate(() => window.uncaught)).toEqual([{ typeError: true }]);
   await page.keyboard.press('ArrowDown');
   await expect.poll(() => focusedId(frame)).toBe('x');
-  expect(await frame.locator('body').evaluate(() => window.keys)).toEqual([['ArrowDown', true]]);
-  expect(await frame.locator('body').evaluate(() => window.uncaught)).toEqual([]);
+  expect(await frame.locator('body').evaluate(() => window.keys)).toEqual([['Enter', true], ['ArrowDown', true]]);
+  // Exactly one error: the one from Enter; ArrowDown threw none.
+  expect(await frame.locator('body').evaluate(() => window.uncaught)).toEqual([{ typeError: true }]);
 });
 
 test('roving tabindex: focus moves the tab stop to the item, and leaving the tree leaves both the tree and the last item as tab stops (quirk)', async ({ page }) => {
