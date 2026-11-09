@@ -203,7 +203,10 @@ test('default example: Shoelace\'s structure and parts, the host\'s role and lab
   ]]);
   expect(r.baseClasses).toBe('carousel');
   expect(r.container.classes.split(/\s+/).sort()).toEqual(['carousel__slides', 'carousel__slides--horizontal']);
-  expect(r.container).toMatchObject({ busy: 'false', atomic: 'true', tabindex: '0', style: '--slides-per-page: 1;' });
+  // aria-busy follows the scrolling state (asserted on a mounted carousel in the navigation test), which the opening example's initial
+  // scroll leaves provisional in Firefox.
+  expect(r.container).toMatchObject({ atomic: 'true', tabindex: '0', style: '--slides-per-page: 1;' });
+  expect(['true', 'false']).toContain(r.container.busy);
   expect(r.host).toEqual({ role: 'region', label: 'Carousel' });
   expect(r.slideCount).toBe(7);
   expect(r.clones).toEqual(['4', null, null, null, null, null, '0']);
@@ -306,6 +309,8 @@ test('navigation without loop: next, previous and goToSlide clamp, the active sl
   await frame.locator('#c').evaluate(el => el.next('auto'));
   await settle(frame, '#c', 1);
   expect(await state(frame)).toMatchObject({ active: 1, activeClasses: [false, true, false, false], currentPage: 1 });
+  // aria-busy follows the scrolling state: false again once the scroll has ended.
+  expect(await frame.locator('#c').evaluate(el => el.scrollContainer.getAttribute('aria-busy'))).toBe('false');
   await frame.locator('#c').evaluate(el => el.goToSlide(3, 'auto'));
   await settle(frame, '#c', 3);
   expect(await state(frame)).toMatchObject({ active: 3, currentPage: 3 });
@@ -420,22 +425,24 @@ test('keyboard: arrows, Home and End move the carousel, keys are prevented, righ
   expect(focus).toBe(1);
 });
 
+// Real key presses go to the focused element of the top-level page, in every engine; an example's iframe would first need the frame itself
+// to hold focus, which Firefox does not give it from a script focus() or a click on slotted content. So this check runs in a page of
+// its own, with the carousel loaded from the package entries, like the bundle checks below.
 test('keyboard from a real key press: arrow keys on the focused scroll container change the slide', async ({ page }) => {
-  const { frame } = await openPage(page);
-  // A focusable sentinel before the carousel (a text input: WebKit does not focus a button on click): clicking it gives the example frame real focus (a script focus() alone does not make the
-  // frame receive key presses in Firefox, and a click on the slotted slides does not focus the carousel's scroll container there).
-  // Focusing the scroll container (tabindex 0) from there, the key presses reach it.
-  await mount(frame, '<input id="sentinel" aria-label="Sentinel">' + CAROUSEL('', 3));
-  await frame.locator('#sentinel').click();
-  await expect(frame.locator('#sentinel')).toBeFocused();
-  await frame.locator('#c #scroll-container').focus();
-  await expect(frame.locator('#c #scroll-container')).toBeFocused();
+  const pageErrors = await loadBundle(page, ENTRY);
+  await page.evaluate(async markup => {
+    document.body.innerHTML = markup;
+    await document.querySelector('#c').updateComplete;
+  }, CAROUSEL('', 3));
+  await page.locator('#c #scroll-container').focus();
+  await expect(page.locator('#c #scroll-container')).toBeFocused();
   await page.keyboard.press('ArrowRight');
-  await settle(frame, '#c', 1);
+  await settle(page, '#c', 1);
   await page.keyboard.press('End');
-  await settle(frame, '#c', 2);
+  await settle(page, '#c', 2);
   await page.keyboard.press('Home');
-  await settle(frame, '#c', 0);
+  await settle(page, '#c', 0);
+  expect(pageErrors).toEqual([]);
 });
 
 test('slides-per-page and slides-per-move: the page count, the move size, snap points and the last full page', async ({ page }) => {
