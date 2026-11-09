@@ -1,0 +1,33 @@
+<sl-select id="selection-mode" value="single" label="Selection">
+  <sl-option value="single">Single</sl-option>
+  <sl-option value="multiple">Multiple</sl-option>
+  <sl-option value="leaf">Leaf</sl-option>
+</sl-select>
+
+<br />
+
+<sl-tree class="tree-selectable">
+  <sl-tree-item>
+    Item 1
+    <sl-tree-item>
+      Item A
+      <sl-tree-item>Item Z</sl-tree-item>
+      <sl-tree-item>Item Y</sl-tree-item>
+      <sl-tree-item>Item X</sl-tree-item>
+    </sl-tree-item>
+    <sl-tree-item>Item B</sl-tree-item>
+    <sl-tree-item>Item C</sl-tree-item>
+  </sl-tree-item>
+  <sl-tree-item>Item 2</sl-tree-item>
+  <sl-tree-item>Item 3</sl-tree-item>
+</sl-tree>
+
+<script>
+  const selectionMode = document.querySelector('#selection-mode');
+  const tree = document.querySelector('.tree-selectable');
+
+  selectionMode.addEventListener('sl-change', () => {
+    tree.querySelectorAll('sl-tree-item').forEach(item => (item.selected = false));
+    tree.selection = selectionMode.value;
+  });
+</script>

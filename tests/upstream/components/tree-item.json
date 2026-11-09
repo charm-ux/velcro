@@ -1,0 +1,21 @@
+{
+  "files": {
+    "src/components/tree-item/tree-item.test.ts": "06fabf3049279204c3e79c7e3d3dee2e52f26a5e9f1362299a3750bf1df687a0"
+  },
+  "tests": [
+    "<sl-tree-item> > should render a component",
+    "<sl-tree-item> > when it contains child tree items > should set isLeaf to false",
+    "<sl-tree-item> > when it contains child tree items > should show the expand button",
+    "<sl-tree-item> > when it contains child tree items > should set the aria-expanded attribute",
+    "<sl-tree-item> > when the user clicks the expand button > and the item is collapsed > should emit sl-expand and sl-after-expand events",
+    "<sl-tree-item> > when the user clicks the expand button > and the item is expanded > should emit sl-collapse and sl-after-collapse events",
+    "<sl-tree-item> > when the user clicks the expand button > and the item is expanded > and the item is disabled > should not expand",
+    "<sl-tree-item> > when the item is selected > should update the aria-selected attribute",
+    "<sl-tree-item> > when the item is selected > should set item--selected part",
+    "<sl-tree-item> > when the item is disabled > should update the aria-disabled attribute",
+    "<sl-tree-item> > when the item is disabled > should set item--disabled part",
+    "<sl-tree-item> > when the item is expanded > should set item--expanded part",
+    "<sl-tree-item> > when the item is lazy > should emit sl-lazy-change when the lazy attribute is added and removed"
+  ],
+  "knownFailures": []
+}
