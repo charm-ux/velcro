@@ -227,6 +227,8 @@ test('Hoisting example: the hoisted panel is positioned with the fixed strategy 
   // Without hoist the panel is cut down to the clipping container (the popup's vertical auto-size) and its menu scrolls.
   expect(await info(0)).toEqual({ strategy: 'absolute', hoist: false, overflowsContainer: false, scrolls: true, hitInPanel: true });
   await page.keyboard.press('Escape');
+  await expect(dropdowns.nth(0)).not.toHaveAttribute('open', '');
+  await expect.poll(() => dropdowns.nth(0).evaluate(el => el.popup.popup.getAnimations().length)).toBe(0);
   const hoisted = await info(1);
   expect(hoisted.strategy).toBe('fixed');
   expect(hoisted.hoist).toBe(true);
