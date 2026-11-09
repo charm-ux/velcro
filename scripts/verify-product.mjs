@@ -180,8 +180,6 @@ function main() {
       try {
         const { lines } = summarizeReport(JSON.parse(readFileSync(reportFile, 'utf8')), { root, engines });
         for (const line of lines) process.stdout.write(`verify:product: ${line}\n`);
-        // DIAGNOSTIC (throw-away, reverted right after one CI run): the redacted reason lines printed above for two tests.
-        for (const l of log.split('\n')) if (/^test:upstream: diag: [12]: /.test(l)) process.stdout.write(`verify:product: ${redactLine(l.slice('test:upstream: '.length), root)}\n`);
       } catch { process.stdout.write('verify:product: no readable report to summarize\n'); }
     };
     if (!ok) { publish(); return fail('blocked'); }
@@ -208,6 +206,8 @@ function main() {
         const log = readFileSync(path.join(scratch, 'upstream-conformance.log'), 'utf8');
         const { lines } = summarizeUpstream(log, { inventory: readInventory(root), catalog: new Set(readCatalog(root).map(c => c.name)) });
         for (const line of lines) process.stdout.write(`verify:product: ${line}\n`);
+        // DIAGNOSTIC (throw-away, reverted right after one CI run): the redacted reason lines printed above for two tests.
+        for (const l of log.split('\n')) if (/^test:upstream: diag: [12]: /.test(l)) process.stdout.write(`verify:product: ${redactLine(l.slice('test:upstream: '.length), root)}\n`);
       } catch { process.stdout.write('verify:product: upstream blocked: internal\n'); }
       return fail('blocked (upstream conformance differs from the component records in tests/upstream/components/)');
     }
