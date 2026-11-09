@@ -426,7 +426,15 @@ test('avatar groups example: ::part(base) from the page draws the border and the
   const { example } = await openPage(page);
   const r = await example('Avatar Groups').locator('.avatar-group').evaluate(group => {
     const avatars = [...group.querySelectorAll('sl-avatar')];
-    const lefts = avatars.map(a => a.getBoundingClientRect().left);
+    const steps = () => {
+      const lefts = avatars.map(a => a.getBoundingClientRect().left);
+      return lefts.slice(1).map((left, i) => left - lefts[i]);
+    };
+    const overlappingSteps = steps();
+    const margins = avatars.map(a => a.style.marginLeft);
+    avatars.forEach(a => { a.style.marginLeft = '0px'; });
+    const unshiftedSteps = steps();
+    avatars.forEach((a, i) => { a.style.marginLeft = margins[i]; });
     const cs = getComputedStyle(avatars[0].shadowRoot.querySelector('[part="base"]'));
     const probe = document.createElement('div');
     probe.style.color = 'var(--sl-color-neutral-0)';
@@ -434,13 +442,14 @@ test('avatar groups example: ::part(base) from the page draws the border and the
     const neutral0 = getComputedStyle(probe).color;
     probe.remove();
     return {
-      steps: lefts.slice(1).map((l, i) => Math.round(l - lefts[i])),
+      shifts: unshiftedSteps.map((step, i) => step - overlappingSteps[i]),
+      overlaps: overlappingSteps.map((step, i) => step > 0 && step < avatars[i].getBoundingClientRect().width),
       border: [cs.borderTopWidth, cs.borderTopStyle, cs.borderTopColor === neutral0],
       images: avatars.map(a => Boolean(a.shadowRoot.querySelector('[part="image"]'))),
     };
   });
-  // Each avatar is 48px wide, plus the 2px borders, less the 16px negative margin.
-  expect(r).toEqual({ steps: [36, 36, 36], border: ['2px', 'solid', true], images: [true, true, true, true] });
+  // Inline whitespace advances differ across engines; measure the margin's effect with the same whitespace.
+  expect(r).toEqual({ shifts: [16, 16, 16], overlaps: [true, true, true], border: ['2px', 'solid', true], images: [true, true, true, true] });
 });
 
 test('dir and lang are reactive, not reflected and undefined by default; the observed attributes are Shoelace\'s', async ({ page }) => {
