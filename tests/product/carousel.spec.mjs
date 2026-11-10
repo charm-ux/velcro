@@ -38,7 +38,7 @@ async function openPage(page, section = 'Default') {
   const frame = page.frameLocator(`iframe.example[title="${title(section)}"]`);
   await expect(frame.locator('sl-carousel').first()).toBeVisible();
   await frame.locator('body').evaluate(() => Promise.all(['sl-carousel', 'sl-carousel-item', 'sl-icon'].map(t => customElements.whenDefined(t))));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -128,6 +128,7 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
 
 test('the examples render in their own documents in Shoelace\'s order, with their React versions, and make no request outside the site', async ({ page }) => {
   const { requests } = await openPage(page);
+  await documentsLoaded(page);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual(SECTIONS.map(title));
   const counts = [];
@@ -156,6 +157,7 @@ test('the examples render in their own documents in Shoelace\'s order, with thei
 
 test('sl-carousel and sl-carousel-item register as the exported classes, with sl-icon, no core marker and no ch-* definitions', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   await openingExampleReady(frame);
   const info = await frame.locator('#demo-default').evaluate(el => {
     const ctor = customElements.get('sl-carousel');

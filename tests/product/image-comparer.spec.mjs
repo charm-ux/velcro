@@ -20,7 +20,7 @@ async function openExample(page) {
   await openDocs(page, PAGE);
   const frame = page.frameLocator(`iframe.example[title="${title('Default')}"]`);
   await expect(frame.locator('sl-image-comparer')).toBeVisible();
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -134,6 +134,7 @@ test('docs page is prerendered with Velcro branding, prototype status, every por
 
 test('examples: Shoelace\'s order, live in their own documents, with a React version each; no Shoelace runtime or third-party image is requested', async ({ page }) => {
   const { requests } = await openExample(page);
+  await documentsLoaded(page);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual(ORDER.map(([, section]) => title(section)));
   const out = {};

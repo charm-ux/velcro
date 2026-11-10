@@ -24,7 +24,7 @@ async function openExample(page, name = 'Overview') {
   const frame = page.frameLocator(`iframe.example[title="Carousel Item example: ${name}"]`);
   await expect(frame.locator('sl-carousel').first()).toBeVisible();
   await frame.locator('body').evaluate(() => Promise.all(['sl-carousel', 'sl-carousel-item'].map(t => customElements.whenDefined(t))));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -59,6 +59,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the quirk
 
 test('the overview example is Shoelace\'s: a carousel with pagination and five slides, each with an image, and no request leaves the site', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   const r = await frame.locator('#demo-default').evaluate(el => ({
     pagination: el.pagination, slides: [...el.children].map(s => [s.localName, s.querySelector('img') !== null, s.querySelector('img').naturalWidth > 0]),
     alts: [...el.querySelectorAll('img')].every(i => i.alt.startsWith('Placeholder illustration')),
@@ -76,6 +77,7 @@ test('the overview example is Shoelace\'s: a carousel with pagination and five s
 
 test('sl-carousel-item registers as the exported class with no core marker and no ch-* definitions, and observes only dir and lang', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   const r = await frame.locator('body').evaluate(async () => {
     const ctor = customElements.get('sl-carousel-item');
     const item = document.createElement('sl-carousel-item');

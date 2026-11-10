@@ -108,7 +108,7 @@ async function openExamples(page) {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
   await openDocs(page, PAGE);
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   const frame = section => page.frameLocator(`iframe.example[title="${title(section)}"]`);
   return { requests, frame };
 }
@@ -141,6 +141,7 @@ const loadedState = async frame => {
 
 test('examples: Shoelace\'s order, live in their own documents, with a React version each; no Shoelace runtime or other site is requested', async ({ page }) => {
   const { requests, frame } = await openExamples(page);
+  await documentsLoaded(page);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual(ORDER.map(([, section]) => title(section)));
   const out = {};

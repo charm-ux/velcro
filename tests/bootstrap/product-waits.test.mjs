@@ -97,12 +97,13 @@ test('only specs that record the requests a page made wait for the network to go
 // it wait, although only the tests that read the requests need it; its bound adds to the page's own waits and can use up a
 // test's time on a loaded runner (tab-panel.spec.mjs:203 timed out that way). The tests that read the requests call
 // documentsLoaded in their own body. A top-level hook (test.beforeEach and the like) runs for every test, so it counts as
-// a helper.
+// a helper, and so does an exported function or constant (a support module that registers tests, such as
+// support/inherited-api.mjs, is scanned too).
 function networkWaitsInHelpers(text) {
   let context = 'top';
   const found = [];
   for (const line of text.split('\n')) {
-    if (/^(?:async\s+)?function\b|^(?:const|let)\s|^test\.(?:before|after)(?:Each|All)\b/.test(line)) context = 'helper';
+    if (/^(?:export\s+)?(?:async\s+)?function\b|^(?:export\s+)?(?:const|let)\s|^test\.(?:before|after)(?:Each|All)\b/.test(line)) context = 'helper';
     else if (/^(?:test|for)\b/.test(line)) context = 'test';
     if (context === 'helper' && /\bdocumentsLoaded\s*\(/.test(line) && !/^import\b/.test(line)) found.push(line.trim());
   }
@@ -123,6 +124,8 @@ test('the helper network-wait check recognizes the patterns it guards', () => {
     "function openPage(page) {\n  return openDocs(page, PAGE).then(() => documentsLoaded(page));\n}",
     "test.beforeEach(async ({ page }) => {\n  await openDocs(page, PAGE);\n  await documentsLoaded(page);\n});",
     "test.beforeAll(async ({ browser }) => {\n  await documentsLoaded(await browser.newPage());\n});",
+    "export async function openExample(page) {\n  await openDocs(page, PAGE);\n  await documentsLoaded(page);\n}",
+    "export const open = async page => {\n  await documentsLoaded(page);\n};",
   ];
   const allowed = [
     "import { documentsLoaded } from './support/loaded.mjs';\nasync function openExample(page) {\n  await openDocs(page, PAGE);\n}\ntest('requests', async ({ page }) => {\n  await openExample(page);\n  await documentsLoaded(page);\n});",
@@ -195,6 +198,12 @@ test('a split spec and the support module that registers its tests are scanned, 
     assert.deepEqual(sources.map(s => s.name), ['alpha.spec.mjs', 'beta.inherited-api.spec.mjs', 'support/split.mjs']);
     assert.deepEqual(sources.filter(({ text }) => NETWORK_IDLE.test(text) || SETTLED_WAIT.test(text)).map(({ name }) => name), ['support/split.mjs']);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+  // A network-quiet wait in a helper of the support module is flagged there too.
+  const helperDir = splitFixture("  const open = async page => {\n    await openDocs(page, '/');\n    await documentsLoaded(page);\n  };\n  test(`${tag} y`, async ({ page }) => open(page));");
+  try {
+    const offending = productSources(helperDir).flatMap(({ name, text }) => networkWaitsInHelpers(text).map(found => `${name}: ${found}`));
+    assert.deepEqual(offending, ['support/split.mjs: await documentsLoaded(page);']);
+  } finally { rmSync(helperDir, { recursive: true, force: true }); }
   // The real tree: every per-component split spec and the inherited-API support module are read.
   const names = specs.map(s => s.name);
   assert.ok(names.includes('support/inherited-api.mjs'));
