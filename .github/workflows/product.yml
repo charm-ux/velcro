@@ -88,21 +88,22 @@ jobs:
           include-hidden-files: true
           retention-days: 1
 
-  # EXPERIMENT (temporary): WebKit only, the pinned image with three option sets, against the old host setup below.
+  # EXPERIMENT (temporary): WebKit only, each shard run twice in the same job (same machine): with the image's fonts and with
+  # the hosted runners' DejaVu fonts, in both orders.
   browser:
-    name: browser (webkit ${{ matrix.variant }}, shard ${{ matrix.shard }} of 4)
+    name: browser (webkit ${{ matrix.order }}, shard ${{ matrix.shard }} of 4)
     needs: build
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 75
     container:
       image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f05f8a734509a7b3f26a912639488ee08f58a7b292d14d62271bcff9038768f
-      options: --init --user 1001 ${{ matrix.variant == 'core0' && '--shm-size=2g --ulimit core=0' || matrix.variant == 'ipchost' && '--ipc=host' || '--shm-size=2g' }}
+      options: --init --user 1001 --shm-size=2g
     env:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     strategy:
       fail-fast: false
       matrix:
-        variant: [base, core0, ipchost]
+        order: [image-first, dejavu-first]
         shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -158,7 +159,8 @@ jobs:
             echo "webkit dir: $(basename "$dir"), files $(find "$dir" -type f | wc -l)"
             echo "webkit build hash: $(cd "$dir" && find . -type f ! -name INSTALLATION_COMPLETE ! -name DEPENDENCIES_VALIDATED -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -c1-64)"
           fi
-      - name: Product verification (one engine, one shard)
+      - name: Product verification (image fonts, first)
+        if: ${{ matrix.order == 'image-first' }}
         timeout-minutes: 35
         env:
           ENGINE: webkit
@@ -168,15 +170,16 @@ jobs:
           mkdir -p .airig/ci
           pnpm verify:product --stage browser --engine "$ENGINE" --shard "$SHARD" --expect-digest "$DIGEST" > .airig/ci/product.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/product.log; echo 'product: blocked; private evidence retained'; exit 1; }
           echo 'product: passed'
-      - name: Experiment diagnostics (after the tests)
-        if: always()
+      - name: Experiment diagnostics (after image fonts, first)
+        if: ${{ always() && matrix.order == 'image-first' }}
         run: |
           echo "core files: $(find . "$RUNNER_TEMP" -xdev -type f \( -name core -o -name 'core.[0-9]*' \) -size +100k | wc -l)"
           echo "host coredumps: $(coredumpctl list --no-pager --no-legend | wc -l)"
           node -e '
             const fs = require("fs");
             for (const d of fs.readdirSync(".airig/product").filter(d => d.startsWith("run-"))) {
-              const f = ".airig/product/" + d + "/report.json";
+              fs.renameSync(".airig/product/" + d, ".airig/product/seen-" + d);
+              const f = ".airig/product/seen-" + d + "/report.json";
               if (!fs.existsSync(f)) continue;
               const r = JSON.parse(fs.readFileSync(f, "utf8"));
               const durs = [], byFile = {};
@@ -187,86 +190,15 @@ jobs:
               console.log("tests", durs.length, "wall ms", Math.round(r.stats.duration), "sum ms", durs.reduce((a, b) => a + b, 0), "p10", q(0.1), "p50", q(0.5), "p90", q(0.9), "max", durs.at(-1));
               for (const [k, v] of Object.entries(byFile).sort((a, b) => b[1] - a[1]).slice(0, 15)) console.log("file", k, v);
             }'
-
-  browser-host:
-    name: browser (webkit host, shard ${{ matrix.shard }} of 4)
-    needs: build
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    env:
-      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.airig/ms-playwright
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          ref: ${{ inputs.ref }}
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: .nvmrc
-          registry-url: https://registry.npmjs.org
-      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
-        with:
-          version: 9.15.9
-          run_install: false
-      - name: Locate the pnpm store
-        id: pnpm-store
-        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-      - name: Cache the pnpm store
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: pnpm-store-${{ runner.os }}-
-      - name: Public frozen dependency install
+      - name: Install the DejaVu fonts
+        if: ${{ matrix.order == 'image-first' }}
+        run: node scripts/ci/fonts.mjs
+      - name: Font defaults
+        if: ${{ matrix.order == 'image-first' }}
         run: |
-          mkdir -p .airig/ci
-          pnpm install --frozen-lockfile --prefer-offline --registry=https://registry.npmjs.org/ > .airig/ci/install.log 2>&1 || { echo 'install: blocked; private evidence retained'; exit 1; }
-          echo 'install: passed'
-      - name: Install system dependencies for the engine (disposable runner)
-        timeout-minutes: 12
-        env:
-          DEBIAN_FRONTEND: noninteractive
-          NEEDRESTART_MODE: a
-        run: |
-          mkdir -p .airig/ci
-          timeout -k 10 330 pnpm exec playwright install-deps webkit > .airig/ci/browser-deps.log 2>&1 || { echo 'browser system dependencies: blocked'; exit 1; }
-          echo 'browser system dependencies: passed'
-      - name: Install the engine (disposable runner)
-        timeout-minutes: 12
-        run: |
-          mkdir -p .airig/ci
-          timeout -k 10 480 pnpm exec playwright install webkit > .airig/ci/browser.log 2>&1 || { echo 'browser setup: blocked'; exit 1; }
-          echo 'browser setup: passed'
-      - name: Download the build output
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: product-build
-          path: packages
-      - name: Experiment diagnostics (environment)
-        if: always()
-        run: |
-          echo "kernel: $(uname -r)"
-          echo "core limit soft/hard: $(ulimit -c) / $(ulimit -Hc)"
-          echo "core pattern: $(sysctl -n kernel.core_pattern 2>&1)"
-          echo "nproc: $(nproc); nofile: $(ulimit -n)"
-          df -k --output=target,size | grep -i shm || true
-          echo "cpu: $(lscpu | sed -n 's/^Model name: *//p')"
-          for i in 1 2 3; do node -e 'const c=require("crypto");const t=process.hrtime.bigint();let h=Buffer.alloc(32);for(let i=0;i<300000;i++)h=c.createHash("sha256").update(h).digest();let x=0;for(let i=0;i<3e7;i++)x=(x*31+i)%1000003;console.log("bench ms",Number((process.hrtime.bigint()-t)/1000000n))'; done
-          t0=$(date +%s%N); n=$(fc-list | wc -l); t1=$(date +%s%N); n2=$(fc-list | wc -l); t2=$(date +%s%N)
-          echo "fonts: $n; fc-list ms cold $(( (t1-t0)/1000000 )) warm $(( (t2-t1)/1000000 ))"
           for f in sans-serif serif monospace system-ui; do echo "fc-match $f: $(fc-match "$f")"; done
-          echo "font packages: $(dpkg-query -W -f='${Package}\n' | grep -E '^(x?fonts-|ttf-)' | sort | tr '\n' ' ')"
-          dpkg-query -W -f='${Package} ${Version}\n' libegl-mesa0 libgbm1 libglib2.0-0t64 libgstreamer1.0-0 libicu74 libharfbuzz0b libfontconfig1 libwpe-1.0-1 libepoxy0 || true
-          dir=$(ls -d "$PLAYWRIGHT_BROWSERS_PATH"/webkit-* | head -1)
-          if [ -n "$dir" ]; then
-            echo "webkit dir: $(basename "$dir"), files $(find "$dir" -type f | wc -l)"
-            echo "webkit build hash: $(cd "$dir" && find . -type f ! -name INSTALLATION_COMPLETE ! -name DEPENDENCIES_VALIDATED -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -c1-64)"
-          fi
-      - name: Product verification (one engine, one shard)
+      - name: Product verification (DejaVu, second)
+        if: ${{ matrix.order == 'image-first' }}
         timeout-minutes: 35
         env:
           ENGINE: webkit
@@ -276,15 +208,94 @@ jobs:
           mkdir -p .airig/ci
           pnpm verify:product --stage browser --engine "$ENGINE" --shard "$SHARD" --expect-digest "$DIGEST" > .airig/ci/product.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/product.log; echo 'product: blocked; private evidence retained'; exit 1; }
           echo 'product: passed'
-      - name: Experiment diagnostics (after the tests)
-        if: always()
+      - name: Experiment diagnostics (after DejaVu, second)
+        if: ${{ always() && matrix.order == 'image-first' }}
         run: |
           echo "core files: $(find . "$RUNNER_TEMP" -xdev -type f \( -name core -o -name 'core.[0-9]*' \) -size +100k | wc -l)"
           echo "host coredumps: $(coredumpctl list --no-pager --no-legend | wc -l)"
           node -e '
             const fs = require("fs");
             for (const d of fs.readdirSync(".airig/product").filter(d => d.startsWith("run-"))) {
-              const f = ".airig/product/" + d + "/report.json";
+              fs.renameSync(".airig/product/" + d, ".airig/product/seen-" + d);
+              const f = ".airig/product/seen-" + d + "/report.json";
+              if (!fs.existsSync(f)) continue;
+              const r = JSON.parse(fs.readFileSync(f, "utf8"));
+              const durs = [], byFile = {};
+              const walk = s => { for (const sp of s.specs || []) for (const t of sp.tests || []) for (const x of t.results || []) { durs.push(x.duration); byFile[sp.file] = (byFile[sp.file] || 0) + x.duration; } for (const c of s.suites || []) walk(c); };
+              r.suites.forEach(walk);
+              durs.sort((a, b) => a - b);
+              const q = p => durs[Math.floor(p * (durs.length - 1))];
+              console.log("tests", durs.length, "wall ms", Math.round(r.stats.duration), "sum ms", durs.reduce((a, b) => a + b, 0), "p10", q(0.1), "p50", q(0.5), "p90", q(0.9), "max", durs.at(-1));
+              for (const [k, v] of Object.entries(byFile).sort((a, b) => b[1] - a[1]).slice(0, 15)) console.log("file", k, v);
+            }'
+      - name: Install the DejaVu fonts
+        if: ${{ matrix.order == 'dejavu-first' }}
+        run: node scripts/ci/fonts.mjs
+      - name: Font defaults
+        if: ${{ matrix.order == 'dejavu-first' }}
+        run: |
+          for f in sans-serif serif monospace system-ui; do echo "fc-match $f: $(fc-match "$f")"; done
+      - name: Product verification (DejaVu, first)
+        if: ${{ matrix.order == 'dejavu-first' }}
+        timeout-minutes: 35
+        env:
+          ENGINE: webkit
+          SHARD: ${{ matrix.shard }}/4
+          DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          mkdir -p .airig/ci
+          pnpm verify:product --stage browser --engine "$ENGINE" --shard "$SHARD" --expect-digest "$DIGEST" > .airig/ci/product.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/product.log; echo 'product: blocked; private evidence retained'; exit 1; }
+          echo 'product: passed'
+      - name: Experiment diagnostics (after DejaVu, first)
+        if: ${{ always() && matrix.order == 'dejavu-first' }}
+        run: |
+          echo "core files: $(find . "$RUNNER_TEMP" -xdev -type f \( -name core -o -name 'core.[0-9]*' \) -size +100k | wc -l)"
+          echo "host coredumps: $(coredumpctl list --no-pager --no-legend | wc -l)"
+          node -e '
+            const fs = require("fs");
+            for (const d of fs.readdirSync(".airig/product").filter(d => d.startsWith("run-"))) {
+              fs.renameSync(".airig/product/" + d, ".airig/product/seen-" + d);
+              const f = ".airig/product/seen-" + d + "/report.json";
+              if (!fs.existsSync(f)) continue;
+              const r = JSON.parse(fs.readFileSync(f, "utf8"));
+              const durs = [], byFile = {};
+              const walk = s => { for (const sp of s.specs || []) for (const t of sp.tests || []) for (const x of t.results || []) { durs.push(x.duration); byFile[sp.file] = (byFile[sp.file] || 0) + x.duration; } for (const c of s.suites || []) walk(c); };
+              r.suites.forEach(walk);
+              durs.sort((a, b) => a - b);
+              const q = p => durs[Math.floor(p * (durs.length - 1))];
+              console.log("tests", durs.length, "wall ms", Math.round(r.stats.duration), "sum ms", durs.reduce((a, b) => a + b, 0), "p10", q(0.1), "p50", q(0.5), "p90", q(0.9), "max", durs.at(-1));
+              for (const [k, v] of Object.entries(byFile).sort((a, b) => b[1] - a[1]).slice(0, 15)) console.log("file", k, v);
+            }'
+      - name: Remove the DejaVu fonts
+        if: ${{ matrix.order == 'dejavu-first' }}
+        run: |
+          node --input-type=module -e 'import { fontDir, ruleDir } from "./scripts/ci/fonts.mjs"; import { rmSync } from "node:fs"; rmSync(fontDir(), { recursive: true, force: true }); rmSync(ruleDir(), { recursive: true, force: true });'
+          fc-cache -f
+      - name: Font defaults
+        if: ${{ matrix.order == 'dejavu-first' }}
+        run: |
+          for f in sans-serif serif monospace system-ui; do echo "fc-match $f: $(fc-match "$f")"; done
+      - name: Product verification (image fonts, second)
+        if: ${{ matrix.order == 'dejavu-first' }}
+        timeout-minutes: 35
+        env:
+          ENGINE: webkit
+          SHARD: ${{ matrix.shard }}/4
+          DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          mkdir -p .airig/ci
+          pnpm verify:product --stage browser --engine "$ENGINE" --shard "$SHARD" --expect-digest "$DIGEST" > .airig/ci/product.log 2>&1 || { awk '/^verify:product: / && n++ < 90 { print substr($0, 1, 300) }' .airig/ci/product.log; echo 'product: blocked; private evidence retained'; exit 1; }
+          echo 'product: passed'
+      - name: Experiment diagnostics (after image fonts, second)
+        if: ${{ always() && matrix.order == 'dejavu-first' }}
+        run: |
+          echo "core files: $(find . "$RUNNER_TEMP" -xdev -type f \( -name core -o -name 'core.[0-9]*' \) -size +100k | wc -l)"
+          echo "host coredumps: $(coredumpctl list --no-pager --no-legend | wc -l)"
+          node -e '
+            const fs = require("fs");
+            for (const d of fs.readdirSync(".airig/product").filter(d => d.startsWith("run-"))) {
+              fs.renameSync(".airig/product/" + d, ".airig/product/seen-" + d);
+              const f = ".airig/product/seen-" + d + "/report.json";
               if (!fs.existsSync(f)) continue;
               const r = JSON.parse(fs.readFileSync(f, "utf8"));
               const durs = [], byFile = {};
