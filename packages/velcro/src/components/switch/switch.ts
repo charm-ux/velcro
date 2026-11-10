@@ -116,8 +116,8 @@ export class VelcroSwitch extends ShoelaceCompat(CoreSwitch, { lang: true, dir: 
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
     return super.dir;
   }
-  public override set dir(value: string) {
-    super.dir = value as 'ltr' | 'rtl' | 'auto';
+  public override set dir(value: 'ltr' | 'rtl' | 'auto') {
+    super.dir = value;
   }
 
   @query('input[type="checkbox"]')

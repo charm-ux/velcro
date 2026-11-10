@@ -68,6 +68,7 @@ export function ShoelaceCompat<T extends typeof CharmElement>(Base: T, options: 
 /**
  * Called at the component's existing willUpdate restoration point. Some components intentionally bypass their
  * Core parent's willUpdate; keeping this explicit preserves that ordering and does not re-enable suppressed logic.
+ * An absent changed map keeps icon's optional lifecycle call a no-op.
  */
 export function restoreReflectedProperties(element: HTMLElement, changed?: PropertyValues): void {
   const properties = element as HTMLElement & Record<PropertyKey, unknown>;

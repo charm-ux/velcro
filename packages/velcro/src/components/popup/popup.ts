@@ -277,8 +277,8 @@ export class VelcroPopup extends ShoelaceCompat(CharmElement, { lang: true, dir:
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
     return super.dir;
   }
-  public override set dir(value: string) {
-    super.dir = value as 'ltr' | 'rtl' | 'auto';
+  public override set dir(value: 'ltr' | 'rtl' | 'auto') {
+    super.dir = value;
   }
 
   /**
