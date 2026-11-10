@@ -1,7 +1,7 @@
 # GitHub Pages deployment for the documentation site. Runs on every push to main (so the site always reflects main) and
 # through workflow_dispatch from main as a manual fallback: there is no pull-request or other trigger. Everything that can
 # fail runs with read-only permissions: `checks` (history scan and source verification), `product` (product.yml: one build,
-# every engine in four shards and the upstream gate, all on that one output) and `build`, which needs both, records the
+# every engine in its shards (four; WebKit five) and the upstream gate, all on that one output) and `build`, which needs both, records the
 # tested-bytes evidence for the output the product jobs checked, runs the site preparation check and only then uploads the
 # Pages artifact. Preparation stages only the exact output that was browser-tested; the output is never rebuilt after
 # verification. The `deploy` job holds the only write/OIDC permissions and runs nothing but the pinned deployment action.
