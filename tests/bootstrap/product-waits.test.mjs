@@ -15,7 +15,13 @@ const HELPER_CONTROLS = new Set(['loaded.spec.mjs']);
 const specs = readdirSync(productDir)
   .filter(name => name.endsWith('.spec.mjs'))
   .sort()
-  .map(name => ({ name, text: readFileSync(join(productDir, name), 'utf8') }));
+  .map(name => ({ name, text: readFileSync(join(productDir, name), 'utf8') }))
+  // A support module that registers tests (support/inherited-api.mjs) holds test bodies too, so it is read like a spec.
+  .concat(readdirSync(join(productDir, 'support'))
+    .filter(name => name.endsWith('.mjs'))
+    .sort()
+    .map(name => ({ name: `support/${name}`, text: readFileSync(join(productDir, 'support', name), 'utf8') }))
+    .filter(({ text }) => /^\s*test\(/m.test(text)));
 
 const NETWORK_IDLE = /['"`]networkidle['"`]/;
 const SETTLED_WAIT = /toHaveAttribute\(\s*['"`]data-litro-settled['"`]|waitForSelector\([^)]*data-litro-settled/;
@@ -59,6 +65,7 @@ const POINTER_THEN_SLEEP = /(?:\.hover\(|\.mouse\.(?:move|down|up)\()[^;]*\);(?:
 
 test('the product specs are found', () => {
   assert.ok(specs.length > 20, `${specs.length} product specs`);
+  assert.ok(specs.some(({ name }) => name === 'support/inherited-api.mjs'), 'the support module that registers tests is read');
 });
 
 test('no product spec waits for networkidle or for the router settled marker', () => {

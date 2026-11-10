@@ -169,7 +169,13 @@ export function catalogLoopsInTests(text) {
 const specs = readdirSync(productDir)
   .filter(name => name.endsWith('.spec.mjs'))
   .sort()
-  .map(name => ({ name, text: readFileSync(join(productDir, name), 'utf8') }));
+  .map(name => ({ name, text: readFileSync(join(productDir, name), 'utf8') }))
+  // A support module that registers tests (support/inherited-api.mjs) holds test bodies too, so it is read like a spec.
+  .concat(readdirSync(join(productDir, 'support'))
+    .filter(name => name.endsWith('.mjs'))
+    .sort()
+    .map(name => ({ name: `support/${name}`, text: readFileSync(join(productDir, 'support', name), 'utf8') }))
+    .filter(({ text }) => /^\s*test\(/m.test(text)));
 
 test('no product spec loops over the catalog inside one test, awaiting work for each item', () => {
   const offending = specs.flatMap(({ name, text }) => catalogLoopsInTests(text).map(({ line, loop }) => `${name}:${line} ${loop}`));
@@ -183,6 +189,8 @@ test('the guard sees the catalog in the specs that read it', () => {
   assert.ok(names('base-path.spec.mjs').has('catalog') && names('base-path.spec.mjs').has('routes'));
   assert.ok(names('registration.spec.mjs').has('ALL_TAGS') && names('registration.spec.mjs').has('COMPONENTS'));
   assert.ok(names('site-landing.spec.mjs').has('catalog'));
+  // The support module that registers tests is read too.
+  assert.ok(names('support/inherited-api.mjs').has('PROBES'));
 });
 
 // Fixtures: the guard flags what it should and nothing else.

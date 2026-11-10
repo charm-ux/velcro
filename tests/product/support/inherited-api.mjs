@@ -1,0 +1,136 @@
+// The inherited-API check: inheritedApiTests(tag) registers one element's tests. Where each element's tests are registered
+// is described in inherited-api.spec.mjs.
+//
+// Per-component rule for the inherited template-bound API in the manifest: an inherited core CSS custom property is
+// listed exactly when it still has an effect on the Velcro element (core's styles are kept and their selector still
+// matches the Velcro template), and an inherited core slot or part is listed exactly when the Velcro template renders
+// it. Measured in the browser: each candidate is set on the host and every computed style in the shadow tree and of
+// the slotted content is compared, in the default state, with each reflected boolean attribute set, and under real
+// :hover, :active (pointer held) and :focus-visible (keyboard modality) interaction in each of those.
+import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { expect, test } from '@playwright/test';
+import { makeProbe } from './probe.mjs';
+import { openDocs } from './loaded.mjs';
+import { customElements, readJson, velcroManifestPath } from '../../../scripts/api/model.mjs';
+import { readCatalog } from '../../../scripts/site/catalog.mjs';
+
+const root = fileURLToPath(new URL('../../../', import.meta.url));
+
+const require = createRequire(new URL('../../../packages/velcro/package.json', import.meta.url));
+const core = JSON.parse(readFileSync(require.resolve('@charm-ux/core/custom-elements.json'), 'utf8'));
+const coreDecls = new Map(core.modules.flatMap(m => m.declarations ?? []).map(d => [d.name, d]));
+export const elements = customElements(readJson(velcroManifestPath));
+
+// What each component's probe host gets: tests/product/<name>.probe.json when the component has one ({ "content":
+// "<html>", "attrs": { name: value }, "fixed": [boolean attribute names], "note": "why" }), else content that fills every
+// slot its manifest declares. `fixed` lists boolean attributes the probe keeps as `attrs` sets them instead of toggling
+// them (for an attribute whose change the component cannot take after its first render); it needs a note saying why. One
+// file per component, so adding a component never edits this module.
+export const probeFile = name => path.join(root, 'tests/product', `${name}.probe.json`);
+const fillSlots = decl => (decl.slots ?? []).map(s => (s.name ? `<div slot="${s.name}">${s.name}</div>` : 'Content')).join('');
+const PROBES = Object.fromEntries(readCatalog(root).map(({ name, tag }) => [tag, existsSync(probeFile(name))
+  ? JSON.parse(readFileSync(probeFile(name), 'utf8')) : { content: fillSlots(elements.get(tag) ?? {}) }]));
+// One valid value of each kind a core custom property takes: length, color, border style, border shorthand, a visible
+// box shadow, time, keyword, number, alignment.
+const VALUES = ['37px', 'rgb(1, 2, 3)', 'dotted', '3px solid rgb(1, 2, 3)', '2px 2px rgb(1, 2, 3)', '3s', 'none', '0.25', 'flex-end'];
+
+/** The candidates of an element: the CSS custom properties of its core superclass that it does not declare itself. */
+export function coreCandidates(tag) {
+  const decl = elements.get(tag) ?? {};
+  const own = new Set((decl.cssProperties ?? []).filter(x => !x.inheritedFrom).map(x => x.name));
+  return (coreDecls.get(decl.superclass?.name)?.cssProperties ?? []).map(p => p.name).filter(n => !own.has(n));
+}
+
+// Each candidate is measured on its own, so the candidates are split into groups of at most GROUP, each its own test: the
+// slow components (sl-switch has 55 core candidates and 7 boolean states) then spread over workers instead of holding one
+// for minutes. A group decides exactly its own candidates; with every group also requiring that each listed inherited
+// property is a core candidate, together they assert that the listed set equals the effective set.
+const GROUP = 10;
+
+/** Registers the inherited-API tests of one Velcro element (a tag in the Velcro manifest). */
+export function inheritedApiTests(tag) {
+  const decl = elements.get(tag);
+  if (!decl) throw new Error(`${tag} is not in the Velcro manifest`);
+  const listed = key => (decl[key] ?? []).filter(x => x.inheritedFrom).map(x => x.name).sort();
+  const own = key => new Set((decl[key] ?? []).filter(x => !x.inheritedFrom).map(x => x.name));
+  const parent = coreDecls.get(decl.superclass?.name);
+  const all = coreCandidates(tag);
+  const groups = Math.max(1, Math.ceil(all.length / GROUP));
+  for (let group = 0; group < groups; group++) {
+  test(`${tag}: inherited CSS custom properties, slots and parts are listed exactly when they still apply${groups > 1 ? ` (candidates ${group + 1} of ${groups})` : ''}`, async ({ page }) => {
+    // Every candidate is measured with every value in every state, which is slow: a group of sl-switch candidates takes
+    // about 20 s in WebKit on a fast machine. The margin covers slower CI runners.
+    test.setTimeout(300000);
+    expect(parent, `${tag} superclass in core's manifest`).toBeTruthy();
+    const fixed = PROBES[tag]?.fixed ?? [];
+    const booleans = (decl.attributes ?? []).filter(a => a.type?.text?.replace(/ \| undefined/, '') === 'boolean').map(a => a.name)
+      .filter(name => !fixed.includes(name));
+
+    await openDocs(page, '/components/button');
+    await page.evaluate(t => customElements.whenDefined(t), tag);
+    const candidates = all.slice(group * GROUP, (group + 1) * GROUP);
+    await page.evaluate(`window.makeProbe = ${makeProbe}`);
+    await page.evaluate(async ({ tag, content, attrs }) => {
+      const host = document.createElement(tag);
+      host.id = 'probe';
+      // On top of the page, so pointer states (:hover, :active) reach it.
+      host.style.cssText = 'position: fixed; top: 8px; left: 8px; z-index: 2147483647;';
+      for (const [k, v] of Object.entries(attrs)) host.setAttribute(k, v);
+      host.innerHTML = content;
+      document.body.prepend(host);
+      await host.updateComplete;
+      // The probe freezes animations and transitions in the whole tree before each measurement.
+      window.probeMeasure = window.makeProbe(host).measure;
+      window.probeState = async (attr, on) => { host.toggleAttribute(attr, on); await host.updateComplete; };
+    }, { tag, content: PROBES[tag]?.content ?? '', attrs: PROBES[tag]?.attrs ?? {} });
+
+    const effective = new Set();
+    const measure = async label => {
+      for (const name of await page.evaluate(([c, v]) => window.probeMeasure(c, v), [candidates.filter(c => !effective.has(c)), VALUES])) {
+        effective.add(name);
+        found.push(`${name} (${label})`);
+      }
+    };
+    const found = [];
+    // A display: contents host has no box of its own; point at its slotted content instead.
+    const box = (await page.locator('#probe').boundingBox()) ?? (await page.locator('#probe > *').first().boundingBox());
+    const center = [box.x + box.width / 2, box.y + box.height / 2];
+    // Default, each reflected boolean attribute, and the interaction states :hover, :active (pointer held down) and
+    // :focus-visible (keyboard focus), each alone and combined with each boolean attribute.
+    for (const state of [null, ...booleans]) {
+      if (state) await page.evaluate(a => window.probeState(a, true), state);
+      await measure(state ?? 'default');
+      await page.mouse.move(...center);
+      await measure(`${state ?? 'default'} + :hover`);
+      await page.mouse.down();
+      await measure(`${state ?? 'default'} + :active`);
+      await page.mouse.up();
+      await page.mouse.move(0, 0);
+      await page.evaluate(() => { document.activeElement?.blur?.(); document.getElementById('probe').blur?.(); });
+      await page.keyboard.press('Shift');
+      await page.evaluate(() => document.getElementById('probe').focus?.());
+      await measure(`${state ?? 'default'} + :focus-visible`);
+      await page.evaluate(() => document.getElementById('probe').blur?.());
+      if (state) await page.evaluate(a => window.probeState(a, false), state);
+    }
+    const result = await page.evaluate(({ slots, parts }) => {
+      const shadow = document.getElementById('probe').shadowRoot;
+      return {
+        slots: slots.filter(s => shadow.querySelector(s ? `slot[name="${s}"]` : 'slot:not([name])')).sort(),
+        parts: parts.filter(p => [...shadow.querySelectorAll('[part]')].some(el => el.getAttribute('part').split(/\s+/).includes(p))).sort(),
+      };
+    }, {
+      slots: (parent.slots ?? []).map(s => s.name).filter(n => !own('slots').has(n)),
+      parts: (parent.cssParts ?? []).map(p => p.name).filter(n => !own('cssParts').has(n)),
+    });
+    result.cssProperties = [...effective].sort();
+    test.info().annotations.push({ type: 'effective', description: found.join(', ') });
+    expect(listed('cssProperties').filter(n => !all.includes(n)), 'listed inherited properties that are not core candidates').toEqual([]);
+    expect({ cssProperties: listed('cssProperties').filter(n => candidates.includes(n)), slots: listed('slots'), parts: listed('cssParts') }).toEqual(result);
+    for (const p of (decl.cssProperties ?? []).filter(x => x.inheritedFrom)) expect(p.inheritedFrom.package).toBe('@charm-ux/core');
+  });
+  }
+}
