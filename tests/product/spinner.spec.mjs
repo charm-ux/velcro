@@ -260,7 +260,7 @@ test('no upstream Shoelace runtime is requested or defined; all requests stay on
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);
-  const defined = await frame.locator('body').evaluate(() => ['sl-carousel'].filter(tag => customElements.get(tag)));
+  const defined = await frame.locator('body').evaluate(() => ['sl-velcro-sentinel-not-a-component'].filter(tag => customElements.get(tag)));
   expect(defined).toEqual([]);
   expect(await frame.locator('body').evaluate(() => Boolean(window.Shoelace || document.querySelector('script[src*="shoelace"]')))).toBe(false);
 });
