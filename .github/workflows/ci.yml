@@ -138,7 +138,7 @@ jobs:
           HEAD_OID: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: node .airig/trusted/scripts/security/git-privacy.mjs policy "$BASE_OID" "$HEAD_OID"
 
-  # Builds once, then every engine in four shards and the upstream gate, each on that same output (product.yml).
+  # Builds once, then every engine in its shards (four; WebKit five) and the upstream gate, each on that same output (product.yml).
   product:
     if: ${{ github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base }}
     uses: ./.github/workflows/product.yml

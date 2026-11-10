@@ -192,17 +192,32 @@ test('product workflow: one build, every engine in N shards (1..N), the upstream
     assert.match(body, /--expect-digest "\$DIGEST"/);
     assert.doesNotMatch(body, /--stage build|run build|build:prefixed|scan-build-output/, `${name} never rebuilds`);
   }
-  // The matrix covers each engine once and shards 1..N of the same N the shard argument uses; no leg is dropped early.
-  const matrix = /strategy:\n {6}fail-fast: false\n {6}matrix:\n {8}engine: \[([^\]]*)\]\n {8}shard: \[([^\]]*)\]\n/.exec(browser);
-  assert.ok(matrix, 'fail-fast off, exactly the engine and shard axes');
-  assert.deepEqual(matrix[1].split(', '), ['chromium', 'firefox', 'webkit']);
-  const shards = matrix[2].split(', ').map(Number);
-  const total = Number(/SHARD: \$\{\{ matrix\.shard \}\}\/(\d+)\n/.exec(browser)?.[1]);
-  assert.deepEqual(shards, Array.from({ length: total }, (_, i) => i + 1));
-  // Four shards per engine keep each shard's test step within about four minutes on the hosted runners.
-  assert.equal(total, 4);
-  assert.match(browser, new RegExp(`name: browser \\(\\$\\{\\{ matrix\\.engine \\}\\}, shard \\$\\{\\{ matrix\\.shard \\}\\} of ${total}\\)`));
-  assert.doesNotMatch(browser, /include:|exclude:/);
+  // The matrix covers each engine once and, for each engine, exactly shards 1..N of the N its shard argument uses: the exclude
+  // list may only drop the shards past an engine's own count, and the job name and the shard argument use the same count.
+  const matrix = /strategy:\n {6}fail-fast: false\n(?: {6}#.*\n)* {6}matrix:\n {8}engine: \[([^\]]*)\]\n {8}shard: \[([^\]]*)\]\n((?: {8}exclude:\n(?: {10}- engine: [a-z]+\n {12}shard: \d+\n)+)?) {4}steps:\n/.exec(browser);
+  assert.ok(matrix, 'fail-fast off, exactly the engine and shard axes and at most an exclude list');
+  const engines = matrix[1].split(', ');
+  assert.deepEqual(engines, ['chromium', 'firefox', 'webkit']);
+  const axis = matrix[2].split(', ').map(Number);
+  assert.deepEqual(axis, Array.from({ length: axis.length }, (_, i) => i + 1));
+  const excluded = [...matrix[3].matchAll(/- engine: ([a-z]+)\n {12}shard: (\d+)\n/g)].map(m => `${m[1]} ${m[2]}`);
+  assert.equal(new Set(excluded).size, excluded.length, 'no repeated exclusion');
+  const countExpr = "\\$\\{\\{ matrix\\.engine == '([a-z]+)' && (\\d+) \\|\\| (\\d+) \\}\\}";
+  const shardArg = new RegExp(`SHARD: \\$\\{\\{ matrix\\.shard \\}\\}/${countExpr}\\n`).exec(browser);
+  assert.ok(shardArg, 'the shard argument is the shard over its engine\'s count');
+  const [, special, specialCount, otherCount] = shardArg;
+  assert.match(browser, new RegExp(`name: browser \\(\\$\\{\\{ matrix\\.engine \\}\\}, shard \\$\\{\\{ matrix\\.shard \\}\\} of \\$\\{\\{ matrix\\.engine == '${special}' && ${specialCount} \\|\\| ${otherCount} \\}\\}\\)\n`));
+  const count = engine => Number(engine === special ? specialCount : otherCount);
+  // Chromium and Firefox in four shards; WebKit, the slowest engine, in five so that it is not the slowest leg.
+  assert.deepEqual(Object.fromEntries(engines.map(e => [e, count(e)])), { chromium: 4, firefox: 4, webkit: 5 });
+  assert.equal(axis.length, Math.max(...engines.map(count)));
+  const legs = engines.flatMap(e => axis.map(s => `${e} ${s}`)).filter(leg => !excluded.includes(leg));
+  for (const leg of excluded) assert.ok(engines.flatMap(e => axis.map(s => `${e} ${s}`)).includes(leg), `${leg} is a matrix leg`);
+  for (const engine of engines) {
+    assert.deepEqual(legs.filter(l => l.startsWith(`${engine} `)).map(l => Number(l.split(' ')[1])),
+      Array.from({ length: count(engine) }, (_, i) => i + 1), `${engine}: shards 1..${count(engine)}, each once`);
+  }
+  assert.doesNotMatch(browser, /include:/);
   assert.match(browser, /pnpm verify:product --stage browser --engine "\$ENGINE" --shard "\$SHARD" --expect-digest "\$DIGEST"/);
   assert.match(browser, /ENGINE: \$\{\{ matrix\.engine \}\}/);
   assert.match(upstream, /pnpm verify:product --stage upstream --expect-digest "\$DIGEST"/);
