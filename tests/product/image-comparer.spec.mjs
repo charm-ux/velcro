@@ -2,6 +2,7 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { bundleExamples, docsDir, loadBundle, loadExamples } from './support/bundle.mjs';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 
@@ -23,7 +24,11 @@ async function openExample(page) {
   return { frame, requests };
 }
 
-// Waits for every image comparer, image and icon in a frame, and returns per comparer: [position, after clip-path,
+// Whether the handle icon of every image comparer in a frame has drawn its SVG. The icon fetches and draws its SVG after its
+// first update (sl-icon's setIcon), so a read of the icon polls this first.
+const iconsDrawn = frame => frame.locator('sl-image-comparer').evaluateAll(els => els.map(el => Boolean(el.shadowRoot.querySelector('sl-icon')?.shadowRoot?.querySelector('svg'))));
+
+// Waits for every image comparer, image and icon update in a frame, and returns per comparer: [position, after clip-path,
 // divider left, [slot, natural width, natural height, alt] per image, handle icon has an SVG].
 const frameState = frame => frame.locator('body').evaluate(async () => {
   await customElements.whenDefined('sl-image-comparer');
@@ -33,7 +38,6 @@ const frameState = frame => frame.locator('body').evaluate(async () => {
   return Promise.all(comparers.map(async el => {
     const icon = el.shadowRoot.querySelector('sl-icon');
     await icon.updateComplete;
-    for (let i = 0; i < 50 && !icon.shadowRoot.querySelector('svg'); i++) await new Promise(r => setTimeout(r, 20));
     return [
       el.position,
       el.shadowRoot.querySelector('[part="after"]').style.clipPath,
@@ -94,6 +98,8 @@ const handleCenter = page => page.evaluate(() => {
   const box = document.querySelector('#c').shadowRoot.querySelector('[part="handle"]').getBoundingClientRect();
   return [box.left + box.width / 2, box.top + box.height / 2];
 });
+const position = page => state(page).then(s => s.position);
+const focusedPart = page => page.evaluate(() => document.querySelector('#c').shadowRoot.activeElement?.getAttribute('part') ?? null);
 const focusHandle = page => page.evaluate(() => document.querySelector('#c').shadowRoot.querySelector('[part="handle"]').focus());
 
 test('docs page is prerendered with Velcro branding, prototype status, every ported section in order, the quirks and the gaps', async ({ request }) => {
@@ -131,7 +137,11 @@ test('examples: Shoelace\'s order, live in their own documents, with a React ver
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual(ORDER.map(([, section]) => title(section)));
   const out = {};
-  for (const [id, section] of ORDER) out[id] = await frameState(page.frameLocator(`iframe.example[title="${title(section)}"]`));
+  for (const [id, section] of ORDER) {
+    const frame = page.frameLocator(`iframe.example[title="${title(section)}"]`);
+    await expect.poll(() => iconsDrawn(frame), `${section}: the handle icon is drawn`).toEqual([true]);
+    out[id] = await frameState(frame);
+  }
   expect(out.basic).toEqual([[50, 'inset(0px 50% 0px 0px)', '50%', [
     ['before', 600, 400, 'A grayscale placeholder landscape: a pale sun over two hills.'],
     ['after', 600, 400, 'The same placeholder landscape in color: a yellow sun over green hills.'],
@@ -172,6 +182,8 @@ test('the Default example\'s divider follows a drag inside its frame', async ({ 
 test('package entry: Shoelace\'s structure, accessibility attributes, default handle icon and styles', async ({ page }) => {
   const pageErrors = await loadBundle(page, ENTRY);
   await mount(page);
+  // The icon fetches and draws its SVG after its first update (sl-icon's setIcon), so the draw is awaited before the read.
+  await expect.poll(() => page.evaluate(() => Boolean(document.querySelector('#c').shadowRoot.querySelector('sl-icon')?.shadowRoot?.querySelector('svg')))).toBe(true);
   const r = await page.evaluate(() => {
     const el = document.querySelector('#c');
     const root = el.shadowRoot;
@@ -186,7 +198,16 @@ test('package entry: Shoelace\'s structure, accessibility attributes, default ha
     };
     const style = (node, props) => props.map(p => getComputedStyle(node)[p]);
     const before = el.querySelector('[slot="before"]');
+    // The line box of an inline image in a plain block of the page: the image's height plus the gap the font leaves below
+    // the baseline, which depends on the platform's default font.
+    const reference = document.createElement('div');
+    reference.append(before.cloneNode());
+    reference.firstChild.removeAttribute('slot');
+    document.body.append(reference);
+    const lineBox = reference.getBoundingClientRect().height;
+    reference.remove();
     return {
+      lineBox: [part('before').getBoundingClientRect().height, lineBox],
       shadow: [...root.children].map(c => [c.localName, c.getAttribute('part'), c.id, c.getAttribute('class')]),
       tree: [...part('base').children].map(c => [c.localName, c.getAttribute('part'), c.getAttribute('class'), [...c.children].map(d => [d.localName, d.getAttribute('part'), d.getAttribute('class')])]),
       slots: [...root.querySelectorAll('slot')].map(s => [s.name, s.parentElement.getAttribute('part') ?? s.parentElement.getAttribute('class')]),
@@ -208,7 +229,13 @@ test('package entry: Shoelace\'s structure, accessibility attributes, default ha
       boxSizing: getComputedStyle(part('handle')).boxSizing,
     };
   });
+  // Upstream quirk (below): the images stay inline, so each container is the line box of its image, taller than the 200px
+  // image by the font's gap below the baseline (4px with the default font of a desktop system, other sizes elsewhere).
+  // The heights below follow from it.
+  const line = r.lineBox[1];
+  expect(line).toBeGreaterThan(200);
   expect(r).toEqual({
+    lineBox: [line, line],
     shadow: [['div', 'base', 'image-comparer', ' image-comparer ']],
     tree: [
       ['div', null, 'image-comparer__image', [['div', 'before', 'image-comparer__before'], ['div', 'after', 'image-comparer__after']]],
@@ -226,17 +253,17 @@ test('package entry: Shoelace\'s structure, accessibility attributes, default ha
     base: ['100%', '100%', 'hidden'],
     // The slotted elements are not the containers' own styles; the containers are blocks that ignore the pointer.
     before: ['block', 'none'],
-    after: ['block', 'none', 'absolute', '0px', '0px', '204px', '400px'],
+    after: ['block', 'none', 'absolute', '0px', '0px', `${line}px`, '400px'],
     // Upstream quirk: Shoelace's rules for slotted images never match (::slotted() follows the container's class, not a
     // slot), so the images keep the browser's inline display and no max-width; the line box adds a gap below them.
     image: ['inline', 'none', '200px'],
     // The 2px divider is translated left by half its width and spans the full height.
-    divider: ['flex', 'center', 'center', 'absolute', '0px', '2px', 'ew-resize', '-1px', true, 204],
-    // --handle-size 2.5rem (40px) centered vertically: top = 50% - 20px of 204px. The light theme's
+    divider: ['flex', 'center', 'center', 'absolute', '0px', '2px', 'ew-resize', '-1px', true, line],
+    // --handle-size 2.5rem (40px) centered vertically: top = 50% - 20px of the height. The light theme's
     // --sl-border-radius-circle is 50%.
-    handleStyle: ['flex', 'absolute', '40px', '40px', '50%', '20px', 'ew-resize', '10', '82px', true, true],
+    handleStyle: ['flex', 'absolute', '40px', '40px', '50%', '20px', 'ew-resize', '10', `${line / 2 - 20}px`, true, true],
     custom: ['2px', '2.5rem'],
-    size: [400, 204],
+    size: [400, line],
     boxSizing: 'border-box',
   });
   expect(pageErrors).toEqual([]);
@@ -269,6 +296,7 @@ test('the handle shows the focus ring only for keyboard focus; the custom proper
   expect(r).toEqual(['6px', '-3px', '48px', '24px']);
   await mount(page);
   await page.keyboard.press('Tab');
+  await expect.poll(() => focusedPart(page)).toBe('handle');
   const ring = await page.evaluate(() => {
     const handle = document.querySelector('#c').shadowRoot.querySelector('[part="handle"]');
     const s = getComputedStyle(handle);
@@ -283,15 +311,29 @@ test('keyboard: the arrows move by 1 (by 10 with Shift), Home and End go to 0 an
   await mount(page);
   await focusHandle(page);
   expect(await events(page)).toEqual([]);
+  // Each step waits for the position its key produces before the next key: a key that changes the position is followed by a
+  // poll for the new position; a key that changes nothing (clamped at an end, or not handled) waits until the whole press
+  // was received and then reads the position.
+  await recordKeys(page);
   const values = [];
-  for (const key of ['ArrowRight', 'Shift+ArrowRight', 'ArrowLeft', 'Shift+ArrowLeft', 'End', 'ArrowRight', 'Shift+ArrowRight', 'Home', 'ArrowLeft', 'Shift+ArrowLeft', 'ArrowUp', 'ArrowDown', 'PageUp', 'Enter']) {
-    await page.keyboard.press(key);
-    values.push((await state(page)).position);
+  for (const [key, expected, changes] of [
+    ['ArrowRight', 51, true], ['Shift+ArrowRight', 61, true], ['ArrowLeft', 60, true], ['Shift+ArrowLeft', 50, true], ['End', 100, true],
+    ['ArrowRight', 100, false], ['Shift+ArrowRight', 100, false], ['Home', 0, true], ['ArrowLeft', 0, false], ['Shift+ArrowLeft', 0, false],
+    ['ArrowUp', 0, false], ['ArrowDown', 0, false], ['PageUp', 0, false], ['Enter', 0, false],
+  ]) {
+    if (changes) {
+      await page.keyboard.press(key);
+      await expect.poll(() => position(page), key).toBe(expected);
+    } else {
+      await pressReceived(page, page, key);
+      expect(await position(page), key).toBe(expected);
+    }
+    values.push(await position(page));
   }
   expect(values).toEqual([51, 61, 60, 50, 100, 100, 100, 0, 0, 0, 0, 0, 0, 0]);
   expect(await events(page)).toEqual([51, 61, 60, 50, 100, 0]);
   await page.keyboard.press('Shift+ArrowRight');
-  expect(await state(page)).toEqual({ position: 10, valuenow: '10', clip: 'inset(0px 90% 0px 0px)', left: '10%' });
+  await expect.poll(() => state(page)).toEqual({ position: 10, valuenow: '10', clip: 'inset(0px 90% 0px 0px)', left: '10%' });
   // The handled keys are prevented (the page does not scroll); others are not.
   const prevented = await page.evaluate(() => {
     const handle = document.querySelector('#c').shadowRoot.querySelector('[part="handle"]');
@@ -355,7 +397,7 @@ test('upstream quirk: a position set by attribute or property is not clamped or 
   // The keyboard clamps the next step.
   await focusHandle(page);
   await page.keyboard.press('ArrowLeft');
-  expect((await state(page)).position).toBe(0);
+  await expect.poll(() => position(page)).toBe(0);
 });
 
 test('mouse drag: the divider follows the pointer from the first move (rounded to two decimals, clamped); the press alone does not move it', async ({ page }) => {
@@ -449,7 +491,9 @@ test('upstream quirk: the keys are handled on the base, so they also act while f
   await mount(page, '', `<button slot="before" style="display: block; width: 400px; height: 200px">Before</button>${IMAGES.split('>').slice(1).join('>')}`);
   await page.evaluate(() => document.querySelector('#c button').focus());
   await page.keyboard.press('ArrowRight');
+  await expect.poll(() => position(page)).toBe(51);
   await page.keyboard.press('End');
+  await expect.poll(() => position(page)).toBe(100);
   expect(await page.evaluate(() => document.activeElement.localName)).toBe('button');
   expect(await events(page)).toEqual([51, 100]);
 });
@@ -461,11 +505,11 @@ test('right-to-left: the clipping and divider mirror, the arrows swap and the dr
   expect(await page.evaluate(() => document.querySelector('#c').shadowRoot.querySelector('[part="base"]').className)).toContain('image-comparer--rtl');
   await focusHandle(page);
   await page.keyboard.press('ArrowLeft');
-  expect((await state(page)).position).toBe(26);
+  await expect.poll(() => position(page)).toBe(26);
   await page.keyboard.press('Shift+ArrowRight');
-  expect((await state(page)).position).toBe(16);
+  await expect.poll(() => position(page)).toBe(16);
   await page.keyboard.press('End');
-  expect(await state(page)).toEqual({ position: 100, valuenow: '100', clip: 'inset(0px 0px 0px 0%)', left: '0%' });
+  await expect.poll(() => state(page)).toEqual({ position: 100, valuenow: '100', clip: 'inset(0px 0px 0px 0%)', left: '0%' });
   // A drag 10% from the left edge is 90% from the right.
   await page.mouse.move(...await handleCenter(page));
   await page.mouse.down();
@@ -478,7 +522,7 @@ test('right-to-left: the clipping and divider mirror, the arrows swap and the dr
   await expect.poll(() => state(page)).toEqual({ position: 25, valuenow: '25', clip: 'inset(0px 0px 0px 75%)', left: '75%' });
   await focusHandle(page);
   await page.keyboard.press('ArrowLeft');
-  expect((await state(page)).position).toBe(26);
+  await expect.poll(() => position(page)).toBe(26);
   await page.evaluate(() => { document.documentElement.dir = 'ltr'; });
   await expect.poll(() => state(page)).toEqual({ position: 26, valuenow: '26', clip: 'inset(0px 74% 0px 0px)', left: '26%' });
 });
@@ -488,12 +532,15 @@ test('upstream quirk: with dir="auto" the left and right arrows do nothing and t
   await mount(page, 'dir="auto" position="25"');
   expect(await state(page)).toEqual({ position: 25, valuenow: '25', clip: 'inset(0px 75% 0px 0px)', left: '25%' });
   await focusHandle(page);
-  for (const key of ['ArrowLeft', 'ArrowRight', 'Shift+ArrowRight']) await page.keyboard.press(key);
-  expect((await state(page)).position).toBe(25);
+  await recordKeys(page);
+  for (const key of ['ArrowLeft', 'ArrowRight', 'Shift+ArrowRight']) {
+    await pressReceived(page, page, key);
+    expect(await position(page), key).toBe(25);
+  }
   await page.keyboard.press('End');
-  expect((await state(page)).position).toBe(100);
+  await expect.poll(() => position(page)).toBe(100);
   await page.keyboard.press('Home');
-  expect((await state(page)).position).toBe(0);
+  await expect.poll(() => position(page)).toBe(0);
 });
 
 test('position reflects; set to null or undefined (or its attribute removed) it gets its initial value back (Shoelace\'s base element restore)', async ({ page }) => {
@@ -530,7 +577,7 @@ test('accessibility tree (Playwright ARIA snapshot): the two images and a scroll
   `);
   expect(await page.evaluate(() => document.querySelector('#c').shadowRoot.querySelector('[part="handle"]').getAttribute('aria-valuenow'))).toBe('25');
   await page.keyboard.press('Tab');
-  expect(await page.evaluate(() => document.querySelector('#c').shadowRoot.activeElement?.getAttribute('part'))).toBe('handle');
+  await expect.poll(() => focusedPart(page)).toBe('handle');
   expect(await page.evaluate(() => document.querySelector('#c').shadowRoot.querySelector('[part="handle"]').hasAttribute('aria-label'))).toBe(false);
 });
 
