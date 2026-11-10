@@ -69,3 +69,41 @@ for (const [lib, how] of [['velcro', 'reload'], ['velcro', 'srcdoc+reload'], ['s
     expect(busy.active).toBe(0);
   });
 }
+
+// Round 3: the loop flake (carousel.spec.mjs:369, Chromium on main): previous('auto') from the first slide scrolls to the leading clone; its
+// scroll end creates an observer whose first report (computed in the next frame) sees that clone and jumps to the real last slide. A
+// next('auto') called in that frame's animation-frame callback, before the report is delivered, is replaced by the jump.
+for (const lib of ['velcro', 'shoelace']) {
+  test(`carousel A/B (${lib}, srcdoc): a next() between the observer's first report and its delivery after a wrap is lost to the clone jump`, async ({ page }) => {
+    const frame = await openPage(page, lib, 'srcdoc', 'Default');
+    const r = await frame.locator('body').evaluate(async body => {
+      const host = document.createElement('div');
+      host.innerHTML = `<sl-carousel id="lost" loop pagination navigation>${[1, 2, 3, 4].map(i => `<sl-carousel-item>Slide ${i}</sl-carousel-item>`).join('')}</sl-carousel>`;
+      body.prepend(host);
+      const el = host.firstElementChild;
+      await el.updateComplete;
+      const settled = async () => {
+        const end = Date.now() + 6000;
+        let since = Date.now();
+        let last = '';
+        while (Date.now() < end) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+          const now = `${el.activeSlide}|${el.scrolling}|${el.scrollContainer.scrollLeft}`;
+          if (now !== last) { last = now; since = Date.now(); }
+          if (!el.scrolling && Date.now() - since > 700) return;
+        }
+      };
+      await settled();
+      const start = el.activeSlide;
+      const seen = [];
+      el.addEventListener('sl-slide-change', e => seen.push(e.detail.index));
+      el.scrollContainer.addEventListener('scrollend', () => requestAnimationFrame(() => { seen.push('next'); el.next('auto'); }), { once: true });
+      el.previous('auto');
+      await settled();
+      return { start, seen, active: el.activeSlide };
+    });
+    console.log(`${test.info().project.name} ${lib} lost: ${JSON.stringify(r)}`);
+    expect(r.start).toBe(0);
+    expect(r.active).toBe(3);
+  });
+}
