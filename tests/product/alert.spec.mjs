@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 
@@ -640,8 +641,9 @@ test('keyboard: the close button is a tab stop and Enter closes the alert; Escap
   await mount(frame, '<button id="before">before</button><sl-alert id="a" open closable>Message</sl-alert>');
   await frame.locator('#before').focus();
   await page.keyboard.press('Tab');
-  expect(await frame.locator('#a').evaluate(el => el.shadowRoot.activeElement?.localName ?? null)).toBe('sl-icon-button');
-  await page.keyboard.press('Escape');
+  await expect.poll(() => frame.locator('#a').evaluate(el => el.shadowRoot.activeElement?.localName ?? null)).toBe('sl-icon-button');
+  await recordKeys(frame.locator('body'));
+  await pressReceived(page, frame.locator('body'), 'Escape');
   expect(await frame.locator('#a').evaluate(el => el.open)).toBe(true);
   await page.keyboard.press('Enter');
   await expect.poll(() => frame.locator('#a').evaluate(el => [el.open, el.base.hidden])).toEqual([false, true]);

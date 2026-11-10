@@ -81,6 +81,8 @@
     "./radio-button/class": { "types": "./dist/components/radio-button/class.d.ts", "import": "./dist/components/radio-button/class.js" },
     "./radio-group": { "types": "./dist/components/radio-group/index.d.ts", "import": "./dist/components/radio-group/index.js" },
     "./radio-group/class": { "types": "./dist/components/radio-group/class.d.ts", "import": "./dist/components/radio-group/class.js" },
+    "./range": { "types": "./dist/components/range/index.d.ts", "import": "./dist/components/range/index.js" },
+    "./range/class": { "types": "./dist/components/range/class.d.ts", "import": "./dist/components/range/class.js" },
     "./rating": { "types": "./dist/components/rating/index.d.ts", "import": "./dist/components/rating/index.js" },
     "./rating/class": { "types": "./dist/components/rating/class.d.ts", "import": "./dist/components/rating/class.js" },
     "./relative-time": { "types": "./dist/components/relative-time/index.d.ts", "import": "./dist/components/relative-time/index.js" },

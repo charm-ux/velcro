@@ -277,9 +277,9 @@ test('keyboard: Tab moves through the items\' buttons and links in order, with S
   // WebKit on macOS moves focus to links only with Alt+Tab.
   const tab = browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
   await page.keyboard.press(tab);
-  expect(await focused()).toEqual(['a', 'a', 'solid']);
+  await expect.poll(focused).toEqual(['a', 'a', 'solid']);
   await page.keyboard.press(tab);
-  expect(await focused()).toEqual(['b', 'button', 'solid']);
+  await expect.poll(focused).toEqual(['b', 'button', 'solid']);
 });
 
 test('dir and lang are reactive, not reflected and undefined by default; ready is the only core event and does not bubble', async ({ page }) => {

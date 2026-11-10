@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
@@ -504,20 +505,21 @@ test.describe('keyboard (top-level documents)', () => {
     await mountGroup(page);
     await page.locator('#before').focus();
     await page.keyboard.press('Tab');
-    expect(await focusedTab(page)).toBe('a');
+    await expect.poll(() => focusedTab(page)).toBe('a');
     await page.keyboard.press('Tab');
-    expect(await focusedTab(page)).toBe('after');
+    await expect.poll(() => focusedTab(page)).toBe('after');
     await page.keyboard.press('Shift+Tab');
-    expect(await focusedTab(page)).toBe('a');
-    const steps = [];
-    for (const key of ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowLeft', 'ArrowLeft', 'End', 'Home', 'ArrowDown']) {
-      await page.keyboard.press(key);
-      steps.push([key, await focusedTab(page), await activeTab(page)]);
-    }
-    expect(steps).toEqual([
+    await expect.poll(() => focusedTab(page)).toBe('a');
+    // Each step: the key, then the focused and the active tab it leads to (some keys change nothing, so each press is
+    // awaited to its end first).
+    await recordKeys(page);
+    for (const [key, ...expected] of [
       ['ArrowRight', 'b', 'b'], ['ArrowRight', 'd', 'd'], ['ArrowRight', 'a', 'a'], ['ArrowLeft', 'd', 'd'], ['ArrowLeft', 'b', 'b'],
       ['End', 'd', 'd'], ['Home', 'a', 'a'], ['ArrowDown', 'a', 'a'],
-    ]);
+    ]) {
+      await pressReceived(page, page, key);
+      await expect.poll(async () => [await focusedTab(page), await activeTab(page)], key).toEqual(expected);
+    }
     expect(await page.evaluate(() => [...document.querySelectorAll('#g sl-tab')].map(t => t.getAttribute('tabindex')))).toEqual(['0', '-1', '-1', '-1']);
     // Disabling a tab later (a mutation the group observes) removes it from keyboard navigation; enabling C brings it back.
     await page.evaluate(async () => {
@@ -527,9 +529,9 @@ test.describe('keyboard (top-level documents)', () => {
     });
     await page.locator('#g sl-tab[panel="a"]').focus();
     await page.keyboard.press('ArrowRight');
-    expect([await focusedTab(page), await activeTab(page)]).toEqual(['c', 'c']);
+    await expect.poll(async () => [await focusedTab(page), await activeTab(page)]).toEqual(['c', 'c']);
     await page.keyboard.press('ArrowLeft');
-    expect([await focusedTab(page), await activeTab(page)]).toEqual(['a', 'a']);
+    await expect.poll(async () => [await focusedTab(page), await activeTab(page)]).toEqual(['a', 'a']);
     expect(pageErrors).toEqual([]);
   });
 
@@ -539,13 +541,14 @@ test.describe('keyboard (top-level documents)', () => {
     await page.evaluate(() => { window.log = []; document.querySelector('#g').addEventListener('sl-tab-show', e => window.log.push(e.detail.name)); });
     await page.locator('#g sl-tab[panel="a"]').focus();
     await page.keyboard.press('ArrowRight');
-    expect([await focusedTab(page), await activeTab(page)]).toEqual(['b', 'a']);
+    await expect.poll(async () => [await focusedTab(page), await activeTab(page)]).toEqual(['b', 'a']);
     expect(await page.evaluate(() => [...document.querySelectorAll('#g sl-tab')].map(t => t.getAttribute('tabindex')))).toEqual(['-1', '0', '-1', '-1']);
     await page.keyboard.press('Enter');
-    expect(await activeTab(page)).toBe('b');
+    await expect.poll(() => activeTab(page)).toBe('b');
     await page.keyboard.press('ArrowRight');
+    await expect.poll(async () => [await focusedTab(page), await activeTab(page)]).toEqual(['d', 'b']);
     await page.keyboard.press('Space');
-    expect([await focusedTab(page), await activeTab(page)]).toEqual(['d', 'd']);
+    await expect.poll(async () => [await focusedTab(page), await activeTab(page)]).toEqual(['d', 'd']);
     expect(await page.evaluate(() => window.log)).toEqual(['b', 'd']);
     expect(pageErrors).toEqual([]);
   });
@@ -554,12 +557,11 @@ test.describe('keyboard (top-level documents)', () => {
     const pageErrors = await loadBundle(page, ENTRY);
     await mountGroup(page, 'placement="start"');
     await page.locator('#g sl-tab[panel="a"]').focus();
-    const steps = [];
-    for (const key of ['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft']) {
-      await page.keyboard.press(key);
-      steps.push([key, await focusedTab(page), await activeTab(page)]);
+    await recordKeys(page);
+    for (const [key, ...expected] of [['ArrowDown', 'b', 'b'], ['ArrowRight', 'b', 'b'], ['ArrowUp', 'a', 'a'], ['ArrowLeft', 'a', 'a']]) {
+      await pressReceived(page, page, key);
+      await expect.poll(async () => [await focusedTab(page), await activeTab(page)], key).toEqual(expected);
     }
-    expect(steps).toEqual([['ArrowDown', 'b', 'b'], ['ArrowRight', 'b', 'b'], ['ArrowUp', 'a', 'a'], ['ArrowLeft', 'a', 'a']]);
     expect(pageErrors).toEqual([]);
   });
 });
@@ -586,9 +588,9 @@ test('dir="rtl" on the tab group: Left moves to the next tab, and the indicator 
   await mountGroup(page, 'dir="rtl"');
   await page.locator('#g sl-tab[panel="a"]').focus();
   await page.keyboard.press('ArrowLeft');
-  expect([await focusedTab(page), await activeTab(page)]).toEqual(['b', 'b']);
+  await expect.poll(async () => [await focusedTab(page), await activeTab(page)]).toEqual(['b', 'b']);
   await page.keyboard.press('ArrowRight');
-  expect([await focusedTab(page), await activeTab(page)]).toEqual(['a', 'a']);
+  await expect.poll(async () => [await focusedTab(page), await activeTab(page)]).toEqual(['a', 'a']);
   const r = await page.evaluate(async () => {
     const el = document.querySelector('#g');
     el.show('b');
@@ -616,21 +618,21 @@ test('a direction set only through the dir property (not reflected) controls the
   })).toEqual([false, true]);
   await page.locator('#g sl-tab[panel="a"]').focus();
   await page.keyboard.press('ArrowLeft');
-  expect([await focusedTab(page), await activeTab(page)]).toEqual(['b', 'b']);
+  await expect.poll(async () => [await focusedTab(page), await activeTab(page)]).toEqual(['b', 'b']);
   await page.evaluate(async () => {
     const el = document.querySelector('#g');
     el.dir = '';
     await el.updateComplete;
   });
   await page.keyboard.press('ArrowLeft');
-  expect([await focusedTab(page), await activeTab(page)]).toEqual(['a', 'a']);
+  await expect.poll(async () => [await focusedTab(page), await activeTab(page)]).toEqual(['a', 'a']);
   // The document's direction applies when the tab group has none of its own.
   await page.evaluate(async () => {
     document.documentElement.dir = 'rtl';
     await new Promise(r => setTimeout(r, 50));
   });
   await page.keyboard.press('ArrowLeft');
-  expect([await focusedTab(page), await activeTab(page)]).toEqual(['b', 'b']);
+  await expect.poll(async () => [await focusedTab(page), await activeTab(page)]).toEqual(['b', 'b']);
   await page.evaluate(() => document.documentElement.removeAttribute('dir'));
   expect(pageErrors).toEqual([]);
 });
