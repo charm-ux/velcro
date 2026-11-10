@@ -96,9 +96,9 @@ const settle = async (frame, selector, index) => {
 
 // The opening example loops, so after loading it scrolls to its first slide (the second child, after the leading clone). Its slide state
 // (the --in-view class, aria-hidden, inert) and its active slide are final once the intersection observer has reported that slide in
-// view. The wait is on that report and not on the scroll ending: in CI's Firefox run the example's `scrolling` state (aria-busy) never
-// returned to false after it loaded (see the docs page), so nothing about the opening example depends on it. Mounted carousels, which do
-// settle there, use `settle`.
+// view. The wait is on that report and not on the scroll ending: in Firefox, once the example's frame has been reloaded (openPage reloads
+// it), the example's `scrolling` state (aria-busy) does not return to false, as with Shoelace 2.20.1's own carousel in the same fixture
+// (see the docs page), so nothing else about the opening example depends on it. Mounted carousels, which do settle there, use `settle`.
 const openingExampleReady = frame => expect.poll(() => frame.locator('#demo-default').evaluate(el => {
   const first = el.children[1];
   return first.classList.contains('--in-view') && first.getAttribute('aria-hidden') === 'false' && !first.hasAttribute('inert') && el.activeSlide === 0;
@@ -180,7 +180,7 @@ test('sl-carousel and sl-carousel-item register as the exported classes, with sl
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
 });
 
-test('default example: Shoelace\'s structure and parts, the host\'s role and label, the slides\' roles, ids and ARIA, two clones, the pagination dots', async ({ page }) => {
+test('default example: Shoelace\'s structure and parts, the host\'s role and label, the slides\' roles, ids and ARIA, two clones, the pagination dots, aria-busy settling (not in Firefox)', async ({ page, browserName }) => {
   const { frame } = await openPage(page);
   await openingExampleReady(frame);
   const r = await frame.locator('#demo-default').evaluate(el => {
@@ -212,10 +212,14 @@ test('default example: Shoelace\'s structure and parts, the host\'s role and lab
   ]]);
   expect(r.baseClasses).toBe('carousel');
   expect(r.container.classes.split(/\s+/).sort()).toEqual(['carousel__slides', 'carousel__slides--horizontal']);
-  // aria-busy mirrors the scrolling state, which the opening example does not settle in Firefox (see openingExampleReady); it is asserted on a
-  // mounted carousel in the navigation test and only checked to be a boolean string here.
+  // aria-busy mirrors the scrolling state. It returns to false once the example has scrolled to its first slide, except in Firefox, where
+  // after the frame's reload it does not (see openingExampleReady): there it is only checked to be a boolean string. It is asserted in
+  // every engine on a mounted carousel in the navigation test.
   expect(r.container).toMatchObject({ atomic: 'true', tabindex: '0', style: '--slides-per-page: 1;' });
   expect(['true', 'false']).toContain(r.container.busy);
+  if (browserName !== 'firefox') {
+    await expect.poll(() => frame.locator('#demo-default').evaluate(el => el.scrollContainer.getAttribute('aria-busy')), { timeout: 8000 }).toBe('false');
+  }
   expect(r.host).toEqual({ role: 'region', label: 'Carousel' });
   expect(r.slideCount).toBe(7);
   expect(r.clones).toEqual(['4', null, null, null, null, null, '0']);
@@ -376,13 +380,18 @@ test('loop: clones are real children, the active slide wraps, previous from the 
   expect(await state(frame)).toMatchObject({ active: 0, slides: 4, clones: 2 });
   const buttons = await frame.locator('#c').evaluate(el => [...el.shadowRoot.querySelectorAll('[part~="navigation-button"]')].map(b => b.getAttribute('aria-disabled')));
   expect(buttons).toEqual(['false', 'false']);
+  // Each wrap is waited for until it has come to rest on the real slide, past the clone it scrolls to: previous from the first slide
+  // scrolls to the leading clone, and the observer's report from there jumps to the real last slide (the fifth child). Acting before
+  // that report has been delivered loses the next move to the jump (an upstream quirk, tested below), and polling activeSlide
+  // alone does not wait for it: goToSlide sets activeSlide at once, before the scroll has started.
   await frame.locator('#c').evaluate(el => el.previous('auto'));
+  await settle(frame, '#c', 4);
   await expect.poll(() => frame.locator('#c').evaluate(el => el.activeSlide)).toBe(3);
-  await expect.poll(() => frame.locator('#c').evaluate(el => !el.scrolling)).toBe(true);
   expect(await state(frame)).toMatchObject({ active: 3, currentPage: 3 });
+  // Next from the last slide scrolls to the trailing clone, and the jump brings it back to the real first slide (the second child).
   await frame.locator('#c').evaluate(el => el.next('auto'));
+  await settle(frame, '#c', 1);
   await expect.poll(() => frame.locator('#c').evaluate(el => el.activeSlide)).toBe(0);
-  await expect.poll(() => frame.locator('#c').evaluate(el => !el.scrolling)).toBe(true);
   expect(await state(frame)).toMatchObject({ active: 0, currentPage: 0 });
   // Turning loop off removes the clones; turning it on adds them again.
   await frame.locator('#c').evaluate(async el => { el.loop = false; await el.updateComplete; });
@@ -869,6 +878,57 @@ test('the active slide gets the --is-active class only once it changes (upstream
   await frame.locator('#c').evaluate(el => el.previous('auto'));
   await settle(frame, '#c', 0);
   expect(await state(frame)).toMatchObject({ active: 0, activeClasses: [true, false, false] });
+});
+
+test('upstream quirk: a go-to before the intersection observer\'s first report makes the active slide go to the target, back to the first slide, then to the target again', async ({ page }) => {
+  const { frame } = await openPage(page);
+  // As a gallery thumbnail click right after the carousel renders: goToSlide(3) before the observer has reported any slide in view. Its
+  // first report sees the carousel still at its start and sets the first slide active (a pending go-to does not hold it back); the
+  // scroll's end sets slide 3 again. Shoelace 2.20.1's own build does the same in each engine (A/B in the same fixture).
+  const beforeFirstReport = await frame.locator('body').evaluate(async body => {
+    document.querySelector('#mount')?.remove();
+    const host = document.createElement('div');
+    host.id = 'mount';
+    host.innerHTML = '<sl-carousel id="c" navigation loop>' + [1, 2, 3, 4, 5].map(i => `<sl-carousel-item>Slide ${i}</sl-carousel-item>`).join('') + '</sl-carousel>';
+    body.prepend(host);
+    const el = host.firstElementChild;
+    window.slideChanges = [];
+    el.addEventListener('sl-slide-change', e => window.slideChanges.push(e.detail.index));
+    await el.updateComplete;
+    const beforeReport = !el.querySelector('.--in-view');
+    el.goToSlide(3);
+    return beforeReport;
+  });
+  expect(beforeFirstReport).toBe(true);
+  await settle(frame, '#c', 4);
+  await expect.poll(() => frame.locator('#c').evaluate(el => el.activeSlide)).toBe(3);
+  const seen = await frame.locator('body').evaluate(() => window.slideChanges);
+  // 3, then 0 from the observer's first report, and 3 again at rest. Chromium also reports the slides passed on the way back up
+  // (3, 0, 1, 2, 3), so only these positions are asserted, each on its own line.
+  expect(seen[0]).toBe(3);
+  expect(seen[1]).toBe(0);
+  expect(seen.at(-1)).toBe(3);
+});
+
+test('upstream quirk: a move made after a looping wrap\'s scroll has ended, but before the observer has reported the clone it reached, is replaced by the jump to the real slide', async ({ page }) => {
+  const { frame } = await openPage(page);
+  await mount(frame, '<sl-carousel id="c" loop pagination navigation>' + SLIDES(4) + '</sl-carousel>');
+  await settle(frame, '#c', 1);
+  // previous() from the first slide scrolls to the leading clone. Its scroll end creates an intersection observer, whose first report is
+  // computed in the next frame, after that frame's animation-frame callbacks, and delivered after it. next() is called in such a
+  // callback: it sets slide 0 and schedules its scroll, then the report (made at the clone) sets slide 3 and schedules the jump to
+  // the real last slide, which runs after next()'s scroll. So the carousel comes to rest on slide 3, not 0. Shoelace 2.20.1's own
+  // build does the same (A/B in the same fixture). This is how the loop test above lost its next() when it did not wait.
+  await frame.locator('#c').evaluate(el => {
+    window.slideChanges = [];
+    el.addEventListener('sl-slide-change', e => window.slideChanges.push(e.detail.index));
+    el.scrollContainer.addEventListener('scrollend', () => requestAnimationFrame(() => el.next('auto')), { once: true });
+    el.previous('auto');
+  });
+  await expect.poll(() => frame.locator('body').evaluate(() => window.slideChanges.length)).toBe(3);
+  await settle(frame, '#c', 4);
+  await expect.poll(() => frame.locator('#c').evaluate(el => el.activeSlide)).toBe(3);
+  expect(await frame.locator('body').evaluate(() => window.slideChanges)).toEqual([3, 0, 3]);
 });
 
 test('a carousel removed before its first update, or after it, reports no error and is gone', async ({ page }) => {
