@@ -1,0 +1,65 @@
+<sl-carousel class="dynamic-carousel" pagination navigation>
+  <sl-carousel-item style="background: var(--sl-color-red-200)">Slide 1</sl-carousel-item>
+  <sl-carousel-item style="background: var(--sl-color-orange-200)">Slide 2</sl-carousel-item>
+  <sl-carousel-item style="background: var(--sl-color-yellow-200)">Slide 3</sl-carousel-item>
+</sl-carousel>
+
+<div class="carousel-options">
+  <sl-button id="dynamic-add">Add slide</sl-button>
+  <sl-button id="dynamic-remove">Remove slide</sl-button>
+</div>
+
+<style>
+  .dynamic-carousel {
+    --aspect-ratio: 3 / 2;
+  }
+
+  .dynamic-carousel ~ .carousel-options {
+    display: flex;
+    justify-content: center;
+    gap: var(--sl-spacing-x-small);
+    margin-top: var(--sl-spacing-large);
+  }
+
+  .dynamic-carousel sl-carousel-item {
+    flex: 0 0 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--sl-font-size-2x-large);
+  }
+</style>
+
+<script>
+  (() => {
+    const dynamicCarousel = document.querySelector('.dynamic-carousel');
+    const dynamicAdd = document.querySelector('#dynamic-add');
+    const dynamicRemove = document.querySelector('#dynamic-remove');
+    const colors = ['red', 'orange', 'yellow', 'green', 'blue', 'violet'];
+    let colorIndex = 2;
+
+    const addSlide = () => {
+      const slide = document.createElement('sl-carousel-item');
+      const color = colors[++colorIndex % colors.length];
+      slide.innerText = `Slide ${dynamicCarousel.children.length + 1}`;
+      slide.style.setProperty('background', `var(--sl-color-${color}-200)`);
+      dynamicCarousel.appendChild(slide);
+      dynamicRemove.disabled = false;
+    };
+
+    const removeSlide = () => {
+      const slide = dynamicCarousel.children[dynamicCarousel.children.length - 1];
+      const numSlides = dynamicCarousel.querySelectorAll('sl-carousel-item').length;
+
+      if (numSlides > 1) {
+        slide.remove();
+        colorIndex--;
+      }
+
+      dynamicRemove.disabled = numSlides - 1 <= 1;
+    };
+
+    dynamicAdd.addEventListener('click', addSlide);
+    dynamicRemove.addEventListener('click', removeSlide);
+  })();
+</script>

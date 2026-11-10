@@ -266,12 +266,21 @@ test('a skip passes only when the vendored upstream file itself marks that exact
   // A scan with a dynamic title binds a skip only through the per-skip identity checks (next test).
   assert.equal(run('suite > x', { a: { skipped: ['suite > x'], declared: ['suite > x', 'other > x', 'y', null] } }).ok, true,
     'a dynamic title elsewhere does not block an unambiguous literal skip');
-  // The real vendored files: color-picker's, icon's, radio-group's and tab-group's own it.skip are the only upstream skips.
-  // Icon's and tab-group's are bound by the exact comparison; radio-group's file has dynamic titles (template-literal
-  // describes) and color-picker's runs Shoelace's form-control helper tests the scan cannot see, so each of their skips is
-  // bound alone.
+  // The real vendored files: carousel's, color-picker's, icon's, radio-group's and tab-group's own it.skip are the only
+  // upstream skips. Icon's and tab-group's are bound by the exact comparison; radio-group's file has dynamic titles
+  // (template-literal describes), carousel's has some too (its pages-count tests are generated in a loop) and
+  // color-picker's runs Shoelace's form-control helper tests the scan cannot see, so each of their skips is bound alone.
   const real = upstreamSkips(root, components);
-  assert.deepEqual(Object.keys(real), ['color-picker', 'icon', 'radio-group', 'tab-group']);
+  assert.deepEqual(Object.keys(real), ['carousel', 'color-picker', 'icon', 'radio-group', 'tab-group']);
+  assert.deepEqual(real.carousel.skipped, [
+    '<sl-carousel> > when `autoplay` attribute is provided > should scroll forwards every `autoplay-interval` milliseconds',
+    '<sl-carousel> > when `mouse-dragging` attribute is provided > should be possible to drag the carousel using the mouse',
+  ]);
+  assert.ok(real.carousel.declared.includes(null));
+  const skippedCarousel = new Set(real.carousel.skipped);
+  const carouselRun = evaluate(scoreboard(keyResults(inventory.carousel.map(t => r('carousel', t, true, skippedCarousel.has(t) ? { skipped: true } : {})))),
+    {}, { carousel: inventory.carousel }, ['carousel'], { carousel: real.carousel });
+  assert.deepEqual(carouselRun.problems, []);
   assert.deepEqual(real['color-picker'].skipped, ['<sl-color-picker> > should emit sl-focus when rendered as a dropdown and focused']);
   assert.ok(!real['color-picker'].declared.includes(null));
   assert.ok(real['color-picker'].declared.every(t => inventory['color-picker'].includes(t)));
@@ -362,8 +371,8 @@ test('with dynamic titles in the scan, or a scan that sees only part of the inve
 });
 
 // Before this change a scan without dynamic titles that saw only part of the inventory never bound its skips; the
-// partial-scan rule must change that outcome for color-picker only. Carousel is listed because it is a candidate for the
-// same helper pattern; it binds nothing while it has no vendored file or no it.skip.
+// partial-scan rule must change that outcome for color-picker only. Carousel's skips bind per-skip because its scan has
+// dynamic titles, with or without the partial-scan rule.
 test('the partial-scan rule changes no binding outcome except color-picker\'s', () => {
   const real = upstreamSkips(root, components);
   const before = (bound, expected) => {
@@ -380,10 +389,9 @@ test('the partial-scan rule changes no binding outcome except color-picker\'s', 
     icon: ['exact', 'exact'],
     'radio-group': ['per-skip', 'per-skip'],
     'tab-group': ['exact', 'exact'],
-    carousel: [was.carousel ?? 'none', was.carousel ?? 'none'],
+    carousel: ['per-skip', 'per-skip'],
   });
-  assert.equal(is.carousel ?? 'none', 'none');
-  for (const c of Object.keys(is).filter(c => !['color-picker', 'icon', 'radio-group', 'tab-group'].includes(c))) {
+  for (const c of Object.keys(is).filter(c => !['carousel', 'color-picker', 'icon', 'radio-group', 'tab-group'].includes(c))) {
     assert.equal(is[c], 'none', `${c} has no upstream skip`);
   }
 });
