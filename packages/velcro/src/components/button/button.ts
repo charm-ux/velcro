@@ -12,6 +12,7 @@ import { ifDefined } from 'lit/directives/if-defined.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
 import { CoreButton } from '@charm-ux/core/dist/components/button/button.js';
 import { HasSlotController } from '@charm-ux/core/dist/controller/index.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { FormControlController, validValidityState } from '../../internal/form.js';
 import { LocalizeController } from '../../utilities/localize.js';
 import styles from './button.styles.js';
@@ -42,7 +43,7 @@ import styles from './button.styles.js';
  * @csspart caret - The button's caret icon, a `<span>` around an inline svg (an `<sl-icon>` in Shoelace).
  * @csspart spinner - The spinner that shows when the button is in the loading state.
  */
-export class VelcroButton extends CoreButton {
+export class VelcroButton extends ShoelaceCompat(CoreButton, { reflected: 'read-all' }) {
   public static override styles = [...CharmElement.styles, styles];
 
   // Shoelace's button is not form-associated: the form is found from `form` / the closest <form>, and submission goes
@@ -64,10 +65,6 @@ export class VelcroButton extends CoreButton {
   /** The rendered native `<button>`, or `<a>` when `href` is set. */
   @query('.button')
   public button!: HTMLButtonElement | HTMLAnchorElement;
-
-  // Shoelace restores a reflected property's initial value when its attribute is removed (see attributeChangedCallback).
-  private hasRecordedInitialProperties = false;
-  private readonly initialReflectedProperties = new Map<string, unknown>();
 
   /** Passed through to the inner control; an empty title also hides the browser's validation tooltip on hover. */
   @property()
@@ -193,30 +190,9 @@ export class VelcroButton extends CoreButton {
     return '';
   }
 
-  // Records the reflected properties' values the first time any attribute changes (during upgrade, before the
-  // attribute values are applied), so that removing a reflected attribute later restores that value instead of
-  // leaving the property null. Same timing and rule as Shoelace's base element.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroButton).elementProperties.forEach((options, prop) => {
-        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-        if (options.reflect && current != null) {
-          this.initialReflectedProperties.set(prop as string, current);
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroButton) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   protected override update(changed: PropertyValues<this>) {

@@ -60,24 +60,46 @@ test('preserves each component snapshot policy for non-reflected consumer getter
   const result = await page.evaluate(async () => {
     await import('/components.js');
     const results = [];
-    for (const name of ['input', 'tooltip', 'radio-group', 'mutation-observer', 'tag']) {
+    const eager = new Set(['avatar', 'button', 'copy-button', 'icon-button', 'option', 'split-panel', 'tag']);
+    const names = [
+      'alert', 'animation', 'avatar', 'button', 'button-group', 'checkbox', 'copy-button', 'details', 'dialog',
+      'drawer', 'dropdown', 'icon', 'icon-button', 'input', 'menu-item', 'mutation-observer', 'option', 'popup',
+      'radio', 'radio-button', 'radio-group', 'range', 'rating', 'select', 'split-panel', 'switch', 'tab',
+      'tab-group', 'tab-panel', 'tag', 'textarea', 'tooltip',
+    ];
+    for (const name of names) {
       let reads = 0;
       class Consumer extends customElements.get(`sl-${name}`) {
         static properties = { deferred: { attribute: false } };
         get deferred() {
           reads++;
-          if (name !== 'tag') throw new Error('not ready');
+          if (!eager.has(name)) throw new Error(`not ready: ${name}`);
           return 'ready';
         }
       }
       customElements.define(`sl-compat-consumer-${name}`, Consumer);
       const element = new Consumer();
       element.attributeChangedCallback('lang', null, 'en');
-      results.push([reads, element.lang]);
+      results.push({ name, reads, expected: eager.has(name) ? 1 : 0, lang: element.lang });
     }
     return results;
   });
-  expect(result).toEqual([[0, 'en'], [0, 'en'], [0, 'en'], [0, 'en'], [1, 'en']]);
+  for (const entry of result) {
+    expect(entry.reads, entry.name).toBe(entry.expected);
+    expect(entry.lang, entry.name).toBe(entry.name === 'button' ? '' : 'en');
+  }
+});
+
+test('icon keeps optional-change restoration a no-op', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    await import('/components.js');
+    const icon = document.createElement('sl-icon');
+    icon.attributeChangedCallback('lang', null, 'en');
+    icon.library = null;
+    await icon.willUpdate();
+    return icon.library;
+  });
+  expect(result).toBeNull();
 });
 
 test('does not capture before the first observed attribute, and keeps restoration at the caller lifecycle point', async ({ page }) => {

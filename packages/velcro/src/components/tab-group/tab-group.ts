@@ -7,6 +7,7 @@
 // the dependencies on <sl-icon-button> and <sl-resize-observer> are defined when a tab group is constructed through
 // Velcro's registration helper rather than Shoelace's `static dependencies`. Shoelace's behavior is matched exactly,
 // including its quirks; each one is marked "Upstream quirk" below and listed on the docs page.
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import './scrollend-polyfill.js';
 import { html, type PropertyValues } from 'lit';
 import { eventOptions, property, query, state } from 'lit/decorators.js';
@@ -30,6 +31,8 @@ import styles from './tab-group.styles.js';
  * (tabs in the default slot and panels in a `tabpanel` slot, selection by an `active-id` attribute, `layout` and
  * `manual-activation` attributes and a `tabs-change` event), and its `tabs` member is a slot query that Shoelace's tab
  * list cannot share. The only core extension is the non-bubbling `ready` event on first update.
+ *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
  *
  * @tag sl-tab-group
  * @status prototype
@@ -56,7 +59,7 @@ import styles from './tab-group.styles.js';
  * @cssproperty --track-color - The color of the indicator's track (the line that separates tabs from panels).
  * @cssproperty --track-width - The width of the indicator's track (the line that separates tabs from panels).
  */
-export class VelcroTabGroup extends CharmElement {
+export class VelcroTabGroup extends ShoelaceCompat(CharmElement, { lang: true, dir: true, reflected: true }) {
   public static override baseName = 'tab-group';
 
   // Core's base styles are replaced by Shoelace's own (see the styles file).
@@ -78,15 +81,6 @@ export class VelcroTabGroup extends CharmElement {
     super();
     for (const component of VelcroTabGroup.shoelaceDependencies) defineVelcroComponent(component);
   }
-
-  // Shoelace's base element restores a reflected property's initial value when its attribute is removed. The tab group
-  // has no reflected property, so nothing is ever restored; the hook is kept so that the behavior stays Shoelace's if
-  // one is added.
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-
-  private hasRecordedInitialProperties = false;
-
-  private velcroDir?: string;
 
   private activeTab?: VelcroTab;
 
@@ -127,26 +121,17 @@ export class VelcroTabGroup extends CharmElement {
   @state()
   private shouldHideScrollEndButton = false;
 
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   // Upstream quirk: placement is not reflected, so `sl-tab-group[placement=...]` selectors only match the attribute as
   // written in markup.
@@ -168,21 +153,6 @@ export class VelcroTabGroup extends CharmElement {
   /** Prevent scroll buttons from being hidden when inactive. */
   @property({ attribute: 'fixed-scroll-controls', type: Boolean })
   public fixedScrollControls = false;
-
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroTabGroup).elementProperties.forEach((options, prop) => {
-        if (options.reflect) {
-          const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-          if (current != null) {
-            this.initialReflectedProperties.set(prop as string, current);
-          }
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
 
   public override connectedCallback() {
     const whenAllDefined = Promise.all([customElements.whenDefined('sl-tab'), customElements.whenDefined('sl-tab-panel')]);
@@ -271,12 +241,7 @@ export class VelcroTabGroup extends CharmElement {
 
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroTabGroup) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   // Shoelace's `@watch('noScrollControls', { waitUntilFirstUpdate: true })` and `@watch('placement', { waitUntilFirstUpdate:
@@ -300,7 +265,7 @@ export class VelcroTabGroup extends CharmElement {
   // returns the computed direction), which would miss a direction set only through the property; this component's `dir`
   // returns what was set, by attribute or property, so it resolves the direction the way Shoelace does.
   private direction() {
-    return `${this.velcroDir || document.documentElement.dir || 'ltr'}`.toLowerCase();
+    return `${super.dir || document.documentElement.dir || 'ltr'}`.toLowerCase();
   }
 
   private getAllTabs() {

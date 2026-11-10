@@ -337,8 +337,9 @@ test('no properties, methods or Shoelace events of its own; only the inherited c
     await el.updateComplete;
     el.dir = 'rtl';
     await el.updateComplete;
-    // Own enumerable members declared by Velcro's class (the prototype and static side), beyond the base element's.
-    const own = Object.getOwnPropertyNames(customElements.get('sl-menu-label').prototype).filter(n => n !== 'constructor').sort();
+    const proto = customElements.get('sl-menu-label').prototype;
+    const own = [...new Set([proto, Object.getPrototypeOf(proto)].flatMap(p => Object.getOwnPropertyNames(p)))]
+      .filter(n => n !== 'constructor').sort();
     el.remove();
     return { seen, bubbled, own };
   });

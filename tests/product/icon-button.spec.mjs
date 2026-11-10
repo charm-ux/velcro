@@ -602,7 +602,9 @@ test('properties: Shoelace\'s defaults, only disabled reflects, and the inherite
     el.disabled = false;
     await el.updateComplete;
     const afterFalse = el.hasAttribute('disabled');
-    const own = Object.getOwnPropertyNames(customElements.get('sl-icon-button').prototype).filter(n => n !== 'constructor').sort();
+    const proto = customElements.get('sl-icon-button').prototype;
+    const own = [...new Set([proto, Object.getPrototypeOf(proto)].flatMap(p => Object.getOwnPropertyNames(p)))]
+      .filter(n => n !== 'constructor').sort();
     el.remove();
     return { defaults, withoutDisabled, withDisabled, afterRemoval, afterFalse, seen, bubbled, own };
   });

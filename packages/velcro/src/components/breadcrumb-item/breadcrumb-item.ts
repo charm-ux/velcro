@@ -13,6 +13,7 @@ import { property, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat } from '../../internal/shoelace-compat.js';
 import { HasSlotController } from '../../internal/slot.js';
 import styles from './breadcrumb-item.styles.js';
 
@@ -29,6 +30,8 @@ import styles from './breadcrumb-item.styles.js';
  * Velcro extension inherited from the core base element and kept: the non-bubbling `ready` event, emitted on the first
  * update. Shoelace's breadcrumb item has no events.
  *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
+ *
  * @tag sl-breadcrumb-item
  * @status prototype
  *
@@ -44,15 +47,13 @@ import styles from './breadcrumb-item.styles.js';
  * @csspart suffix - The container that wraps the suffix.
  * @csspart separator - The container that wraps the separator.
  */
-export class VelcroBreadcrumbItem extends CharmElement {
+export class VelcroBreadcrumbItem extends ShoelaceCompat(CharmElement, { lang: true, dir: true }) {
   public static override baseName = 'breadcrumb-item';
 
   // Core's base styles are replaced by Shoelace's own (see the styles file).
   public static override styles = [styles];
 
   private readonly hasSlotController = new HasSlotController(this, 'prefix', 'suffix');
-
-  private velcroDir?: string;
 
   // Shoelace's public `@query('slot:not([name])')` field: the default slot.
   @query('slot:not([name])')
@@ -63,26 +64,17 @@ export class VelcroBreadcrumbItem extends CharmElement {
   // `slotchange` arrives, and one with `href` but no label content keeps the button.
   @state() private renderType: 'button' | 'link' | 'dropdown' = 'button';
 
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   /**
    * Optional URL to direct the user to when the breadcrumb item is activated. When set, a link will be rendered

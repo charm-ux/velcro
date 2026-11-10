@@ -4,16 +4,19 @@
 // See THIRD_PARTY_NOTICES.md. No Shoelace source file or runtime is included.
 import { property } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat } from '../../internal/shoelace-compat.js';
 import { LocalizeController } from '../../utilities/localize.js';
 import styles from './format-bytes.styles.js';
 
 /**
  * Formats a number as a human readable bytes value. API modelled on Shoelace's `sl-format-bytes`.
  *
+ * @property {string} lang
+ *
  * @tag sl-format-bytes
  * @status prototype
  */
-export class VelcroFormatBytes extends CharmElement {
+export class VelcroFormatBytes extends ShoelaceCompat(CharmElement, { lang: true }) {
   public static override baseName = 'format-bytes';
   public static override styles = [...CharmElement.styles, styles];
 
@@ -39,10 +42,6 @@ export class VelcroFormatBytes extends CharmElement {
     if (changed.has('unit') && this.unit == null) this.unit = 'byte';
     if (changed.has('display') && this.display == null) this.display = 'short';
   }
-
-  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the number. Like Shoelace it has no initial value (undefined).
-  @property()
-  public override lang!: string;
 
   protected override render() {
     if (isNaN(this.value)) return '';

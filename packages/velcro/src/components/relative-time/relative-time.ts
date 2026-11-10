@@ -5,6 +5,7 @@
 import { html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat } from '../../internal/shoelace-compat.js';
 import { LocalizeController } from '../../utilities/localize.js';
 import styles from './relative-time.styles.js';
 
@@ -26,10 +27,12 @@ const availableUnits: UnitConfig[] = [
 /**
  * Outputs a localized time phrase relative to the current date and time. API modelled on Shoelace's `sl-relative-time`.
  *
+ * @property {string} lang
+ *
  * @tag sl-relative-time
  * @status prototype
  */
-export class VelcroRelativeTime extends CharmElement {
+export class VelcroRelativeTime extends ShoelaceCompat(CharmElement, { lang: true }) {
   public static override baseName = 'relative-time';
   public static override styles = [...CharmElement.styles, styles];
 
@@ -58,10 +61,6 @@ export class VelcroRelativeTime extends CharmElement {
   /** Keep the displayed value up to date as time passes. */
   @property({ type: Boolean })
   public sync = false;
-
-  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the text. Like Shoelace it is undefined by default.
-  @property()
-  public override lang!: string;
 
   // Documented divergence: Shoelace's base element only restores the initial value of REFLECTED properties, and none of
   // these are reflected there. Here a removed `date`, `format` or `numeric` attribute (the property becomes null) restores

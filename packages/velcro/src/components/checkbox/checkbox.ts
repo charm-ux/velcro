@@ -15,6 +15,7 @@ import { CharmFocusableElement } from '@charm-ux/core/dist/base/focusable-elemen
 import { CharmFormControlElement } from '@charm-ux/core/dist/base/form-control-element/charm-form-control-element.js';
 import { CoreCheckbox } from '@charm-ux/core/dist/components/checkbox/checkbox.js';
 import { HasSlotController } from '@charm-ux/core/dist/controller/index.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { FormControlController } from '../../internal/form.js';
 import { defineVelcroComponent, type VelcroComponentConstructor } from '../../utilities/registration.js';
 import { VelcroIcon } from '../icon/class.js';
@@ -32,6 +33,8 @@ import styles from './checkbox.styles.js';
  * text, which stay accessible) and `error-message` (sets a custom validity message, like `setCustomValidity()`; it is
  * not rendered). The core `invalid`, `label-position` and `autofocus` properties are accepted but have no effect (use
  * `data-invalid`, as in Shoelace). As with every Velcro form control the host carries core's `focusable` attribute.
+ *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
  *
  * @tag sl-checkbox
  * @status prototype
@@ -58,7 +61,7 @@ import styles from './checkbox.styles.js';
  * @csspart label - The container that wraps the checkbox's label.
  * @csspart form-control-help-text - The help text's wrapper.
  */
-export class VelcroCheckbox extends CoreCheckbox {
+export class VelcroCheckbox extends ShoelaceCompat(CoreCheckbox, { lang: true, dir: true, reflected: true }) {
   // Only Shoelace's styles: core's base element styles would, for example, hide the host for the `hidden` attribute,
   // which Shoelace's checkbox does not do. The one Velcro rule visually hides the label and help text for `hide-label`.
   public static override styles = [
@@ -119,35 +122,22 @@ export class VelcroCheckbox extends CoreCheckbox {
   // Focus and blur are handled on the inner checkbox, as in Shoelace, instead of core's host listeners.
   protected override useBlurHandler = false;
   protected override useFocusHandler = false;
-
-  private hasRecordedInitialProperties = false;
-  private readonly initialReflectedProperties = new Map<string, unknown>();
   private velcroValue?: string;
   private velcroDisabled = false;
   private velcroErrorMessage = '';
   private velcroReadonly = false;
-  private velcroDir?: string;
 
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   @query('input[type="checkbox"]')
   public override input!: HTMLInputElement;
@@ -293,17 +283,6 @@ export class VelcroCheckbox extends CoreCheckbox {
         this.defaultChecked = checked;
       }
     }
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroCheckbox).elementProperties.forEach((options, prop) => {
-        // Reflection is checked first, as upstream does, so that a non-reflected property's getter is not read here.
-        if (!options.reflect) return;
-        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-        if (current != null) {
-          this.initialReflectedProperties.set(prop as string, current);
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
     super.attributeChangedCallback(name, previous, next);
   }
 
@@ -311,12 +290,7 @@ export class VelcroCheckbox extends CoreCheckbox {
   // form-control base's label and help text bookkeeping still runs.
   protected override willUpdate(changed: PropertyValues<this>) {
     (CharmFormControlElement.prototype as unknown as { willUpdate(c: PropertyValues): void }).willUpdate.call(this, changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroCheckbox) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   protected override update(changed: PropertyValues<this>) {

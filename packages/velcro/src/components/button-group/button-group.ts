@@ -9,6 +9,7 @@
 import { html, type PropertyValues } from 'lit';
 import { property, query, state } from 'lit/decorators.js';
 import { CoreButtonGroup } from '@charm-ux/core/dist/components/button-group/button-group.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { useVelcroScope } from '../../internal/scope.js';
 import styles from './button-group.styles.js';
 
@@ -24,6 +25,8 @@ import styles from './button-group.styles.js';
  * styles, which this component does not use. Core's `button-group-button-position` attribute is not written to the
  * buttons, and core's `--button-group-*` custom properties and `button-group-base` part do not exist.
  *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
+ *
  * @tag sl-button-group
  * @status prototype
  *
@@ -33,7 +36,7 @@ import styles from './button-group.styles.js';
  *
  * @csspart base - The component's base wrapper.
  */
-export class VelcroButtonGroup extends CoreButtonGroup {
+export class VelcroButtonGroup extends ShoelaceCompat(CoreButtonGroup, { lang: true, dir: true, reflected: true }) {
   // Core's base and button group styles are replaced by Shoelace's own (see the styles file). Core adds a
   // `:host([hidden]) { display: none !important }` rule, which Shoelace does not have, and its group styles style
   // `::slotted([button])` and the `button-group-base` wrapper, neither of which this template uses.
@@ -50,12 +53,6 @@ export class VelcroButtonGroup extends CoreButtonGroup {
   @state()
   public disableRole = false;
 
-  private hasRecordedInitialProperties = false;
-
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-
-  private velcroDir?: string;
-
   // What the extensions wrote, so that removing an extension can take it back and leave a plain Shoelace group: the
   // `tabindex` a button or slotted element had before the roving tab index (null: none), the buttons that got `toggle`
   // from the group, and the nested groups that got `toolbar` from it. Weak: nothing here keeps an element alive.
@@ -71,26 +68,17 @@ export class VelcroButtonGroup extends CoreButtonGroup {
   // (core's late-first-enable behavior).
   private selectListener: 'none' | 'attached' | 'parked' = 'none';
 
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   /**
    * A label to use for the button group. This won't be displayed on the screen, but it will be announced by assistive
@@ -134,26 +122,6 @@ export class VelcroButtonGroup extends CoreButtonGroup {
   @property({ type: Boolean, reflect: true })
   public override toolbar?: boolean;
 
-  // Upstream behavior: the first time any observed attribute changes (including `dir` and `lang`), the values of all
-  // reflected properties that are not null are recorded, and when one of them later becomes null (its attribute was
-  // removed) it is set back to the recorded value. Shoelace's group declares no reflected property, so here this only
-  // concerns the inherited `vertical`, `split`, `select` and `toolbar` extensions.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroButtonGroup).elementProperties.forEach((options, prop) => {
-        // Reflection is checked first, as upstream does, so that a non-reflected property's getter is not read here.
-        if (options.reflect) {
-          const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-          if (current != null) {
-            this.initialReflectedProperties.set(prop as string, current);
-          }
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   // Core removes the toolbar key handler on disconnect and adds it back only when the `toolbar` attribute changes, so a
   // reconnected toolbar group would lose its arrow keys. Adding the same listener again is a no-op.
   public override connectedCallback() {
@@ -171,12 +139,7 @@ export class VelcroButtonGroup extends CoreButtonGroup {
   }
 
   protected override willUpdate(changed: PropertyValues<this>) {
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroButtonGroup) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   // Removing an extension: core adds the toolbar key handler and writes `toggle` and the roving tab index, and never

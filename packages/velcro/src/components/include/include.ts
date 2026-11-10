@@ -7,6 +7,7 @@
 import { html, type PropertyValues } from 'lit';
 import { property } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/index.js';
+import { ShoelaceCompat } from '../../internal/shoelace-compat.js';
 import styles from './include.styles.js';
 import { requestInclude } from './request.js';
 
@@ -17,41 +18,32 @@ import { requestInclude } from './request.js';
  * Velcro extension inherited from the core base element and kept working: the `ready` event (non-bubbling, emitted once
  * after the first render). Shoelace has no such event.
  *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
+ *
  * @tag sl-include
  * @status prototype
  *
  * @event sl-load - Emitted when the included file is loaded.
  * @event {{ status: number }} sl-error - Emitted when the included file fails to load due to an error.
  */
-export class VelcroInclude extends CharmElement {
+export class VelcroInclude extends ShoelaceCompat(CharmElement, { lang: true, dir: true }) {
   public static override baseName = 'include';
 
   // Core's base styles are replaced by Shoelace's own (see the styles file). The only core rule that can apply to this
   // template is `:host([hidden]) { display: none !important }`, which Shoelace does not have.
   public static override styles = [styles];
 
-  private velcroDir?: string;
-
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   /**
    * The location of the HTML file to include. Be sure you trust the content you are including as it will be executed as

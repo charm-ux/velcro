@@ -10,6 +10,7 @@ import { property, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { defineVelcroComponent, type VelcroComponentConstructor } from '../../utilities/registration.js';
 import { VelcroIcon } from '../icon/class.js';
 import styles from './icon-button.styles.js';
@@ -23,6 +24,8 @@ import styles from './icon-button.styles.js';
  * Velcro extension inherited from the core base element and kept: the non-bubbling `ready` event, emitted on the first
  * update. Shoelace's icon button does not emit it.
  *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
+ *
  * @tag sl-icon-button
  * @status prototype
  *
@@ -31,7 +34,7 @@ import styles from './icon-button.styles.js';
  *
  * @csspart base - The component's base wrapper.
  */
-export class VelcroIconButton extends CharmElement {
+export class VelcroIconButton extends ShoelaceCompat(CharmElement, { lang: true, dir: true, reflected: 'read-all' }) {
   public static override baseName = 'icon-button';
 
   // The core base styles are replaced by Shoelace's own (see the styles file). Core's add a `:host([hidden]) { display:
@@ -53,30 +56,11 @@ export class VelcroIconButton extends CharmElement {
     for (const component of VelcroIconButton.shoelaceDependencies) defineVelcroComponent(component);
   }
 
-  // Shoelace's base element restores a reflected property's initial value when its attribute is removed (see
-  // attributeChangedCallback). `disabled` is the only reflected property here.
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-  private hasRecordedInitialProperties = false;
-
   /** The rendered native `<button>`, or `<a>` when `href` is set. */
   @query('.icon-button')
   public button!: HTMLButtonElement | HTMLLinkElement;
 
   @state() private hasFocus = false;
-
-  // Shoelace's base element declares `lang` and `dir` as reactive properties with no initial value and no reflection,
-  // which also makes them observed attributes. Without the `lang` declaration, `lang` would be the native one, which
-  // reflects: assigning it would change the attribute and reading it would give '' instead of undefined. Core declares
-  // `dir` as a reactive property whose getter computes the direction (`ltr` or `rtl`) when it is unset or `auto`;
-  // Shoelace's returns the value as set (undefined when unset), so the accessor is replaced.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep core's
-  // declared type, because TypeScript does not let a subclass widen an inherited property's read type; at runtime it
-  // returns whatever was set.
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
-
-  private shoelaceDir?: string;
 
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
@@ -84,11 +68,10 @@ export class VelcroIconButton extends CharmElement {
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.shoelaceDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
-
   public override set dir(value: string) {
-    this.shoelaceDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
 
   /** The name of the icon to draw. Available names depend on the icon library being used. */
@@ -129,30 +112,9 @@ export class VelcroIconButton extends CharmElement {
   @property({ type: Boolean, reflect: true })
   public disabled = false;
 
-  // Records the reflected properties' values the first time any attribute changes (during upgrade, before the
-  // attribute values are applied), so that removing a reflected attribute later restores that value instead of
-  // leaving the property null. Same timing and rule as Shoelace's base element.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroIconButton).elementProperties.forEach((options, prop) => {
-        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-        if (options.reflect && current != null) {
-          this.initialReflectedProperties.set(prop as string, current);
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroIconButton) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   private handleBlur() {

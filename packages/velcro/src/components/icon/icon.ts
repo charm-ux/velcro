@@ -9,6 +9,7 @@ import { html, type HTMLTemplateResult, type PropertyValues, type TemplateResult
 import { isTemplateResult } from 'lit/directive-helpers.js';
 import { property, state } from 'lit/decorators.js';
 import { CoreIcon } from '@charm-ux/core/dist/components/icon/icon.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { getIconLibrary, type IconLibrary, unwatchIcon, watchIcon } from './library.js';
 import styles from './icon.styles.js';
 
@@ -36,6 +37,8 @@ interface IconSource {
  * Icons are symbols that can be used to represent various options within an application. API modelled on Shoelace's
  * `sl-icon`. The default library is Bootstrap Icons, shipped with the package in `dist/assets/icons`.
  *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
+ *
  * @tag sl-icon
  * @status prototype
  *
@@ -47,7 +50,7 @@ interface IconSource {
  * @csspart svg - The internal SVG element.
  * @csspart use - The <use> element generated when using `spriteSheet: true`
  */
-export class VelcroIcon extends CoreIcon {
+export class VelcroIcon extends ShoelaceCompat(CoreIcon, { lang: true, dir: true, reflected: true }) {
   // Core's styles are replaced by Shoelace's own (see the styles file): core's icon styles make the host an inline-flex
   // box with `contain: strict`, `vertical-align: middle` and a forced `fill: currentColor`, and core's base styles add
   // `:host([hidden]) { display: none !important }`, `box-sizing: border-box` on every shadow descendant and focus and
@@ -59,31 +62,16 @@ export class VelcroIcon extends CoreIcon {
   // Shoelace's private `svg` state. Core's own `svg` state (a markup string) stays declared by the base class but unused.
   @state() private icon: SVGElement | HTMLTemplateResult | null = null;
 
-  // Shoelace's base element declares `lang` and `dir` as reactive properties with no initial value and no reflection,
-  // which also makes them observed attributes. Without the `lang` declaration, `lang` would be the native one, which
-  // reflects: assigning it would change the attribute and reading it would give '' instead of undefined. Core declares
-  // `dir` as a reactive property whose getter computes the direction (`ltr` or `rtl`) when it is unset or `auto`;
-  // Shoelace's returns the value as set (undefined when unset), so the accessor is replaced.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep core's
-  // declared type, because TypeScript does not let a subclass widen an inherited property's read type; at runtime it
-  // returns whatever was set.
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
-
-  private shoelaceDir?: string;
-
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.shoelaceDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
-
   public override set dir(value: string) {
-    this.shoelaceDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
 
   /** The name of the icon to draw. Available names depend on the icon library being used. */
@@ -110,10 +98,6 @@ export class VelcroIcon extends CoreIcon {
    */
   @property() public override url?: string;
 
-  // Shoelace restores a reflected property's initial value when its attribute is removed (see attributeChangedCallback).
-  private hasRecordedInitialProperties = false;
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-
   public override connectedCallback() {
     super.connectedCallback();
     watchIcon(this);
@@ -124,34 +108,10 @@ export class VelcroIcon extends CoreIcon {
     unwatchIcon(this);
   }
 
-  // Records the reflected properties' values the first time any attribute changes (during upgrade, before the
-  // attribute values are applied), so that removing a reflected attribute later restores that value instead of
-  // leaving the property null. Same timing and rule as Shoelace's base element.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroIcon).elementProperties.forEach((options, prop) => {
-        // Reflection is checked first, as upstream does, so that a non-reflected property's getter is not read here.
-        if (options.reflect) {
-          const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-          if (current != null) {
-            this.initialReflectedProperties.set(prop as string, current);
-          }
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   // Core's willUpdate resolves core's own icon set on every update; Velcro resolves icons in setIcon() instead, so core's
   // is not called. Async only to match core's signature; nothing is awaited, so the body runs before render.
   protected override async willUpdate(changed?: PropertyValues<this>) {
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed?.has(prop as keyof VelcroIcon) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   // Shoelace's `@watch(['name', 'src', 'library'])` and `@watch('label')`, in the order Shoelace's decorators wrap

@@ -289,7 +289,8 @@ test('no public methods beyond the Lit and core base, no upstream Shoelace runti
   const { frame, requests } = await openExample(page);
   const own = await frame.locator('#demo-default').evaluate(el => {
     const proto = Object.getPrototypeOf(el);
-    return Object.getOwnPropertyNames(proto).filter(n => n !== 'constructor').sort();
+    return [...new Set([proto, Object.getPrototypeOf(proto)].flatMap(p => Object.getOwnPropertyNames(p)))]
+      .filter(n => n !== 'constructor').sort();
   });
   expect(own).toEqual(['date', 'day', 'era', 'hour', 'hourFormat', 'lang', 'minute', 'month', 'render', 'second', 'timeZone', 'timeZoneName', 'weekday', 'willUpdate', 'year'].sort());
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);

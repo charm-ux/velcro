@@ -12,7 +12,7 @@ interface CompatOptions {
   reflected?: boolean | 'read-all';
 }
 
-const initialValues = new WeakMap<CharmElement, { values: Map<PropertyKey, unknown>; recorded: boolean }>();
+const initialValues = new WeakMap<HTMLElement, { values: Map<PropertyKey, unknown>; recorded: boolean }>();
 const directions = new WeakMap<CharmElement, string>();
 
 /**
@@ -69,9 +69,9 @@ export function ShoelaceCompat<T extends typeof CharmElement>(Base: T, options: 
  * Called at the component's existing willUpdate restoration point. Some components intentionally bypass their
  * Core parent's willUpdate; keeping this explicit preserves that ordering and does not re-enable suppressed logic.
  */
-export function restoreReflectedProperties(element: CharmElement, changed: PropertyValues): void {
-  const properties = element as CharmElement & Record<PropertyKey, unknown>;
+export function restoreReflectedProperties(element: HTMLElement, changed?: PropertyValues): void {
+  const properties = element as HTMLElement & Record<PropertyKey, unknown>;
   initialValues.get(element)?.values.forEach((value, key) => {
-    if (changed.has(key) && properties[key] == null) properties[key] = value;
+    if (changed?.has(key) && properties[key] == null) properties[key] = value;
   });
 }

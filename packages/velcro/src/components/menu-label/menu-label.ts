@@ -5,6 +5,7 @@
 import { html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat } from '../../internal/shoelace-compat.js';
 import styles from './menu-label.styles.js';
 
 /**
@@ -14,6 +15,8 @@ import styles from './menu-label.styles.js';
  * Velcro extension inherited from the core base element and kept: the non-bubbling `ready` event, emitted on the first
  * update. Shoelace's menu label has no events.
  *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
+ *
  * @tag sl-menu-label
  * @status prototype
  *
@@ -21,35 +24,24 @@ import styles from './menu-label.styles.js';
  *
  * @csspart base - The component's base wrapper.
  */
-export class VelcroMenuLabel extends CharmElement {
+export class VelcroMenuLabel extends ShoelaceCompat(CharmElement, { lang: true, dir: true }) {
   public static override baseName = 'menu-label';
 
   // The core base styles are replaced by Shoelace's own (see the styles file). Core's add a `:host([hidden]) { display: none
   // !important }` rule that Shoelace does not have, which would change what the `hidden` attribute does here.
   public static override styles = [styles];
 
-  private velcroDir?: string;
-
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   protected override render() {
     return html` <slot part="base" class="menu-label"></slot> `;

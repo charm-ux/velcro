@@ -9,6 +9,7 @@ import { html, type PropertyValues } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { CoreAvatar } from '@charm-ux/core/dist/components/avatar/avatar.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { defineVelcroComponent, type VelcroComponentConstructor } from '../../utilities/registration.js';
 import { VelcroIcon } from '../icon/class.js';
 import styles from './avatar.styles.js';
@@ -19,6 +20,8 @@ import styles from './avatar.styles.js';
  * dependency `<sl-icon>` (Velcro's) when no element owns that tag yet, so the class-only entry needs no extra step.
  *
  * Velcro extension inherited from core and kept: the non-bubbling `ready` event, emitted on the first update.
+ *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
  *
  * @tag sl-avatar
  * @status prototype
@@ -35,7 +38,7 @@ import styles from './avatar.styles.js';
  *
  * @cssproperty [--size=3rem] - The size of the avatar.
  */
-export class VelcroAvatar extends CoreAvatar {
+export class VelcroAvatar extends ShoelaceCompat(CoreAvatar, { lang: true, dir: true, reflected: 'read-all' }) {
   // Core's styles are replaced by Shoelace's own (see the styles file). Core's avatar styles make the host
   // `position: relative` and size the core markup with `--avatar-*` properties, and core's base styles add
   // `:host([hidden]) { display: none !important }`, focus outlines and form-control resets. Shoelace's avatar has none
@@ -57,26 +60,7 @@ export class VelcroAvatar extends CoreAvatar {
     for (const component of VelcroAvatar.shoelaceDependencies) defineVelcroComponent(component);
   }
 
-  // Shoelace's base element restores a reflected property's initial value when its attribute is removed (see
-  // attributeChangedCallback). `shape` is the only reflected property here.
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-  private hasRecordedInitialProperties = false;
-
   @state() private hasError = false;
-
-  // Shoelace's base element declares `lang` and `dir` as reactive properties with no initial value and no reflection,
-  // which also makes them observed attributes. Without the `lang` declaration, `lang` would be the native one, which
-  // reflects: assigning it would change the attribute and reading it would give '' instead of undefined. Core declares
-  // `dir` as a reactive property whose getter computes the direction (`ltr` or `rtl`) when it is unset or `auto`;
-  // Shoelace's returns the value as set (undefined when unset), so the accessor is replaced.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep core's
-  // declared type, because TypeScript does not let a subclass widen an inherited property's read type; at runtime it
-  // returns whatever was set.
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
-
-  private shoelaceDir?: string;
 
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
@@ -84,11 +68,10 @@ export class VelcroAvatar extends CoreAvatar {
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.shoelaceDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
-
   public override set dir(value: string) {
-    this.shoelaceDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
 
   // Core declares `image`, `label` and `initials` as reflected and undefined by default. Shoelace's are not reflected and
@@ -113,30 +96,9 @@ export class VelcroAvatar extends CoreAvatar {
   @property({ reflect: true })
   public shape: 'circle' | 'square' | 'rounded' = 'circle';
 
-  // Records the reflected properties' values the first time any attribute changes (during upgrade, before the
-  // attribute values are applied), so that removing a reflected attribute later restores that value instead of
-  // leaving the property null. Same timing and rule as Shoelace's base element.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroAvatar).elementProperties.forEach((options, prop) => {
-        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-        if (options.reflect && current != null) {
-          this.initialReflectedProperties.set(prop as string, current);
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroAvatar) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
     // Shoelace's `@watch('image')`: a new image resets the error state, so the next image is tried. It runs before the
     // render of the same update, as Shoelace's watcher does.
     if (changed.has('image') && changed.get('image') !== this.image) {

@@ -11,6 +11,7 @@ import { property, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
 import { CoreAlert } from '@charm-ux/core/dist/components/alert/alert.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { animateTo, stopAnimations } from '../../internal/animate.js';
 import { blurActiveElement } from '../../internal/close-active-element.js';
 import { waitForEvent } from '../../internal/event.js';
@@ -35,6 +36,8 @@ import styles from './alert.styles.js';
  * core `dismissible`, `closeLabel` (`closelabel`), `heading` and `politeness` properties are accepted but have no
  * effect: the close button follows `closable`, its label is the localized `close` term, there is no heading, and the
  * message is always `aria-live="polite"`, as in Shoelace.
+ *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
  *
  * @tag sl-alert
  * @status prototype
@@ -63,7 +66,7 @@ import styles from './alert.styles.js';
  * @animation alert.show - The animation to use when showing the alert.
  * @animation alert.hide - The animation to use when hiding the alert.
  */
-export class VelcroAlert extends CoreAlert {
+export class VelcroAlert extends ShoelaceCompat(CoreAlert, { lang: true, dir: true, reflected: true }) {
   // Only Shoelace's styles: core's alert styles and tokens do not apply.
   public static override styles = [styles];
 
@@ -107,10 +110,6 @@ export class VelcroAlert extends CoreAlert {
   // the close button's label. The animations' direction is resolved by animationDirection(), as Shoelace's controller
   // resolves it.
   private readonly localize = new LocalizeController(this);
-
-  private hasRecordedInitialProperties = false;
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-  private velcroDir?: string;
   private velcroOpen = false;
 
   public constructor() {
@@ -118,21 +117,16 @@ export class VelcroAlert extends CoreAlert {
     for (const component of VelcroAlert.shoelaceDependencies) defineVelcroComponent(component);
   }
 
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
 
   /**
@@ -142,12 +136,8 @@ export class VelcroAlert extends CoreAlert {
    * shared controller reads the host attribute instead, which misses a direction set only through the property.
    */
   private animationDirection(): string {
-    return `${this.velcroDir || documentDir()}`.toLowerCase();
+    return `${super.dir || documentDir()}`.toLowerCase();
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   @query('[part~="base"]')
   public override base!: HTMLElement;
@@ -235,32 +225,9 @@ export class VelcroAlert extends CoreAlert {
     CharmElement.prototype.connectedCallback.call(this);
   }
 
-  // Records the reflected properties' values the first time any attribute changes (during upgrade, before the
-  // attribute values are applied), so that removing a reflected attribute later restores that value instead of
-  // leaving the property null. Same timing and rule as Shoelace's base element.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroAlert).elementProperties.forEach((options, prop) => {
-        // Reflection is checked first, as upstream does, so that a non-reflected property's getter is not read here.
-        if (!options.reflect) return;
-        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-        if (current != null) {
-          this.initialReflectedProperties.set(prop as string, current);
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroAlert) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   protected override update(changed: PropertyValues<this>) {

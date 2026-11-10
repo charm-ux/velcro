@@ -13,6 +13,7 @@ import { classMap } from 'lit/directives/class-map.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { documentDir } from '../../internal/localize.js';
 import { clamp } from '../../internal/math.js';
 import { LocalizeController } from '../../utilities/localize.js';
@@ -29,6 +30,8 @@ import styles from './rating.styles.js';
  *
  * Velcro extension inherited from the core base element and kept: the non-bubbling `ready` event, emitted on the first
  * update.
+ *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
  *
  * @tag sl-rating
  * @status prototype
@@ -47,7 +50,7 @@ import styles from './rating.styles.js';
  * @cssproperty --symbol-size - The size of symbols.
  * @cssproperty --symbol-spacing - The spacing to use around symbols.
  */
-export class VelcroRating extends CharmElement {
+export class VelcroRating extends ShoelaceCompat(CharmElement, { lang: true, dir: true, reflected: true }) {
   public static override baseName = 'rating';
 
   // Core's base styles are replaced by Shoelace's own (see the styles file).
@@ -72,14 +75,6 @@ export class VelcroRating extends CharmElement {
   // symbols' clipping and the keyboard and pointer direction (see `direction()`).
   private readonly localize = new LocalizeController(this);
 
-  private velcroDir?: string;
-
-  // Shoelace's base element restores a reflected property's initial value when it becomes null or undefined (see
-  // attributeChangedCallback). `readonly` and `disabled` are the reflected properties here.
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-
-  private hasRecordedInitialProperties = false;
-
   // Shoelace's public `@query('.rating')` field: the `base` element.
   @query('.rating')
   public rating!: HTMLElement;
@@ -87,26 +82,17 @@ export class VelcroRating extends CharmElement {
   @state() private hoverValue = 0;
   @state() private isHovering = false;
 
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   /** A label that describes the rating to assistive devices. */
   @property()
@@ -149,33 +135,9 @@ export class VelcroRating extends CharmElement {
   @property()
   public getSymbol: (value: number) => string = () => '<sl-icon name="star-fill" library="system"></sl-icon>';
 
-  // Records the reflected properties' values the first time any attribute changes (during upgrade, before the
-  // attribute values are applied), so that a reflected property set to null or undefined later (for a boolean, by
-  // assignment; removing its attribute already yields false) gets that value back instead. Same timing and rule as
-  // Shoelace's base element.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroRating).elementProperties.forEach((options, prop) => {
-        if (options.reflect) {
-          const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-          if (current != null) {
-            this.initialReflectedProperties.set(prop as string, current);
-          }
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroRating) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   // Shoelace's controller resolves the direction from the host's `dir` property, else the document's snapshot (`<html
@@ -183,7 +145,7 @@ export class VelcroRating extends CharmElement {
   // direction set only through the property; this component's `dir` returns what was set, by attribute or property, so
   // it resolves the direction the way Shoelace does.
   private direction() {
-    return `${this.velcroDir || documentDir()}`.toLowerCase();
+    return `${super.dir || documentDir()}`.toLowerCase();
   }
 
   private getValueFromMousePosition(event: MouseEvent) {

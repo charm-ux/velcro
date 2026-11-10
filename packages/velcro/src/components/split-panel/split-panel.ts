@@ -7,6 +7,7 @@ import { html, type PropertyValues } from 'lit';
 import { property, query } from 'lit/decorators.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { drag } from '../../internal/drag.js';
 import { LocalizeController } from '../../utilities/localize.js';
 import { clamp } from '../../internal/math.js';
@@ -35,6 +36,8 @@ export const SNAP_NONE = () => null;
  * Split panels display two adjacent panels, allowing the user to reposition them.
  * API modelled on Shoelace's `sl-split-panel`. There is no core counterpart, so it extends the core base element.
  *
+ * @property {string} lang
+ *
  * @tag sl-split-panel
  * @status prototype
  *
@@ -55,7 +58,7 @@ export const SNAP_NONE = () => null;
  * @cssproperty [--min=0] - The minimum allowed size of the primary panel.
  * @cssproperty [--max=100%] - The maximum allowed size of the primary panel.
  */
-export class VelcroSplitPanel extends CharmElement {
+export class VelcroSplitPanel extends ShoelaceCompat(CharmElement, { lang: true, reflected: 'read-all' }) {
   public static override baseName = 'split-panel';
 
   // Core's base styles are replaced by Shoelace's own (see the styles file): they would hide the host with the `hidden`
@@ -69,16 +72,8 @@ export class VelcroSplitPanel extends CharmElement {
   private resizeObserver!: ResizeObserver;
   private size!: number;
 
-  // Shoelace restores a reflected property's initial value when its attribute is removed (see attributeChangedCallback).
-  private hasRecordedInitialProperties = false;
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-
   @query('.divider')
   public divider!: HTMLElement;
-
-  // `lang` is declared reactive, as in Shoelace, so a language change re-renders. Like Shoelace it has no initial value (undefined).
-  @property()
-  public override lang!: string;
 
   /**
    * The current position of the divider from the primary panel's edge as a percentage 0-100. Defaults to 50% of the
@@ -193,30 +188,9 @@ export class VelcroSplitPanel extends CharmElement {
     this.resizeObserver?.unobserve(this);
   }
 
-  // Records the reflected properties' values the first time any attribute changes (during upgrade, before the
-  // attribute values are applied), so that removing a reflected attribute later restores that value instead of
-  // leaving the property null. Same timing and rule as Shoelace's base element.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroSplitPanel).elementProperties.forEach((options, prop) => {
-        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-        if (options.reflect && current != null) {
-          this.initialReflectedProperties.set(prop as string, current);
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroSplitPanel) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   // Shoelace's `@watch('position')`, `@watch('positionInPixels')` and `@watch('vertical')` handlers run before render, and
