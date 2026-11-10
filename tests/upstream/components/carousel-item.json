@@ -1,0 +1,10 @@
+{
+  "files": {
+    "src/components/carousel-item/carousel-item.test.ts": "9c78da351ad227030040aeee91c7fbc8c01ae9f6df4fd79714e7f0ed4954496d"
+  },
+  "tests": [
+    "<sl-carousel-item> > should render a component",
+    "<sl-carousel-item> > should pass accessibility tests"
+  ],
+  "knownFailures": []
+}
