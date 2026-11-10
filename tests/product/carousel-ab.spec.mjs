@@ -31,6 +31,13 @@ async function openPage(page, lib, how, section) {
   }, lib);
   await navigated;
   await inner.waitForLoadState('load');
+  // With 'srcdoc+reload' the document set above is then reloaded, as carousel.spec.mjs reloads the example frame.
+  if (how === 'srcdoc+reload') {
+    const again = page.waitForEvent('framenavigated', f => f === inner);
+    await inner.evaluate(() => location.reload());
+    await again;
+    await inner.waitForLoadState('load');
+  }
   const frame = page.frameLocator(`iframe.example[title="${title(section)}"]`);
   await expect(frame.locator('sl-carousel').first()).toBeVisible();
   await frame.locator('body').evaluate(() => Promise.all(['sl-carousel', 'sl-carousel-item', 'sl-icon'].map(t => customElements.whenDefined(t))));
@@ -41,8 +48,10 @@ async function openPage(page, lib, how, section) {
   return frame;
 }
 
-for (const [lib, how] of [['velcro', 'reload'], ['velcro', 'srcdoc'], ['shoelace', 'srcdoc']]) {
-  for (const run of [1, 2, 3]) test(`carousel A/B (${lib}, ${how}) #${run}: the opening docs example's aria-busy returns to false after it loads`, async ({ page }) => {
+// Round 2: in round 1 (CI Firefox) the opening example did not settle only with 'reload' (2 of 3), and settled with 'srcdoc' for both
+// libraries (3 of 3 each); the go-to tests passed for both in every engine. So both libraries now get the reload too, five runs each.
+for (const [lib, how] of [['velcro', 'reload'], ['velcro', 'srcdoc+reload'], ['shoelace', 'srcdoc+reload']]) {
+  for (const run of [1, 2, 3, 4, 5]) test(`carousel A/B (${lib}, ${how}) #${run}: the opening docs example's aria-busy returns to false after it loads`, async ({ page }) => {
     const frame = await openPage(page, lib, how, 'Default');
     // The intersection observer has reported the first slide (after the leading clone) in view.
     await expect.poll(() => frame.locator('#demo-default').evaluate(el => {
@@ -58,40 +67,5 @@ for (const [lib, how] of [['velcro', 'reload'], ['velcro', 'srcdoc'], ['shoelace
     expect(busy.scrolling).toBe(false);
     expect(busy.busy).toBe('false');
     expect(busy.active).toBe(0);
-  });
-
-  test(`carousel A/B (${lib}, ${how}): a go-to before the first intersection report makes activeSlide go 3, then 0, then back to 3`, async ({ page }) => {
-    const frame = await openPage(page, lib, how, 'Gallery Example');
-    const r = await frame.locator('body').evaluate(async body => {
-      const host = document.createElement('div');
-      host.innerHTML = `<sl-carousel id="ab" navigation loop>${[1, 2, 3, 4, 5].map(i => `<sl-carousel-item>Slide ${i}</sl-carousel-item>`).join('')}</sl-carousel>`;
-      body.prepend(host);
-      const el = host.firstElementChild;
-      const seen = [];
-      el.addEventListener('sl-slide-change', e => seen.push(e.detail.index));
-      await el.updateComplete;
-      // What a thumbnail click does, before the intersection observer has reported anything.
-      const beforeReport = !el.querySelector('.--in-view');
-      el.goToSlide(3);
-      const end = Date.now() + 6000;
-      let quietSince = Date.now();
-      let last = '';
-      while (Date.now() < end) {
-        await new Promise(resolve => setTimeout(resolve, 50));
-        const now = `${el.activeSlide}|${el.scrolling}|${seen.length}`;
-        if (now !== last) { last = now; quietSince = Date.now(); }
-        if (!el.scrolling && Date.now() - quietSince > 1000) break;
-      }
-      return { beforeReport, seen, active: el.activeSlide, scrolling: el.scrolling };
-    });
-    console.log(`${test.info().project.name} ${lib} ${how} bounce: ${JSON.stringify(r)}`);
-    expect(r.beforeReport).toBe(true);
-    expect(r.active).toBe(3);
-    expect(r.scrolling).toBe(false);
-    // The bounce: 3 first, then 0 (the observer's first report, from the start position), and 3 again at rest. Engines can
-    // report slides passed on the way back up (Chromium: 3, 0, 1, 2, 3).
-    expect(r.seen[0]).toBe(3);
-    expect(r.seen[1]).toBe(0);
-    expect(r.seen.at(-1)).toBe(3);
   });
 }
