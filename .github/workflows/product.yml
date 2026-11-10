@@ -146,7 +146,12 @@ jobs:
           echo "core pattern: $(sysctl -n kernel.core_pattern 2>&1)"
           echo "nproc: $(nproc); nofile: $(ulimit -n)"
           df -k --output=target,size | grep -i shm || true
-          echo "fonts: $(fc-list | wc -l)"
+          echo "cpu: $(lscpu | sed -n 's/^Model name: *//p')"
+          for i in 1 2 3; do node -e 'const c=require("crypto");const t=process.hrtime.bigint();let h=Buffer.alloc(32);for(let i=0;i<300000;i++)h=c.createHash("sha256").update(h).digest();let x=0;for(let i=0;i<3e7;i++)x=(x*31+i)%1000003;console.log("bench ms",Number((process.hrtime.bigint()-t)/1000000n))'; done
+          t0=$(date +%s%N); n=$(fc-list | wc -l); t1=$(date +%s%N); n2=$(fc-list | wc -l); t2=$(date +%s%N)
+          echo "fonts: $n; fc-list ms cold $(( (t1-t0)/1000000 )) warm $(( (t2-t1)/1000000 ))"
+          for f in sans-serif serif monospace system-ui; do echo "fc-match $f: $(fc-match "$f")"; done
+          echo "font packages: $(dpkg-query -W -f='${Package}\n' | grep -E '^(x?fonts-|ttf-)' | sort | tr '\n' ' ')"
           dpkg-query -W -f='${Package} ${Version}\n' libegl-mesa0 libgbm1 libglib2.0-0t64 libgstreamer1.0-0 libicu74 libharfbuzz0b libfontconfig1 libwpe-1.0-1 libepoxy0 || true
           dir=$(ls -d "$PLAYWRIGHT_BROWSERS_PATH"/webkit-* | head -1)
           if [ -n "$dir" ]; then
@@ -249,7 +254,12 @@ jobs:
           echo "core pattern: $(sysctl -n kernel.core_pattern 2>&1)"
           echo "nproc: $(nproc); nofile: $(ulimit -n)"
           df -k --output=target,size | grep -i shm || true
-          echo "fonts: $(fc-list | wc -l)"
+          echo "cpu: $(lscpu | sed -n 's/^Model name: *//p')"
+          for i in 1 2 3; do node -e 'const c=require("crypto");const t=process.hrtime.bigint();let h=Buffer.alloc(32);for(let i=0;i<300000;i++)h=c.createHash("sha256").update(h).digest();let x=0;for(let i=0;i<3e7;i++)x=(x*31+i)%1000003;console.log("bench ms",Number((process.hrtime.bigint()-t)/1000000n))'; done
+          t0=$(date +%s%N); n=$(fc-list | wc -l); t1=$(date +%s%N); n2=$(fc-list | wc -l); t2=$(date +%s%N)
+          echo "fonts: $n; fc-list ms cold $(( (t1-t0)/1000000 )) warm $(( (t2-t1)/1000000 ))"
+          for f in sans-serif serif monospace system-ui; do echo "fc-match $f: $(fc-match "$f")"; done
+          echo "font packages: $(dpkg-query -W -f='${Package}\n' | grep -E '^(x?fonts-|ttf-)' | sort | tr '\n' ' ')"
           dpkg-query -W -f='${Package} ${Version}\n' libegl-mesa0 libgbm1 libglib2.0-0t64 libgstreamer1.0-0 libicu74 libharfbuzz0b libfontconfig1 libwpe-1.0-1 libepoxy0 || true
           dir=$(ls -d "$PLAYWRIGHT_BROWSERS_PATH"/webkit-* | head -1)
           if [ -n "$dir" ]; then
