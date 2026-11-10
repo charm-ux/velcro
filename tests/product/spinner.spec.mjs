@@ -12,7 +12,7 @@ async function openExample(page) {
   const frame = page.frameLocator('iframe.example');
   await expect(frame.locator('#demo-default')).toBeVisible();
   await frame.locator('#demo-default').evaluate(() => customElements.whenDefined('sl-spinner'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -52,6 +52,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
 
 test('sl-spinner registers inside the example document, and separately in the docs page through the client entry', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   // The docs page loads the same runtime through its client entry (app-main.ts) into its own, separate registry.
   expect(await page.evaluate(() => customElements.whenDefined('sl-spinner').then(ctor => typeof ctor))).toBe('function');
   expect(await frame.locator('body').evaluate(() => customElements.get('sl-spinner') !== undefined)).toBe(true);
@@ -257,6 +258,7 @@ test('dynamically created spinner renders, inherits nothing from core label prop
 
 test('no upstream Shoelace runtime is requested or defined; all requests stay on the local origin', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

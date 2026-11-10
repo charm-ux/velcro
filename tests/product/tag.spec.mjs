@@ -25,7 +25,7 @@ async function openPage(page) {
   const frame = page.frameLocator(`iframe.example[title="${title('Default')}"]`);
   await expect(frame.locator('sl-tag').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-tag'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests, example: section => page.frameLocator(`iframe.example[title="${title(section)}"]`) };
 }
 
@@ -111,6 +111,7 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
 
 test('sl-tag registers inside the example document as the exported class, with sl-icon-button and sl-icon, no core marker and no ch-* definitions', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   const info = await frame.locator('body').evaluate(() => {
     const ctor = customElements.get('sl-tag');
     const el = document.querySelector('sl-tag');
@@ -222,6 +223,8 @@ test('pill: the radius is the pill token on every size, and nothing else changes
 test('removable example: a remove button that is an sl-icon-button, with the x-lg system icon, the localized Remove label, tabindex -1 and the exported base part', async ({ page }) => {
   const { example } = await openPage(page);
   const frame = example('Removable');
+  // The icon fetches and draws its SVG after its first update (sl-icon's setIcon), so the draw is awaited before the snapshot.
+  await expect.poll(() => frame.locator('sl-tag').first().evaluate(el => Boolean(el.shadowRoot.querySelector('sl-icon-button')?.shadowRoot?.querySelector('sl-icon')?.shadowRoot?.querySelector('svg')))).toBe(true);
   const r = await frame.locator('sl-tag').first().evaluate(async el => {
     const button = el.shadowRoot.querySelector('sl-icon-button');
     await button.updateComplete;
@@ -613,6 +616,7 @@ test('removing a reflected attribute restores the values the properties held at 
 
 test('the examples render in their own documents in Shoelace\'s order', async ({ page }) => {
   const { requests } = await openPage(page);
+  await documentsLoaded(page);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual(SECTIONS.map(title));
   const counts = [];
@@ -746,6 +750,7 @@ test.describe('React wrapper', () => {
 
 test('no upstream Shoelace runtime is requested or defined; no request leaves the local origin', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

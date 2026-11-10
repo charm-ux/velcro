@@ -21,7 +21,7 @@ async function openExample(page) {
     await Promise.all(['sl-menu-label', 'sl-menu', 'sl-menu-item'].map(t => customElements.whenDefined(t)));
     await Promise.all([...document.querySelectorAll('sl-menu, sl-menu-item, sl-menu-label')].map(el => el.updateComplete));
   });
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -64,6 +64,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the quirk
 
 test('sl-menu-label registers inside the example document as the exported class, with no core marker and no ch-* definitions', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   // The docs page loads the same runtime through its client entry (app-main.ts) into its own, separate registry.
   expect(await page.evaluate(() => customElements.whenDefined('sl-menu-label').then(ctor => typeof ctor))).toBe('function');
   const info = await frame.locator('body').evaluate(() => {
@@ -452,6 +453,7 @@ test.describe('React example', () => {
 
 test('no upstream Shoelace runtime is requested or defined; all requests stay on the local origin', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

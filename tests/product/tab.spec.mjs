@@ -22,7 +22,7 @@ async function openPage(page) {
     await Promise.all(['sl-tab-group', 'sl-tab', 'sl-tab-panel'].map(t => customElements.whenDefined(t)));
     while (!document.querySelector('sl-tab[active]')) await new Promise(r => setTimeout(r, 20));
   });
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -54,6 +54,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the examp
 
 test('sl-tab registers as the exported class, with sl-icon-button and sl-icon; the observed attributes are Shoelace\'s (plus tabindex), without core\'s selected', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   const info = await frame.locator('#demo-default').evaluate(el => {
     const ctor = customElements.get('sl-tab');
     return {
@@ -298,6 +299,7 @@ test('class-only entry: importing defines nothing; constructing a tab defines Ve
 
 test('no upstream Shoelace runtime is requested or defined; no request leaves the local origin', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

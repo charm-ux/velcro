@@ -40,7 +40,6 @@ async function openPage(page, section = 'Default') {
   const frame = page.frameLocator(`iframe.example[title="${title(section)}"]`);
   await expect(frame.locator('sl-tab-group').first()).toBeVisible();
   await settled(frame);
-  await documentsLoaded(page);
   // The tab group selects its first tab only once it intersects the viewport (Shoelace's intersection observer), so an
   // example frame is scrolled into view before it is used.
   const example = async s => {
@@ -49,6 +48,7 @@ async function openPage(page, section = 'Default') {
     await settled(f);
     return f;
   };
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests, example };
 }
 
@@ -85,6 +85,7 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
 
 test('sl-tab-group registers as the exported class, with sl-icon-button, sl-icon and sl-resize-observer, no core marker and no ch-* definitions', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   const info = await frame.locator('#demo-default').evaluate(el => {
     const ctor = customElements.get('sl-tab-group');
     return {
@@ -409,6 +410,7 @@ test('accessibility tree (Playwright ARIA snapshot): a tablist of tabs, the acti
 
 test('the examples render in their own documents in Shoelace\'s order', async ({ page }) => {
   const { requests } = await openPage(page);
+  await documentsLoaded(page);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual(SECTIONS.map(title));
   const counts = [];
@@ -424,6 +426,7 @@ test('the examples render in their own documents in Shoelace\'s order', async ({
 
 test('no upstream Shoelace runtime is requested or defined; no request leaves the local origin', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

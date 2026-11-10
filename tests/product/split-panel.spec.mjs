@@ -14,7 +14,7 @@ async function openExample(page, name = 'Overview') {
   const frame = page.frameLocator(`iframe.example[title="Split Panel example: ${name}"]`);
   await expect(frame.locator('sl-split-panel').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-split-panel'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -85,6 +85,7 @@ test('docs page is prerendered with Velcro branding, prototype status, quirks an
 
 test('sl-split-panel registers inside the example document, and separately in the docs page through the client entry', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(await page.evaluate(() => customElements.whenDefined('sl-split-panel').then(ctor => typeof ctor))).toBe('function');
   expect(await frame.locator('body').evaluate(() => customElements.get('sl-split-panel') !== undefined)).toBe(true);
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
@@ -864,6 +865,7 @@ test('touch: dragging the divider with a touch moves it (real touch input in Chr
 
 test('no upstream Shoelace runtime is requested or defined; all requests stay on the local origin', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

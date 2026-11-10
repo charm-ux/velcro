@@ -29,7 +29,7 @@ async function openPage(page) {
   const frame = page.frameLocator(`iframe.example[title="${title('Default')}"]`);
   await expect(frame.locator('sl-copy-button').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-copy-button'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests, example: section => page.frameLocator(`iframe.example[title="${title(section)}"]`) };
 }
 
@@ -81,6 +81,7 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
 
 test('sl-copy-button registers inside the example document as the exported class, with sl-tooltip, sl-popup and sl-icon, no core marker and no ch-* definitions', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   const info = await frame.locator('body').evaluate(() => {
     const ctor = customElements.get('sl-copy-button');
     const el = document.querySelector('sl-copy-button');
@@ -105,6 +106,7 @@ test('sl-copy-button registers inside the example document as the exported class
 
 test('no upstream Shoelace runtime is requested or defined; no request leaves the local origin', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);
@@ -113,6 +115,7 @@ test('no upstream Shoelace runtime is requested or defined; no request leaves th
 
 test('the examples render in their own documents in Shoelace\'s order, and every example file of Shoelace\'s page is present', async ({ page }) => {
   const { requests, example } = await openPage(page);
+  await documentsLoaded(page);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual(SECTIONS.map(title));
   const counts = [];

@@ -24,7 +24,7 @@ async function openPage(page) {
   const frame = page.frameLocator(`iframe.example[title="${title('Default')}"]`);
   await expect(frame.locator('sl-icon-button').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-icon-button'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests, example: section => page.frameLocator(`iframe.example[title="${title(section)}"]`) };
 }
 
@@ -88,6 +88,7 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
 
 test('sl-icon-button registers inside the example document as the exported class, with sl-icon, no core marker and no ch-* definitions', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   const info = await frame.locator('body').evaluate(() => {
     const ctor = customElements.get('sl-icon-button');
     const el = document.querySelector('sl-icon-button');
@@ -106,6 +107,8 @@ test('sl-icon-button registers inside the example document as the exported class
 
 test('default: a base part that is a native button around the aria-hidden gear sl-icon', async ({ page }) => {
   const { frame } = await openPage(page);
+  // The icon fetches and draws its SVG after its first update (sl-icon's setIcon), so the draw is awaited before the snapshot.
+  await expect.poll(() => frame.locator('#demo-default').evaluate(el => Boolean(el.shadowRoot.querySelector('sl-icon')?.shadowRoot?.querySelector('svg')))).toBe(true);
   const r = await frame.locator('#demo-default').evaluate(async el => {
     const icon = el.shadowRoot.querySelector('sl-icon');
     await icon.updateComplete;
@@ -291,6 +294,7 @@ test('click(), focus(options) and blur() act on the inner native button, passing
 
 test('link buttons example: an anchor with the href, target, noreferrer noopener rel and label; no request until it is clicked', async ({ page }) => {
   const { example, requests } = await openPage(page);
+  await documentsLoaded(page);
   const frame = example('Link Buttons');
   await expect(frame.locator('sl-icon-button')).toBeVisible();
   const r = await frame.locator('sl-icon-button').evaluate(el => {
@@ -499,12 +503,14 @@ test('icon attributes: name, library and src go to the inner sl-icon, which draw
     <sl-icon-button id="s" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M0 0h16v16H0z'/%3E%3C/svg%3E" label="s"></sl-icon-button>
     <sl-icon-button id="lib" library="system" name="chevron-down" label="lib"></sl-icon-button>
   </div>`);
+  // Each icon fetches and draws its SVG after its first update (sl-icon's setIcon); the draws are awaited before the read.
+  await expect.poll(() => frame.locator('#ia sl-icon-button').evaluateAll(els => els.map(el => Boolean(el.shadowRoot.querySelector('sl-icon')?.shadowRoot?.querySelector('svg')))))
+    .toEqual([true, true, true]);
   const r = await frame.locator('#ia').evaluate(async wrap => {
     const out = {};
     for (const el of wrap.querySelectorAll('sl-icon-button')) {
       const icon = el.shadowRoot.querySelector('sl-icon');
       await icon.updateComplete;
-      for (let i = 0; i < 50 && !icon.shadowRoot.querySelector('svg'); i++) await new Promise(resolve => setTimeout(resolve, 20));
       out[el.id] = { attrs: icon.getAttributeNames().sort(), drawn: Boolean(icon.shadowRoot.querySelector('svg')), props: [icon.name, icon.library, icon.src?.slice(0, 15)] };
     }
     // A later change reaches the icon.
@@ -620,6 +626,7 @@ test('properties: Shoelace\'s defaults, only disabled reflects, and the inherite
 
 test('the examples render in their own documents in Shoelace\'s order', async ({ page }) => {
   const { requests } = await openPage(page);
+  await documentsLoaded(page);
   const titles = await page.locator('iframe.example').evaluateAll(frames => frames.map(f => f.title));
   expect(titles).toEqual(SECTIONS.map(title));
   const counts = [];
@@ -774,6 +781,7 @@ test.describe('React wrapper', () => {
 
 test('no upstream Shoelace runtime is requested or defined; no request leaves the local origin', async ({ page }) => {
   const { frame, requests } = await openPage(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

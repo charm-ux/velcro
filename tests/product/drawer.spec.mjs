@@ -43,7 +43,7 @@ async function openExample(page, name = 'Overview') {
   const frame = frameFor(page, name);
   await expect(frame.locator('sl-drawer').first()).toBeAttached();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-drawer'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -159,6 +159,7 @@ test('docs page is prerendered with Velcro branding, prototype status, every Sho
 
 test('sl-drawer registers inside the example document as the exported class, with sl-icon-button and sl-icon, and no ch-* definitions', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   const info = await frame.locator('body').evaluate(() => {
     const ctor = customElements.get('sl-drawer');
     const el = document.querySelector('sl-drawer');
@@ -875,6 +876,7 @@ test('Preventing the Drawer from Closing example: an overlay click is denied; th
 
 test('no upstream Shoelace runtime is requested or defined; all requests stay on the local origin', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

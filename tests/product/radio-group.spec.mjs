@@ -28,10 +28,10 @@ async function openExample(page, title = 'Overview') {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
   await openDocs(page, PAGE);
-  await documentsLoaded(page);
   const frame = frameFor(page, title);
   await expect(frame.locator('sl-radio-group').first()).toBeAttached();
   await settle(frame.locator('body'));
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -85,6 +85,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the quirk
 
 test('sl-radio-group registers as the exported class with no core marker, tab stop or ch-* definitions; sl-button-group is registered too', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
   const r = await frame.locator('#demo-default').evaluate(el => ({
     ctor: customElements.get('sl-radio-group') === el.constructor,
@@ -675,6 +676,7 @@ test('watch hooks run as Shoelace\'s @watch decorators do: value (from the first
 
 test('every example renders its groups and radios and none requests the Shoelace runtime', async ({ page }) => {
   const { requests } = await openExample(page);
+  await documentsLoaded(page);
   for (const [title] of EXAMPLES) {
     const frame = frameFor(page, title);
     await expect(frame.locator('sl-radio-group').first()).toBeVisible();

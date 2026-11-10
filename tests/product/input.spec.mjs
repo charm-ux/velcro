@@ -41,7 +41,7 @@ async function openExample(page, name = 'Overview') {
   const frame = frameFor(page, name);
   await expect(frame.locator('sl-input').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-input'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -95,6 +95,7 @@ test('docs page is prerendered with Velcro branding, prototype status and explic
 
 test('sl-input registers as the exported class with no core marker attribute and no ch-* definitions; sl-icon is Velcro\'s and not rendered until needed', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
   const r = await frame.locator('#demo-default').evaluate(el => ({
     ctor: customElements.get('sl-input') === el.constructor,
@@ -1246,6 +1247,7 @@ test('every docs example renders in its own document', async ({ page }) => {
 
 test('no upstream Shoelace runtime is requested or defined; all requests stay on the local origin', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

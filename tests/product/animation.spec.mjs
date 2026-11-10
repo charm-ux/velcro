@@ -23,7 +23,7 @@ async function openExample(page, name = 'Overview') {
   const frame = page.frameLocator(`iframe.example[title="Animation example: ${name}"]`);
   await expect(frame.locator('sl-animation').first()).toBeAttached();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-animation'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -93,6 +93,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the utili
 
 test('sl-animation registers as the exported class with no core marker and no ch-* definitions', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
   const r = await frame.locator('sl-animation').first().evaluate(el => ({
     ctor: customElements.get('sl-animation') === el.constructor,
@@ -804,6 +805,7 @@ test('on demand: clicking the button plays the animation once and play is remove
 
 test('no upstream Shoelace runtime is requested or defined; all requests stay on the local origin', async ({ page }) => {
   const { frame, requests } = await openExample(page, 'Animations & Easings');
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

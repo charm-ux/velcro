@@ -13,7 +13,7 @@ async function openExample(page, name = 'Overview') {
   const frame = page.frameLocator(`iframe.example[title="Button example: ${name}"]`);
   await expect(frame.locator('sl-button').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-button'));
-  await documentsLoaded(page);
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -30,6 +30,7 @@ test('docs page is prerendered with Velcro branding and prototype status', async
 
 test('sl-button registers inside the example document, and separately in the docs page through the client entry', async ({ page }) => {
   const { requests } = await openExample(page);
+  await documentsLoaded(page);
   // The docs page loads the same runtime through its client entry (app-main.ts) into its own, separate registry.
   expect(await page.evaluate(() => customElements.whenDefined('sl-button').then(ctor => typeof ctor))).toBe('function');
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
@@ -102,6 +103,7 @@ test('keyboard focus: Tab reaches the button, shows a focus ring, Enter/Space ac
 
 test('no upstream Shoelace runtime is requested or defined', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

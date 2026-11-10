@@ -39,10 +39,10 @@ async function openExample(page, title = 'Overview') {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
   await openDocs(page, PAGE);
-  await documentsLoaded(page);
   const frame = frameFor(page, title);
   await expect(frame.locator('sl-radio-button').first()).toBeAttached();
   await settle(frame.locator('body'));
+  // Rendering only: a test that reads the requests waits for the network to go quiet itself (documentsLoaded).
   return { frame, requests };
 }
 
@@ -77,6 +77,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the quirk
 
 test('sl-radio-button registers as the exported class with no core marker or ch-* definitions; the host has role presentation', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
   const r = await frame.locator('#demo-default').evaluate(el => ({
     ctor: customElements.get('sl-radio-button') === el.constructor,
@@ -318,6 +319,7 @@ test('inherited core ready event: dispatched once after the first update, not bu
 
 test('every example renders its radio buttons and none requests the Shoelace runtime', async ({ page }) => {
   const { requests } = await openExample(page);
+  await documentsLoaded(page);
   for (const [title] of EXAMPLES) {
     const frame = frameFor(page, title);
     await expect(frame.locator('sl-radio-button').first()).toBeVisible();
