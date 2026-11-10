@@ -2,6 +2,7 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { bundleExamples, docsDir, loadBundle, loadExamples } from './support/bundle.mjs';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 
@@ -526,11 +527,11 @@ test('submenu keyboard: Right, Enter and Space open it at once and focus the fir
   for (const key of ['ArrowRight', 'Enter', 'Space']) {
     await page.locator('#parent').focus();
     await page.keyboard.press(key);
-    expect(await focused(page)).toBe('child-1');
+    await expect.poll(() => focused(page)).toBe('child-1');
     expect(await open(page)).toBe(true);
     // Left: focus goes back to the parent and the submenu closes.
     await page.keyboard.press('ArrowLeft');
-    expect(await focused(page)).toBe('parent');
+    await expect.poll(() => focused(page)).toBe('parent');
     expect(await open(page)).toBe(false);
   }
   // None of these selected anything: Enter and Space on the parent open the submenu instead of selecting.
@@ -538,21 +539,24 @@ test('submenu keyboard: Right, Enter and Space open it at once and focus the fir
   // Down inside the submenu moves between nested items without leaving it.
   await page.locator('#parent').focus();
   await page.keyboard.press('ArrowRight');
+  await expect.poll(() => focused(page)).toBe('child-1');
   await page.keyboard.press('ArrowDown');
-  expect(await focused(page)).toBe('child-2');
+  await expect.poll(() => focused(page)).toBe('child-2');
   expect(await open(page)).toBe(true);
   await page.keyboard.press('Escape');
-  expect(await open(page)).toBe(false);
+  await expect.poll(() => open(page)).toBe(false);
   await page.locator('#parent').focus();
   await page.keyboard.press('ArrowRight');
+  await expect.poll(() => focused(page)).toBe('child-1');
   expect(await open(page)).toBe(true);
   await page.keyboard.press('Tab');
-  expect(await open(page)).toBe(false);
+  await expect.poll(() => open(page)).toBe(false);
   // Enter on a nested item selects it and closes the submenu.
   await page.locator('#parent').focus();
   await page.keyboard.press('ArrowRight');
+  await expect.poll(() => focused(page)).toBe('child-1');
   await page.keyboard.press('Enter');
-  expect(await page.evaluate(() => window.selects)).toEqual(['child-1']);
+  await expect.poll(() => page.evaluate(() => window.selects)).toEqual(['child-1']);
   await expect.poll(() => open(page)).toBe(false);
   expect(pageErrors).toEqual([]);
 });
@@ -604,7 +608,8 @@ test('a click on the parent item does nothing; focus leaving the item and its su
   // Disabling the parent removes the submenu listeners: the keyboard does not open it, and the click is suppressed.
   await page.evaluate(async () => { document.getElementById('parent').disabled = true; await document.getElementById('parent').updateComplete; });
   await page.locator('#parent').focus();
-  await page.keyboard.press('ArrowRight');
+  await recordKeys(page);
+  await pressReceived(page, page, 'ArrowRight');
   expect(await open(page)).toBe(false);
   await page.locator('#parent').click({ force: true });
   expect(await page.evaluate(() => window.selects)).toEqual([]);

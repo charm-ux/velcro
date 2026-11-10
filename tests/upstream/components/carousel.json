@@ -1,0 +1,43 @@
+{
+  "files": {
+    "src/components/carousel/carousel.test.ts": "c6b281d652360c4cd44cf4602b5b65c4abf3d9b83f6c87dd080a1a4ea7b34a53"
+  },
+  "tests": [
+    "<sl-carousel> > should render a carousel with default configuration",
+    "<sl-carousel> > when `autoplay` attribute is provided > should scroll forwards every `autoplay-interval` milliseconds",
+    "<sl-carousel> > when `autoplay` attribute is provided > should pause the autoplay while the user is interacting",
+    "<sl-carousel> > when `autoplay` attribute is provided > should not resume if the user is still interacting",
+    "<sl-carousel> > when `loop` attribute is provided > should create clones of the first and last slides",
+    "<sl-carousel> > when `loop` attribute is provided > and `slides-per-page` is provided > should create multiple clones",
+    "<sl-carousel> > when `pagination` attribute is provided > should render pagination controls",
+    "<sl-carousel> > when `pagination` attribute is provided > and user clicks on a pagination button > should scroll the carousel to the nth slide",
+    "<sl-carousel> > when `navigation` attribute is provided > should render navigation controls",
+    "<sl-carousel> > when `slides-per-page` attribute is provided > should show multiple slides at a given time",
+    "<sl-carousel> > when `slides-per-page` attribute is provided > should display 6 pages for 7 slides grouped by 2 and scrolled by 1",
+    "<sl-carousel> > when `slides-per-page` attribute is provided > should display 2 pages for 5 slides grouped by 3 and scrolled by 3",
+    "<sl-carousel> > when `slides-per-page` attribute is provided > should display 5 pages for 10 slides grouped by 2 and scrolled by 2",
+    "<sl-carousel> > when `slides-per-page` attribute is provided > should display 7 pages for 7 slides grouped by 2 and scrolled by 1 (loop)",
+    "<sl-carousel> > when `slides-per-page` attribute is provided > should display 2 pages for 5 slides grouped by 3 and scrolled by 3 (loop)",
+    "<sl-carousel> > when `slides-per-page` attribute is provided > should display 5 pages for 10 slides grouped by 2 and scrolled by 2 (loop)",
+    "<sl-carousel> > when `slides-per-move` attribute is provided > should set the granularity of snapping",
+    "<sl-carousel> > when `slides-per-move` attribute is provided > should be possible to move by the given number of slides at a time",
+    "<sl-carousel> > when `slides-per-move` attribute is provided > should be possible to move by a number that is less than the displayed number",
+    "<sl-carousel> > when `slides-per-move` attribute is provided > should not be possible to move by a number that is greater than the displayed number",
+    "<sl-carousel> > when `orientation` attribute is provided > and value is `vertical` > should make the scrollable along the y-axis",
+    "<sl-carousel> > when `orientation` attribute is provided > and value is `horizontal` > should make the scrollable along the x-axis",
+    "<sl-carousel> > when `mouse-dragging` attribute is provided > should be possible to drag the carousel using the mouse",
+    "<sl-carousel> > when `mouse-dragging` attribute is provided > should be possible to interact with clickable elements",
+    "<sl-carousel> > Navigation controls > when the user clicks the next button > should scroll to the next slide",
+    "<sl-carousel> > Navigation controls > when the user clicks the next button > and carousel is positioned on the last slide > should not scroll",
+    "<sl-carousel> > Navigation controls > when the user clicks the next button > and carousel is positioned on the last slide > and `loop` attribute is provided > should scroll to the first slide",
+    "<sl-carousel> > Navigation controls > and clicks the previous button > should scroll to the previous slide",
+    "<sl-carousel> > Navigation controls > and clicks the previous button > and carousel is positioned on the first slide > should not scroll",
+    "<sl-carousel> > Navigation controls > and clicks the previous button > and carousel is positioned on the first slide > and `loop` attribute is provided > should scroll to the last slide",
+    "<sl-carousel> > API > #next > should scroll the carousel to the next slide",
+    "<sl-carousel> > API > #previous > should scroll the carousel to the previous slide",
+    "<sl-carousel> > API > #goToSlide > should scroll the carousel to the nth slide",
+    "<sl-carousel> > Accessibility > should pass accessibility tests",
+    "<sl-carousel> > Accessibility > when scrolling > should update aria-busy attribute"
+  ],
+  "knownFailures": []
+}

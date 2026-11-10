@@ -1,0 +1,5 @@
+{
+  "note": "Changing inline after the first render makes that update throw, as in Shoelace 2.20.1 (an upstream quirk pinned in color-picker.spec.mjs), so the probe keeps the dropdown layout instead of toggling inline.",
+  "content": "<div slot=\"label\">label</div>",
+  "fixed": ["inline"]
+}

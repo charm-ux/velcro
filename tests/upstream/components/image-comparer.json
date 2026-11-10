@@ -1,0 +1,20 @@
+{
+  "files": {
+    "src/components/image-comparer/image-comparer.test.ts": "7b71c7ed84e9bd9969a092fb80236d812493bfbbe3a8c6bb3e257de20cda9150"
+  },
+  "tests": [
+    "<sl-image-comparer> > should render a basic before/after",
+    "<sl-image-comparer> > should emit change event when position changed manually",
+    "<sl-image-comparer> > should increment position on arrow right",
+    "<sl-image-comparer> > should decrement position on arrow left",
+    "<sl-image-comparer> > should set position to 0 on home key",
+    "<sl-image-comparer> > should set position to 100 on end key",
+    "<sl-image-comparer> > should clamp to 100 on arrow right",
+    "<sl-image-comparer> > should clamp to 0 on arrow left",
+    "<sl-image-comparer> > should increment position by 10 on arrow right + shift",
+    "<sl-image-comparer> > should decrement position by 10 on arrow left + shift",
+    "<sl-image-comparer> > should set position by attribute",
+    "<sl-image-comparer> > should move position on drag"
+  ],
+  "knownFailures": []
+}

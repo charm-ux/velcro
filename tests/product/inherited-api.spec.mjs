@@ -1,129 +1,58 @@
 // Per-component rule for the inherited template-bound API in the manifest: an inherited core CSS custom property is
 // listed exactly when it still has an effect on the Velcro element (core's styles are kept and their selector still
 // matches the Velcro template), and an inherited core slot or part is listed exactly when the Velcro template renders
-// it. Measured in the browser: each candidate is set on the host and every computed style in the shadow tree and of
-// the slotted content is compared, in the default state, with each reflected boolean attribute set, and under real
-// :hover, :active (pointer held) and :focus-visible (keyboard modality) interaction in each of those.
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { createRequire } from 'node:module';
+// it. Measured in the browser (support/inherited-api.mjs): each candidate is set on the host and every computed style in
+// the shadow tree and of the slotted content is compared, in the default state, with each reflected boolean attribute
+// set, and under real :hover, :active (pointer held) and :focus-visible (keyboard modality) interaction in each of those.
+//
+// Where each component's tests are registered: a component whose core superclass has CSS custom property candidates runs
+// them from its own file, tests/product/<name>.inherited-api.spec.mjs, and every other element from this spec. Measuring
+// the candidates is most of this check's time (minutes per engine), and CI's shards (--shard) split the tests in file
+// order: when all of them were here, one shard of each engine got them all and was the slowest leg of every run. In a
+// file named after the component they sit next to its own spec, so the shards spread them with the rest of the suite.
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { makeProbe } from './support/probe.mjs';
-import { openDocs } from './support/loaded.mjs';
-import { customElements, readJson, velcroManifestPath } from '../../scripts/api/model.mjs';
+import { coreCandidates, elements, inheritedApiTests } from './support/inherited-api.mjs';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-
-const require = createRequire(new URL('../../packages/velcro/package.json', import.meta.url));
-const core = JSON.parse(readFileSync(require.resolve('@charm-ux/core/custom-elements.json'), 'utf8'));
-const coreDecls = new Map(core.modules.flatMap(m => m.declarations ?? []).map(d => [d.name, d]));
-const elements = customElements(readJson(velcroManifestPath));
-
-// What each component's probe host gets: tests/product/<name>.probe.json when the component has one ({ "content":
-// "<html>", "attrs": { name: value }, "note": "why" }), else content that fills every slot its manifest declares. One
-// file per component, so adding a component never edits this spec.
-const probeFile = name => path.join(root, 'tests/product', `${name}.probe.json`);
-const fillSlots = decl => (decl.slots ?? []).map(s => (s.name ? `<div slot="${s.name}">${s.name}</div>` : 'Content')).join('');
-const PROBES = Object.fromEntries(readCatalog(root).map(({ name, tag }) => [tag, existsSync(probeFile(name))
-  ? JSON.parse(readFileSync(probeFile(name), 'utf8')) : { content: fillSlots(elements.get(tag) ?? {}) }]));
-// One valid value of each kind a core custom property takes: length, color, border style, border shorthand, a visible
-// box shadow, time, keyword, number, alignment.
-const VALUES = ['37px', 'rgb(1, 2, 3)', 'dotted', '3px solid rgb(1, 2, 3)', '2px 2px rgb(1, 2, 3)', '3s', 'none', '0.25', 'flex-end'];
+const productDir = path.join(root, 'tests/product');
+const catalog = readCatalog(root);
+const SUFFIX = '.inherited-api.spec.mjs';
+const ownSpec = tag => {
+  const entry = catalog.find(c => c.tag === tag);
+  return entry ? path.join(productDir, `${entry.name}${SUFFIX}`) : null;
+};
 
 test('probe files belong to catalog components and hold only content, attributes and a note', () => {
-  const names = readCatalog(root).map(c => c.name);
-  for (const f of readdirSync(path.join(root, 'tests/product')).filter(f => f.endsWith('.probe.json'))) {
+  const names = catalog.map(c => c.name);
+  for (const f of readdirSync(productDir).filter(f => f.endsWith('.probe.json'))) {
     expect(names, f).toContain(f.replace(/\.probe\.json$/, ''));
-    const probe = JSON.parse(readFileSync(path.join(root, 'tests/product', f), 'utf8'));
-    expect(Object.keys(probe).every(k => ['content', 'attrs', 'note'].includes(k)), f).toBe(true);
+    const probe = JSON.parse(readFileSync(path.join(productDir, f), 'utf8'));
+    expect(Object.keys(probe).every(k => ['content', 'attrs', 'fixed', 'note'].includes(k)), f).toBe(true);
     expect(typeof probe.content, f).toBe('string');
+    if ('fixed' in probe) {
+      expect(Array.isArray(probe.fixed) && probe.fixed.every(a => typeof a === 'string'), f).toBe(true);
+      expect(typeof probe.note, f).toBe('string');
+    }
   }
 });
 
-// Each candidate is measured on its own, so the candidates are split into groups of at most GROUP, each its own test: the
-// slow components (sl-switch has 55 core candidates and 7 boolean states) then spread over workers instead of holding one
-// for minutes. A group decides exactly its own candidates; with every group also requiring that each listed inherited
-// property is a core candidate, together they assert that the listed set equals the effective set.
-const GROUP = 10;
-for (const [tag, decl] of elements) {
-  const listed = key => (decl[key] ?? []).filter(x => x.inheritedFrom).map(x => x.name).sort();
-  const own = key => new Set((decl[key] ?? []).filter(x => !x.inheritedFrom).map(x => x.name));
-  const parent = coreDecls.get(decl.superclass?.name);
-  const all = (parent?.cssProperties ?? []).map(p => p.name).filter(n => !own('cssProperties').has(n));
-  const groups = Math.max(1, Math.ceil(all.length / GROUP));
-  for (let group = 0; group < groups; group++) {
-  test(`${tag}: inherited CSS custom properties, slots and parts are listed exactly when they still apply${groups > 1 ? ` (candidates ${group + 1} of ${groups})` : ''}`, async ({ page }) => {
-    // Every candidate is measured with every value in every state, which is slow: a group of sl-switch candidates takes
-    // about 20 s in WebKit on a fast machine. The margin covers slower CI runners.
-    test.setTimeout(300000);
-    expect(parent, `${tag} superclass in core's manifest`).toBeTruthy();
-    const booleans = (decl.attributes ?? []).filter(a => a.type?.text?.replace(/ \| undefined/, '') === 'boolean').map(a => a.name);
-
-    await openDocs(page, '/components/button');
-    await page.evaluate(t => customElements.whenDefined(t), tag);
-    const candidates = all.slice(group * GROUP, (group + 1) * GROUP);
-    await page.evaluate(`window.makeProbe = ${makeProbe}`);
-    await page.evaluate(async ({ tag, content, attrs }) => {
-      const host = document.createElement(tag);
-      host.id = 'probe';
-      // On top of the page, so pointer states (:hover, :active) reach it.
-      host.style.cssText = 'position: fixed; top: 8px; left: 8px; z-index: 2147483647;';
-      for (const [k, v] of Object.entries(attrs)) host.setAttribute(k, v);
-      host.innerHTML = content;
-      document.body.prepend(host);
-      await host.updateComplete;
-      // The probe freezes animations and transitions in the whole tree before each measurement.
-      window.probeMeasure = window.makeProbe(host).measure;
-      window.probeState = async (attr, on) => { host.toggleAttribute(attr, on); await host.updateComplete; };
-    }, { tag, content: PROBES[tag]?.content ?? '', attrs: PROBES[tag]?.attrs ?? {} });
-
-    const effective = new Set();
-    const measure = async label => {
-      for (const name of await page.evaluate(([c, v]) => window.probeMeasure(c, v), [candidates.filter(c => !effective.has(c)), VALUES])) {
-        effective.add(name);
-        found.push(`${name} (${label})`);
-      }
-    };
-    const found = [];
-    // A display: contents host has no box of its own; point at its slotted content instead.
-    const box = (await page.locator('#probe').boundingBox()) ?? (await page.locator('#probe > *').first().boundingBox());
-    const center = [box.x + box.width / 2, box.y + box.height / 2];
-    // Default, each reflected boolean attribute, and the interaction states :hover, :active (pointer held down) and
-    // :focus-visible (keyboard focus), each alone and combined with each boolean attribute.
-    for (const state of [null, ...booleans]) {
-      if (state) await page.evaluate(a => window.probeState(a, true), state);
-      await measure(state ?? 'default');
-      await page.mouse.move(...center);
-      await measure(`${state ?? 'default'} + :hover`);
-      await page.mouse.down();
-      await measure(`${state ?? 'default'} + :active`);
-      await page.mouse.up();
-      await page.mouse.move(0, 0);
-      await page.evaluate(() => { document.activeElement?.blur?.(); document.getElementById('probe').blur?.(); });
-      await page.keyboard.down('Shift');
-      await page.keyboard.up('Shift');
-      await page.evaluate(() => document.getElementById('probe').focus?.());
-      await measure(`${state ?? 'default'} + :focus-visible`);
-      await page.evaluate(() => document.getElementById('probe').blur?.());
-      if (state) await page.evaluate(a => window.probeState(a, false), state);
-    }
-    const result = await page.evaluate(({ slots, parts }) => {
-      const shadow = document.getElementById('probe').shadowRoot;
-      return {
-        slots: slots.filter(s => shadow.querySelector(s ? `slot[name="${s}"]` : 'slot:not([name])')).sort(),
-        parts: parts.filter(p => [...shadow.querySelectorAll('[part]')].some(el => el.getAttribute('part').split(/\s+/).includes(p))).sort(),
-      };
-    }, {
-      slots: (parent.slots ?? []).map(s => s.name).filter(n => !own('slots').has(n)),
-      parts: (parent.cssParts ?? []).map(p => p.name).filter(n => !own('cssParts').has(n)),
-    });
-    result.cssProperties = [...effective].sort();
-    test.info().annotations.push({ type: 'effective', description: found.join(', ') });
-    expect(listed('cssProperties').filter(n => !all.includes(n)), 'listed inherited properties that are not core candidates').toEqual([]);
-    expect({ cssProperties: listed('cssProperties').filter(n => candidates.includes(n)), slots: listed('slots'), parts: listed('cssParts') }).toEqual(result);
-    for (const p of (decl.cssProperties ?? []).filter(x => x.inheritedFrom)) expect(p.inheritedFrom.package).toBe('@charm-ux/core');
-  });
+test('a component has its own inherited-API spec exactly when it has candidates, and that spec registers only its own tests', () => {
+  const files = readdirSync(productDir).filter(f => f.endsWith(SUFFIX)).sort();
+  const expected = catalog.filter(c => elements.has(c.tag) && coreCandidates(c.tag).length > 0).map(c => `${c.name}${SUFFIX}`).sort();
+  expect(files, `add or remove tests/product/<name>${SUFFIX} (it calls inheritedApiTests('<tag>'))`).toEqual(expected);
+  for (const f of files) {
+    const { tag } = catalog.find(c => `${c.name}${SUFFIX}` === f);
+    const calls = [...readFileSync(path.join(productDir, f), 'utf8').matchAll(/\binheritedApiTests\(\s*(['"`])(.*?)\1\s*\)/g)].map(m => m[2]);
+    expect(calls, f).toEqual([tag]);
   }
+});
+
+// Every other element: no own spec, so its tests are registered here.
+for (const tag of elements.keys()) {
+  const own = ownSpec(tag);
+  if (!own || !existsSync(own)) inheritedApiTests(tag);
 }

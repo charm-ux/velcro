@@ -7,8 +7,9 @@ Velcro's components in Chromium. A resolver plugin points each test's Shoelace l
 `./<name>.js` at Velcro's registering entry for that component, and a test's `../../utilities/<name>.js` import (for
 example the textarea test's `serialize`) at Velcro's export of the same utility, so the test runs against Velcro's
 module. The vendored upstream copy of such a helper stays pinned in the record of the component that brings it. A test's
-bare `lit` and `lit/decorators.js` imports resolve to the lit copy Velcro itself loads (the workspace root cannot resolve
-them), so a test's `@customElement` fixtures extend the same `LitElement` as Velcro's components. No
+bare `lit`, `lit/decorators.js` and `lit/directives/<name>.js` imports (the carousel test's `map` and `range`) resolve to the
+lit copy Velcro itself loads (the workspace root cannot resolve them), so a test's `@customElement` fixtures extend the same
+`LitElement` as Velcro's components. No
 test is edited, and Velcro skips none.
 A test that upstream itself marks `it.skip` in its vendored file is reported as skipped, and the gate allows
 only those. Run it with `pnpm test:upstream`; it prints each component's passed, failed and skipped counts and the
@@ -67,6 +68,17 @@ quirk itself is pinned in `tests/product/menu-item.spec.mjs` and listed on the m
 Upstream's icon sprite sheet tests load `/docs/assets/images/sprite.svg`, which Shoelace's docs build generates
 from Bootstrap Icons; the runner serves that one path from the same Bootstrap Icons sprite that Velcro's docs
 site ships (`packages/docs/public/assets/images/sprite.svg`).
+Upstream's animated image tests load `/docs/assets/images/walk.gif` and `/docs/assets/images/tie.webp`, Shoelace's own
+demo images. Velcro does not commit binary files, so the runner serves those two paths from two small synthetic stand-ins
+written for Velcro: a three-frame GIF and a three-frame animated WebP, each under 1 KB (at most 8 KB is allowed), generated
+by `tests/upstream/make-docs-images.mjs` (`--check` compares its output with the committed file; no Shoelace file is
+copied) and stored as base64 text in `tests/upstream/docs-images.json`. The runner's lookup (`tests/upstream/docs-images.mjs`)
+is by exact name only: the path must be `/docs/assets/images/<name>` with a name in that file, the content type comes from
+the extension (`image/gif`, `image/webp`), and any other path, one with a further segment, a `..` or a different case falls
+through to the normal server unserved. `tests/upstream/docs-images.test.mjs` parses the frame counts, pins the sizes and
+hashes and checks the fall-through cases. The docs examples carry the same bytes as `data:` URLs, and
+`tests/product/animated-image.spec.mjs` pins them. Those six test titles name an image path, which the public CI summary would
+otherwise withhold as path-shaped; the exact titles are pinned in `PATH_TITLES_PRINTED` (`scripts/upstream-summary.mjs`).
 
 ## Dependency note: inflation override
 

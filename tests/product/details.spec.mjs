@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 
@@ -386,8 +387,9 @@ test('keyboard: Enter and Space toggle on key down; ArrowDown and ArrowRight ope
   // An arrow key that does not change the state leaves it as it is, and so does any other key.
   await settle(false);
   await header(frame).focus();
-  await page.keyboard.press('ArrowUp');
-  await page.keyboard.press('a');
+  await recordKeys(frame.locator('body'));
+  await pressReceived(page, frame.locator('body'), 'ArrowUp');
+  await pressReceived(page, frame.locator('body'), 'a');
   expect(await open()).toBe(false);
   expect(await frame.locator('#d').evaluate(el => el.getBoundingClientRect().height < 100)).toBe(true);
 });

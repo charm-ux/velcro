@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 
 test.beforeEach(({ page }) => watchNetwork(page));
@@ -193,24 +194,25 @@ test('keyboard: Tab reaches the checked radio, arrows move and wrap the selectio
     el.addEventListener('sl-change', () => window.__events.push(el.value));
   });
   await frame.locator('#start').focus();
-  await page.keyboard.press('Tab');
   const active = () => frame.locator('body').evaluate(() => document.activeElement?.getAttribute('value') ?? document.activeElement?.id);
-  expect(await active()).toBe('b');
+  await page.keyboard.press('Tab');
+  await expect.poll(active).toBe('b');
   await page.keyboard.press('ArrowDown');
-  expect(await active()).toBe('d');
+  await expect.poll(() => active()).toBe('d');
   await page.keyboard.press('ArrowRight');
-  expect(await active()).toBe('a');
+  await expect.poll(() => active()).toBe('a');
   await page.keyboard.press('ArrowLeft');
-  expect(await active()).toBe('d');
+  await expect.poll(() => active()).toBe('d');
   await page.keyboard.press('ArrowUp');
-  expect(await active()).toBe('b');
+  await expect.poll(() => active()).toBe('b');
   expect(await radios(frame)).toEqual(['a:false', 'b:true', 'c:false', 'd:false']);
   expect(await frame.locator('#mount sl-radio').evaluateAll(rs => rs.map(r => r.getAttribute('tabindex')))).toEqual(['-1', '0', '-1', '-1']);
   expect(await frame.locator('body').evaluate(() => window.__events)).toEqual(['d', 'a', 'd', 'b']);
-  await page.keyboard.press('Space');
+  await recordKeys(frame.locator('body'));
+  await pressReceived(page, frame.locator('body'), 'Space');
   expect(await frame.locator('body').evaluate(() => window.__events)).toEqual(['d', 'a', 'd', 'b']);
   await page.keyboard.press('Tab');
-  expect(await active()).toBe('end');
+  await expect.poll(() => active()).toBe('end');
 });
 
 test('keyboard with radio buttons: arrows move the checked state and focus the inner button', async ({ page }) => {
@@ -220,7 +222,7 @@ test('keyboard with radio buttons: arrows move the checked state and focus the i
   await frame.locator('body').click({ position: { x: 1, y: 1 } });
   await frame.locator('sl-radio-button[value="1"]').evaluate(el => el.focus());
   await page.keyboard.press('ArrowRight');
-  expect(await radios(frame, 'sl-radio-group')).toEqual(['1:false', '2:true', '3:false']);
+  await expect.poll(() => radios(frame, 'sl-radio-group')).toEqual(['1:false', '2:true', '3:false']);
   expect(await group.evaluate(el => [el.value, document.activeElement?.getAttribute('value'), document.activeElement?.shadowRoot.activeElement?.localName])).toEqual(['2', '2', 'button']);
   expect(await frame.locator('sl-radio-button[value="2"]').evaluate(el => el.shadowRoot.querySelector('button').getAttribute('aria-checked'))).toBe('true');
 });
@@ -552,7 +554,8 @@ test('Velcro extension disabled: the arrow keys and Space are ignored by a disab
   await frame.locator('body').click({ position: { x: 1, y: 1 } });
   await frame.locator('#mount sl-radio-group').evaluate(async el => { el.disabled = true; await el.updateComplete; });
   await frame.locator('#mount sl-radio[value="b"]').evaluate(el => el.focus());
-  for (const key of ['ArrowDown', 'ArrowUp', 'Space']) await page.keyboard.press(key);
+  await recordKeys(frame.locator('body'));
+  for (const key of ['ArrowDown', 'ArrowUp', 'Space']) await pressReceived(page, frame.locator('body'), key);
   expect(await radios(frame)).toEqual(['a:false', 'b:true', 'c:false', 'd:false']);
   expect(errors).toEqual([]);
 });
@@ -564,7 +567,8 @@ test('Velcro extensions readonly, hide-label and error-message: no value change,
   await group.evaluate(async el => { el.readonly = true; el.hideLabel = true; el.errorMessage = 'Bad'; await el.updateComplete; });
   await frame.locator('#mount sl-radio[value="a"]').click();
   await frame.locator('#mount sl-radio[value="b"]').focus();
-  await page.keyboard.press('ArrowDown');
+  await recordKeys(frame.locator('body'));
+  await pressReceived(page, frame.locator('body'), 'ArrowDown');
   const r = await group.evaluate(el => {
     const label = el.shadowRoot.querySelector('#label');
     return { value: el.value, radiosReadonly: [...el.querySelectorAll('sl-radio')].every(x => x.readonly),

@@ -11,7 +11,8 @@
 //     it runs in one round trip to one page.
 // A collection is catalog-derived when a spec declares it from readCatalog() or from another catalog-derived name.
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -166,10 +167,29 @@ export function catalogLoopsInTests(text) {
   return found;
 }
 
-const specs = readdirSync(productDir)
-  .filter(name => name.endsWith('.spec.mjs'))
-  .sort()
-  .map(name => ({ name, text: readFileSync(join(productDir, name), 'utf8') }));
+// The files that hold product test bodies: every spec (a per-item split such as <name>.inherited-api.spec.mjs included) and
+// every support module that registers tests (support/inherited-api.mjs holds the inherited-API test bodies).
+export function productSources(dir) {
+  const read = names => names.sort().map(name => ({ name, text: readFileSync(join(dir, name), 'utf8') }));
+  const support = existsSync(join(dir, 'support')) ? readdirSync(join(dir, 'support')).filter(name => name.endsWith('.mjs')).map(name => `support/${name}`) : [];
+  return [
+    ...read(readdirSync(dir).filter(name => name.endsWith('.spec.mjs'))),
+    ...read(support).filter(({ text }) => /^\s*test\(/m.test(text)),
+  ];
+}
+const specs = productSources(productDir);
+
+// A scratch product directory: an ordinary spec, a per-item split spec, a support module that registers the split spec's
+// tests (with the given body) and a plain helper that registers none.
+function splitFixture(body) {
+  const dir = mkdtempSync(join(tmpdir(), 'velcro-split-'));
+  mkdirSync(join(dir, 'support'));
+  writeFileSync(join(dir, 'alpha.spec.mjs'), "import { test } from '@playwright/test';\ntest('a', () => {});\n");
+  writeFileSync(join(dir, 'beta.inherited-api.spec.mjs'), "import { register } from './support/split.mjs';\nregister('sl-beta');\n");
+  writeFileSync(join(dir, 'support/split.mjs'), `import { test } from '@playwright/test';\nimport { readCatalog } from './c.mjs';\nconst catalog = readCatalog();\nexport function register(tag) {\n${body}\n}\n`);
+  writeFileSync(join(dir, 'support/plain.mjs'), 'export const helper = () => 1;\n');
+  return dir;
+}
 
 test('no product spec loops over the catalog inside one test, awaiting work for each item', () => {
   const offending = specs.flatMap(({ name, text }) => catalogLoopsInTests(text).map(({ line, loop }) => `${name}:${line} ${loop}`));
@@ -228,4 +248,18 @@ test('the guard finds the loop in a test that follows code with strings, templat
     `});`,
   ].join('\n');
   assert.deepEqual(catalogLoopsInTests(wrap(body)).map(f => f.loop), ['for (const c of catalog)']);
+});
+
+test('a split spec and the support module that registers its tests are scanned, and a catalog loop there is flagged', () => {
+  const dir = splitFixture("test(`${tag} x`, async ({ page }) => {\n  for (const c of catalog) await page.goto(c.name);\n});");
+  try {
+    const sources = productSources(dir);
+    assert.deepEqual(sources.map(s => s.name), ['alpha.spec.mjs', 'beta.inherited-api.spec.mjs', 'support/split.mjs']);
+    const offending = sources.flatMap(({ name, text }) => catalogLoopsInTests(text).map(({ line }) => `${name}:${line}`));
+    assert.deepEqual(offending, ['support/split.mjs:6']);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  // The real tree: every per-component split spec and the inherited-API support module are read.
+  const names = specs.map(s => s.name);
+  assert.ok(names.includes('support/inherited-api.mjs'));
+  assert.ok(names.filter(n => n.endsWith('.inherited-api.spec.mjs')).length > 0);
 });

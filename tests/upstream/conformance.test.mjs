@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { DOCS, PIN, RECORDS, VENDOR, checkBaseline, checkVendor, declaredTests, evaluate, keyResults, readBaseline, readInventory,
-  readLedger, readRecords, readSharedPins, scoreboard, updateRecords, upstreamSkips, vendoredComponents }
+  readLedger, readRecords, readSharedPins, scoreboard, skipBinding, updateRecords, upstreamSkips, vendoredComponents }
   from '../../scripts/upstream-conformance.mjs';
 import { readCatalog } from '../../scripts/site/catalog.mjs';
 
@@ -258,16 +258,37 @@ test('a skip passes only when the vendored upstream file itself marks that exact
   assert.equal(run('other > x', bound(['suite > x'])).ok, false, 'the same title in another suite is a different test');
   assert.equal(run('y [#2]', bound(['y'])).ok, false, 'a repeated title is bound to its occurrence');
   assert.equal(run('y [#2]', bound(['y [#2]'])).ok, true);
-  assert.deepEqual(run('suite > x', { a: { skipped: ['suite > x'], declared: ['suite > x', 'other > x', 'y'] } }).problems,
+  assert.deepEqual(run('suite > x', { a: { skipped: ['suite > x'], declared: ['suite > x', 'other > x', 'y', 'extra'] } }).problems,
     ['upstream skips in a cannot be bound to the inventory', 'skipped test in a: suite > x'], 'the scan must declare exactly the inventory');
+  // A scan that sees only part of the inventory binds a skip only through the per-skip identity checks (next test).
+  assert.equal(run('suite > x', { a: { skipped: ['suite > x'], declared: ['suite > x', 'other > x', 'y'] } }).ok, true,
+    'tests the scan cannot see do not block an unambiguous literal skip');
   // A scan with a dynamic title binds a skip only through the per-skip identity checks (next test).
   assert.equal(run('suite > x', { a: { skipped: ['suite > x'], declared: ['suite > x', 'other > x', 'y', null] } }).ok, true,
     'a dynamic title elsewhere does not block an unambiguous literal skip');
-  // The real vendored files: icon's, radio-group's and tab-group's own it.skip are the only upstream skips. Icon's and
-  // tab-group's are bound by the exact comparison; radio-group's file has dynamic titles (template-literal describes), so
-  // its skip is bound alone.
+  // The real vendored files: carousel's, color-picker's, icon's, radio-group's and tab-group's own it.skip are the only
+  // upstream skips. Icon's and tab-group's are bound by the exact comparison; radio-group's file has dynamic titles
+  // (template-literal describes), carousel's has some too (its pages-count tests are generated in a loop) and
+  // color-picker's runs Shoelace's form-control helper tests the scan cannot see, so each of their skips is bound alone.
   const real = upstreamSkips(root, components);
-  assert.deepEqual(Object.keys(real), ['icon', 'radio-group', 'tab-group']);
+  assert.deepEqual(Object.keys(real), ['carousel', 'color-picker', 'icon', 'radio-group', 'tab-group']);
+  assert.deepEqual(real.carousel.skipped, [
+    '<sl-carousel> > when `autoplay` attribute is provided > should scroll forwards every `autoplay-interval` milliseconds',
+    '<sl-carousel> > when `mouse-dragging` attribute is provided > should be possible to drag the carousel using the mouse',
+  ]);
+  assert.ok(real.carousel.declared.includes(null));
+  const skippedCarousel = new Set(real.carousel.skipped);
+  const carouselRun = evaluate(scoreboard(keyResults(inventory.carousel.map(t => r('carousel', t, true, skippedCarousel.has(t) ? { skipped: true } : {})))),
+    {}, { carousel: inventory.carousel }, ['carousel'], { carousel: real.carousel });
+  assert.deepEqual(carouselRun.problems, []);
+  assert.deepEqual(real['color-picker'].skipped, ['<sl-color-picker> > should emit sl-focus when rendered as a dropdown and focused']);
+  assert.ok(!real['color-picker'].declared.includes(null));
+  assert.ok(real['color-picker'].declared.every(t => inventory['color-picker'].includes(t)));
+  assert.ok(real['color-picker'].declared.length < inventory['color-picker'].length);
+  const skippedPicker = real['color-picker'].skipped[0];
+  const pickerRun = evaluate(scoreboard(keyResults(inventory['color-picker'].map(t => r('color-picker', t, true, t === skippedPicker ? { skipped: true } : {})))),
+    {}, { 'color-picker': inventory['color-picker'] }, ['color-picker'], { 'color-picker': real['color-picker'] });
+  assert.deepEqual(pickerRun.problems, []);
   assert.deepEqual(real['tab-group'].skipped, [
     '<sl-tab-group> > scrolling behavior > does not show scroll buttons if placement is start',
     '<sl-tab-group> > scrolling behavior > does not show scroll buttons if placement is end',
@@ -284,7 +305,7 @@ test('a skip passes only when the vendored upstream file itself marks that exact
   assert.deepEqual(groupRun.problems, []);
 });
 
-test('with dynamic titles in the scan, a skip binds only when its identity is literal, unique and inventoried', () => {
+test('with dynamic titles in the scan, or a scan that sees only part of the inventory, a skip binds only when its identity is literal, unique and inventoried', () => {
   // The inventory holds the runner's titles, including tests the scan cannot name (dynamic titles, recorded as null)
   // and tests it cannot see at all (generated by a helper outside the vendored file).
   const inventory = { a: ['suite > x', 'suite > y', 'generated > g1', 'generated > g2'], b: ['z'] };
@@ -319,11 +340,60 @@ test('with dynamic titles in the scan, a skip binds only when its identity is li
   assert.deepEqual(run('suite > x', dyn([null, 'suite > x'])).problems, unbound('suite > x'));
   assert.deepEqual(run('generated > g1', dyn([null])).problems, unbound('generated > g1'));
 
-  // (5) Without a dynamic title the exact comparison applies, as before: a scan that misses an inventoried test does not
-  // bind, and an exactly bound skip that ran is not reported.
-  assert.deepEqual(run('suite > x', dyn(['suite > x'], ['suite > x', 'suite > y'])).problems, unbound('suite > x'));
+  // (5) A scan without dynamic titles that sees only part of the inventory (tests a helper outside the file generates)
+  // binds through the same per-skip checks: the skip must be reported, and a literal title outside the inventory still
+  // fails. A scan that declares exactly the inventory keeps the exact comparison: an exactly bound skip that ran is not
+  // reported.
+  assert.equal(run('suite > x', dyn(['suite > x'], ['suite > x', 'suite > y'])).ok, true);
+  assert.deepEqual(run([], dyn(['suite > x'], ['suite > x', 'suite > y'])).problems, ['upstream skip not reported skipped in a: suite > x']);
+  assert.deepEqual(run('suite > x', dyn(['suite > x'], ['suite > x', 'suite > extra'])).problems, unbound('suite > x'));
+  assert.deepEqual(run('generated > g1', dyn(['suite > x'], ['suite > x', 'suite > y'])).problems,
+    ['skipped test in a: generated > g1', 'upstream skip not reported skipped in a: suite > x']);
+  // Partial means every literal title of the scan is inventoried: a shorter scan with a literal outside the inventory
+  // does not bind.
+  assert.deepEqual(run('suite > x', dyn(['suite > x'], ['suite > x', 'suite > extra'])).problems, unbound('suite > x'));
+  assert.equal(skipBinding({ skipped: ['suite > x'], declared: ['suite > x', 'suite > extra'] }, inventory.a), 'unbound');
+  assert.equal(skipBinding({ skipped: ['suite > x'], declared: ['suite > x', 'suite > y'] }, inventory.a), 'per-skip');
+
+  // (6) A skip binds only to a title the scan itself saw marked it.skip, never to a test reachable only through a shared
+  // helper (here 'generated > g1', which a helper such as Shoelace's runFormControlBaseTests would add): the scan does not
+  // declare it, so naming it as a skip does not bind, and a helper test reported skipped fails even beside a bound skip.
+  const partialScan = ['suite > x', 'suite > y'];
+  assert.equal(skipBinding({ skipped: ['generated > g1'], declared: partialScan }, inventory.a), 'unbound');
+  assert.deepEqual(run('generated > g1', dyn(['generated > g1'], partialScan)).problems, unbound('generated > g1'));
+  assert.deepEqual(run('generated > g1', dyn(['suite > x', 'generated > g1'], partialScan)).problems, unbound('generated > g1'));
+  assert.deepEqual(run(['suite > x', 'generated > g2'], dyn(['suite > x'], partialScan)).problems, ['skipped test in a: generated > g2']);
+  // A helper test with the same title as the scan's skip is reported as its [#2] occurrence, which makes the skip ambiguous.
+  const helperTwin = { ...inventory, a: [...inventory.a, 'suite > x [#2]'] };
+  assert.deepEqual(run('suite > x', dyn(['suite > x'], partialScan), helperTwin).problems, unbound('suite > x'));
   assert.equal(run([], dyn(['suite > x'], inventory.a)).ok, true);
   assert.equal(run('suite > x', dyn(['suite > x'], inventory.a)).ok, true);
+});
+
+// Before this change a scan without dynamic titles that saw only part of the inventory never bound its skips; the
+// partial-scan rule must change that outcome for color-picker only. Carousel's skips bind per-skip because its scan has
+// dynamic titles, with or without the partial-scan rule.
+test('the partial-scan rule changes no binding outcome except color-picker\'s', () => {
+  const real = upstreamSkips(root, components);
+  const before = (bound, expected) => {
+    const now = skipBinding(bound, expected);
+    return now === 'per-skip' && !bound.declared.includes(null) ? 'unbound' : now;
+  };
+  const table = when => Object.fromEntries(components.filter(c => inventory[c]).map(c => [c, when(real[c], inventory[c])]));
+  const was = table(before);
+  const is = table(skipBinding);
+  assert.deepEqual(Object.keys(is).filter(c => is[c] !== was[c]), ['color-picker']);
+  assert.deepEqual([was['color-picker'], is['color-picker']], ['unbound', 'per-skip']);
+  const named = ['icon', 'radio-group', 'tab-group', 'carousel'];
+  assert.deepEqual(Object.fromEntries(named.map(c => [c, [was[c] ?? 'none', is[c] ?? 'none']])), {
+    icon: ['exact', 'exact'],
+    'radio-group': ['per-skip', 'per-skip'],
+    'tab-group': ['exact', 'exact'],
+    carousel: ['per-skip', 'per-skip'],
+  });
+  for (const c of Object.keys(is).filter(c => !['carousel', 'color-picker', 'icon', 'radio-group', 'tab-group'].includes(c))) {
+    assert.equal(is[c], 'none', `${c} has no upstream skip`);
+  }
 });
 
 test('the declaration scan follows describe nesting and ignores comments, strings and dynamic titles', () => {

@@ -36,6 +36,9 @@ The component's own files:
 - `tests/product/<name>.spec.mjs`: the browser spec. The generated skeleton fails until it is replaced with real checks.
   `tests/product/<name>.probe.json` (optional) is the content and attributes the inherited-API probe
   (`tests/product/inherited-api.spec.mjs`) puts on the element when filling its declared slots is not enough.
+  `tests/product/<name>.inherited-api.spec.mjs` is required exactly when the component's core superclass has CSS
+  custom properties it does not redeclare (the probe's candidates): it only calls `inheritedApiTests('sl-<name>')`,
+  so the slow candidate measurements sit next to the component's spec and CI's shards spread them.
   The component's React wrapper checks go in its own spec too, with `tests/product/support/react.mjs` (a React 19
   page that renders any wrapper by name), not in the shared `tests/product/react.spec.mjs`.
 - `tests/api/components/<name>.mjs` (optional): manifest checks for this component, registered by
@@ -121,7 +124,8 @@ verify in parallel.
   clipboard permissions, link Tab stops on macOS WebKit); where an engine
   genuinely differs, branch on `browserName` in the test and say why.
   Tests run fully parallel, so none may depend on another test's order or state.
-  CI builds once and runs each engine in four Playwright shards plus the
+  CI builds once and runs each engine in Playwright shards (four for Chromium
+  and Firefox, five for WebKit, whose run is the longest) plus the
   upstream gate as separate jobs (`.github/workflows/product.yml`), through
   `verify:product --stage build|browser|upstream|evidence`; locally, run
   `verify:product` without arguments. The browser and upstream jobs run in the

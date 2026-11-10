@@ -215,7 +215,7 @@ test('hover and focus-visible take the primary color and the focus ring, active 
   await focusDocument(frame);
   await frame.locator('#before').focus();
   await el.page().keyboard.press('Tab');
-  expect(await after.evaluate(e => e.shadowRoot.activeElement === e.button)).toBe(true);
+  await expect.poll(() => after.evaluate(e => e.shadowRoot.activeElement === e.button)).toBe(true);
   const afterColor = () => after.evaluate(e => getComputedStyle(e.shadowRoot.querySelector('[part="base"]')).color);
   await expect.poll(afterColor).toBe(want.hover);
   const ring = await after.evaluate(e => {
@@ -901,6 +901,7 @@ test.describe('class-only entry', () => {
     await page.keyboard.press('Tab');
     await expect.poll(inner).toBe(true);
     await page.keyboard.press('Enter');
+    await expect.poll(log).toEqual(['sl-focus', 'click']);
     await page.keyboard.press('Space');
     await expect.poll(log).toEqual(['sl-focus', 'click', 'click']);
     // Forward out of the button, back into it, and back out to where the walk started.

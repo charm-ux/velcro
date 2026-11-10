@@ -2,6 +2,7 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { bundleExamples, docsDir, loadBundle, loadExamples } from './support/bundle.mjs';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 
@@ -81,6 +82,7 @@ const state = page => page.evaluate(() => {
     hover: [...el.shadowRoot.querySelectorAll('.rating__symbols > span')].findIndex(s => s.classList.contains('rating__symbol--hover')) + 1,
   };
 });
+const value = page => state(page).then(s => s.value);
 // The viewport point at `fraction` of the rating's width, vertically centered.
 const point = (page, fraction) => page.evaluate(fraction => {
   const box = document.querySelector('#r').shadowRoot.querySelector('[part="base"]').getBoundingClientRect();
@@ -363,10 +365,23 @@ test('keyboard: arrows step by precision (by 1 with Shift), Home and End go to 0
   await mount(page, 'label="Rating" precision="0.5"');
   await page.evaluate(() => document.querySelector('#r').focus());
   await events(page);
+  // Each step waits for the value its key produces before the next key: a key that changes the value is followed by a
+  // poll for the new value; a key that changes nothing (ArrowRight at max, ArrowLeft at 0, Enter) waits until the whole
+  // press was received and then reads the value.
+  await recordKeys(page);
   const values = [];
-  for (const key of ['ArrowRight', 'ArrowUp', 'Shift+ArrowRight', 'ArrowLeft', 'ArrowDown', 'Shift+ArrowLeft', 'End', 'ArrowRight', 'Home', 'ArrowLeft', 'Enter']) {
-    await page.keyboard.press(key);
-    values.push((await state(page)).value);
+  for (const [key, expected, changes] of [
+    ['ArrowRight', 0.5, true], ['ArrowUp', 1, true], ['Shift+ArrowRight', 2, true], ['ArrowLeft', 1.5, true], ['ArrowDown', 1, true],
+    ['Shift+ArrowLeft', 0, true], ['End', 5, true], ['ArrowRight', 5, false], ['Home', 0, true], ['ArrowLeft', 0, false], ['Enter', 0, false],
+  ]) {
+    if (changes) {
+      await page.keyboard.press(key);
+      await expect.poll(() => value(page), key).toBe(expected);
+    } else {
+      await pressReceived(page, page, key);
+      expect(await value(page), key).toBe(expected);
+    }
+    values.push(await value(page));
   }
   expect(values).toEqual([0.5, 1, 2, 1.5, 1, 0, 5, 5, 0, 0, 0]);
   expect((await events(page)).map(e => e[1])).toEqual([0.5, 1, 2, 1.5, 1, 0, 5, 0]);
@@ -374,8 +389,10 @@ test('keyboard: arrows step by precision (by 1 with Shift), Home and End go to 0
     await mount(page, `label="Rating" ${attrs}`);
     await events(page);
     await page.evaluate(() => document.querySelector('#r').shadowRoot.querySelector('[part="base"]').focus());
-    for (const key of ['ArrowRight', 'Home', 'End']) await page.keyboard.press(key);
-    expect((await state(page)).value).toBe(2);
+    for (const key of ['ArrowRight', 'Home', 'End']) {
+      await pressReceived(page, page, key);
+      expect(await value(page)).toBe(2);
+    }
     expect(await events(page)).toEqual([]);
   }
 });
@@ -385,10 +402,11 @@ test('right-to-left: the arrows swap and the pointer reads from the right; with 
   await mount(page, 'label="Rating" dir="rtl" value="2"');
   await page.evaluate(() => document.querySelector('#r').focus());
   await page.keyboard.press('ArrowLeft');
-  expect((await state(page)).value).toBe(3);
+  await expect.poll(() => value(page)).toBe(3);
   await page.keyboard.press('ArrowRight');
+  await expect.poll(() => value(page)).toBe(2);
   await page.keyboard.press('ArrowRight');
-  expect((await state(page)).value).toBe(1);
+  await expect.poll(() => value(page)).toBe(1);
   await page.mouse.click(...await point(page, 0.1));
   expect((await state(page)).value).toBe(5);
   // The document's direction, when the rating has none of its own; re-rendered when the document's direction changes.
@@ -397,14 +415,17 @@ test('right-to-left: the arrows swap and the pointer reads from the right; with 
   await expect.poll(() => page.evaluate(() => document.querySelector('#r').shadowRoot.querySelector('[part="base"]').classList.contains('rating--rtl'))).toBe(true);
   await page.evaluate(() => document.querySelector('#r').focus());
   await page.keyboard.press('ArrowLeft');
-  expect((await state(page)).value).toBe(3);
+  await expect.poll(() => value(page)).toBe(3);
   await page.evaluate(() => { document.documentElement.dir = 'ltr'; });
   await mount(page, 'label="Rating" dir="auto" value="2"');
   await page.evaluate(() => document.querySelector('#r').focus());
-  for (const key of ['ArrowLeft', 'ArrowRight']) await page.keyboard.press(key);
-  expect((await state(page)).value).toBe(2);
+  await recordKeys(page);
+  for (const key of ['ArrowLeft', 'ArrowRight']) {
+    await pressReceived(page, page, key);
+    expect(await value(page)).toBe(2);
+  }
   await page.keyboard.press('ArrowUp');
-  expect((await state(page)).value).toBe(3);
+  await expect.poll(() => value(page)).toBe(3);
 });
 
 test('touch: a drag sets the hover value and the end commits it and emits sl-change; the end of a touch emits sl-change on a disabled or readonly rating too (upstream quirk)', async ({ page }) => {

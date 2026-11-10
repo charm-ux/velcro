@@ -2,6 +2,7 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { bundleExamples, docsDir, loadBundle, loadExamples } from './support/bundle.mjs';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 
@@ -228,6 +229,8 @@ test('Hoisting example: the hoisted panel is positioned with the fixed strategy 
   // Without hoist the panel is cut down to the clipping container (the popup's vertical auto-size) and its menu scrolls.
   expect(await info(0)).toEqual({ strategy: 'absolute', hoist: false, overflowsContainer: false, scrolls: true, hitInPanel: true });
   await page.keyboard.press('Escape');
+  await expect(dropdowns.nth(0)).not.toHaveAttribute('open', '');
+  await expect.poll(() => dropdowns.nth(0).evaluate(el => el.popup.popup.getAnimations().length)).toBe(0);
   const hoisted = await info(1);
   expect(hoisted.strategy).toBe('fixed');
   expect(hoisted.hoist).toBe(true);
@@ -508,13 +511,17 @@ test('keyboard: Arrow Down and Home open the panel and focus the first item, Arr
   // No menu: the arrow does nothing (and an open dropdown stays as it is).
   await mount(page, { panel: '<div id="content">Panel</div>' });
   await page.evaluate(() => document.querySelector('#trigger').focus());
-  await page.keyboard.press('ArrowDown');
+  await recordKeys(page);
+  await pressReceived(page, page, 'ArrowDown');
+  // The window in which a wrong open could still show.
   await page.waitForTimeout(150);
   expect((await state(page)).open).toBe(false);
   // A menu that is not a direct child of the dropdown is not found (an upstream quirk).
   await mount(page, { panel: `<div>${MENU}</div>` });
   await page.evaluate(() => document.querySelector('#trigger').focus());
-  await page.keyboard.press('ArrowDown');
+  await recordKeys(page);
+  await pressReceived(page, page, 'ArrowDown');
+  // The window in which a wrong open could still show.
   await page.waitForTimeout(150);
   expect((await state(page)).open).toBe(false);
 });
@@ -550,7 +557,9 @@ test('Tab from a menu item closes the panel, cancels the Tab and focuses the tri
   // Focus on the trigger (inside the containing element): Tab does not close the panel.
   await openIt(page);
   await page.evaluate(() => document.querySelector('#trigger').focus());
-  await page.keyboard.press('Tab');
+  await recordKeys(page);
+  await pressReceived(page, page, 'Tab');
+  // The window in which a wrong close could still show.
   await page.waitForTimeout(150);
   expect((await state(page)).open).toBe(true);
 });
@@ -567,6 +576,8 @@ test('Tab to an element outside the dropdown closes it from a timeout; focus mov
   await openIt(page);
   await page.evaluate(() => document.querySelector('#trigger').focus());
   await page.keyboard.press('Tab');
+  await expect.poll(() => active(page)).toBe('content');
+  // The window in which the close timeout could still fire.
   await page.waitForTimeout(150);
   expect((await state(page)).open).toBe(true);
   expect(await active(page)).toBe('content');
