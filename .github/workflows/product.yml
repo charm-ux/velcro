@@ -89,7 +89,7 @@ jobs:
           retention-days: 1
 
   browser:
-    name: browser (${{ matrix.engine }}, shard ${{ matrix.shard }} of 4)
+    name: browser (${{ matrix.engine }}, shard ${{ matrix.shard }} of ${{ matrix.engine == 'webkit' && 5 || 4 }})
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -106,9 +106,17 @@ jobs:
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     strategy:
       fail-fast: false
+      # Chromium and Firefox run in four shards, WebKit in five: its test step takes about a fifth longer than Firefox's and
+      # varies most with the runner's CPU model, so with four it was the slowest leg of every run. The excluded legs are the
+      # shards past each engine's count, so every engine still runs shards 1..N of its own N.
       matrix:
         engine: [chromium, firefox, webkit]
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5]
+        exclude:
+          - engine: chromium
+            shard: 5
+          - engine: firefox
+            shard: 5
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -149,7 +157,7 @@ jobs:
         timeout-minutes: 35
         env:
           ENGINE: ${{ matrix.engine }}
-          SHARD: ${{ matrix.shard }}/4
+          SHARD: ${{ matrix.shard }}/${{ matrix.engine == 'webkit' && 5 || 4 }}
           DIGEST: ${{ needs.build.outputs.digest }}
         run: |
           mkdir -p .airig/ci
