@@ -4,7 +4,8 @@
 // wait. Waiting for the network to go quiet (watchNetwork + documentsLoaded) is only for specs that check the requests a
 // page made; a spec that checks rendering only must not use it.
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -12,10 +13,29 @@ import { fileURLToPath } from 'node:url';
 const productDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'product');
 // The helpers' own controls exercise the waits directly.
 const HELPER_CONTROLS = new Set(['loaded.spec.mjs']);
-const specs = readdirSync(productDir)
-  .filter(name => name.endsWith('.spec.mjs'))
-  .sort()
-  .map(name => ({ name, text: readFileSync(join(productDir, name), 'utf8') }));
+// The files that hold product test bodies: every spec (a per-item split such as <name>.inherited-api.spec.mjs included) and
+// every support module that registers tests (support/inherited-api.mjs holds the inherited-API test bodies).
+export function productSources(dir) {
+  const read = names => names.sort().map(name => ({ name, text: readFileSync(join(dir, name), 'utf8') }));
+  const support = existsSync(join(dir, 'support')) ? readdirSync(join(dir, 'support')).filter(name => name.endsWith('.mjs')).map(name => `support/${name}`) : [];
+  return [
+    ...read(readdirSync(dir).filter(name => name.endsWith('.spec.mjs'))),
+    ...read(support).filter(({ text }) => /^\s*test\(/m.test(text)),
+  ];
+}
+const specs = productSources(productDir);
+
+// A scratch product directory: an ordinary spec, a per-item split spec, a support module that registers the split spec's
+// tests (with the given body) and a plain helper that registers none.
+function splitFixture(body) {
+  const dir = mkdtempSync(join(tmpdir(), 'velcro-split-'));
+  mkdirSync(join(dir, 'support'));
+  writeFileSync(join(dir, 'alpha.spec.mjs'), "import { test } from '@playwright/test';\ntest('a', () => {});\n");
+  writeFileSync(join(dir, 'beta.inherited-api.spec.mjs'), "import { register } from './support/split.mjs';\nregister('sl-beta');\n");
+  writeFileSync(join(dir, 'support/split.mjs'), `import { test } from '@playwright/test';\nimport { readCatalog } from './c.mjs';\nconst catalog = readCatalog();\nexport function register(tag) {\n${body}\n}\n`);
+  writeFileSync(join(dir, 'support/plain.mjs'), 'export const helper = () => 1;\n');
+  return dir;
+}
 
 const NETWORK_IDLE = /['"`]networkidle['"`]/;
 const SETTLED_WAIT = /toHaveAttribute\(\s*['"`]data-litro-settled['"`]|waitForSelector\([^)]*data-litro-settled/;
@@ -126,4 +146,17 @@ test('the key-wait check recognizes the patterns it guards', () => {
   ];
   assert.deepEqual(flagged.map(text => keyThenUnawaited(text).length > 0), flagged.map(() => true));
   assert.deepEqual(allowed.map(text => keyThenUnawaited(text).length), allowed.map(() => 0));
+});
+
+test('a split spec and the support module that registers its tests are scanned, and a networkidle wait there is flagged', () => {
+  const dir = splitFixture("test(`${tag} x`, async ({ page }) => {\n  await page.goto('/', { waitUntil: 'networkidle' });\n});");
+  try {
+    const sources = productSources(dir);
+    assert.deepEqual(sources.map(s => s.name), ['alpha.spec.mjs', 'beta.inherited-api.spec.mjs', 'support/split.mjs']);
+    assert.deepEqual(sources.filter(({ text }) => NETWORK_IDLE.test(text) || SETTLED_WAIT.test(text)).map(({ name }) => name), ['support/split.mjs']);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  // The real tree: every per-component split spec and the inherited-API support module are read.
+  const names = specs.map(s => s.name);
+  assert.ok(names.includes('support/inherited-api.mjs'));
+  assert.ok(names.filter(n => n.endsWith('.inherited-api.spec.mjs')).length > 0);
 });

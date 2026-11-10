@@ -18,8 +18,12 @@ export default defineConfig({
   testMatch: '*.spec.mjs',
   outputDir,
   forbidOnly: true,
-  // Tests, not files, are the unit of scheduling, so CI's shards (`--shard`, one engine each; see .github/workflows/product.yml)
-  // split even the long files evenly. No spec depends on the order of its tests or on another test's state.
+  // Tests, not files, are the unit of scheduling. CI's shards (`--shard`, one engine each; see .github/workflows/product.yml)
+  // take runs of tests in file order, equal by count, not by time. Two things defeat that: beforeAll/afterAll hooks, which
+  // keep a file's tests in a few large groups that run whole on one worker (base-path.spec.mjs uses a worker fixture
+  // instead), and a check much slower per test than the rest of the suite gathered in one file (each component's
+  // inherited-API tests sit in <name>.inherited-api.spec.mjs). No spec depends on the order of its tests or on another
+  // test's state.
   fullyParallel: true,
   // Hangs must fail fast and visibly: a stuck test fails after 45 s (specs that need more say so with test.setTimeout), and the
   // whole run stops at 28 min. With 519 tests per engine, a CI run of the three engines ran past 20 min (WebKit, run last, still

@@ -1,7 +1,7 @@
 // Production-output checks for both site layouts: the root build and the project-site build (prefix /velcro).
 // Each layout is served by a loopback server on an ephemeral port that only answers under its own prefix, so a
 // request that escapes to a root path shows up as a 404 or as a recorded request outside the prefix.
-import { expect, test } from '@playwright/test';
+import { expect, test as baseTest } from '@playwright/test';
 import { docsReady, documentsLoaded, openDocs, reloadDocs, watchNetwork } from './support/loaded.mjs';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,16 +11,42 @@ import { startPreview } from '../../packages/docs/scripts/preview.mjs';
 import { collectRequestFailures, LOAD_FAILED } from './request-failures.mjs';
 import { guardCdn } from './support/cdn.mjs';
 
-// The icon page loads its CDN icon library examples only on request; no test here asks, and none reaches a CDN (support/cdn.mjs).
-let cdnRequests = [];
-test.beforeEach(async ({ page }) => { cdnRequests = guardCdn(page); });
-test.afterEach(() => { expect(cdnRequests, 'no request reaches the CDN').toEqual([]); });
-
 const dist = fileURLToPath(new URL('../../packages/docs/dist/', import.meta.url));
 const layouts = [
   { name: 'root build', dir: 'static', base: '' },
   { name: 'project-site build', dir: 'static-prefixed', base: '/velcro' },
 ];
+
+// Each layout's server is a worker fixture, started on the first test that needs it and closed when the worker ends (as a
+// describe's beforeAll/afterAll did, once per worker). Not a beforeAll: Playwright keeps the tests of a file that has
+// beforeAll/afterAll hooks in a few large groups (one per shard, see --shard), and a group runs whole and in order on one
+// worker, so a few hundred tests here ran serially in one shard. Without the hooks each test is scheduled on its own.
+const test = baseTest.extend({
+  // The layout each describe block below tests (test.use).
+  layout: [undefined, { option: true }],
+  previews: [async ({}, use) => {
+    const started = new Map();
+    await use(({ dir, base }) => {
+      if (!started.has(dir)) started.set(dir, startPreview({ port: 0, root: join(dist, dir), base }));
+      return started.get(dir);
+    });
+    for (const pending of started.values()) {
+      const server = await pending;
+      await new Promise(resolve => server.close(resolve));
+    }
+  }, { scope: 'worker' }],
+  origin: async ({ previews, layout }, use) => {
+    const server = await previews(layout);
+    await use(`http://${server.address().address}:${server.address().port}`);
+  },
+  url: async ({ origin, layout }, use) => { await use(route => `${origin}${layout.base}${route}`); },
+});
+
+// The icon page loads its CDN icon library examples only on request; no test here asks, and none reaches a CDN (support/cdn.mjs).
+let cdnRequests = [];
+test.beforeEach(async ({ page }) => { cdnRequests = guardCdn(page); });
+test.afterEach(() => { expect(cdnRequests, 'no request reaches the CDN').toEqual([]); });
+
 // One catalog (packages/docs/catalog.jsonl) drives the routes, the example selectors and the navigation clicks.
 const catalog = readCatalog();
 const components = catalog.map(c => c.name);
@@ -38,20 +64,13 @@ function* files(dir) {
   }
 }
 
-for (const { name, dir, base } of layouts) {
+for (const layout of layouts) {
+  const { name, dir, base } = layout;
   test.describe(name, () => {
-    let server;
-    let origin;
-    test.beforeAll(async () => {
-      server = await startPreview({ port: 0, root: join(dist, dir), base });
-      origin = `http://${server.address().address}:${server.address().port}`;
-    });
-    test.afterAll(() => new Promise(resolve => server.close(resolve)));
-
-    const url = route => `${origin}${base}${route}`;
+    test.use({ layout });
 
     for (const route of routes) {
-      test(`${route}: renders on the client route and loads only prefixed assets`, async ({ page, browserName }) => {
+      test(`${route}: renders on the client route and loads only prefixed assets`, async ({ page, browserName, origin, url }) => {
         watchNetwork(page);
         const seen = [];
         const failures = collectRequestFailures(page);
@@ -96,7 +115,7 @@ for (const { name, dir, base } of layouts) {
         expect(hrefs.filter(h => h.startsWith('/') && h !== `${base}/` && !h.startsWith(`${base}/components/`) && !guides.some(g => h === `${base}${g}`))).toEqual([]);
       });
 
-      test(`${route}: a refresh on the deep link renders the same page`, async ({ page }) => {
+      test(`${route}: a refresh on the deep link renders the same page`, async ({ page, url }) => {
         await openDocs(page, url(route));
         const title = await page.title();
         await reloadDocs(page);
@@ -120,7 +139,7 @@ for (const { name, dir, base } of layouts) {
 
     // Header -> first component, then every component through the docs sidebar.
     for (const [i, c] of catalog.entries()) {
-      test(`navigation links reach /components/${c.name} and keep the prefix`, async ({ page }) => {
+      test(`navigation links reach /components/${c.name} and keep the prefix`, async ({ page, url }) => {
         if (i === 0) {
           await openDocs(page, url('/'));
           await page.locator('header nav').getByRole('link', { name: 'Components', exact: true }).click();
@@ -135,14 +154,14 @@ for (const { name, dir, base } of layouts) {
 
     // Previous/next links walk the catalog order.
     if (catalog.length > 1) {
-      test('the previous link walks back through the catalog order and keeps the prefix', async ({ page }) => {
+      test('the previous link walks back through the catalog order and keeps the prefix', async ({ page, url }) => {
         await openDocs(page, url(`/components/${catalog.at(-1).name}`));
         await page.getByRole('navigation', { name: 'Previous and next' }).getByRole('link', { name: `Previous ${catalog.at(-2).title}` }).click();
         await arrive(page, `/components/${catalog.at(-2).name}`);
       });
     }
 
-    test('the header Home link returns to the home page', async ({ page }) => {
+    test('the header Home link returns to the home page', async ({ page, url }) => {
       await openDocs(page, url(`/components/${(catalog.at(-2) ?? catalog[0]).name}`));
       await page.locator('header nav').getByRole('link', { name: 'Home', exact: true }).click();
       await arrive(page, '/');
@@ -150,7 +169,7 @@ for (const { name, dir, base } of layouts) {
 
     // The landing showcase links every component page: one test per component, so each has its own time budget.
     for (const c of catalog) {
-      test(`the landing showcase links /components/${c.name} with the prefix`, async ({ page }) => {
+      test(`the landing showcase links /components/${c.name} with the prefix`, async ({ page, url }) => {
         await openDocs(page, url('/'));
         await expect(page.locator(`#showcase [data-component="${c.name}"] a[href="${base}/components/${c.name}"]`)).toHaveCount(1);
       });
@@ -169,7 +188,7 @@ for (const { name, dir, base } of layouts) {
       expect(html).toContain(`${base}/_litro/velcro.css`);
     });
 
-    test('negative control: genuine failed requests are still reported', async ({ page }) => {
+    test('negative control: genuine failed requests are still reported', async ({ page, url }) => {
       const failures = collectRequestFailures(page);
       await page.route('**/_litro/refused.js', route => route.abort('connectionrefused'));
       await page.route('**/_litro/app.js', route => route.abort('aborted'));
@@ -183,7 +202,7 @@ for (const { name, dir, base } of layouts) {
       expect(reported).toContain(`failed ${base}/_litro/app.js`);
     });
 
-    test('paths outside the prefix are not served', async ({ request }) => {
+    test('paths outside the prefix are not served', async ({ request, origin }) => {
       if (!base) return;
       for (const path of ['/', '/components/button', '/_litro/app.js']) {
         expect((await request.get(`${origin}${path}`)).status()).toBe(404);

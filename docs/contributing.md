@@ -36,6 +36,9 @@ The component's own files:
 - `tests/product/<name>.spec.mjs`: the browser spec. The generated skeleton fails until it is replaced with real checks.
   `tests/product/<name>.probe.json` (optional) is the content and attributes the inherited-API probe
   (`tests/product/inherited-api.spec.mjs`) puts on the element when filling its declared slots is not enough.
+  `tests/product/<name>.inherited-api.spec.mjs` is required exactly when the component's core superclass has CSS
+  custom properties it does not redeclare (the probe's candidates): it only calls `inheritedApiTests('sl-<name>')`,
+  so the slow candidate measurements sit next to the component's spec and CI's shards spread them.
   The component's React wrapper checks go in its own spec too, with `tests/product/support/react.mjs` (a React 19
   page that renders any wrapper by name), not in the shared `tests/product/react.spec.mjs`.
 - `tests/api/components/<name>.mjs` (optional): manifest checks for this component, registered by
