@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { bundleExamples, docsDir, loadBundle, loadExamples } from './support/bundle.mjs';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 import { readGif, readWebp } from '../upstream/image-info.mjs';
@@ -523,7 +524,9 @@ test('upstream quirk: the animated image is not focusable or operable from the k
     el.focus();
     return [el.tabIndex, document.activeElement === el, document.activeElement === document.body, el.shadowRoot.activeElement];
   })).toEqual([-1, false, true, null]);
-  for (const key of ['Tab', 'Enter', 'Space', 'ArrowRight']) await page.keyboard.press(key);
+  // None of the keys changes anything, so each is awaited as a whole press received by the document (support/keys.mjs).
+  await recordKeys(page);
+  for (const key of ['Tab', 'Enter', 'Space', 'ArrowRight']) await pressReceived(page, page, key);
   expect(await page.evaluate(() => [document.querySelector('#a').play, document.activeElement === document.body])).toEqual([undefined, true]);
 });
 
