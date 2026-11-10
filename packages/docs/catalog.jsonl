@@ -1,4 +1,5 @@
 {"name":"alert","title":"Alert","tag":"sl-alert","example":"#demo-default"}
+{"name":"animated-image","title":"Animated Image","tag":"sl-animated-image","example":"sl-animated-image"}
 {"name":"animation","title":"Animation","tag":"sl-animation","example":"#demo-overview"}
 {"name":"avatar","title":"Avatar","tag":"sl-avatar","example":"#demo-default"}
 {"name":"badge","title":"Badge","tag":"sl-badge","example":"#demo-default"}
@@ -22,6 +23,7 @@
 {"name":"format-number","title":"Format Number","tag":"sl-format-number","example":"#demo-default"}
 {"name":"icon","title":"Icon","tag":"sl-icon","example":"sl-icon"}
 {"name":"icon-button","title":"Icon Button","tag":"sl-icon-button","example":"#demo-default"}
+{"name":"image-comparer","title":"Image Comparer","tag":"sl-image-comparer","example":"sl-image-comparer"}
 {"name":"include","title":"Include","tag":"sl-include","example":"#demo-default"}
 {"name":"input","title":"Input","tag":"sl-input","example":"#demo-default"}
 {"name":"menu","title":"Menu","tag":"sl-menu","example":"sl-menu"}

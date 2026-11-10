@@ -66,16 +66,32 @@ const BLOCKED_RULES = [
 const BENIGN = [/^[a-z][a-z0-9]*(?:-[a-z0-9]+)* \d+ passed, \d+ failed$/, /^total \d+, passed \d+, failed \d+; /, /^passed \(/];
 const PREFIX = 'test:upstream: ';
 const squash = s => s.replace(/\s+/g, ' ').trim();
-// A title shaped like a path is never shown, whatever the inventory says: a backslash; a slash that starts a path (at the
-// start or after anything that is not a letter, digit or underscore: a space, quote, bracket, colon, dot, tilde, ...); or
-// two or more slashes (a relative path such as a/b/c). A single slash between words ('focus/blur') is ordinary text.
+// A title shaped like a path is never shown, whatever the inventory says (the exact titles of PATH_TITLES_PRINTED below
+// are the only exception): a backslash; a slash that starts a path (at the start or after anything that is not a letter,
+// digit or underscore: a space, quote, bracket, colon, dot, tilde, ...); or two or more slashes (a relative path such as
+// a/b/c). A single slash between words ('focus/blur') is ordinary text.
 const PATHY = /\\|(?:^|\W)\/|\/.*\//;
+/** Exact inventory titles that are printed although they are path-shaped. Each is a public Shoelace 2.20.1 test title,
+ * vendored unchanged, that names one of Shoelace's own demo image paths ('docs/assets/images/walk.gif'), so it cannot be
+ * renamed and PATHY alone would withhold it. Exact strings only, never a pattern: a title is printed through this list only
+ * when it is character for character one of these (and still in the component's inventory and through the same redaction),
+ * so a one-character variant, or any other title with two or more slashes, stays withheld. A test fails if an entry is not
+ * a real inventory title or is not path-shaped. Adding one is a protected change. */
+export const PATH_TITLES_PRINTED = Object.freeze([
+  '<sl-animated-image> > should load a docs/assets/images/walk.gif without errors',
+  '<sl-animated-image> > should play docs/assets/images/walk.gif on click',
+  '<sl-animated-image> > should pause and resume docs/assets/images/walk.gif on click',
+  '<sl-animated-image> > should load a docs/assets/images/tie.webp without errors',
+  '<sl-animated-image> > should play docs/assets/images/tie.webp on click',
+  '<sl-animated-image> > should pause and resume docs/assets/images/tie.webp on click',
+]);
+const PRINTED_PATH_TITLES = new Set(PATH_TITLES_PRINTED);
 
 /** The title when it is safe to print: unchanged by redaction (no path, token, control character or flagged text). */
 function shownTitle(inventory, component, title) {
   const list = inventory?.[component];
   if (!Array.isArray(list) || !list.includes(title)) return null;
-  if (PATHY.test(title)) return null;
+  if (PATHY.test(title) && !PRINTED_PATH_TITLES.has(title)) return null;
   const shown = redactLine(title, undefined, MAX_TITLE);
   return shown === squash(title) && shown !== '' ? shown : null;
 }

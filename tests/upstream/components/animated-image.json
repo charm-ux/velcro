@@ -1,0 +1,17 @@
+{
+  "files": {
+    "src/components/animated-image/animated-image.test.ts": "082d5cb04ac154511cdc5e2b725873ec5769a38920b3118646120793ac445a92"
+  },
+  "tests": [
+    "<sl-animated-image> > should render a component",
+    "<sl-animated-image> > should render be accessible",
+    "<sl-animated-image> > should load a docs/assets/images/walk.gif without errors",
+    "<sl-animated-image> > should play docs/assets/images/walk.gif on click",
+    "<sl-animated-image> > should pause and resume docs/assets/images/walk.gif on click",
+    "<sl-animated-image> > should load a docs/assets/images/tie.webp without errors",
+    "<sl-animated-image> > should play docs/assets/images/tie.webp on click",
+    "<sl-animated-image> > should pause and resume docs/assets/images/tie.webp on click",
+    "<sl-animated-image> > should emit an error event on invalid url"
+  ],
+  "knownFailures": []
+}

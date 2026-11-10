@@ -23,6 +23,7 @@ const TAG = ['sl-tag', 'VelcroTag', 'tagClass'];
 const VISUALLY_HIDDEN = ['sl-visually-hidden', 'VelcroVisuallyHidden', 'visuallyHiddenClass'];
 const ENTRIES = [
   ['alert', 'sl-alert', 'VelcroAlert', [ICON_BUTTON, ICON]],
+  ['animated-image', 'sl-animated-image', 'VelcroAnimatedImage', [ICON]],
   ['avatar', 'sl-avatar', 'VelcroAvatar', [ICON]],
   ['breadcrumb', 'sl-breadcrumb', 'VelcroBreadcrumb', [ICON]],
   ['button', 'sl-button', 'VelcroButton', [['sl-spinner', 'VelcroSpinner', 'spinnerClass']]],
@@ -31,6 +32,7 @@ const ENTRIES = [
   ['details', 'sl-details', 'VelcroDetails', [ICON]],
   ['dropdown', 'sl-dropdown', 'VelcroDropdown', [POPUP]],
   ['icon-button', 'sl-icon-button', 'VelcroIconButton', [ICON]],
+  ['image-comparer', 'sl-image-comparer', 'VelcroImageComparer', [ICON]],
   ['input', 'sl-input', 'VelcroInput', [ICON]],
   ['menu-item', 'sl-menu-item', 'VelcroMenuItem', [ICON, POPUP, SPINNER]],
   ['option', 'sl-option', 'VelcroOption', [ICON]],
@@ -49,6 +51,7 @@ const ENTRIES = [
 // listed: the constructor of a dependency registers its own ones when it is constructed.
 const CLASS_ONLY = [
   ['alertClass', 'VelcroAlert', 'sl-alert', [ICON_BUTTON]],
+  ['animatedImageClass', 'VelcroAnimatedImage', 'sl-animated-image', [ICON]],
   ['avatarClass', 'VelcroAvatar', 'sl-avatar', [ICON]],
   ['breadcrumbClass', 'VelcroBreadcrumb', 'sl-breadcrumb', [ICON]],
   // Without its sl-input and sl-icon: as in Shoelace, the color picker's first update reads the inner input's
@@ -59,6 +62,7 @@ const CLASS_ONLY = [
   ['colorPickerClass', 'VelcroColorPicker', 'sl-color-picker', [BUTTON_GROUP, BUTTON, DROPDOWN, VISUALLY_HIDDEN]],
   ['detailsClass', 'VelcroDetails', 'sl-details', [ICON]],
   ['dropdownClass', 'VelcroDropdown', 'sl-dropdown', [POPUP]],
+  ['imageComparerClass', 'VelcroImageComparer', 'sl-image-comparer', [ICON]],
   ['menuItemClass', 'VelcroMenuItem', 'sl-menu-item', [ICON, POPUP, SPINNER]],
   ['optionClass', 'VelcroOption', 'sl-option', [ICON]],
   ['radioGroupClass', 'VelcroRadioGroup', 'sl-radio-group', [['sl-button-group', 'VelcroButtonGroup', 'buttonGroupClass']]],
