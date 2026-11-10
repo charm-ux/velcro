@@ -1,0 +1,25 @@
+import { VelcroAnimatedImage as SlAnimatedImage } from '@charm-ux/velcro/react/VelcroAnimatedImage.js';
+
+const css = `
+  .animated-image-custom-control-box::part(control-box) {
+    top: auto;
+    right: auto;
+    bottom: 1rem;
+    left: 1rem;
+    background-color: deeppink;
+    border: none;
+    color: pink;
+  }
+`;
+
+const App = () => (
+  <>
+    <SlAnimatedImage
+      className="animated-image-custom-control-box"
+      src="data:image/gif;base64,R0lGODlhYABIAPEAAB46X/W0Hg8dMP///yH/C05FVFNDQVBFMi4wAwEAAAAh+QQEGQAAACwAAAAAYABIAAACmYSPqcvtD6OctNqLs968+w+G4kiW5omm6sq27gvH8kzX9o3n+s73/g8MCofEovGITCqXzKbzCY1Kp9Sq9YrNaheBrvcL9krDZPC4jD6jyery4P1tk9+DeHQdoNuhePa9b/YHKCY4GCAHiNiniMe45phWOAhZ5iRwiZmpucnZ6fkJGio6Slpqeop6ubXK2ur6ChsrO0tba7tSAAAh+QQEGQAAACwAAAAAYABIAAACmYSPqcvtD6OctNqLs968+w+G4kiW5omm6sq27gvH8kzX9o3n+s73/g8MCofEovGITCqXzKbzCY1Kp9Sq9YrNal2BrvcL9krDZPC4jD6jyery4P1tk9+DeHQdoNuhePa9b/YHKCY4GCAHiNiniMe45phWOAhZtiJwiZmpucnZ6fkJGio6Slpqeop6ubXK2ur6ChsrO0tba7tSAAAh+QQEGQAAACwAAAAAYABIAAACmYSPqcvtD6OctNqLs968+w+G4kiW5omm6sq27gvH8kzX9o3n+s73/g8MCofEovGITCqXzKbzCY1Kp9Sq9YrNaqOBrvcL9krDZPC4jD6jyery4P1tk9+DOHdNt0PXZTm/6/cXyDe4Vph296f3pGiW2Bhw2PfYiCBwiZmpucnZ6fkJGio6Slpqeop6ubXK2ur6ChsrO0tba7tSAAA7"
+      alt="Animation of a yellow block sliding across a dark blue background"
+    />
+
+    <style>{css}</style>
+  </>
+);

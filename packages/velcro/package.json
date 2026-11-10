@@ -12,6 +12,8 @@
     ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
     "./alert": { "types": "./dist/components/alert/index.d.ts", "import": "./dist/components/alert/index.js" },
     "./alert/class": { "types": "./dist/components/alert/class.d.ts", "import": "./dist/components/alert/class.js" },
+    "./animated-image": { "types": "./dist/components/animated-image/index.d.ts", "import": "./dist/components/animated-image/index.js" },
+    "./animated-image/class": { "types": "./dist/components/animated-image/class.d.ts", "import": "./dist/components/animated-image/class.js" },
     "./animation": { "types": "./dist/components/animation/index.d.ts", "import": "./dist/components/animation/index.js" },
     "./animation/class": { "types": "./dist/components/animation/class.d.ts", "import": "./dist/components/animation/class.js" },
     "./animation/animations": { "types": "./dist/components/animation/animations.d.ts", "import": "./dist/components/animation/animations.js" },

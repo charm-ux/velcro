@@ -18,6 +18,7 @@ const SPINNER = ['sl-spinner', 'VelcroSpinner', 'spinnerClass'];
 const TAG = ['sl-tag', 'VelcroTag', 'tagClass'];
 const ENTRIES = [
   ['alert', 'sl-alert', 'VelcroAlert', [ICON_BUTTON, ICON]],
+  ['animated-image', 'sl-animated-image', 'VelcroAnimatedImage', [ICON]],
   ['avatar', 'sl-avatar', 'VelcroAvatar', [ICON]],
   ['breadcrumb', 'sl-breadcrumb', 'VelcroBreadcrumb', [ICON]],
   ['button', 'sl-button', 'VelcroButton', [['sl-spinner', 'VelcroSpinner', 'spinnerClass']]],
@@ -44,6 +45,7 @@ const ENTRIES = [
 // listed: the constructor of a dependency registers its own ones when it is constructed.
 const CLASS_ONLY = [
   ['alertClass', 'VelcroAlert', 'sl-alert', [ICON_BUTTON]],
+  ['animatedImageClass', 'VelcroAnimatedImage', 'sl-animated-image', [ICON]],
   ['avatarClass', 'VelcroAvatar', 'sl-avatar', [ICON]],
   ['breadcrumbClass', 'VelcroBreadcrumb', 'sl-breadcrumb', [ICON]],
   ['detailsClass', 'VelcroDetails', 'sl-details', [ICON]],
