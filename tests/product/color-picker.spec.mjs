@@ -2,6 +2,7 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { bundleExamples, docsDir, loadBundle, loadExamples } from './support/bundle.mjs';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 
@@ -81,6 +82,12 @@ const settle = page => page.evaluate(async () => {
   const el = document.querySelector('#c');
   await el.updateComplete;
   await el.shadowRoot.querySelector('sl-input').updateComplete;
+});
+// The color input's text and whether all of it is selected (the native input is in the sl-input's shadow root).
+const inputText = page => picker(page, (el, root) => root.querySelector('[part="input"]').value);
+const allSelected = page => picker(page, (el, root) => {
+  const native = root.querySelector('[part="input"]').shadowRoot.querySelector('input');
+  return native.value.length > 0 && native.selectionStart === 0 && native.selectionEnd === native.value.length;
 });
 const token = (page, name) => page.evaluate(name => {
   const probe = document.createElement('span');
@@ -260,19 +267,31 @@ test('keyboard: the grid handle and the sliders step by 1 (10 with Shift), Home 
   await loadBundle(page, ENTRY);
   await mount(page, 'label="Select a color" inline opacity value="hsv(180, 50%, 50%)" format="hsv"');
   await events(page);
-  const press = async (part, keys) => {
+  await recordKeys(page);
+  const value = () => picker(page, el => el.value);
+  // Focuses the part, presses the key and awaits the value it leaves. A key that leaves the value as it is has nothing to
+  // await but its own press.
+  const press = async (part, key, expected) => {
+    const before = await value();
     await picker(page, (el, root, part) => root.querySelector(`[part~="${part}"]`).focus(), part);
-    for (const key of keys) await page.keyboard.press(key);
-    await settle(page);
-    return picker(page, el => el.value);
+    if (expected === before) {
+      await pressReceived(page, page, key);
+      expect(await value()).toBe(expected);
+    } else {
+      await page.keyboard.press(key);
+      await expect.poll(value, `${key} on the ${part}`).toBe(expected);
+    }
   };
-  expect(await press('grid-handle', ['ArrowRight', 'Shift+ArrowUp'])).toBe('hsva(180, 51%, 60%, 1.00)');
-  expect(await press('grid-handle', ['Home', 'End'])).toBe('hsva(180, 51%, 60%, 1.00)');
-  expect(await press('hue-slider-handle', ['Shift+ArrowLeft', 'ArrowLeft'])).toBe('hsva(169, 51%, 60%, 1.00)');
-  expect(await press('hue-slider-handle', ['Home'])).toBe('hsva(0, 51%, 60%, 1.00)');
-  expect(await press('opacity-slider-handle', ['Shift+ArrowLeft'])).toBe('hsva(0, 51%, 60%, 0.90)');
-  expect(await press('opacity-slider-handle', ['Home'])).toBe('hsva(0, 51%, 60%, 0.00)');
-  expect(await press('opacity-slider-handle', ['End'])).toBe('hsva(0, 51%, 60%, 1.00)');
+  await press('grid-handle', 'ArrowRight', 'hsva(180, 51%, 50%, 1.00)');
+  await press('grid-handle', 'Shift+ArrowUp', 'hsva(180, 51%, 60%, 1.00)');
+  await press('grid-handle', 'Home', 'hsva(180, 51%, 60%, 1.00)');
+  await press('grid-handle', 'End', 'hsva(180, 51%, 60%, 1.00)');
+  await press('hue-slider-handle', 'Shift+ArrowLeft', 'hsva(170, 51%, 60%, 1.00)');
+  await press('hue-slider-handle', 'ArrowLeft', 'hsva(169, 51%, 60%, 1.00)');
+  await press('hue-slider-handle', 'Home', 'hsva(0, 51%, 60%, 1.00)');
+  await press('opacity-slider-handle', 'Shift+ArrowLeft', 'hsva(0, 51%, 60%, 0.90)');
+  await press('opacity-slider-handle', 'Home', 'hsva(0, 51%, 60%, 0.00)');
+  await press('opacity-slider-handle', 'End', 'hsva(0, 51%, 60%, 1.00)');
   const changes = (await events(page)).filter(e => e[0] === 'sl-change' || e[0] === 'sl-input');
   // One sl-change and one sl-input per key that changed the value (Home and End on the grid change nothing).
   expect(changes.filter(e => e[0] === 'sl-change').length).toBe(8);
@@ -321,27 +340,35 @@ test('the input: a parsable color (any format, a wrapping hue or a CSS name) is 
   await loadBundle(page, ENTRY);
   await mount(page, 'label="Select a color" inline format="rgb" uppercase value="#000"');
   await events(page);
-  const type = async text => {
+  await recordKeys(page);
+  // Replaces the input's text with `text`, commits it with Enter and awaits the value and the input showing `expected`, and
+  // the selection of that text that Enter leaves.
+  const type = async (text, expected) => {
     await picker(page, (el, root) => root.querySelector('[part="input"]').focus());
-    await page.keyboard.press('ControlOrMeta+a');
+    await pressReceived(page, page, 'ControlOrMeta+a');
+    await expect.poll(() => allSelected(page), 'the text is selected').toBe(true);
     await page.keyboard.type(text);
+    await expect.poll(() => inputText(page), 'the text is typed').toBe(text);
     await page.keyboard.press('Enter');
-    await settle(page);
-    return picker(page, (el, root) => [el.value, root.querySelector('[part="input"]').value]);
+    await expect.poll(() => picker(page, (el, root) => [el.value, root.querySelector('[part="input"]').value]), `${text} is applied`).toEqual([expected, expected]);
+    // Enter also selects the input's text, from a timer: wait for it, or it can land in the middle of the next typing.
+    await expect.poll(() => allSelected(page), 'the applied text is selected').toBe(true);
   };
-  expect(await type('rebeccapurple')).toEqual(['RGB(102, 51, 153)', 'RGB(102, 51, 153)']);
-  expect(await type('hsl(120, 100%, 25%)')).toEqual(['RGB(0, 128, 0)', 'RGB(0, 128, 0)']);
+  await type('rebeccapurple', 'RGB(102, 51, 153)');
+  await type('hsl(120, 100%, 25%)', 'RGB(0, 128, 0)');
   // A hue outside 0 to 360 wraps around, as TinyColor reads it.
-  expect(await type('hsl(400, 100%, 50%)')).toEqual(['RGB(255, 170, 0)', 'RGB(255, 170, 0)']);
-  expect(await type('hsl(-30, 100%, 50%)')).toEqual(['RGB(255, 0, 128)', 'RGB(255, 0, 128)']);
-  expect(await type('#abc')).toEqual(['RGB(170, 187, 204)', 'RGB(170, 187, 204)']);
+  await type('hsl(400, 100%, 50%)', 'RGB(255, 170, 0)');
+  await type('hsl(-30, 100%, 50%)', 'RGB(255, 0, 128)');
+  await type('#abc', 'RGB(170, 187, 204)');
   const changes = (await events(page)).filter(e => e[0] === 'sl-change');
   expect(changes).toEqual([['sl-change', 'RGB(102, 51, 153)'], ['sl-change', 'RGB(0, 128, 0)'], ['sl-change', 'RGB(255, 170, 0)'],
     ['sl-change', 'RGB(255, 0, 128)'], ['sl-change', 'RGB(170, 187, 204)']]);
   // An unparsable entry: the commit (on blur) leaves the value and puts it back in the input.
   await picker(page, (el, root) => root.querySelector('[part="input"]').focus());
-  await page.keyboard.press('ControlOrMeta+a');
+  await pressReceived(page, page, 'ControlOrMeta+a');
+  await expect.poll(() => allSelected(page), 'the text is selected').toBe(true);
   await page.keyboard.type('nope');
+  await expect.poll(() => inputText(page), 'the text is typed').toBe('nope');
   await picker(page, (el, root) => root.querySelector('[part="preview"]').focus());
   await settle(page);
   expect(await picker(page, (el, root) => [el.value, root.querySelector('[part="input"]').value])).toEqual(['RGB(170, 187, 204)', 'RGB(170, 187, 204)']);
@@ -377,7 +404,8 @@ test('a swatch click sets the color and emits sl-change and sl-input; Enter on a
   expect(await picker(page, el => el.value)).toBe('#d0021b');
   expect((await events(page)).filter(e => e[0] === 'sl-change' || e[0] === 'sl-input')).toEqual([['sl-change', '#d0021b'], ['sl-input', '#d0021b']]);
   await picker(page, (el, root) => root.querySelectorAll('[part="swatch"]')[1].focus());
-  await page.keyboard.press('Enter');
+  await recordKeys(page);
+  await pressReceived(page, page, 'Enter');
   await settle(page);
   expect(await picker(page, el => el.value)).toBe('#0000ff');
   expect((await events(page)).filter(e => e[0] === 'sl-change' || e[0] === 'sl-input')).toEqual([]);
@@ -431,9 +459,12 @@ test('emptying the input and committing it clears the value, empties the trigger
   await loadBundle(page, ENTRY);
   await mount(page, 'label="Select a color" inline value="#0000ff"');
   await events(page);
+  await recordKeys(page);
   await picker(page, (el, root) => root.querySelector('[part="input"]').focus());
-  await page.keyboard.press('ControlOrMeta+a');
+  await pressReceived(page, page, 'ControlOrMeta+a');
+  await expect.poll(() => allSelected(page), 'the text is selected').toBe(true);
   await page.keyboard.press('Backspace');
+  await expect.poll(() => inputText(page), 'the text is deleted').toBe('');
   await picker(page, (el, root) => root.querySelector('[part="preview"]').focus());
   await settle(page);
   expect(await picker(page, (el, root) => [el.value, root.querySelector('[part="grid"]').style.backgroundColor])).toEqual(['', 'rgb(255, 0, 0)']);
