@@ -40,7 +40,6 @@ const quirks = [
 
 const gaps = [
   'All of Shoelace\'s examples are ported with a live preview and a React version, in Shoelace\'s order. The React examples import Velcro\'s generated wrapper (@charm-ux/velcro/react/VelcroColorPicker.js) under Shoelace\'s name; nothing else differs. As in Shoelace\'s page, the React versions of Opacity and Formats differ from the HTML ones (no initial value with opacity, no label on the formats).',
-  'Colors are parsed and formatted by Velcro\'s color adapter (internal/color.ts), which exposes only the TinyColor calls Shoelace makes. Shoelace uses @ctrl/tinycolor; whether Velcro takes that dependency or ships its own copy is not decided yet, and the adapter is an interim implementation of the same rules. Until that is settled, CSS color names are resolved by the browser\'s canvas parser, so a name the browser knows but TinyColor does not (a CSS system color such as canvas) is accepted.',
   'Velcro builds sl-color-picker on the @charm-ux/core base element, because @charm-ux/core has no color picker. The only core extension that remains is the non-bubbling ready event on first update, which the API tables label as inherited from core. Core\'s base styles are replaced by Shoelace\'s.',
   'The public base, input, dropdown, previewButton and trigger fields and the handleFormatChange, handleOpacityChange and handleValueChange methods exist as in Shoelace, which lists them in its manifest without a description; the API tables below list them too.',
   'dir and lang are declared as Shoelace\'s base element declares them: reactive, not reflected and undefined until set. lang selects the translation of the copy button, the input\'s label, the format toggle and the eye dropper icon. TypeScript types for dir are narrower than Shoelace\'s dir: string: the read type stays core\'s \'ltr\' | \'rtl\' | \'auto\'. Fixing this needs a change in @charm-ux/core and is deferred.',
@@ -59,6 +58,7 @@ export class ColorPickerPage extends LitElement {
       <h1>Color Picker</h1>
       <p><code>&lt;sl-color-picker&gt;</code> is registered by <code>@charm-ux/velcro</code> on top of the <code>@charm-ux/core</code> base element. Prototype status: unreleased.</p>
       <p>Color pickers allow the user to select a color.</p>
+      <p>Colors are parsed and formatted by <code>@ctrl/tinycolor</code> 4.1.0, the library Shoelace 2.20.1 uses.</p>
       <p>This component works with standard <code>&lt;form&gt;</code> elements: its value is submitted under its <code>name</code>, a form reset restores the initial value, and <code>required</code> takes part in the form's validation.</p>
 
       <h2 id="examples">Examples</h2>

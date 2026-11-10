@@ -89,6 +89,24 @@ test('core 0.5.2 uses the curated MIT fallback with honest provenance; another v
   assert.match(code(() => generateRuntimeNotices(core('0.5.3'), { repoRoot: '.', readLicense: () => null })), /^missing-license:@charm-ux\/core@0\.5\.3$/);
 });
 
+test('@ctrl/tinycolor 4.1.0 uses its license text without the author\'s e-mail address, as the installed LICENSE otherwise reads; another version fails', () => {
+  const tinycolor = v => closure({
+    modules: [{ chunk: 'x.js', id: '@ctrl/tinycolor/dist/module/index.js', kind: 'package', package: '@ctrl/tinycolor', rendered: 1 }],
+    packages: [{ name: '@ctrl/tinycolor', version: v, license: 'MIT' }],
+  });
+  const { text } = generateRuntimeNotices(tinycolor('4.1.0'), { repoRoot: '.', readLicense: () => null });
+  assert.match(text, /Copyright \(c\) Scott Cooper\n/);
+  assert.match(text, /Provenance for @ctrl\/tinycolor 4\.1\.0: The package's LICENSE file, verbatim except that the author's contact e-mail address/);
+  assert.doesNotMatch(text, /[A-Za-z0-9._-]+@[A-Za-z0-9-]+\.[a-z]{2,}/, 'no e-mail address in the notices');
+  assert.match(code(() => generateRuntimeNotices(tinycolor('4.1.1'), { repoRoot: '.', readLicense: () => null })), /^missing-license:@ctrl\/tinycolor@4\.1\.1$/);
+  // The curated text is the installed package's LICENSE with only that address taken out of its first line.
+  const installed = readInstalledLicense(new URL('../../', import.meta.url).pathname, '@ctrl/tinycolor', '4.1.0');
+  assert.notEqual(installed, null, 'the dependency is installed');
+  const [first, ...rest] = installed.replace(/\r\n?/g, '\n').replace(/\s+$/, '').split('\n');
+  assert.match(first, /^Copyright \(c\) Scott Cooper <[^<>\s]+>$/);
+  assert.ok(text.includes(`${first.replace(/ <[^<>\s]+>$/, '')}\n${rest.join('\n')}\n`), 'the rest of the text is unchanged');
+});
+
 const HELPER_ID = '@oxc-project+runtime@0.139.0/helpers/esm/decorate';
 const MODULE_SHA = 'cd7539eddeba0b902817c2063d520e182c69ffb4915e101103f8980d5c34170c';
 const PINNED_BODY = 'f961c53e8a7ad8326629ad6d3c629c2fe649be093d57a55a77cc812a2e76fa12';

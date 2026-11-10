@@ -14,7 +14,8 @@
   `docs/pages/components/color-picker.md`) and the React examples `packages/docs/examples/color-picker/react/*.jsx` (the
   same page's React examples, with the import lines changed to Velcro's React wrappers). The color picker also uses the
   shared `internal/drag.ts`, `internal/form.ts`, `internal/localize.ts` and `internal/math.ts` helpers, which are
-  recorded with the other shared helpers above, and Velcro's own color adapter (`internal/color.ts`, which includes no
-  Shoelace source). The color picker is built on the `@charm-ux/core` base element
-  (core has no color picker); no Shoelace runtime is included. Shoelace's
+  recorded with the other shared helpers above, and the color model (`internal/color.ts`, which re-exports `TinyColor` from
+  `@ctrl/tinycolor`, as Shoelace uses it, and includes no Shoelace source; see the `@ctrl/tinycolor` entry below). The
+  color picker is built on the `@charm-ux/core` base element (core has no color picker); no Shoelace runtime is
+  included. Shoelace's
   `src/components/color-picker/color-picker.test.ts` is vendored unchanged for the conformance run (see `tests/upstream/`).
