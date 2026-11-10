@@ -391,6 +391,41 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
+## qr-creator 1.0.0 (MIT)
+
+- Source: the published `qr-creator` 1.0.0 npm package (https://github.com/nimiq/qr-creator), the version Shoelace
+  2.20.1's lockfile resolves for its QR code; the lockfile pins npm's published sha512 integrity for it.
+- Used in: `packages/velcro/src/components/qr-code/qr-code.ts`, which imports it as a runtime dependency of
+  `@charm-ux/velcro` (exact version, no transitive dependencies) to draw the QR code, as Shoelace's QR code does. No
+  qr-creator source is copied into this repository; bundles of the package include its code. Its source file also
+  carries the attributions of the code it wraps: jquery-qrcode 0.14.0 (https://larsjung.de/jquery-qrcode/) and the QR
+  code generator by Kazuhiko Arase ("Copyright (c) 2009 Kazuhiko Arase", "Licensed under the MIT license").
+- The package carries no NOTICE file. Its license text, verbatim:
+
+```text
+MIT License
+
+Copyright (c) 2017 The Nimiq Foundation.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ## @shoelace-style/animations 1.2.0 (MIT), with animate.css (MIT)
 
 - Source: the published `@shoelace-style/animations` 1.2.0 npm package (https://github.com/shoelace-style/animations),

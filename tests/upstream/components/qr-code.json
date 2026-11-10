@@ -1,0 +1,15 @@
+{
+  "files": {
+    "src/components/qr-code/qr-code.test.ts": "67cb8b41faf57a33a7bbed35897ca0f08d0d270b5137403a8b8a2b334658f5e8"
+  },
+  "tests": [
+    "<sl-qr-code> > should render a component",
+    "<sl-qr-code> > should be accessible",
+    "<sl-qr-code> > uses the value as label if none given",
+    "<sl-qr-code> > uses the label if given",
+    "<sl-qr-code> > sets the correct color for the qr code",
+    "<sl-qr-code> > sets the correct background for the qr code",
+    "<sl-qr-code> > has the expected size"
+  ],
+  "knownFailures": []
+}

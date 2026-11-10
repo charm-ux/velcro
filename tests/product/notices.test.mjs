@@ -33,6 +33,27 @@ test('third-party notices keep the upstream license texts; the shipped copies ar
   assert.match(read('packages/docs/package.json'), /sync\.mjs notices packages\/docs\/public\/THIRD_PARTY_NOTICES\.md/);
 });
 
+// Code fences in a notices file: every opened fence is closed, and no section heading falls inside one (an unclosed license
+// block would swallow the sections after it). Returns one problem per offending line.
+function fenceProblems(text) {
+  const problems = [];
+  let open = null;
+  text.split('\n').forEach((line, i) => {
+    if (line.startsWith('```')) open = open === null ? i + 1 : null;
+    else if (open !== null && /^#{1,6} /.test(line)) problems.push(`heading inside the fence opened on line ${open}: line ${i + 1}`);
+  });
+  if (open !== null) problems.push(`fence opened on line ${open} is never closed`);
+  return problems;
+}
+
+test('the notices files close every code fence before the next section, in the root file and the assembled copies', () => {
+  assert.deepEqual(fenceProblems(read('THIRD_PARTY_NOTICES.md')), []);
+  assert.deepEqual(fenceProblems(assembleNotices(repo)), []);
+  // Negative controls: a license block left open before the next section, and one left open at the end.
+  assert.deepEqual(fenceProblems('## A\n\n```text\nMIT\n\n## B\n\n```text\nMIT\n```\n'), ['heading inside the fence opened on line 3: line 6', 'fence opened on line 10 is never closed']);
+  assert.deepEqual(fenceProblems('## A\n\n```text\nMIT\n'), ['fence opened on line 3 is never closed']);
+});
+
 test('component notice fragments are inserted in catalog order and must be plain list entries', () => {
   const scratch = mkdtempSync(path.join(tmpdir(), 'velcro-notices-'));
   try {
