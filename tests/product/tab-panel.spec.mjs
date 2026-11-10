@@ -5,6 +5,9 @@ test.beforeEach(({ page }) => watchNetwork(page));
 
 const PAGE = '/components/tab-panel';
 
+// Opens the docs page and waits for an example. `requests` lists the URLs the page requested; a test that reads it waits
+// for the network to go quiet first (documentsLoaded). The other tests check rendering only and do not wait for that: its
+// bound would add to the page's own waits and can use up the test's time on a loaded runner.
 async function openExample(page, name = 'Overview') {
   const requests = [];
   page.on('request', request => requests.push(request.url()));
@@ -12,7 +15,6 @@ async function openExample(page, name = 'Overview') {
   const frame = page.frameLocator(`iframe.example[title="Tab Panel example: ${name}"]`);
   await expect(frame.locator('sl-tab-panel[active]').first()).toBeVisible();
   await frame.locator('body').evaluate(() => customElements.whenDefined('sl-tab-panel'));
-  await documentsLoaded(page);
   return { frame, requests };
 }
 
@@ -45,6 +47,7 @@ test('docs page is prerendered with Velcro branding, prototype status, the quirk
 
 test('sl-tab-panel registers as the exported class with no core marker, slot or hidden attribute and no ch-* definitions', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.some(url => url.endsWith('/_litro/velcro.js'))).toBe(true);
   const r = await frame.locator('#demo-default').evaluate(el => ({
     ctor: customElements.get('sl-tab-panel') === el.constructor,
@@ -427,6 +430,7 @@ test('every docs example renders in its own document', async ({ page }) => {
 
 test('no upstream Shoelace runtime is requested or defined; all requests stay on the local origin', async ({ page }) => {
   const { frame, requests } = await openExample(page);
+  await documentsLoaded(page);
   expect(requests.filter(url => /shoelace/i.test(url))).toEqual([]);
   const origin = new URL(page.url()).origin;
   expect(requests.every(url => url.startsWith(origin) || url.startsWith('about:') || url.startsWith('data:'))).toBe(true);

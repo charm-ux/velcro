@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { pressReceived, recordKeys } from './support/keys.mjs';
 import { documentsLoaded, openDocs, watchNetwork } from './support/loaded.mjs';
 import { reactWrapperPage } from './support/react.mjs';
 
@@ -842,8 +843,9 @@ test.describe('top-level documents', () => {
     // dispatched on the tag, its remove button and the document emit sl-remove.
     await page.evaluate(() => document.querySelector('#t').shadowRoot.querySelector('sl-icon-button').focus());
     expect(await active()).toBe('t>sl-icon-button>button');
-    await page.keyboard.press('Delete');
-    await page.keyboard.press('Backspace');
+    await recordKeys(page);
+    await pressReceived(page, page, 'Delete');
+    await pressReceived(page, page, 'Backspace');
     await page.evaluate(() => {
       const tag = document.querySelector('#t');
       const button = tag.shadowRoot.querySelector('sl-icon-button');
@@ -855,9 +857,9 @@ test.describe('top-level documents', () => {
     // Once something has put focus on the button (script here; a pointer press does it too), it is a native button: Enter and
     // Space activate it. Only Tab cannot reach it.
     await page.keyboard.press('Enter');
-    expect(await page.evaluate(() => window.log)).toEqual(['sl-remove']);
+    await expect.poll(() => page.evaluate(() => window.log)).toEqual(['sl-remove']);
     await page.keyboard.press('Space');
-    expect(await page.evaluate(() => window.log)).toEqual(['sl-remove', 'sl-remove']);
+    await expect.poll(() => page.evaluate(() => window.log)).toEqual(['sl-remove', 'sl-remove']);
     expect(pageErrors).toEqual([]);
   });
 
