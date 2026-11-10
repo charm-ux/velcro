@@ -6,9 +6,9 @@
 // when inline: the saturation/brightness grid, the hue and opacity sliders, the copy preview, the `<sl-input>` with the
 // format and eye dropper buttons, and the swatches), the pointer, touch and keyboard handling, the color parsing and
 // formatting, the events and the validation and form participation API follow Shoelace. Velcro changes: built on the
-// @charm-ux/core base element (core has no color picker), the color model comes from Velcro's color adapter
-// (`internal/color.ts`) instead of importing `@ctrl/tinycolor` directly, Shoelace's `@watch` handlers run from
-// `update()` with the same timing and its dependencies are defined through Velcro's registration helper. Shoelace's
+// @charm-ux/core base element (core has no color picker), `TinyColor` (`@ctrl/tinycolor`, as in Shoelace) is
+// imported through `internal/color.ts`, Shoelace's `@watch` handlers run from `update()` with the same timing and its
+// dependencies are defined through Velcro's registration helper. Shoelace's
 // behavior is matched exactly, including its quirks; each one is marked "Upstream quirk" below and listed on the docs page.
 import { html, type PropertyValues } from 'lit';
 import { eventOptions, property, query, state } from 'lit/decorators.js';

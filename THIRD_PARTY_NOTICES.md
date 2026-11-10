@@ -367,6 +367,29 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
+## @ctrl/tinycolor 4.1.0 (MIT)
+
+- Source: the published `@ctrl/tinycolor` 4.1.0 npm package (https://github.com/scttcper/tinycolor), the version Shoelace
+  2.20.1's `package-lock.json` resolves, with npm integrity
+  `sha512-WyOx8cJQ+FQus4Mm4uPIZA64gbk3Wxh0so5Lcii0aJifqwoVOlfFtorjLE0Hen4OYyHZMXDWqMmaQemBhgxFRQ==`. Copyright (c) Scott
+  Cooper.
+- Used in: `packages/velcro/src/internal/color.ts` (re-exports `TinyColor`, which
+  `packages/velcro/src/components/color-picker/color-picker.ts` uses to parse and format colors, as Shoelace's color
+  picker does). It is a runtime dependency of `@charm-ux/velcro`, pinned to this exact version, and no source of it is
+  copied into this repository; this notice is kept for the artifacts that bundle it (see the release gate above).
+- License text, verbatim from the package's `LICENSE` except that the author's contact e-mail address, which follows the
+  copyright holder's name on the first line, is left out (this repository's privacy rules do not allow e-mail
+  addresses in committed text):
+
+```text
+Copyright (c) Scott Cooper
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 ## qr-creator 1.0.0 (MIT)
 
 - Source: the published `qr-creator` 1.0.0 npm package (https://github.com/nimiq/qr-creator), the version Shoelace

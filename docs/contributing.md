@@ -12,6 +12,34 @@ re-verifies that archive against the pinned SHA-256 instead of downloading again
 A kept archive with wrong bytes, a symlink, a directory or an oversized file fails
 closed with nothing extracted and is never silently replaced; delete it to download again.
 
+## Adding a dependency
+
+A new runtime dependency needs the owner's approval first. Pin it to an exact version (no `^` or `~`) in the one
+package's `package.json`, and add it with the package manager against public npm, for example
+`pnpm add --save-exact --filter <package> <name>@<version>`. The lockfile diff must be limited to that package (list any
+transitive dependencies in the pull request). Add the package's license notice to `THIRD_PARTY_NOTICES.md`, and when it is
+bundled into the documentation site, check that `scripts/site/notices.mjs` accepts it (a license text that contains an
+e-mail address needs a curated copy under `scripts/site/curated/`, verbatim apart from that address, because published
+text may not contain one).
+
+**Documented exception: a hand-added lockfile entry.** On a workstation whose npm registry is a mirror rather than public
+npm, `pnpm add` re-resolves the whole lockfile: it rewrites every entry with the mirror's tarball URLs and, where the mirror
+gives none, a weaker integrity value. That lockfile must never be committed. When that is the situation, the dependency is
+locked by hand instead, and only then:
+
+- the entry is the only lockfile change: the importer's dependency line, the package's `packages:` entry and its
+  `snapshots:` entry (plus its own dependencies' entries, if it has any), written in the lockfile's usual form with no
+  `tarball:` field and no URL;
+- its `integrity` is a sha512 value taken from a public source that does not go through the mirror, and the pull request
+  names that source: `npm view <name>@<version> dist.integrity --registry https://registry.npmjs.org` when that registry is
+  reachable, or the lockfile of a project that resolves the exact version from public npm. The tarball is also fetched
+  and its sha512 computed locally (`npm pack <name>@<version> --json` prints it), and the two values must be equal. An
+  integrity value is never made up or copied from the mirror's metadata;
+- CI's public frozen install (`pnpm install --frozen-lockfile --registry=https://registry.npmjs.org/`) is the final check,
+  and the pull request says how the CI log shows that the package was fetched rather than restored from a cache.
+
+Every other dependency change is made with the package manager (or a wrapper around it), never by editing the lockfile.
+
 ## Adding a component
 
 A component branch adds the component's own files, **one line** in `packages/docs/catalog.jsonl` and its changeset.

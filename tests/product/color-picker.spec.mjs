@@ -108,7 +108,8 @@ test('docs page is prerendered with Velcro branding, prototype status, every por
   expect(html).toContain('Not implemented or unverified');
   expect(html).toContain('without changing the shared core prefix');
   expect(html).toContain('was run locally in Chromium and WebKit only, and Firefox is covered only by the project&#39;s CI run');
-  expect(html).toContain('the adapter is an interim implementation of the same rules');
+  expect(html).toContain('Colors are parsed and formatted by <code>@ctrl/tinycolor</code> 4.1.0, the library Shoelace 2.20.1 uses.');
+  expect(html).not.toMatch(/interim|color adapter|system color/i);
   expect(html).toContain('Enter on a swatch applies its color without emitting sl-change or sl-input');
   expect(html).toContain('cycling through all four formats can drift');
   const positions = ORDER.map(([, section]) => html.indexOf(`title="${title(section)}"`));
@@ -453,6 +454,29 @@ test('upstream quirk: an unparsable value is kept as the value while the input s
   await picker(page, el => { el.value = 'not a color'; });
   await settle(page);
   expect(await picker(page, (el, root) => [el.value, root.querySelector('[part="input"]').value])).toEqual(['not a color', '#00ff00']);
+  expect(await events(page)).toEqual([]);
+});
+
+test('color names are read as @ctrl/tinycolor reads them, as in Shoelace: its CSS names apply, and names only the browser knows (system colors, currentcolor) are not parsed', async ({ page }) => {
+  await loadBundle(page, ENTRY);
+  await mount(page, 'label="Select a color" inline value="#00ff00"');
+  await events(page);
+  const read = async name => {
+    await picker(page, (el, root, name) => { el.value = name; }, name);
+    await settle(page);
+    return picker(page, (el, root) => [el.value, root.querySelector('[part="input"]').value]);
+  };
+  // Names TinyColor knows (the CSS color names, in any letter case, and transparent) are rewritten as the picker's hex.
+  for (const [name, hex] of [['rebeccapurple', '#663399'], ['RebeccaPurple', '#663399'], ['tomato', '#ff6347'], ['grey', '#808080'],
+    ['lightgoldenrodyellow', '#fafad2'], ['transparent', '#000000']]) {
+    expect(await read(name), name).toEqual([hex, hex]);
+  }
+  // Names the browser's own parser knows but TinyColor does not are not parsed: the value stays the string that was set and
+  // the input shows the previous value (the upstream behavior for any unparsable value), which is a valid color before each.
+  for (const name of ['canvas', 'canvastext', 'buttonface', 'highlight', 'linktext', 'currentcolor']) {
+    await read('#00ff00');
+    expect(await read(name), name).toEqual([name, '#00ff00']);
+  }
   expect(await events(page)).toEqual([]);
 });
 

@@ -37,6 +37,13 @@ export const CURATED = Object.freeze({
       + 'The standard MIT text is used with the owner\'s explicit approval and credits charm-ux, as the official tagged README '
       + '(upstream commit 288ebbda291edfee09200bafb9bce7d99d823d09, "MIT © charm-ux") does. No year or other holder is asserted.',
   },
+  '@ctrl/tinycolor@4.1.0': {
+    spdx: 'MIT',
+    file: path.join(here, 'curated/ctrl-tinycolor-4.1.0.MIT.txt'),
+    provenance:
+      'The package\'s LICENSE file, verbatim except that the author\'s contact e-mail address, which follows the copyright holder\'s name '
+      + 'on its first line, is omitted: this project does not publish e-mail addresses. The copyright holder, the license and every other word are unchanged.',
+  },
 });
 
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');

@@ -81,6 +81,9 @@ importers:
       '@charm-ux/core':
         specifier: 0.5.2
         version: 0.5.2(@floating-ui/utils@0.2.12)
+      '@ctrl/tinycolor':
+        specifier: 4.1.0
+        version: 4.1.0
       lit:
         specifier: 3.3.3
         version: 3.3.3
@@ -226,6 +229,10 @@ packages:
   '@cloudflare/kv-asset-handler@0.4.2':
     resolution: {integrity: sha512-SIOD2DxrRRwQ+jgzlXCqoEFiKOFqaPjhnNTGKXSRLvp1HiOvapLaFG2kEr9dYQTYe8rKrd9uvDUzmAITeNyaHQ==}
     engines: {node: '>=18.0.0'}
+
+  '@ctrl/tinycolor@4.1.0':
+    resolution: {integrity: sha512-WyOx8cJQ+FQus4Mm4uPIZA64gbk3Wxh0so5Lcii0aJifqwoVOlfFtorjLE0Hen4OYyHZMXDWqMmaQemBhgxFRQ==}
+    engines: {node: '>=14'}
 
   '@custom-elements-manifest/analyzer@0.10.10':
     resolution: {integrity: sha512-R1pbKssP3Psb2OiGfheiUbXtBgTGQ0Vu5cn2CHSdZoJV66oZPSSw/TdCf8WlnQ6dfKSy5L8hNneClnmD80GEwA==}
@@ -4870,6 +4877,8 @@ snapshots:
       - '@floating-ui/utils'
 
   '@cloudflare/kv-asset-handler@0.4.2': {}
+
+  '@ctrl/tinycolor@4.1.0': {}
 
   '@custom-elements-manifest/analyzer@0.10.10':
     dependencies:
