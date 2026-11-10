@@ -524,10 +524,13 @@ test('upstream quirk: the animated image is not focusable or operable from the k
     el.focus();
     return [el.tabIndex, document.activeElement === el, document.activeElement === document.body, el.shadowRoot.activeElement];
   })).toEqual([-1, false, true, null]);
-  // None of the keys changes anything, so each is awaited as a whole press received by the document (support/keys.mjs).
+  // None of the keys changes anything, so each is awaited as a whole press received by the document (support/keys.mjs), and
+  // the state is read after every key, before the next one.
   await recordKeys(page);
-  for (const key of ['Tab', 'Enter', 'Space', 'ArrowRight']) await pressReceived(page, page, key);
-  expect(await page.evaluate(() => [document.querySelector('#a').play, document.activeElement === document.body])).toEqual([undefined, true]);
+  for (const key of ['Tab', 'Enter', 'Space', 'ArrowRight']) {
+    await pressReceived(page, page, key);
+    expect(await page.evaluate(() => [document.querySelector('#a').play, document.activeElement === document.body]), `after ${key}`).toEqual([undefined, true]);
+  }
 });
 
 test('upstream quirk: the hidden attribute does not hide the animated image', async ({ page }) => {
