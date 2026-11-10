@@ -83,6 +83,8 @@
     "./progress-bar/class": { "types": "./dist/components/progress-bar/class.d.ts", "import": "./dist/components/progress-bar/class.js" },
     "./progress-ring": { "types": "./dist/components/progress-ring/index.d.ts", "import": "./dist/components/progress-ring/index.js" },
     "./progress-ring/class": { "types": "./dist/components/progress-ring/class.d.ts", "import": "./dist/components/progress-ring/class.js" },
+    "./qr-code": { "types": "./dist/components/qr-code/index.d.ts", "import": "./dist/components/qr-code/index.js" },
+    "./qr-code/class": { "types": "./dist/components/qr-code/class.d.ts", "import": "./dist/components/qr-code/class.js" },
     "./radio": { "types": "./dist/components/radio/index.d.ts", "import": "./dist/components/radio/index.js" },
     "./radio/class": { "types": "./dist/components/radio/class.d.ts", "import": "./dist/components/radio/class.js" },
     "./radio-button": { "types": "./dist/components/radio-button/index.d.ts", "import": "./dist/components/radio-button/index.js" },
@@ -185,7 +187,8 @@
   },
   "dependencies": {
     "@charm-ux/core": "0.5.2",
-    "lit": "3.3.3"
+    "lit": "3.3.3",
+    "qr-creator": "1.0.0"
   },
   "devDependencies": {
     "@custom-elements-manifest/analyzer": "0.10.10",

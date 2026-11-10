@@ -90,7 +90,8 @@ function checkVelcroPackage(pkg) {
     if (pkg.files?.includes('custom-elements.json')) files.push('custom-elements.json');
     if (pkg.files?.includes('THIRD_PARTY_NOTICES.md')) files.push('THIRD_PARTY_NOTICES.md');
     assert.deepEqual(pkg.files, files);
-    assert.deepEqual(pkg.dependencies, { '@charm-ux/core': '0.5.2', lit: '3.3.3' });
+    // qr-creator draws sl-qr-code, as in Shoelace 2.20.1 (owner-approved runtime dependency, pinned exactly).
+    assert.deepEqual(pkg.dependencies, { '@charm-ux/core': '0.5.2', lit: '3.3.3', 'qr-creator': '1.0.0' });
   } else {
     for (const key of ['main', 'types', 'files']) assert.equal(pkg[key], undefined);
   }
@@ -107,7 +108,7 @@ test('velcro prototype retains identity, privacy, license and publication locks'
 test('prototype exports are supported without weakening publication locks', () => {
   const prototype = { name: '@charm-ux/velcro', version: '0.1.0', private: true, license: 'UNLICENSED',
     main: './dist/index.js', types: './dist/index.d.ts', exports: prototypeExports,
-    files: ['dist', 'themes'], dependencies: { '@charm-ux/core': '0.5.2', lit: '3.3.3' },
+    files: ['dist', 'themes'], dependencies: { '@charm-ux/core': '0.5.2', lit: '3.3.3', 'qr-creator': '1.0.0' },
     scripts: { build: 'tsc -p tsconfig.json' } };
   checkVelcroPackage(prototype);
   checkVelcroPackage({ ...prototype, files: [...prototype.files, 'THIRD_PARTY_NOTICES.md'] });

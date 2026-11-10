@@ -84,6 +84,9 @@ importers:
       lit:
         specifier: 3.3.3
         version: 3.3.3
+      qr-creator:
+        specifier: 1.0.0
+        version: 1.0.0
     devDependencies:
       '@custom-elements-manifest/analyzer':
         specifier: 0.10.10
@@ -3663,6 +3666,9 @@ packages:
   puppeteer-core@23.11.1:
     resolution: {integrity: sha512-3HZ2/7hdDKZvZQ7dhhITOUg4/wOrDRjyK2ZBllRB0ZCOi9u0cwq1ACHDjBB+nX+7+kltHjQvBRdeY7+W0T+7Gg==}
     engines: {node: '>=18'}
+
+  qr-creator@1.0.0:
+    resolution: {integrity: sha512-C0cqfbS1P5hfqN4NhsYsUXePlk9BO+a45bAQ3xLYjBL3bOIFzoVEjs79Fado9u9BPBD3buHi3+vY+C8tHh4qMQ==}
 
   qs@6.17.1:
     resolution: {integrity: sha512-jd3COkaKVgGUW+ZHyEHCG9bH7RoaaiWuMgzsIBjUMVjLAaWGWpoUAVwljVvBHxRu/2qEHnadLGZrkutYUBPQJA==}
@@ -8583,6 +8589,8 @@ snapshots:
       - react-native-b4a
       - supports-color
       - utf-8-validate
+
+  qr-creator@1.0.0: {}
 
   qs@6.17.1:
     dependencies:
