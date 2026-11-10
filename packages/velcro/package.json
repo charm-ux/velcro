@@ -37,6 +37,8 @@
     "./carousel-item/class": { "types": "./dist/components/carousel-item/class.d.ts", "import": "./dist/components/carousel-item/class.js" },
     "./checkbox": { "types": "./dist/components/checkbox/index.d.ts", "import": "./dist/components/checkbox/index.js" },
     "./checkbox/class": { "types": "./dist/components/checkbox/class.d.ts", "import": "./dist/components/checkbox/class.js" },
+    "./color-picker": { "types": "./dist/components/color-picker/index.d.ts", "import": "./dist/components/color-picker/index.js" },
+    "./color-picker/class": { "types": "./dist/components/color-picker/class.d.ts", "import": "./dist/components/color-picker/class.js" },
     "./copy-button": { "types": "./dist/components/copy-button/index.d.ts", "import": "./dist/components/copy-button/index.js" },
     "./copy-button/class": { "types": "./dist/components/copy-button/class.d.ts", "import": "./dist/components/copy-button/class.js" },
     "./details": { "types": "./dist/components/details/index.d.ts", "import": "./dist/components/details/index.js" },

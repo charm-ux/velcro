@@ -10,12 +10,17 @@ import { buildFixtures, gotoBlank } from './support/fixtures.mjs';
 // Needs the built library: `pnpm --filter @charm-ux/velcro run build` (verify:product does this first).
 
 // Registering entries with dependencies: [entry, own tag, own class export, [[dependency tag, class export, class fixture]]].
+const BUTTON = ['sl-button', 'VelcroButton', 'buttonClass'];
+const BUTTON_GROUP = ['sl-button-group', 'VelcroButtonGroup', 'buttonGroupClass'];
 const CHECKBOX = ['sl-checkbox', 'VelcroCheckbox', 'checkboxClass'];
+const DROPDOWN = ['sl-dropdown', 'VelcroDropdown', 'dropdownClass'];
 const ICON = ['sl-icon', 'VelcroIcon', 'iconClass'];
 const ICON_BUTTON = ['sl-icon-button', 'VelcroIconButton', 'iconButtonClass'];
+const INPUT = ['sl-input', 'VelcroInput', 'inputClass'];
 const POPUP = ['sl-popup', 'VelcroPopup', 'popupClass'];
 const SPINNER = ['sl-spinner', 'VelcroSpinner', 'spinnerClass'];
 const TAG = ['sl-tag', 'VelcroTag', 'tagClass'];
+const VISUALLY_HIDDEN = ['sl-visually-hidden', 'VelcroVisuallyHidden', 'visuallyHiddenClass'];
 const ENTRIES = [
   ['alert', 'sl-alert', 'VelcroAlert', [ICON_BUTTON, ICON]],
   ['animated-image', 'sl-animated-image', 'VelcroAnimatedImage', [ICON]],
@@ -23,6 +28,7 @@ const ENTRIES = [
   ['breadcrumb', 'sl-breadcrumb', 'VelcroBreadcrumb', [ICON]],
   ['button', 'sl-button', 'VelcroButton', [['sl-spinner', 'VelcroSpinner', 'spinnerClass']]],
   ['checkbox', 'sl-checkbox', 'VelcroCheckbox', [ICON]],
+  ['color-picker', 'sl-color-picker', 'VelcroColorPicker', [BUTTON_GROUP, BUTTON, DROPDOWN, POPUP, ICON, INPUT, VISUALLY_HIDDEN]],
   ['details', 'sl-details', 'VelcroDetails', [ICON]],
   ['dropdown', 'sl-dropdown', 'VelcroDropdown', [POPUP]],
   ['icon-button', 'sl-icon-button', 'VelcroIconButton', [ICON]],
@@ -48,6 +54,12 @@ const CLASS_ONLY = [
   ['animatedImageClass', 'VelcroAnimatedImage', 'sl-animated-image', [ICON]],
   ['avatarClass', 'VelcroAvatar', 'sl-avatar', [ICON]],
   ['breadcrumbClass', 'VelcroBreadcrumb', 'sl-breadcrumb', [ICON]],
+  // Without its sl-input and sl-icon: as in Shoelace, the color picker's first update reads the inner input's
+  // `updateComplete` and validity, so a foreign-owned sl-input breaks its rendering; and the real sl-input it renders
+  // defines sl-icon on its own construction, so a versioned foreign sl-icon would add that input's warnings to the
+  // exact list the "logs Shoelace's warning for each versioned owner" test expects. Constructing the picker defines both
+  // (color-picker.spec.mjs, "class-only entry").
+  ['colorPickerClass', 'VelcroColorPicker', 'sl-color-picker', [BUTTON_GROUP, BUTTON, DROPDOWN, VISUALLY_HIDDEN]],
   ['detailsClass', 'VelcroDetails', 'sl-details', [ICON]],
   ['dropdownClass', 'VelcroDropdown', 'sl-dropdown', [POPUP]],
   ['imageComparerClass', 'VelcroImageComparer', 'sl-image-comparer', [ICON]],
@@ -68,7 +80,7 @@ let outDir;
 test.beforeAll(async () => {
   const fixtures = {};
   for (const [entry] of ENTRIES) fixtures[camel(entry)] = `export * from '@charm-ux/velcro/${entry}';`;
-  for (const name of [...new Set([...ENTRIES.map(([entry]) => entry), 'button-group', 'icon', 'popup', 'resize-observer', 'spinner'])]) {
+  for (const name of [...new Set([...ENTRIES.map(([entry]) => entry), 'button-group', 'icon', 'popup', 'resize-observer', 'spinner', 'visually-hidden'])]) {
     fixtures[`${camel(name)}Class`] = `export * from '@charm-ux/velcro/${name}/class';`;
   }
   outDir = await buildFixtures(fixtures);
