@@ -15,6 +15,8 @@ shipped with it. This file alone never certifies an artifact: where a built arti
 
 ## Shoelace v2.20.1 (MIT)
 
+- Also used in: `packages/velcro/src/internal/shoelace-compat.ts` (shared reflected-default restoration adapted from
+  `src/internal/shoelace-element.ts`, extracted from the component implementations).
 - Source: the `@shoelace-style/shoelace` 2.20.1 release (https://github.com/shoelace-style/shoelace).
 - Also used in: `docs/api/shoelace-2.20.1.custom-elements.json`, a subset of the Custom Elements Manifest that Shoelace's
   own analyzer configuration (`custom-elements-manifest.config.js`, without its IDE-integration output plugins) generates

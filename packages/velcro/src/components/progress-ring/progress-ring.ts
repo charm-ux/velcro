@@ -5,12 +5,15 @@
 import { html } from 'lit';
 import { property, query, state } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat } from '../../internal/shoelace-compat.js';
 import { LocalizeController } from '../../utilities/localize.js';
 import styles from './progress-ring.styles.js';
 
 /**
  * Progress rings are used to show the progress of a determinate operation in a circular fashion. API modelled on
  * Shoelace's `sl-progress-ring`.
+ *
+ * @property {string} lang
  *
  * @tag sl-progress-ring
  * @status prototype
@@ -27,7 +30,7 @@ import styles from './progress-ring.styles.js';
  * @cssproperty [--indicator-color=var(--sl-color-primary-600)] - The color of the indicator.
  * @cssproperty [--indicator-transition-duration=0.35s] - The duration of the indicator's transition when the value changes.
  */
-export class VelcroProgressRing extends CharmElement {
+export class VelcroProgressRing extends ShoelaceCompat(CharmElement, { lang: true }) {
   public static override baseName = 'progress-ring';
 
   public static override styles = [...super.styles, styles];
@@ -39,10 +42,6 @@ export class VelcroProgressRing extends CharmElement {
   private indicatorOffset?: string;
 
   private readonly localize = new LocalizeController(this);
-
-  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the accessible name. Like Shoelace it has no initial value (undefined).
-  @property()
-  public override lang!: string;
 
   /** The current progress as a percentage, 0 to 100. */
   @property({ type: Number, reflect: true })

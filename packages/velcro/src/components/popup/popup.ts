@@ -11,6 +11,7 @@ import { property, query } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
 import { CorePopup } from '@charm-ux/core/dist/components/popup/popup.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { composedOffsetParent } from '../../internal/composed-offset-parent.js';
 import { LocalizeController } from '../../utilities/localize.js';
 import styles from './popup.styles.js';
@@ -224,6 +225,8 @@ function autoUpdate(reference: Element | VirtualElement, floating: HTMLElement, 
  * `placement` and `reposition()` types cannot be narrowed or widened to Shoelace's in a subclass. Its Floating UI
  * positioning is reused (see "Floating UI through core" in the source).
  *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
+ *
  * @tag sl-popup
  * @status prototype
  *
@@ -250,7 +253,7 @@ function autoUpdate(reference: Element | VirtualElement, floating: HTMLElement, 
  *  popup can be before overflowing. Useful for positioning child elements that need to overflow. This property is only
  *  available when using `auto-size`.
  */
-export class VelcroPopup extends CharmElement {
+export class VelcroPopup extends ShoelaceCompat(CharmElement, { lang: true, dir: true, reflected: true }) {
   public static override baseName = 'popup';
 
   // Core's base styles are replaced by Shoelace's own (see the styles file).
@@ -267,22 +270,16 @@ export class VelcroPopup extends CharmElement {
   @query('.popup__arrow')
   private arrowEl!: HTMLElement;
 
-  private velcroDir?: string;
-
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  /** The element's text direction, as set by the `dir` attribute or property. Not reflected. */
+  /**
+   * The element's text direction, as set by the `dir` attribute or property. Not reflected.
+   */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: 'ltr' | 'rtl' | 'auto') {
-    this.velcroDir = value;
+    super.dir = value;
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   /**
    * The element the popup will be anchored to. If the anchor lives outside of the popup, you can provide the anchor
@@ -449,28 +446,6 @@ export class VelcroPopup extends CharmElement {
   @property({ attribute: 'hover-bridge', type: Boolean })
   public hoverBridge = false;
 
-  // Upstream behavior: the first time any observed attribute changes, the values of all reflected properties that are
-  // not null are recorded, and when one of them later becomes null (its attribute was removed) it is set back to the
-  // recorded value.
-  private hasRecordedInitialProperties = false;
-
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroPopup).elementProperties.forEach((options, prop) => {
-        if (options.reflect) {
-          const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-          if (current != null) {
-            this.initialReflectedProperties.set(prop as string, current);
-          }
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   public override async connectedCallback() {
     super.connectedCallback();
 
@@ -486,12 +461,7 @@ export class VelcroPopup extends CharmElement {
 
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroPopup) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   protected override async updated(changedProps: PropertyValues<this>) {

@@ -11,6 +11,7 @@ import { property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
 import { CoreRadio } from '@charm-ux/core/dist/components/radio/radio.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { useVelcroScope } from '../../internal/scope.js';
 import styles from './radio.styles.js';
 
@@ -27,6 +28,8 @@ type WatchHandler = (oldValue: unknown, newValue: unknown) => void;
  * that becomes disabled, its reactive `autofocus` property (the platform's own is used, as in Shoelace), its `blur` /
  * `focus` events and its `radio-*` parts and `--radio-*` custom properties conflict with Shoelace's radio or do not
  * apply to its structure, so they are not used.
+ *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
  *
  * @tag sl-radio
  * @status prototype
@@ -47,7 +50,7 @@ type WatchHandler = (oldValue: unknown, newValue: unknown) => void;
  * @csspart checked-icon - The checked icon, an `<sl-icon>` element.
  * @csspart label - The container that wraps the radio's label.
  */
-export class VelcroRadio extends CoreRadio {
+export class VelcroRadio extends ShoelaceCompat(CoreRadio, { lang: true, dir: true, reflected: true }) {
   // Only Shoelace's styles (with its shared component styles): core's base and radio styles add rules Shoelace does not
   // have, such as hiding the host for the `hidden` attribute and styling core's `radio-*` structure.
   public static override styles = [styles];
@@ -57,32 +60,17 @@ export class VelcroRadio extends CoreRadio {
     return [];
   }
 
-  private hasRecordedInitialProperties = false;
-
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-
-  private velcroDir?: string;
-
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   // Upstream quirk: `checked` is internal state, not an attribute. A `checked` attribute is ignored and the property is
   // never reflected (core's reflected `checked` attribute is switched off); a radio group, or script, sets it.
@@ -176,34 +164,10 @@ export class VelcroRadio extends CoreRadio {
   // Core's listener setup is not used (see connectedCallback).
   protected override addEventListeners() {}
 
-  // Upstream behavior: the first time any observed attribute changes (including `dir` and `lang`), the values of all
-  // reflected properties that are not null are recorded, and when one of them later becomes null (its attribute was
-  // removed) it is set back to the recorded value.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroRadio).elementProperties.forEach((options, prop) => {
-        // Reflection is checked first, as upstream does, so that a non-reflected property's getter is not read here.
-        if (options.reflect) {
-          const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-          if (current != null) {
-            this.initialReflectedProperties.set(prop as string, current);
-          }
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   // Core's own willUpdate (which unchecks a radio that becomes disabled and rewrites `tabindex` and `aria-*`) is not
   // called: it conflicts with Shoelace's radio.
   protected override willUpdate(changed: PropertyValues<this>) {
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroRadio) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   // Shoelace's `@watch('checked')` (also on the first update) and `@watch('disabled', { waitUntilFirstUpdate: true })`,

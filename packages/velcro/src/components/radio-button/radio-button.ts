@@ -10,6 +10,7 @@ import { property, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { HasSlotController } from '../../internal/slot.js';
 import styles from './radio-button.styles.js';
 
@@ -23,6 +24,8 @@ type WatchHandler = (oldValue: unknown, newValue: unknown) => void;
  *
  * Velcro extension inherited from the core base element and kept: the non-bubbling `ready` event, emitted on the first
  * update.
+ *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
  *
  * @tag sl-radio-button
  * @status prototype
@@ -41,7 +44,7 @@ type WatchHandler = (oldValue: unknown, newValue: unknown) => void;
  * @csspart label - The container that wraps the radio button's label.
  * @csspart suffix - The container that wraps the suffix.
  */
-export class VelcroRadioButton extends CharmElement {
+export class VelcroRadioButton extends ShoelaceCompat(CharmElement, { lang: true, dir: true, reflected: true }) {
   public static override baseName = 'radio-button';
 
   // Core's base styles are replaced by Shoelace's own (see the styles file). Core adds a `:host([hidden]) { display: none
@@ -49,11 +52,6 @@ export class VelcroRadioButton extends CharmElement {
   public static override styles = [styles];
 
   private readonly hasSlotController = new HasSlotController(this, '[default]', 'prefix', 'suffix');
-
-  // Shoelace's base element restores a reflected property's initial value when its attribute is removed.
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-  private hasRecordedInitialProperties = false;
-  private velcroDir?: string;
 
   /** The internal `<button>` element. Typed as Shoelace types it. */
   @query('.button')
@@ -66,26 +64,17 @@ export class VelcroRadioButton extends CharmElement {
   @state()
   protected hasFocus = false;
 
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   /**
    * @internal The radio button's checked state. This is exposed as an "internal" attribute so we can reflect it, making
@@ -118,31 +107,9 @@ export class VelcroRadioButton extends CharmElement {
     this.setAttribute('role', 'presentation');
   }
 
-  // Records the reflected properties' values the first time any observed attribute changes, so that removing a reflected
-  // attribute later restores that value instead of leaving the property null. Same timing and rule as Shoelace's base.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroRadioButton).elementProperties.forEach((options, prop) => {
-        if (options.reflect) {
-          const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-          if (current != null) {
-            this.initialReflectedProperties.set(prop as string, current);
-          }
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroRadioButton) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   protected override update(changed: PropertyValues<this>) {

@@ -9,6 +9,7 @@
 import { html, type PropertyValues } from 'lit';
 import { property, queryAsync } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/index.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { animations } from './animations.js';
 import styles from './animation.styles.js';
 
@@ -35,6 +36,8 @@ const ANIMATION_PROPERTIES = [
  *
  * Velcro extension inherited from the core base element: the non-bubbling `ready` event on first update.
  *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
+ *
  * @tag sl-animation
  * @status prototype
  *
@@ -45,7 +48,7 @@ const ANIMATION_PROPERTIES = [
  * @slot - The element to animate. Avoid slotting in more than one element, as subsequent ones will be ignored. To
  *  animate multiple elements, either wrap them in a single container or use multiple `<sl-animation>` elements.
  */
-export class VelcroAnimation extends CharmElement {
+export class VelcroAnimation extends ShoelaceCompat(CharmElement, { lang: true, dir: true, reflected: true }) {
   public static override baseName = 'animation';
 
   // Core's base styles are replaced by Shoelace's own (see the styles file). The only core rule that can apply to this
@@ -56,36 +59,21 @@ export class VelcroAnimation extends CharmElement {
 
   private hasStarted = false;
 
-  private hasRecordedInitialProperties = false;
-
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-
-  private velcroDir?: string;
-
   /** @internal Resolves to the default slot once the element has rendered (Shoelace's public `defaultSlot`). */
   @queryAsync('slot')
   public defaultSlot!: Promise<HTMLSlotElement>;
 
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   /** The name of the built-in animation to use. For custom animations, use the `keyframes` prop. */
   @property()
@@ -159,26 +147,6 @@ export class VelcroAnimation extends CharmElement {
     }
   }
 
-  // Upstream behavior: the first time any observed attribute changes (including `dir` and `lang`), the values of all
-  // reflected properties that are not null are recorded, and when one of them later becomes null it is set back to the
-  // recorded value. `play` is the only reflected property; removing its attribute makes it `false`, never null, so only
-  // assigning `null` to it is affected.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroAnimation).elementProperties.forEach((options, prop) => {
-        // Reflection is checked first, as upstream does, so that a non-reflected property's getter is not read here.
-        if (options.reflect) {
-          const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-          if (current != null) {
-            this.initialReflectedProperties.set(prop as string, current);
-          }
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   // Upstream quirk: the animation is created here and again when the slot first reports its content, so a playing
   // animation emits `sl-start` twice when it is first connected. A reconnect has no slot change, so it emits it once.
   public override connectedCallback() {
@@ -195,12 +163,7 @@ export class VelcroAnimation extends CharmElement {
 
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroAnimation) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   // Shoelace's three `@watch` handlers, in the order its decorators run them: playback rate, then play, then each

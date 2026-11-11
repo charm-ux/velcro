@@ -506,7 +506,9 @@ test('properties: Shoelace\'s defaults, only shape reflects, and the inherited c
     const attrs = el.getAttributeNames().sort();
     el.dir = 'rtl';
     await el.updateComplete;
-    const own = Object.getOwnPropertyNames(customElements.get('sl-avatar').prototype).filter(n => n !== 'constructor').sort();
+    const proto = customElements.get('sl-avatar').prototype;
+    const own = [...new Set([proto, Object.getPrototypeOf(proto)].flatMap(p => Object.getOwnPropertyNames(p)))]
+      .filter(n => n !== 'constructor').sort();
     el.remove();
     return { defaults, attrs, seen, bubbled, own };
   });

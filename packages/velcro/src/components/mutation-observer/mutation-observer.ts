@@ -8,11 +8,14 @@
 import { html, type PropertyValues } from 'lit';
 import { property } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/index.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import styles from './mutation-observer.styles.js';
 
 /**
  * The Mutation Observer component offers a thin, declarative interface to the MutationObserver API.
  * API modelled on Shoelace's `sl-mutation-observer`. There is no core counterpart, so it extends the core base element.
+ *
+ * @property {string} lang
  *
  * @tag sl-mutation-observer
  * @status prototype
@@ -21,7 +24,7 @@ import styles from './mutation-observer.styles.js';
  *
  * @event {{ mutationList: MutationRecord[] }} sl-mutation - Emitted when a mutation occurs.
  */
-export class VelcroMutationObserver extends CharmElement {
+export class VelcroMutationObserver extends ShoelaceCompat(CharmElement, { lang: true, reflected: true }) {
   public static override baseName = 'mutation-observer';
 
   // Core's base styles are replaced by Shoelace's own (see the styles file). The only core rule that can apply to this
@@ -29,12 +32,6 @@ export class VelcroMutationObserver extends CharmElement {
   public static override styles = [styles];
 
   private mutationObserver!: MutationObserver;
-
-  // Shoelace's base element declares `lang` as a reactive property with no initial value and no reflection, which also
-  // makes `lang` an observed attribute. Without this, `lang` would be the native one, which reflects: assigning it
-  // would change the attribute (and be reported by `attr="lang"`) and reading it would give '' instead of undefined.
-  @property()
-  public override lang!: string;
 
   /**
    * Watches for changes to attributes. To watch only specific attributes, separate them by a space, e.g.
@@ -63,32 +60,6 @@ export class VelcroMutationObserver extends CharmElement {
   @property({ type: Boolean, reflect: true })
   public disabled = false;
 
-  // Upstream behavior: the first time any observed attribute changes (including `dir` and `lang`), the values of all
-  // reflected properties that are not null are recorded, and when one of them later becomes null (its attribute was
-  // removed) it is set back to the recorded value. Upstream quirk: `attr` has no default, so it is only recorded (and
-  // so only restored) if it already held a value at that moment, for example when it was assigned as a property
-  // before any attribute changed.
-  private hasRecordedInitialProperties = false;
-
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroMutationObserver).elementProperties.forEach((options, prop) => {
-        // Reflection is checked first, as upstream does, so that a non-reflected property's getter is not read here
-        // (core's `dir` getter computes the style).
-        if (options.reflect) {
-          const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-          if (current != null) {
-            this.initialReflectedProperties.set(prop as string, current);
-          }
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   public override connectedCallback() {
     super.connectedCallback();
 
@@ -108,12 +79,7 @@ export class VelcroMutationObserver extends CharmElement {
 
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroMutationObserver) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   // Shoelace's `@watch` decorators, in their order: they run before the render (and before reflection).

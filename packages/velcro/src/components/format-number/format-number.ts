@@ -3,16 +3,19 @@
 // See THIRD_PARTY_NOTICES.md. No Shoelace source file or runtime is included.
 import { property } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat } from '../../internal/shoelace-compat.js';
 import { LocalizeController } from '../../utilities/localize.js';
 import styles from './format-number.styles.js';
 
 /**
  * Formats a number using the specified locale and options. API modelled on Shoelace's `sl-format-number`.
  *
+ * @property {string} lang
+ *
  * @tag sl-format-number
  * @status prototype
  */
-export class VelcroFormatNumber extends CharmElement {
+export class VelcroFormatNumber extends ShoelaceCompat(CharmElement, { lang: true }) {
   public static override baseName = 'format-number';
   public static override styles = [...CharmElement.styles, styles];
 
@@ -57,10 +60,6 @@ export class VelcroFormatNumber extends CharmElement {
   /** The maximum number of significant digits to use. Possible values are 1-21. */
   @property({ attribute: 'maximum-significant-digits', type: Number })
   public maximumSignificantDigits?: number;
-
-  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the number. Like Shoelace it has no initial value (undefined).
-  @property()
-  public override lang!: string;
 
   // Documented divergence: Shoelace's base element only restores the initial value of REFLECTED properties, and none of these
   // are reflected there. Here a removed attribute (the property becomes null) restores the default (or unset, for the digit

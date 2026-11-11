@@ -14,6 +14,7 @@ import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-eleme
 import { CharmFocusableElement } from '@charm-ux/core/dist/base/focusable-element/charm-focusable-element.js';
 import { CoreSwitch } from '@charm-ux/core/dist/components/switch/switch.js';
 import { HasSlotController } from '@charm-ux/core/dist/controller/index.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { FormControlController } from '../../internal/form.js';
 import { useVelcroScope } from '../../internal/scope.js';
 import styles from './switch.styles.js';
@@ -27,6 +28,8 @@ import styles from './switch.styles.js';
  * is not rendered). The core `invalid`, `label-position` and `autofocus` properties are accepted but have no effect
  * (use `data-invalid`, as in Shoelace). As with every Velcro form control the host carries core's `focusable`
  * attribute.
+ *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
  *
  * @tag sl-switch
  * @status prototype
@@ -54,7 +57,7 @@ import styles from './switch.styles.js';
  * @cssproperty --height - The height of the switch.
  * @cssproperty --thumb-size - The size of the thumb.
  */
-export class VelcroSwitch extends CoreSwitch {
+export class VelcroSwitch extends ShoelaceCompat(CoreSwitch, { lang: true, dir: true, reflected: true }) {
   // Only Shoelace's styles: core's base element styles would, for example, hide the host for the `hidden` attribute,
   // which Shoelace's switch does not do. The one Velcro rule visually hides the label and help text for `hide-label`.
   public static override styles = [
@@ -100,30 +103,22 @@ export class VelcroSwitch extends CoreSwitch {
   // Focus and blur are handled on the inner checkbox, as in Shoelace, instead of core's host listeners.
   protected override useBlurHandler = false;
   protected override useFocusHandler = false;
-
-  private hasRecordedInitialProperties = false;
-  private readonly initialReflectedProperties = new Map<string, unknown>();
   private velcroValue?: string;
   private velcroDisabled = false;
   private velcroChecked = false;
   private velcroErrorMessage = '';
   private velcroReadonly = false;
-  private velcroDir?: string;
 
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  /** The element's text direction, as set by the `dir` attribute or property. Not reflected. */
+  /**
+   * The element's text direction, as set by the `dir` attribute or property. Not reflected.
+   */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: 'ltr' | 'rtl' | 'auto') {
-    this.velcroDir = value;
+    super.dir = value;
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   @query('input[type="checkbox"]')
   public override input!: HTMLInputElement;
@@ -269,27 +264,12 @@ export class VelcroSwitch extends CoreSwitch {
         this.defaultChecked = checked;
       }
     }
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroSwitch).elementProperties.forEach((options, prop) => {
-        if (!options.reflect) return;
-        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-        if (current != null) {
-          this.initialReflectedProperties.set(prop as string, current);
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
     super.attributeChangedCallback(name, previous, next);
   }
 
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroSwitch) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   protected override update(changed: PropertyValues<this>) {

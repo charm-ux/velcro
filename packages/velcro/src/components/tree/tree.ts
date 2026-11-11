@@ -9,6 +9,7 @@
 import { html, type PropertyValues } from 'lit';
 import { property, query } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat } from '../../internal/shoelace-compat.js';
 import { documentDir } from '../../internal/localize.js';
 import { clamp } from '../../internal/math.js';
 import { LocalizeController } from '../../utilities/localize.js';
@@ -61,6 +62,8 @@ function syncCheckboxes(changedTreeItem: VelcroTreeItem, initialSync = false) {
  * on first update. Shoelace's tree renders no other element and has no dependencies, so registering the tree registers
  * nothing else: `<sl-tree-item>` has its own entry.
  *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
+ *
  * @tag sl-tree
  * @status prototype
  *
@@ -79,13 +82,11 @@ function syncCheckboxes(changedTreeItem: VelcroTreeItem, initialSync = false) {
  * @cssproperty [--indent-guide-style=solid] - The style of the indentation line, e.g. solid, dotted, dashed.
  * @cssproperty [--indent-guide-width=0] - The width of the indentation line.
  */
-export class VelcroTree extends CharmElement {
+export class VelcroTree extends ShoelaceCompat(CharmElement, { lang: true, dir: true }) {
   public static override baseName = 'tree';
 
   // Core's base styles are replaced by Shoelace's own (see the styles file).
   public static override styles = [styles];
-
-  private velcroDir?: string;
 
   // As in Shoelace: the controller re-renders the tree when the document's language or direction changes. The direction
   // itself is resolved by direction(), as Shoelace's controller resolves it.
@@ -103,26 +104,17 @@ export class VelcroTree extends CharmElement {
   @query('slot[name=collapse-icon]')
   public collapsedIconSlot!: HTMLSlotElement;
 
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   /**
    * The selection behavior of the tree. Single selection allows only one node to be selected at a time. Multiple
@@ -173,7 +165,7 @@ export class VelcroTree extends CharmElement {
   // controller reads the host's `dir` attribute instead (core's `dir` getter returns the computed direction), which would
   // miss a direction set only through the property; this component's `dir` returns what was set, by attribute or property.
   private direction() {
-    return `${this.velcroDir || documentDir()}`.toLowerCase();
+    return `${super.dir || documentDir()}`.toLowerCase();
   }
 
   // Generates a clone of the expand icon element to use for each tree item

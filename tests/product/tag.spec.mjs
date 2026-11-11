@@ -530,7 +530,9 @@ test('properties: Shoelace\'s defaults; variant, size and pill reflect and remov
     el.setAttribute('pill', '');
     await el.updateComplete;
     const fromAttributes = [el.variant, el.size, el.pill];
-    const own = Object.getOwnPropertyNames(customElements.get('sl-tag').prototype).filter(n => n !== 'constructor').sort();
+    const proto = customElements.get('sl-tag').prototype;
+    const own = [...new Set([proto, Object.getPrototypeOf(proto)].flatMap(p => Object.getOwnPropertyNames(p)))]
+      .filter(n => n !== 'constructor').sort();
     el.remove();
     return { defaults, initialAttrs, rendered, reflected, restored, pillOff, fromAttributes, seen, bubbled, own };
   });
@@ -544,7 +546,7 @@ test('properties: Shoelace\'s defaults; variant, size and pill reflect and remov
   expect(r.fromAttributes).toEqual(['success', 'small', true]);
   expect(r.seen).toEqual([{ bubbles: false, composed: false }]);
   expect(r.bubbled).toBe(0);
-  // The members of the class's own prototype: Shoelace's, the base element's dir and lang accessors, and the hooks this class overrides.
+  // Component and compatibility-mixin members: ownership can move without changing the element's API.
   expect(r.own).toEqual(['attributeChangedCallback', 'dir', 'handleRemoveClick', 'lang', 'pill', 'removable', 'render', 'size', 'variant', 'willUpdate']);
 });
 

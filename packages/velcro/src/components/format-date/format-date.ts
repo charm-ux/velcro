@@ -5,16 +5,19 @@
 import { html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat } from '../../internal/shoelace-compat.js';
 import { LocalizeController } from '../../utilities/localize.js';
 import styles from './format-date.styles.js';
 
 /**
  * Formats a date/time using the specified locale and options. API modelled on Shoelace's `sl-format-date`.
  *
+ * @property {string} lang
+ *
  * @tag sl-format-date
  * @status prototype
  */
-export class VelcroFormatDate extends CharmElement {
+export class VelcroFormatDate extends ShoelaceCompat(CharmElement, { lang: true }) {
   public static override baseName = 'format-date';
   public static override styles = [...CharmElement.styles, styles];
 
@@ -70,10 +73,6 @@ export class VelcroFormatDate extends CharmElement {
   /** The format for displaying the hour. */
   @property({ attribute: 'hour-format' })
   public hourFormat: 'auto' | '12' | '24' = 'auto';
-
-  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the date. Like Shoelace it has no initial value (undefined).
-  @property()
-  public override lang!: string;
 
   // Documented divergence: Shoelace's base element only restores the initial value of REFLECTED properties, and none of these
   // are reflected there. Here a removed `hour-format` attribute restores 'auto' (upstream it becomes null, which renders

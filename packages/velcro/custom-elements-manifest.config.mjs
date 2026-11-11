@@ -266,6 +266,34 @@ function statusTags() {
   };
 }
 
+/**
+ * The mixin supplies lang's reactive declaration at runtime. Its component-local @property tag keeps the existing
+ * documentation (including intentionally undocumented lang properties); expose the same attribute metadata as Lit.
+ */
+function shoelaceCompatMetadata() {
+  return {
+    name: 'velcro-shoelace-compat',
+    analyzePhase({ ts, node, moduleDoc }) {
+      if (!ts.isClassDeclaration(node) || !node.name) return;
+      const base = node.heritageClauses?.[0]?.types[0]?.expression;
+      if (!base || !ts.isCallExpression(base) || base.expression.getText() !== 'ShoelaceCompat') return;
+      const decl = moduleDoc.declarations?.find(d => d.name === node.name.getText());
+      const lang = decl?.members?.find(m => m.name === 'lang');
+      if (!lang) return;
+      lang.privacy = 'public';
+      lang.attribute = 'lang';
+      decl.attributes ??= [];
+      decl.attributes.push({
+        name: 'lang',
+        type: lang.type,
+        ...(lang.description ? { description: lang.description } : {}),
+        fieldName: 'lang',
+        propName: 'lang',
+      });
+    },
+  };
+}
+
 export default {
   globs: ['src/components/*/*.ts'],
   exclude: ['src/**/*.styles.ts', 'src/**/index.ts', 'src/**/class.ts'],
@@ -274,6 +302,7 @@ export default {
   packagejson: false,
   plugins: [
     statusTags(),
+    shoelaceCompatMetadata(),
     typeParserPlugin({ parseObjectTypes: 'partial', parseParameters: true, hideLogs: true }),
     cemInheritancePlugin({ externalManifests: [coreCEM], hideLogs: true }),
     velcroInheritance(),

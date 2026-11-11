@@ -13,6 +13,7 @@ import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { live } from 'lit/directives/live.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { FormControlController, type VelcroFormControl } from '../../internal/form.js';
 import { documentDir } from '../../internal/localize.js';
 import { HasSlotController } from '../../internal/slot.js';
@@ -27,6 +28,8 @@ import styles from './range.styles.js';
  *
  * Velcro extension inherited from the core base element and kept: the non-bubbling `ready` event, emitted on the first
  * update.
+ *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
  *
  * @tag sl-range
  * @status prototype
@@ -55,7 +58,7 @@ import styles from './range.styles.js';
  * @cssproperty --track-height - The height of the track.
  * @cssproperty --track-active-offset - The point of origin of the active track.
  */
-export class VelcroRange extends CharmElement implements VelcroFormControl {
+export class VelcroRange extends ShoelaceCompat(CharmElement, { lang: true, dir: true, reflected: true }) implements VelcroFormControl {
   public static override baseName = 'range';
 
   // Core's base styles are replaced by Shoelace's own (see the styles file).
@@ -71,14 +74,6 @@ export class VelcroRange extends CharmElement implements VelcroFormControl {
 
   private resizeObserver!: ResizeObserver;
 
-  private velcroDir?: string;
-
-  // Shoelace's base element restores a reflected property's initial value when it becomes null or undefined (see
-  // attributeChangedCallback). `disabled` and `form` are the reflected properties here.
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-
-  private hasRecordedInitialProperties = false;
-
   @query('.range__control')
   public input!: HTMLInputElement;
 
@@ -88,26 +83,17 @@ export class VelcroRange extends CharmElement implements VelcroFormControl {
   @state() private hasFocus = false;
   @state() private hasTooltip = false;
 
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   // Reactive so that it passes through to the inner `<input>` (undocumented in Shoelace's API reference).
   @property()
@@ -216,28 +202,12 @@ export class VelcroRange extends CharmElement implements VelcroFormControl {
         this.defaultValue = converted as number;
       }
     }
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroRange).elementProperties.forEach((options, prop) => {
-        // Reflection is checked first, as upstream does, so that a non-reflected property's getter is not read here.
-        if (!options.reflect) return;
-        const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-        if (current != null) {
-          this.initialReflectedProperties.set(prop as string, current);
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
     super.attributeChangedCallback(name, previous, next);
   }
 
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroRange) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   // Shoelace's `@watch` handlers with `waitUntilFirstUpdate: true` run before render. Each decorator wraps the update
@@ -261,7 +231,7 @@ export class VelcroRange extends CharmElement implements VelcroFormControl {
   // direction set only through the property; this component's `dir` returns what was set, by attribute or property, so
   // it resolves the direction the way Shoelace does.
   private direction() {
-    return `${this.velcroDir || documentDir()}`.toLowerCase();
+    return `${super.dir || documentDir()}`.toLowerCase();
   }
 
   private handleChange() {

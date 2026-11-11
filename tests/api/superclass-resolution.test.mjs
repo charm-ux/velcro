@@ -82,7 +82,7 @@ test('on the current sources every component reports the superclass its source e
     for (const decl of mod.declarations ?? []) {
       if (!decl.tagName) continue;
       const source = readFileSync(path.join(pkgDir, mod.path), 'utf8');
-      const base = source.match(new RegExp(`export class ${decl.name} extends (\\w+)`))?.[1];
+      const base = source.match(new RegExp(`export class ${decl.name} extends (?:ShoelaceCompat\\()?([\\w]+)`))?.[1];
       assert.ok(base, `${decl.tagName}: no "extends" clause found for ${decl.name} in ${mod.path}`);
       const imported = [...source.matchAll(/import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+'([^']+)'/g)]
         .flatMap(([, names, from]) => names.split(',').map(n => n.trim().split(/\s+as\s+/)).filter(([original, alias]) => (alias ?? original) === base).map(() => from))[0];

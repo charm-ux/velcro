@@ -14,6 +14,7 @@ import { property, query } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { CharmElement } from '@charm-ux/core/dist/base/charm-element/charm-element.js';
+import { ShoelaceCompat, restoreReflectedProperties } from '../../internal/shoelace-compat.js';
 import { animateTo, stopAnimations } from '../../internal/animate.js';
 import { blurActiveElement } from '../../internal/close-active-element.js';
 import { waitForEvent } from '../../internal/event.js';
@@ -53,6 +54,8 @@ type CloseWatcherConstructor = new () => CloseWatcherLike;
  * `dialog.overlay.hide`); change them with `setAnimation()` or `setDefaultAnimation()` from
  * `@charm-ux/velcro/utilities/animation-registry`. The body scroll lock adds the `sl-scroll-lock` class to `<html>`;
  * Velcro's themes style it as Shoelace's do.
+ *
+ * @property {string} lang - The element's language, as set by the `lang` attribute or property. Not reflected.
  *
  * @tag sl-dialog
  * @status prototype
@@ -101,7 +104,7 @@ type CloseWatcherConstructor = new () => CloseWatcherLike;
  *   trapping and allow third-party modals spawned from an active Shoelace modal, call `modal.activateExternal()` when
  *   the third-party modal opens. Upon closing, call `modal.deactivateExternal()` to restore Shoelace's focus trapping.
  */
-export class VelcroDialog extends CharmElement {
+export class VelcroDialog extends ShoelaceCompat(CharmElement, { lang: true, dir: true, reflected: true }) {
   public static override baseName = 'dialog';
 
   // Core's base styles are replaced by Shoelace's own (see the styles file).
@@ -122,14 +125,6 @@ export class VelcroDialog extends CharmElement {
     super();
     for (const component of VelcroDialog.shoelaceDependencies) defineVelcroComponent(component);
   }
-
-  // Shoelace's base element restores a reflected property's initial value when its attribute is removed (see
-  // attributeChangedCallback). `open`, `label` and `noHeader` are the reflected properties here.
-  private readonly initialReflectedProperties = new Map<string, unknown>();
-
-  private hasRecordedInitialProperties = false;
-
-  private velcroDir?: string;
 
   private readonly hasSlotController = new HasSlotController(this, 'footer');
 
@@ -155,26 +150,17 @@ export class VelcroDialog extends CharmElement {
   @query('.dialog__overlay')
   public overlay!: HTMLElement;
 
-  // `dir` and `lang` are declared as Shoelace's base element declares them: reactive, not reflected and without an
-  // initial value (undefined). Core's `dir` would return the computed direction instead.
-  // Types: Shoelace declares `dir: string`. The setter accepts any string, as Shoelace's does. The getter must keep
-  // core's declared type, because TypeScript does not let a subclass widen an inherited property's read type; at
-  // runtime it returns whatever was set.
   /**
    * The element's text direction, as set by the `dir` attribute or property and returned as set. Not reflected. Any
    * string can be assigned; the declared read type stays core's `'ltr' | 'rtl' | 'auto'`.
    */
   @property()
   public override get dir(): 'ltr' | 'rtl' | 'auto' {
-    return this.velcroDir as 'ltr' | 'rtl' | 'auto';
+    return super.dir;
   }
   public override set dir(value: string) {
-    this.velcroDir = value;
+    super.dir = value as 'ltr' | 'rtl' | 'auto';
   }
-
-  /** The element's language, as set by the `lang` attribute or property. Not reflected. */
-  @property()
-  public override lang!: string;
 
   /**
    * Indicates whether or not the dialog is open. You can toggle this attribute to show and hide the dialog, or you can
@@ -197,32 +183,9 @@ export class VelcroDialog extends CharmElement {
   @property({ attribute: 'no-header', type: Boolean, reflect: true })
   public noHeader = false;
 
-  // Records the reflected properties' values the first time any attribute changes (during upgrade, before the
-  // attribute values are applied), so that removing a reflected attribute later restores that value instead of
-  // leaving the property null. Same timing and rule as Shoelace's base element.
-  public override attributeChangedCallback(name: string, previous: string | null, next: string | null) {
-    if (!this.hasRecordedInitialProperties) {
-      (this.constructor as typeof VelcroDialog).elementProperties.forEach((options, prop) => {
-        if (options.reflect) {
-          const current = (this as unknown as Record<PropertyKey, unknown>)[prop];
-          if (current != null) {
-            this.initialReflectedProperties.set(prop as string, current);
-          }
-        }
-      });
-      this.hasRecordedInitialProperties = true;
-    }
-    super.attributeChangedCallback(name, previous, next);
-  }
-
   protected override willUpdate(changed: PropertyValues<this>) {
     super.willUpdate(changed);
-    this.initialReflectedProperties.forEach((value, prop) => {
-      const self = this as unknown as Record<string, unknown>;
-      if (changed.has(prop as keyof VelcroDialog) && self[prop] == null) {
-        self[prop] = value;
-      }
-    });
+    restoreReflectedProperties(this, changed);
   }
 
   // Shoelace's `@watch('open', { waitUntilFirstUpdate: true })`: it runs before the render, from the second update on.
@@ -240,7 +203,7 @@ export class VelcroDialog extends CharmElement {
   // controller reads the host's `dir` attribute instead (core's `dir` getter returns the computed direction), which would
   // miss a direction set only through the property; this component's `dir` returns what was set, by attribute or property.
   private direction() {
-    return `${this.velcroDir || documentDir()}`.toLowerCase();
+    return `${super.dir || documentDir()}`.toLowerCase();
   }
 
   public override firstUpdated() {

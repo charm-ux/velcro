@@ -8,11 +8,14 @@ import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { CoreProgressBar } from '@charm-ux/core/dist/components/progress-bar/progress-bar.js';
+import { ShoelaceCompat } from '../../internal/shoelace-compat.js';
 import { LocalizeController } from '../../utilities/localize.js';
 import styles from './progress-bar.styles.js';
 
 /**
  * Progress bars are used to show the status of an ongoing operation. API modelled on Shoelace's `sl-progress-bar`.
+ *
+ * @property {string} lang
  *
  * @tag sl-progress-bar
  * @status prototype
@@ -28,14 +31,10 @@ import styles from './progress-bar.styles.js';
  * @cssproperty [--indicator-color=var(--sl-color-primary-600)] - The color of the indicator.
  * @cssproperty [--label-color=var(--sl-color-neutral-0)] - The color of the label.
  */
-export class VelcroProgressBar extends CoreProgressBar {
+export class VelcroProgressBar extends ShoelaceCompat(CoreProgressBar, { lang: true }) {
   public static override styles = [...super.styles, styles];
 
   private readonly localize = new LocalizeController(this);
-
-  // `lang` is declared reactive, as in Shoelace, so a language change re-renders the accessible name. Like Shoelace it has no initial value (undefined).
-  @property()
-  public override lang!: string;
 
   /** The current progress as a percentage, 0 to 100. */
   @property({ type: Number, reflect: true })
